@@ -1,0 +1,18 @@
+{
+  "name": "frescari-monorepo",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "dependencies": {
+    "drizzle-kit": "0.31.9",
+    "drizzle-orm": "0.45.1"
+  }
+}
