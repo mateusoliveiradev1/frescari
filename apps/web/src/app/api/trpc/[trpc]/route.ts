@@ -1,0 +1,24 @@
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { appRouter, createTRPCContext } from "@frescari/api";
+import { auth } from "@/lib/auth";
+
+const handler = async (req: Request) => {
+    // Attempt to get session using headers from the current request
+    const sessionResponse = await auth.api.getSession({
+        headers: req.headers
+    });
+
+    // Handle context securely mapping Better Auth user
+    const session = sessionResponse?.session || null;
+    const user = sessionResponse?.user || null;
+
+    return fetchRequestHandler({
+        endpoint: "/api/trpc",
+        req,
+        // @ts-expect-error local monorepo trpc generics limit
+        router: appRouter,
+        createContext: () => createTRPCContext({ req, session, user }),
+    });
+};
+
+export { handler as GET, handler as POST };

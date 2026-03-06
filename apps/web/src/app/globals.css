@@ -1,0 +1,114 @@
+/* ── Google Fonts — must be FIRST before @import tailwindcss ── */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap");
+
+@import "tailwindcss";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+:root {
+  /* ── Color tokens ── */
+  --background: #f9f6f0;
+  --foreground: #2a1a0e;
+
+  --forest: #0d3321;
+  --forest-hover: #1a5c33;
+  --forest-light: #e8f0e3;
+
+  --ember: #e84c1e;
+  --ember-hover: #ff6635;
+  --ember-glow: rgba(232, 76, 30, 0.15);
+
+  --cream: #f9f6f0;
+  --cream-dark: #eee9df;
+  --sage: #e8f0e3;
+  --soil: #2a1a0e;
+  --bark: #6b4f3a;
+
+  /* ── Legacy compat ── */
+  --primary: #0d3321;
+  --citrus: #e84c1e;
+
+  --border: 60 8% 85%;
+  --muted: 60 17% 93%;
+  --muted-foreground: 30 15% 42%;
+  --ring: 148 72% 15%;
+
+  /* ── Font vars ── */
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--forest);
+  --color-citrus: var(--ember);
+  --color-ember: var(--ember);
+  --color-forest: var(--forest);
+  --color-cream: var(--cream);
+  --color-sage: var(--sage);
+  --color-soil: var(--soil);
+  --color-bark: var(--bark);
+
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+}
+
+/* ── Last Chance badge keyframe ── */
+@keyframes pulse-ember {
+
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(232, 76, 30, 0);
+  }
+
+  50% {
+    opacity: 0.9;
+    box-shadow: 0 0 0 4px rgba(232, 76, 30, 0.22);
+  }
+}
+
+/* ── Slide up card entry ── */
+@keyframes slide-up-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Base ── */
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+/* ── Input base ── */
+input,
+textarea,
+select {
+  font-family: var(--font-sans);
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
