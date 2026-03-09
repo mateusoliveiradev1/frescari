@@ -3,80 +3,36 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button, Badge } from "@frescari/ui";
-import { Calendar, Store, CircleDollarSign, RotateCw, X } from "lucide-react";
+import { Calendar, Store, CircleDollarSign, RotateCw, X, Loader2 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Toaster, toast } from "sonner";
-
-interface OrderItem {
-    name: string;
-    qty: string;
-    price: number;
-}
-
-interface MockOrder {
-    id: string;
-    date: string;
-    tenantName: string;
-    totalValue: number;
-    status: 'processando' | 'a_caminho' | 'entregue';
-    items: OrderItem[];
-}
-
-const MOCK_ORDERS: MockOrder[] = [
-    {
-        id: "PED-1092",
-        date: "12 Mar 2026",
-        tenantName: "Fazenda São João",
-        totalValue: 145.50,
-        status: "processando",
-        items: [
-            { name: "Tomate Carmem", qty: "5kg", price: 65.50 },
-            { name: "Ovos Caipiras", qty: "2 dúzias", price: 30.00 },
-            { name: "Alface Crespa", qty: "10 unidades", price: 50.00 }
-        ]
-    },
-    {
-        id: "PED-1085",
-        date: "05 Mar 2026",
-        tenantName: "Sítio Orgânico Vale Verde",
-        totalValue: 89.90,
-        status: "a_caminho",
-        items: [
-            { name: "Morango Orgânico", qty: "10 caixas", price: 60.00 },
-            { name: "Melancia", qty: "2kg", price: 29.90 }
-        ]
-    },
-    {
-        id: "PED-1070",
-        date: "28 Fev 2026",
-        tenantName: "Horta da Vila",
-        totalValue: 210.00,
-        status: "entregue",
-        items: [
-            { name: "Batata Doce", qty: "10kg", price: 80.00 },
-            { name: "Couve", qty: "5 maços", price: 25.00 },
-            { name: "Cenoura", qty: "3kg", price: 105.00 }
-        ]
-    }
-];
+import { trpc } from "@/trpc/react";
 
 const statusStyles = {
-    processando: "bg-amber-100 text-amber-800 border-amber-200",
-    a_caminho: "bg-sky-100 text-sky-800 border-sky-200",
-    entregue: "bg-emerald-100 text-emerald-800 border-emerald-200"
+    draft: "bg-gray-100 text-gray-800 border-gray-200",
+    confirmed: "bg-amber-100 text-amber-800 border-amber-200",
+    picking: "bg-blue-100 text-blue-800 border-blue-200",
+    in_transit: "bg-sky-100 text-sky-800 border-sky-200",
+    delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    cancelled: "bg-red-100 text-red-800 border-red-200"
 };
 
 const statusLabels = {
-    processando: "Processando",
-    a_caminho: "A Caminho",
-    entregue: "Entregue"
+    draft: "Rascunho",
+    confirmed: "Confirmado",
+    picking: "Em separação",
+    in_transit: "A Caminho",
+    delivered: "Entregue",
+    cancelled: "Cancelado"
 };
 
 export default function PedidosPage() {
-    const [selectedOrder, setSelectedOrder] = useState<MockOrder | null>(null);
+    const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    const handleViewDetails = (order: MockOrder) => {
+    const { data: dbOrders, isLoading } = trpc.order.listMyOrders.useQuery();
+
+    const handleViewDetails = (order: any) => {
         setSelectedOrder(order);
         setIsDialogOpen(true);
     };
@@ -101,21 +57,26 @@ export default function PedidosPage() {
                 </div>
 
                 {/* ── Orders List ── */}
-                {MOCK_ORDERS.length > 0 ? (
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-bark/60">
+                        <Loader2 className="w-8 h-8 animate-spin mb-4 text-forest" />
+                        <p>Carregando seus pedidos...</p>
+                    </div>
+                ) : dbOrders && dbOrders.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {MOCK_ORDERS.map((order) => (
+                        {dbOrders.map((order) => (
                             <div key={order.id} className="bg-white border border-soil/10 rounded-sm shadow-sm flex flex-col overflow-hidden hover:border-forest/20 transition-all duration-300">
                                 {/* Card Header */}
                                 <div className="p-6 border-b border-soil/5 flex justify-between items-start bg-sage/5">
                                     <div className="space-y-1">
-                                        <h3 className="font-display font-bold text-lg text-soil">{order.id}</h3>
+                                        <h3 className="font-display font-bold text-lg text-soil truncate max-w-[180px]">{order.id}</h3>
                                         <div className="flex items-center text-sm text-bark/80 gap-1.5">
-                                            <Calendar className="w-4 h-4" />
-                                            <span>{order.date}</span>
+                                            <Calendar className="w-4 h-4 shrink-0" />
+                                            <span>{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(order.createdAt))}</span>
                                         </div>
                                     </div>
-                                    <Badge className={statusStyles[order.status]}>
-                                        {statusLabels[order.status]}
+                                    <Badge className={statusStyles[order.status as keyof typeof statusStyles] || statusStyles.draft}>
+                                        {statusLabels[order.status as keyof typeof statusLabels] || order.status}
                                     </Badge>
                                 </div>
 
@@ -124,9 +85,9 @@ export default function PedidosPage() {
                                     <div className="space-y-3">
                                         <div className="flex items-start gap-2 text-soil">
                                             <Store className="w-5 h-5 text-forest mt-0.5 shrink-0" />
-                                            <div>
+                                            <div className="truncate">
                                                 <span className="text-xs font-bold uppercase tracking-wider text-bark/60 block mb-0.5">Produtor</span>
-                                                <span className="font-medium">{order.tenantName}</span>
+                                                <span className="font-medium truncate block" title={order.sellerTenantId}>{order.sellerTenantId}</span>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-2 text-soil">
@@ -134,7 +95,7 @@ export default function PedidosPage() {
                                             <div>
                                                 <span className="text-xs font-bold uppercase tracking-wider text-bark/60 block mb-0.5">Valor Total</span>
                                                 <span className="font-medium">
-                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.totalValue)}
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(order.totalAmount))}
                                                 </span>
                                             </div>
                                         </div>
@@ -143,7 +104,7 @@ export default function PedidosPage() {
                                     <div className="pt-4 border-t border-soil/5">
                                         <span className="text-xs font-bold uppercase tracking-wider text-bark/60 block mb-2">Itens</span>
                                         <p className="text-sm text-soil line-clamp-2 leading-relaxed">
-                                            {order.items.map(item => `${item.qty} de ${item.name}`).join(", ")}
+                                            {order.items.map((item: any) => `${item.qty}${item.saleUnit} de ${item.productName}`).join(", ")}
                                         </p>
                                     </div>
                                 </div>
@@ -193,28 +154,28 @@ export default function PedidosPage() {
                         {selectedOrder && (
                             <>
                                 <div className="flex flex-col space-y-2 text-center sm:text-left">
-                                    <Dialog.Title className="text-2xl font-display font-black text-soil tracking-wide">
-                                        Detalhes do {selectedOrder.id}
+                                    <Dialog.Title className="text-2xl font-display font-black text-soil tracking-wide truncate">
+                                        Detalhes do pedido: <span className="text-lg text-bark/60 break-all">{selectedOrder.id}</span>
                                     </Dialog.Title>
                                     <Dialog.Description className="text-sm font-sans text-bark/80">
-                                        Comprado em <strong className="font-medium text-soil">{selectedOrder.date}</strong> na <strong className="font-medium text-soil">{selectedOrder.tenantName}</strong>
+                                        Comprado em <strong className="font-medium text-soil">{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(selectedOrder.createdAt))}</strong> na <strong className="font-medium text-soil tooltip " title={selectedOrder.sellerTenantId}>{selectedOrder.sellerTenantId.substring(0, 18)}...</strong>
                                     </Dialog.Description>
                                     <div className="pt-2">
-                                        <Badge className={`px-3 py-1 text-xs ${statusStyles[selectedOrder.status]}`}>
-                                            Status: {statusLabels[selectedOrder.status]}
+                                        <Badge className={`px-3 py-1 text-xs ${statusStyles[selectedOrder.status as keyof typeof statusStyles] || statusStyles.draft}`}>
+                                            Status: {statusLabels[selectedOrder.status as keyof typeof statusLabels] || selectedOrder.status}
                                         </Badge>
                                     </div>
                                 </div>
 
                                 <div className="my-2 border-y border-soil/10 divide-y divide-soil/10 max-h-[40vh] overflow-y-auto pr-2">
-                                    {selectedOrder.items.map((item, idx) => (
+                                    {selectedOrder.items.map((item: any, idx: number) => (
                                         <div key={idx} className="flex items-center justify-between py-4">
                                             <div className="flex flex-col">
-                                                <span className="font-medium text-soil">{item.name}</span>
-                                                <span className="text-sm font-sans text-bark/70 tracking-wide">{item.qty}</span>
+                                                <span className="font-medium text-soil">{item.productName}</span>
+                                                <span className="text-sm font-sans text-bark/70 tracking-wide">{item.qty}{item.saleUnit} x R$ {Number(item.unitPrice).toFixed(2)}</span>
                                             </div>
                                             <span className="font-bold font-sans tracking-wide text-forest">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.unitPrice) * item.qty)}
                                             </span>
                                         </div>
                                     ))}
@@ -223,7 +184,7 @@ export default function PedidosPage() {
                                 <div className="flex items-center justify-between font-bold text-soil text-lg pt-2">
                                     <span className="tracking-wide">Total</span>
                                     <span className="text-forest text-2xl">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedOrder.totalValue)}
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(selectedOrder.totalAmount))}
                                     </span>
                                 </div>
 

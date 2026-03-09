@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 import { productLots, products, orders, orderItems } from '@frescari/db';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, desc, asc, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
 export const orderRouter = createTRPCRouter({
@@ -128,6 +128,16 @@ export const orderRouter = createTRPCRouter({
                             }))
                         );
 
+                        // Deduce stock for each item
+                        for (const i of items) {
+                            const currentLot = fetchedLots.find(l => l.lotId === i.lotId)!;
+                            const newQty = (Number(currentLot.availableQty) - i.quantity).toString();
+
+                            await tx.update(productLots)
+                                .set({ availableQty: newQty })
+                                .where(eq(productLots.id, i.lotId));
+                        }
+
                         createdOrders.push(newOrder.id);
                     }
 
@@ -146,5 +156,68 @@ export const orderRouter = createTRPCRouter({
                     cause: error,
                 });
             }
+        }),
+
+    listMyOrders: protectedProcedure
+        .query(async ({ ctx }) => {
+            const { db, user } = ctx;
+
+            if (!user?.tenantId) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'Usuário sem organização vinculada.',
+                });
+            }
+
+            // Fetch orders for this buyer
+            const myOrders = await db.query.orders.findMany({
+                where: eq(orders.buyerTenantId, user.tenantId),
+                with: {
+                    // Use standard drizzle-orm relations for nested models if they are configured correctly, 
+                    // or just raw select if relations are absent. Assuming relations are set up in schema.
+                },
+                orderBy: (orders, { desc }) => [desc(orders.createdAt)],
+            });
+
+            // To ensure safety relative to relations setup, fetching manually using a standard select:
+            const allOrders = await db
+                .select({
+                    id: orders.id,
+                    status: orders.status,
+                    totalAmount: orders.totalAmount,
+                    createdAt: orders.createdAt,
+                    sellerTenantId: orders.sellerTenantId,
+                })
+                .from(orders)
+                .where(eq(orders.buyerTenantId, user.tenantId))
+                .orderBy(sql`${orders.createdAt} DESC`);
+
+            const orderIds = allOrders.map(o => o.id);
+
+            if (orderIds.length === 0) return [];
+
+            const items = await db
+                .select({
+                    orderId: orderItems.orderId,
+                    qty: orderItems.qty,
+                    unitPrice: orderItems.unitPrice,
+                    productName: products.name,
+                    saleUnit: products.saleUnit,
+                    farmName: productLots.tenantId, // we should really fetch tenant name but returning id for now
+                    images: products.images,
+                })
+                .from(orderItems)
+                .innerJoin(products, eq(orderItems.productId, products.id))
+                .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                .where(inArray(orderItems.orderId, orderIds));
+
+            // Group items into their respective orders
+            return allOrders.map(order => ({
+                ...order,
+                items: items.filter(item => item.orderId === order.id).map(item => ({
+                    ...item,
+                    imageUrl: item.images && item.images.length > 0 ? item.images[0] : null,
+                })),
+            }));
         }),
 });
