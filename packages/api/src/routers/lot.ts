@@ -80,43 +80,59 @@ export const lotRouter = createTRPCRouter({
         .input(z.object({ productId: z.string().uuid().optional() }))
         .query(async ({ ctx, input }) => {
             try {
+                const { farms } = ctx.db._.fullSchema;
+
                 const results = await ctx.db.select({
                     lot: productLots,
-                    product: products
+                    product: products,
+                    farmName: farms.name,
                 }).from(productLots)
-                    .leftJoin(products, eq(productLots.productId, products.id));
+                    .leftJoin(products, eq(productLots.productId, products.id))
+                    .leftJoin(farms, eq(products.farmId, farms.id));
 
                 const now = new Date();
                 const twentyFourHours = 24 * 60 * 60 * 1000;
 
-                return results.map((row) => {
-                    const lot = row.lot;
-                    const product = row.product;
-                    const expiryDate = new Date(lot.expiryDate);
-                    const timeToExpiry = expiryDate.getTime() - now.getTime();
+                return results
+                    // Filter out expired or out-of-stock lots
+                    .filter((row) => !row.lot.isExpired && Number(row.lot.availableQty) > 0)
+                    .map((row) => {
+                        const lot = row.lot;
+                        const product = row.product;
+                        const expiryDate = new Date(lot.expiryDate);
+                        const timeToExpiry = expiryDate.getTime() - now.getTime();
 
-                    let priceToUse = lot.priceOverride ? Number(lot.priceOverride) :
-                        (product ? Number(product.pricePerUnit) : 0);
+                        const originalPrice = lot.priceOverride ? Number(lot.priceOverride) :
+                            (product ? Number(product.pricePerUnit) : 0);
 
-                    const isExpiringSoon = timeToExpiry <= twentyFourHours;
-                    const isFreshnessLow = lot.freshnessScore !== null && lot.freshnessScore < 30;
+                        const isExpiringSoon = timeToExpiry <= twentyFourHours;
+                        const isFreshnessLow = lot.freshnessScore !== null && lot.freshnessScore < 30;
 
-                    let isLastChance = false;
-                    let finalPrice = priceToUse;
+                        let isLastChance = false;
+                        let finalPrice = originalPrice;
 
-                    if (isExpiringSoon || isFreshnessLow) {
-                        isLastChance = true;
-                        finalPrice = priceToUse * 0.6; // 40% discount
-                    }
+                        if (isExpiringSoon || isFreshnessLow) {
+                            isLastChance = true;
+                            finalPrice = originalPrice * 0.6; // 40% discount
+                        }
 
-                    return {
-                        ...lot,
-                        product,
-                        productName: product?.name || "Produto Desconhecido",
-                        finalPrice,
-                        isLastChance
-                    };
-                }).sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+                        return {
+                            id: lot.id,
+                            lotCode: lot.lotCode,
+                            harvestDate: lot.harvestDate,
+                            expiryDate: lot.expiryDate,
+                            availableQty: Number(lot.availableQty),
+                            freshnessScore: lot.freshnessScore,
+                            productName: product?.name || "Produto Desconhecido",
+                            saleUnit: product?.saleUnit || "unit",
+                            imageUrl: product?.images?.[0] || null,
+                            farmName: row.farmName || "Produtor Local",
+                            originalPrice,
+                            finalPrice,
+                            isLastChance,
+                        };
+                    })
+                    .sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
             } catch (error: any) {
                 console.error('[DB_CATALOG_ERROR]:', error);
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });

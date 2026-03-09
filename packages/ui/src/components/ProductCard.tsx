@@ -8,15 +8,45 @@ import { Button } from "./Button"
 // Aesthetic: Organic Editorial Luxury
 // ─────────────────────────────────────────────
 
+/** Maps saleUnit enum → human-readable suffix */
+const UNIT_LABELS: Record<string, string> = {
+    kg: "/kg",
+    g: "/g",
+    unit: "/un",
+    box: "/cx",
+    dozen: "/dz",
+    bunch: "/mç",
+}
+
+function formatUnit(saleUnit: string): string {
+    return UNIT_LABELS[saleUnit] ?? "/un"
+}
+
+function formatHarvestDate(dateStr: string): string {
+    try {
+        const d = new Date(dateStr + "T00:00:00")
+        return `Colhido ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`
+    } catch {
+        return ""
+    }
+}
+
 export interface ProductCardProps extends React.HTMLAttributes<HTMLDivElement> {
     lotCode: string
     productName: string
-    /** Price in BRL (number, not string) */
+    /** Discounted or final price in BRL */
     finalPrice: number
-    /** Original price shown as strikethrough on Last Chance items */
+    /** Original price before discount (shown as strikethrough on Last Chance) */
+    originalPrice?: number
+    /** @deprecated — use originalPrice instead */
     priceOverride?: number | null
     availableQty: number
     isLastChance?: boolean
+    /** Enum: kg | g | unit | box | dozen | bunch */
+    saleUnit?: string
+    farmName?: string
+    harvestDate?: string
+    imageUrl?: string | null
     onReserve?: () => void
 }
 
@@ -24,13 +54,20 @@ export function ProductCard({
     lotCode,
     productName,
     finalPrice,
+    originalPrice,
     priceOverride,
     availableQty,
     isLastChance = false,
+    saleUnit = "unit",
+    farmName,
+    harvestDate,
+    imageUrl,
     onReserve,
     className,
     ...props
 }: ProductCardProps) {
+    const displayOriginal = originalPrice ?? (priceOverride != null ? Number(priceOverride) : undefined)
+
     return (
         <article
             className={cn(
@@ -55,12 +92,24 @@ export function ProductCard({
         >
             {/* ── Image area ── */}
             <div className="relative w-full aspect-[4/3] overflow-hidden bg-sage/50">
-                {/* Image placeholder with label */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="font-sans text-xs text-soil/30 italic">
-                        Imagem da colheita
-                    </span>
-                </div>
+                {imageUrl ? (
+                    <img
+                        src={imageUrl}
+                        alt={productName}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                    />
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none" aria-hidden="true" className="opacity-30">
+                            <path
+                                d="M32 8 C32 8 10 20 10 38 C10 52 20 58 32 58 C44 58 54 52 54 38 C54 20 32 8 32 8Z"
+                                fill="#e8f0e3" stroke="#0d3321" strokeWidth="1.5"
+                            />
+                            <path d="M32 58 C32 58 32 32 32 20" stroke="#0d3321" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                    </div>
+                )}
 
                 {/* Last Chance ember wash overlay */}
                 {isLastChance && (
@@ -74,7 +123,7 @@ export function ProductCard({
                             Esgotado
                         </div>
                     ) : isLastChance ? (
-                        <Badge variant="LastChance">Última Chance</Badge>
+                        <Badge variant="LastChance">Última Colheita 🔥</Badge>
                     ) : (
                         <Badge variant="default">
                             <span className="relative flex h-1.5 w-1.5 mr-0.5">
@@ -97,15 +146,29 @@ export function ProductCard({
                                 ? "bg-ember text-white"
                                 : "bg-cream/90 text-bark backdrop-blur-sm border border-soil/10"
                     )}>
-                        {availableQty} un.
+                        {availableQty} {formatUnit(saleUnit).replace("/", "")}
                     </span>
                 </div>
             </div>
 
             {/* ── Body ── */}
-            <div className="flex flex-col flex-1 p-4 gap-3">
+            <div className="flex flex-col flex-1 p-4 gap-2">
+                {/* Farm provenance + harvest date — micro labels */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {farmName && (
+                        <span className="font-sans text-[9px] font-bold uppercase tracking-[0.15em] text-forest/70">
+                            🌱 {farmName}
+                        </span>
+                    )}
+                    {harvestDate && (
+                        <span className="font-sans text-[9px] font-medium uppercase tracking-[0.1em] text-bark/50">
+                            {formatHarvestDate(harvestDate)}
+                        </span>
+                    )}
+                </div>
+
                 {/* Lot code — micro label */}
-                <p className="font-sans text-[9px] font-bold uppercase tracking-[0.15em] text-bark/70">
+                <p className="font-sans text-[9px] font-bold uppercase tracking-[0.15em] text-bark/50">
                     Lote {lotCode}
                 </p>
 
@@ -121,12 +184,12 @@ export function ProductCard({
                 </h3>
 
                 {/* ── Price block ── */}
-                <div className="mt-auto flex items-end justify-between">
+                <div className="mt-auto flex items-end justify-between pt-2">
                     <div className="flex flex-col gap-0.5">
                         {/* Strikethrough original price */}
-                        {isLastChance && priceOverride != null && (
+                        {isLastChance && displayOriginal != null && displayOriginal !== finalPrice && (
                             <span className="font-sans text-xs line-through text-bark/50 leading-none">
-                                {Number(priceOverride).toLocaleString("pt-BR", {
+                                {displayOriginal.toLocaleString("pt-BR", {
                                     style: "currency",
                                     currency: "BRL",
                                 })}
@@ -142,10 +205,17 @@ export function ProductCard({
                                 currency: "BRL",
                             })}
                             <span className="font-sans text-[10px] font-normal text-bark/60 ml-1">
-                                / un
+                                {formatUnit(saleUnit)}
                             </span>
                         </span>
                     </div>
+
+                    {/* Freshness / discount indicator for Last Chance */}
+                    {isLastChance && (
+                        <span className="font-sans text-[9px] font-bold text-ember bg-ember/10 px-2 py-0.5 rounded-sm">
+                            -40%
+                        </span>
+                    )}
                 </div>
             </div>
 

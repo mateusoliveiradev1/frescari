@@ -4,12 +4,29 @@ import { ProductCard, ProductCardSkeleton } from '@frescari/ui';
 import { Suspense } from 'react';
 import { unstable_noStore as noStore } from 'next/cache';
 
+// ── Lot shape returned by the enriched tRPC query ──
+interface CatalogLot {
+    id: string;
+    lotCode: string;
+    harvestDate: string;
+    expiryDate: string;
+    availableQty: number;
+    freshnessScore: number | null;
+    productName: string;
+    saleUnit: string;
+    imageUrl: string | null;
+    farmName: string;
+    originalPrice: number;
+    finalPrice: number;
+    isLastChance: boolean;
+}
+
 // ─────────────────────────────────────────────────────────
 // LotsList — async server component
 // ─────────────────────────────────────────────────────────
 async function LotsList() {
     noStore();
-    let lots: any[] = [];
+    let lots: CatalogLot[] = [];
     try {
         const serverTrpc = await getServerTrpc();
         lots = await serverTrpc.lot.getAvailableLots({});
@@ -69,11 +86,21 @@ async function LotsList() {
     }
 
     // ── Separate Last Chance from regular lots
-    const lastChanceLots = lots.filter((l: any) => l.isLastChance);
-    const regularLots = lots.filter((l: any) => !l.isLastChance);
+    const lastChanceLots = lots.filter((l) => l.isLastChance);
+    const regularLots = lots.filter((l) => !l.isLastChance);
+    const totalCount = lots.length;
 
     return (
         <div className="space-y-16">
+            {/* ── Summary count ── */}
+            <p className="font-sans text-sm text-bark">
+                <span className="font-semibold text-soil">{totalCount}</span>{" "}
+                {totalCount === 1 ? "lote disponível" : "lotes disponíveis"}
+                {lastChanceLots.length > 0 && (
+                    <> · <span className="text-ember font-semibold">{lastChanceLots.length}</span> em última chance</>
+                )}
+            </p>
+
             {/* ── Last Chance section (if any) ── */}
             {lastChanceLots.length > 0 && (
                 <section aria-label="Última Chance" className="space-y-6">
@@ -83,21 +110,25 @@ async function LotsList() {
                         <div className="flex items-center gap-2 px-4 py-1.5 rounded-[3px] bg-ember/10 border border-ember/25">
                             <span className="block h-2 w-2 rounded-full bg-ember animate-[pulse-ember_1.2s_ease-in-out_infinite]" />
                             <span className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-ember">
-                                Última Chance — Não Perca
+                                Última Colheita 🔥 — Não Perca
                             </span>
                         </div>
                         <div className="h-px flex-1 bg-ember/20" />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                        {lastChanceLots.map((lot: any) => (
+                        {lastChanceLots.map((lot) => (
                             <ProductCard
                                 key={lot.id}
                                 lotCode={lot.lotCode}
                                 productName={lot.productName}
                                 finalPrice={lot.finalPrice}
-                                priceOverride={lot.priceOverride}
+                                originalPrice={lot.originalPrice}
                                 availableQty={lot.availableQty}
+                                saleUnit={lot.saleUnit}
+                                farmName={lot.farmName}
+                                harvestDate={lot.harvestDate}
+                                imageUrl={lot.imageUrl}
                                 isLastChance={true}
                                 style={{ animationDelay: "0ms" }}
                             />
@@ -119,14 +150,18 @@ async function LotsList() {
                         </div>
                     )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-24">
-                        {regularLots.map((lot: any) => (
+                        {regularLots.map((lot) => (
                             <ProductCard
                                 key={lot.id}
                                 lotCode={lot.lotCode}
                                 productName={lot.productName}
                                 finalPrice={lot.finalPrice}
-                                priceOverride={lot.priceOverride}
+                                originalPrice={lot.originalPrice}
                                 availableQty={lot.availableQty}
+                                saleUnit={lot.saleUnit}
+                                farmName={lot.farmName}
+                                harvestDate={lot.harvestDate}
+                                imageUrl={lot.imageUrl}
                                 isLastChance={false}
                             />
                         ))}
@@ -176,8 +211,8 @@ export default function CatalogPage() {
                 <Suspense
                     fallback={
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                            {Array.from({ length: 4 }).map((_, i) => (
-                                <ProductCardSkeleton key={i} />
+                            {Array.from({ length: 8 }).map((_, i) => (
+                                <ProductCardSkeleton key={i} isLastChance={i < 2} />
                             ))}
                         </div>
                     }
