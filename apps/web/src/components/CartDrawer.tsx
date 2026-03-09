@@ -25,11 +25,17 @@ export function CartDrawer() {
 
     const router = useRouter();
     const { data: session } = authClient.useSession();
+
+    const [deliveryAddress, setDeliveryAddress] = React.useState('');
+    const [deliveryNotes, setDeliveryNotes] = React.useState('');
+
     // @ts-ignore - bypassing workspace type propagation issues
     const createOrder = trpc.order.createOrder.useMutation({
         onSuccess: () => {
             clearCart();
             setIsOpen(false);
+            setDeliveryAddress('');
+            setDeliveryNotes('');
             router.push('/dashboard/pedidos');
         },
         onError: (err: any) => {
@@ -46,7 +52,14 @@ export function CartDrawer() {
             return;
         }
 
+        if (!deliveryAddress.trim()) {
+            toast.error("Por favor, preencha o endereço de entrega.");
+            return;
+        }
+
         createOrder.mutate({
+            deliveryAddress: deliveryAddress.trim(),
+            deliveryNotes: deliveryNotes.trim() ? deliveryNotes.trim() : undefined,
             items: items.map(item => ({
                 lotId: item.id,
                 quantity: item.cartQty
@@ -146,9 +159,16 @@ export function CartDrawer() {
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
                                                     </div>
-                                                    <p className="text-xs text-bark/80">
-                                                        {item.farmName}
-                                                    </p>
+                                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                        <p className="text-xs text-bark/80">
+                                                            {item.farmName}
+                                                        </p>
+                                                        <span className="inline-flex items-center rounded-md bg-forest/10 px-2 py-0.5 text-[10px] font-medium text-forest ring-1 ring-inset ring-forest/20">
+                                                            {item.pricingType === 'WEIGHT' && 'Quilo'}
+                                                            {item.pricingType === 'UNIT' && 'Unidade'}
+                                                            {item.pricingType === 'BOX' && `Caixa${item.estimatedWeight ? ` ~${item.estimatedWeight}kg` : ''}`}
+                                                        </span>
+                                                    </div>
                                                     {item.isLastChance && (
                                                         <span className="inline-block mt-1 text-[10px] font-bold text-ember uppercase tracking-wider bg-ember/10 px-1.5 py-0.5 rounded-sm">
                                                             Aproveite 🔥
@@ -173,17 +193,40 @@ export function CartDrawer() {
                                                     {/* Qty Controls */}
                                                     <div className="flex items-center bg-white border border-forest/20 rounded-full p-1 shadow-sm">
                                                         <button
-                                                            onClick={() => updateItemQty(item.id, item.cartQty - step)}
+                                                            onClick={() => updateItemQty(item.id, item.pricingType === 'WEIGHT' ? Math.max(0, Number((item.cartQty - 0.5).toFixed(2))) : item.cartQty - 1)}
                                                             className="w-7 h-7 flex items-center justify-center text-bark hover:text-forest hover:bg-forest/10 rounded-full transition-colors select-none"
                                                             aria-label="Decrease quantity"
                                                         >
                                                             <Minus className="w-3.5 h-3.5" />
                                                         </button>
-                                                        <span className="w-10 text-center font-sans text-sm font-semibold select-none">
-                                                            {item.cartQty}
-                                                        </span>
+
+                                                        {item.pricingType === 'WEIGHT' ? (
+                                                            <input
+                                                                type="text"
+                                                                inputMode="decimal"
+                                                                value={item.cartQty}
+                                                                onChange={(e) => {
+                                                                    // Only allow numbers and dots/commas
+                                                                    const val = e.target.value.replace(',', '.');
+                                                                    if (val === '' || val === '.') {
+                                                                        // Temoporary state can be tricky with Zustand numeric typing, 
+                                                                        // but passing 0 is a workaround if we strictly delete.
+                                                                        updateItemQty(item.id, 0);
+                                                                    } else if (!isNaN(Number(val))) {
+                                                                        updateItemQty(item.id, Number(val));
+                                                                    }
+                                                                }}
+                                                                className="w-12 text-center font-sans text-sm font-semibold bg-transparent border-none focus:ring-0 p-0 m-0"
+                                                                style={{ MozAppearance: 'textfield' }}
+                                                            />
+                                                        ) : (
+                                                            <span className="w-10 text-center font-sans text-sm font-semibold select-none">
+                                                                {item.cartQty}
+                                                            </span>
+                                                        )}
+
                                                         <button
-                                                            onClick={() => updateItemQty(item.id, item.cartQty + step)}
+                                                            onClick={() => updateItemQty(item.id, item.pricingType === 'WEIGHT' ? Number((item.cartQty + 0.5).toFixed(2)) : item.cartQty + 1)}
                                                             className="w-7 h-7 flex items-center justify-center text-bark hover:text-forest hover:bg-forest/10 rounded-full transition-colors select-none"
                                                             aria-label="Increase quantity"
                                                             disabled={item.cartQty >= item.availableQty}
@@ -203,6 +246,36 @@ export function CartDrawer() {
                     {/* Footer */}
                     {items.length > 0 && (
                         <div className="border-t border-forest/10 bg-white p-6 pb-8 space-y-4">
+                            {/* Delivery Form */}
+                            <div className="space-y-3 mb-4 p-4 bg-forest/5 rounded-xl border border-forest/10">
+                                <div>
+                                    <label htmlFor="address" className="block text-xs font-semibold text-soil mb-1">
+                                        Endereço Completo de Entrega *
+                                    </label>
+                                    <input
+                                        id="address"
+                                        type="text"
+                                        placeholder="Ex: Rua das Flores, 123, Bairro Centro"
+                                        value={deliveryAddress}
+                                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                                        className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="notes" className="block text-xs font-semibold text-soil mb-1">
+                                        Observações (Opcional)
+                                    </label>
+                                    <input
+                                        id="notes"
+                                        type="text"
+                                        placeholder="Ex: Deixar na portaria"
+                                        value={deliveryNotes}
+                                        onChange={(e) => setDeliveryNotes(e.target.value)}
+                                        className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white"
+                                    />
+                                </div>
+                            </div>
+
                             {savings > 0 && (
                                 <div className="flex items-center justify-between text-sm font-medium text-ember">
                                     <span>Economia em Last Chance</span>
@@ -224,7 +297,7 @@ export function CartDrawer() {
                                 </button>
                                 <button
                                     onClick={handleCheckout}
-                                    disabled={createOrder.isPending || items.length === 0}
+                                    disabled={createOrder.isPending || items.length === 0 || !deliveryAddress.trim()}
                                     className="flex-1 px-4 py-3 rounded-xl bg-forest text-cream font-bold hover:bg-forest/90 transition-colors shadow-md hover:shadow-lg hover:-translate-y-[1px] active:translate-y-0 relative disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     <span className="flex items-center justify-center gap-2">

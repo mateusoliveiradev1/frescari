@@ -8,6 +8,8 @@ export const orderRouter = createTRPCRouter({
     createOrder: protectedProcedure
         .input(
             z.object({
+                deliveryAddress: z.string().min(5, "O endereço é obrigatório e deve ser completo."),
+                deliveryNotes: z.string().optional(),
                 items: z.array(
                     z.object({
                         lotId: z.string().uuid(),
@@ -50,6 +52,7 @@ export const orderRouter = createTRPCRouter({
                             expiryDate: productLots.expiryDate,
                             priceOverride: productLots.priceOverride,
                             pricePerUnit: products.pricePerUnit,
+                            pricingType: productLots.pricingType,
                         })
                         .from(productLots)
                         .innerJoin(products, eq(productLots.productId, products.id))
@@ -71,6 +74,13 @@ export const orderRouter = createTRPCRouter({
                             throw new TRPCError({
                                 code: 'BAD_REQUEST',
                                 message: `Quantidade indisponível para o lote ${reqItem.lotId}`,
+                            });
+                        }
+
+                        if ((lotData.pricingType === 'UNIT' || lotData.pricingType === 'BOX') && !Number.isInteger(reqItem.quantity)) {
+                            throw new TRPCError({
+                                code: 'BAD_REQUEST',
+                                message: `A quantidade para o produto ${lotData.productId} deve ser um número inteiro.`,
                             });
                         }
 
@@ -114,6 +124,8 @@ export const orderRouter = createTRPCRouter({
                             buyerTenantId,
                             sellerTenantId: sellerId,
                             status: 'confirmed',
+                            deliveryAddress: input.deliveryAddress,
+                            deliveryNotes: input.deliveryNotes,
                             totalAmount: orderTotal.toFixed(4),
                         }).returning();
 

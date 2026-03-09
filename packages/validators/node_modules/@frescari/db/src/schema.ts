@@ -34,6 +34,7 @@ export const roleEnum = pgEnum('role', ['producer', 'distributor', 'buyer', 'adm
 export const saleUnitEnum = pgEnum('sale_unit', ['kg', 'g', 'unit', 'box', 'dozen', 'bunch']);
 export const orderStatusEnum = pgEnum('order_status', ['draft', 'confirmed', 'picking', 'in_transit', 'delivered', 'cancelled']);
 export const tenantTypeEnum = pgEnum('tenant_type', ['PRODUCER', 'BUYER']);
+export const pricingTypeEnum = pgEnum('pricing_type', ['UNIT', 'WEIGHT', 'BOX']);
 
 export const tenants = pgTable('tenants', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -117,6 +118,7 @@ export const masterProducts = pgTable('master_products', {
     name: text('name').notNull(),
     category: text('category').notNull(),
     defaultImageUrl: text('default_image_url'),
+    pricingType: pricingTypeEnum('pricing_type').default('UNIT').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -148,6 +150,8 @@ export const productLots = pgTable('product_lots', {
     availableQty: numeric('available_qty', { precision: 12, scale: 3 }).notNull(),
     reservedQty: numeric('reserved_qty', { precision: 12, scale: 3 }).default('0').notNull(),
     priceOverride: numeric('price_override', { precision: 12, scale: 4 }),
+    pricingType: pricingTypeEnum('pricing_type').default('UNIT').notNull(),
+    estimatedWeight: numeric('estimated_weight', { precision: 10, scale: 3 }),
     freshnessScore: integer('freshness_score'), // 0 to 100
     storageLocation: text('storage_location'),
     imageUrl: text('image_url'),
@@ -160,7 +164,8 @@ export const orders = pgTable('orders', {
     buyerTenantId: uuid('buyer_tenant_id').references(() => tenants.id).notNull(),
     sellerTenantId: uuid('seller_tenant_id').references(() => tenants.id).notNull(),
     status: orderStatusEnum('status').default('draft').notNull(),
-    deliveryAddress: text('delivery_address'),
+    deliveryAddress: text('delivery_address').notNull(),
+    deliveryNotes: text('delivery_notes'),
     deliveryPoint: geometry('delivery_point'),
     deliveryWindowStart: timestamp('delivery_window_start', { withTimezone: true }),
     deliveryWindowEnd: timestamp('delivery_window_end', { withTimezone: true }),

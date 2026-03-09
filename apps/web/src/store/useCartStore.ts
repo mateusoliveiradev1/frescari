@@ -16,6 +16,8 @@ export interface CatalogLot {
     originalPrice: number;
     finalPrice: number;
     isLastChance: boolean;
+    pricingType: 'UNIT' | 'WEIGHT' | 'BOX';
+    estimatedWeight: number | null;
 }
 
 export interface CartItem extends CatalogLot {
@@ -54,7 +56,8 @@ export const useCartStore = create<CartStore>()(
                     // For now, let's strictly add what is requested, or increment by default.
 
                     // Determine step based on unit
-                    const step = ['kg', 'g'].includes(lot.saleUnit.toLowerCase()) ? 0.5 : 1;
+                    const isWeightBased = lot.pricingType === 'WEIGHT';
+                    const step = isWeightBased ? 0.5 : 1;
                     const finalQtyToAdd = qty === 1 ? step : qty;
 
                     if (existingItem) {
