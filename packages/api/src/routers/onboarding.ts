@@ -32,20 +32,26 @@ export const onboardingRouter = createTRPCRouter({
                 .replace(/^-|-$/g, '')
                 + '-' + Date.now().toString(36);
 
-            return await db.transaction(async (tx) => {
+            try {
                 // 1. Create the Tenant
-                const [newTenant] = await tx.insert(tenants).values({
+                const [newTenant] = await db.insert(tenants).values({
                     name: input.companyName,
                     slug,
                     type: input.type,
                 }).returning();
 
                 // 2. Update the User with the new tenantId
-                await tx.update(users)
+                await db.update(users)
                     .set({ tenantId: newTenant.id })
                     .where(eq(users.id, user.id));
 
                 return { tenantId: newTenant.id, type: newTenant.type };
-            });
+            } catch (error) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Falha ao configurar a conta. Tente novamente.',
+                    cause: error,
+                });
+            }
         }),
 });
