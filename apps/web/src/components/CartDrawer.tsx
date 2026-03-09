@@ -30,7 +30,7 @@ export function CartDrawer() {
         onSuccess: () => {
             clearCart();
             setIsOpen(false);
-            router.push('/pedidos');
+            router.push('/dashboard/pedidos');
         },
         onError: (err: any) => {
             toast.error(err.message || 'Falha ao iniciar pagamento. Verifique sua conexão e tente novamente.');
