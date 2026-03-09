@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
-import { productLots, products, orders, orderItems } from '@frescari/db';
+import { productLots, products, orders, orderItems, tenants } from '@frescari/db';
 import { eq, inArray, desc, asc, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
@@ -169,16 +169,6 @@ export const orderRouter = createTRPCRouter({
                 });
             }
 
-            // Fetch orders for this buyer
-            const myOrders = await db.query.orders.findMany({
-                where: eq(orders.buyerTenantId, user.tenantId),
-                with: {
-                    // Use standard drizzle-orm relations for nested models if they are configured correctly, 
-                    // or just raw select if relations are absent. Assuming relations are set up in schema.
-                },
-                orderBy: (orders, { desc }) => [desc(orders.createdAt)],
-            });
-
             // To ensure safety relative to relations setup, fetching manually using a standard select:
             const allOrders = await db
                 .select({
@@ -187,8 +177,10 @@ export const orderRouter = createTRPCRouter({
                     totalAmount: orders.totalAmount,
                     createdAt: orders.createdAt,
                     sellerTenantId: orders.sellerTenantId,
+                    sellerName: tenants.name,
                 })
                 .from(orders)
+                .innerJoin(tenants, eq(orders.sellerTenantId, tenants.id))
                 .where(eq(orders.buyerTenantId, user.tenantId))
                 .orderBy(sql`${orders.createdAt} DESC`);
 
@@ -203,12 +195,13 @@ export const orderRouter = createTRPCRouter({
                     unitPrice: orderItems.unitPrice,
                     productName: products.name,
                     saleUnit: products.saleUnit,
-                    farmName: productLots.tenantId, // we should really fetch tenant name but returning id for now
+                    farmName: tenants.name,
                     images: products.images,
                 })
                 .from(orderItems)
                 .innerJoin(products, eq(orderItems.productId, products.id))
                 .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                .innerJoin(tenants, eq(productLots.tenantId, tenants.id))
                 .where(inArray(orderItems.orderId, orderIds));
 
             // Group items into their respective orders
