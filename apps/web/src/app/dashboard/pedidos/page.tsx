@@ -26,13 +26,35 @@ const statusLabels = {
     cancelled: "Cancelado"
 };
 
+// Based on the fields from tRPC
+interface OrderItem {
+    orderId: string;
+    qty: string;
+    unitPrice: string;
+    productName: string;
+    saleUnit: string;
+    farmName: string;
+    imageUrl: string | null;
+}
+
+interface DBOrder {
+    id: string;
+    status: string;
+    totalAmount: string;
+    createdAt: Date | string;
+    sellerTenantId: string;
+    items: OrderItem[];
+}
+
 export default function PedidosPage() {
-    const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+    const [selectedOrder, setSelectedOrder] = useState<DBOrder | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    const { data: dbOrders, isLoading } = trpc.order.listMyOrders.useQuery();
+    // Casting as any because the trpc package hasn't been built yet in the monorepo to expose types to this app
+    const { data: fetchOrders, isLoading } = (trpc.order as any).listMyOrders.useQuery();
+    const dbOrders = fetchOrders as DBOrder[] | undefined;
 
-    const handleViewDetails = (order: any) => {
+    const handleViewDetails = (order: DBOrder) => {
         setSelectedOrder(order);
         setIsDialogOpen(true);
     };
@@ -64,7 +86,7 @@ export default function PedidosPage() {
                     </div>
                 ) : dbOrders && dbOrders.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {dbOrders.map((order) => (
+                        {dbOrders.map((order: DBOrder) => (
                             <div key={order.id} className="bg-white border border-soil/10 rounded-sm shadow-sm flex flex-col overflow-hidden hover:border-forest/20 transition-all duration-300">
                                 {/* Card Header */}
                                 <div className="p-6 border-b border-soil/5 flex justify-between items-start bg-sage/5">
@@ -104,7 +126,7 @@ export default function PedidosPage() {
                                     <div className="pt-4 border-t border-soil/5">
                                         <span className="text-xs font-bold uppercase tracking-wider text-bark/60 block mb-2">Itens</span>
                                         <p className="text-sm text-soil line-clamp-2 leading-relaxed">
-                                            {order.items.map((item: any) => `${item.qty}${item.saleUnit} de ${item.productName}`).join(", ")}
+                                            {order.items.map((item: OrderItem) => `${item.qty}${item.saleUnit} de ${item.productName}`).join(", ")}
                                         </p>
                                     </div>
                                 </div>
@@ -168,14 +190,14 @@ export default function PedidosPage() {
                                 </div>
 
                                 <div className="my-2 border-y border-soil/10 divide-y divide-soil/10 max-h-[40vh] overflow-y-auto pr-2">
-                                    {selectedOrder.items.map((item: any, idx: number) => (
+                                    {selectedOrder.items.map((item: OrderItem, idx: number) => (
                                         <div key={idx} className="flex items-center justify-between py-4">
                                             <div className="flex flex-col">
                                                 <span className="font-medium text-soil">{item.productName}</span>
                                                 <span className="text-sm font-sans text-bark/70 tracking-wide">{item.qty}{item.saleUnit} x R$ {Number(item.unitPrice).toFixed(2)}</span>
                                             </div>
                                             <span className="font-bold font-sans tracking-wide text-forest">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.unitPrice) * item.qty)}
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(item.unitPrice) * Number(item.qty))}
                                             </span>
                                         </div>
                                     ))}
