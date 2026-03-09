@@ -106,7 +106,7 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
                     </div>
 
                     {/* Cart trigger button */}
-                    <CartButton />
+                    {user && <CartButton />}
 
                     {/* Mobile Login / Register (only when logged out) */}
                     {!user && (
@@ -157,7 +157,7 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
             </div>
 
             {/* The cart panel itself */}
-            <CartDrawer />
+            {user && <CartDrawer />}
         </nav>
     );
 }
