@@ -66,10 +66,20 @@ export function InventoryForm() {
             return;
         }
 
+        if (!selectedMasterId) {
+            toast.error("Selecione um produto do Catálogo Mestre.");
+            return;
+        }
+
+        if (!imageUrl) {
+            toast.error("Por favor, adicione uma foto para o lote.");
+            return;
+        }
+
         const lotCode = `LOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
         createLot.mutate({
-            productId: selectedMasterId || productId, // Usar o masterId se existir, fallback pro nome se for criação livre no futuro (ajustar backend depois)
+            productId: selectedMasterId,
             lotCode,
             availableQty: Number(qty),
             harvestDate,
@@ -238,7 +248,7 @@ export function InventoryForm() {
                     type="submit"
                     variant="primary"
                     className="w-full"
-                    disabled={createLot.isPending}
+                    disabled={createLot.isPending || !selectedMasterId || !imageUrl}
                 >
                     {createLot.isPending ? (
                         <span className="flex items-center justify-center gap-2">

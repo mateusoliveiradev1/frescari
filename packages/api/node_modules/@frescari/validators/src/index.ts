@@ -60,7 +60,8 @@ export const createLotInputSchema = insertProductLotSchema.omit({
     createdAt: true,
     isExpired: true,
     reservedQty: true,
-    freshnessScore: true // Calculated backend-side
+    freshnessScore: true, // Calculated backend-side
+    tenantId: true, // Inferred from server session
 });
 
 export const updateLotInventorySchema = z.object({
