@@ -6,6 +6,8 @@ import { X, Plus, Minus, ShoppingCart, Trash2, Loader2 } from 'lucide-react';
 import { useCartStore, useCartTotals, selectCartIsOpen, CartStore, CartItem } from '@/store/useCartStore';
 import { trpc } from '@/trpc/react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { authClient } from '@/lib/auth-client';
 
 const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -22,6 +24,7 @@ export function CartDrawer() {
     const { totalItems, subtotal, originalSubtotal, savings } = useCartTotals();
 
     const router = useRouter();
+    const { data: session } = authClient.useSession();
     // @ts-ignore - bypassing workspace type propagation issues
     const createOrder = trpc.order.createOrder.useMutation({
         onSuccess: () => {
@@ -30,12 +33,19 @@ export function CartDrawer() {
             router.push('/pedidos');
         },
         onError: (err: any) => {
-            alert(err.message || 'Ocorreu um erro ao finalizar o pedido.');
+            toast.error(err.message || 'Falha ao iniciar pagamento. Verifique sua conexão e tente novamente.');
         },
     });
 
     const handleCheckout = () => {
         if (items.length === 0) return;
+
+        // @ts-expect-error tenantId exists in custom schema
+        if (!session?.user?.tenantId) {
+            toast.error("Seu cadastro está incompleto. Empresa não identificada.");
+            return;
+        }
+
         createOrder.mutate({
             items: items.map(item => ({
                 lotId: item.id,
