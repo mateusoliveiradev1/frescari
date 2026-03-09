@@ -77,8 +77,23 @@ export default function PedidosPage() {
     const [selectedOrder, setSelectedOrder] = useState<DBOrder | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+    const [filterStatus, setFilterStatus] = useState<string>("all");
+
+    const utils = trpc.useUtils();
+
     // Casting as any because the trpc package hasn't been built yet in the monorepo to expose types to this app
-    const { data: fetchOrders, isLoading } = (trpc.order as any).listMyOrders.useQuery();
+    const { data: fetchOrders, isLoading } = (trpc.order as any).listMyOrders.useQuery({ status: filterStatus });
+
+    const { mutate: cancelOrder, isPending: isCancelling } = (trpc.order as any).cancelOrder.useMutation({
+        onSuccess: () => {
+            toast.success('Pedido cancelado com sucesso e estoque estornado!');
+            setIsDialogOpen(false);
+            (utils.order as any).listMyOrders.invalidate();
+        },
+        onError: (error: any) => {
+            toast.error(error.message || 'Erro ao cancelar o pedido');
+        }
+    });
 
     // Process orders to include sequential visual IDs
     const dbOrders = (fetchOrders as DBOrder[] | undefined)?.map((order, index, arr) => ({
@@ -115,15 +130,40 @@ export default function PedidosPage() {
         <div className="min-h-[calc(100vh-72px)] bg-background">
             <main className="max-w-6xl mx-auto px-6 lg:px-8 py-12 space-y-10">
                 {/* ── Page Header ── */}
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-forest flex items-center justify-center shadow-sm">
-                        <ShoppingBag className="w-6 h-6 text-cream" />
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-forest flex items-center justify-center shadow-sm">
+                            <ShoppingBag className="w-6 h-6 text-cream" />
+                        </div>
+                        <div>
+                            <h1 className="font-display text-3xl font-black text-forest">Meus Pedidos</h1>
+                            <p className="font-sans text-sm font-medium text-muted-foreground mt-1">
+                                Acompanhe o histórico e o status das suas compras
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="font-display text-3xl font-black text-forest">Meus Pedidos</h1>
-                        <p className="font-sans text-sm font-medium text-muted-foreground mt-1">
-                            Acompanhe o histórico e o status das suas compras
-                        </p>
+
+                    {/* Filter Pills */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                        {[
+                            { id: "all", label: "Todos" },
+                            { id: "confirmed", label: "Processando" },
+                            { id: "picking", label: "Em separação" },
+                            { id: "in_transit", label: "A Caminho" },
+                            { id: "delivered", label: "Entregue" },
+                            { id: "cancelled", label: "Cancelado" },
+                        ].map((filter) => (
+                            <button
+                                key={filter.id}
+                                onClick={() => setFilterStatus(filter.id)}
+                                className={`px-4 py-1.5 rounded-full text-sm font-bold tracking-wide transition-colors whitespace-nowrap border ${filterStatus === filter.id
+                                    ? "bg-forest text-cream border-forest"
+                                    : "bg-white text-muted-foreground border-border hover:bg-sage/20 hover:text-forest hover:border-forest/30"
+                                    }`}
+                            >
+                                {filter.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -279,8 +319,21 @@ export default function PedidosPage() {
                                 </div>
 
                                 {/* Actions (Absolute or over bg) */}
-                                <div className="absolute bottom-8 left-8 right-8 flex gap-3 mt-8">
-                                    {/* Action buttons overlap slightly or sit cleanly. Let's make them sit above the total summary inside the modal but for simplicity we can just position them properly. Actually let's just make a normal flex flow instead of absolute. */}
+                                <div className="absolute bottom-8 left-8 right-8 flex justify-end gap-3 mt-8">
+                                    {selectedOrder.status === 'confirmed' && (
+                                        <Button
+                                            variant="danger"
+                                            className="hover:opacity-90"
+                                            disabled={isCancelling}
+                                            onClick={() => {
+                                                if (confirm('Tem certeza que deseja cancelar este pedido? O estoque será devolvido à fazenda.')) {
+                                                    cancelOrder({ orderId: selectedOrder.id });
+                                                }
+                                            }}
+                                        >
+                                            {isCancelling ? 'Cancelando...' : 'Cancelar Pedido'}
+                                        </Button>
+                                    )}
                                 </div>
                             </>
                         )}

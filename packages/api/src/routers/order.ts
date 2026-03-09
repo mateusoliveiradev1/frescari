@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 import { productLots, products, orders, orderItems, tenants } from '@frescari/db';
-import { eq, inArray, desc, asc, sql } from 'drizzle-orm';
+import { eq, inArray, desc, asc, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
 export const orderRouter = createTRPCRouter({
@@ -159,7 +159,8 @@ export const orderRouter = createTRPCRouter({
         }),
 
     listMyOrders: protectedProcedure
-        .query(async ({ ctx }) => {
+        .input(z.object({ status: z.string().optional() }).optional())
+        .query(async ({ ctx, input }) => {
             const { db, user } = ctx;
 
             if (!user?.tenantId) {
@@ -181,7 +182,12 @@ export const orderRouter = createTRPCRouter({
                 })
                 .from(orders)
                 .innerJoin(tenants, eq(orders.sellerTenantId, tenants.id))
-                .where(eq(orders.buyerTenantId, user.tenantId))
+                .where(
+                    and(
+                        eq(orders.buyerTenantId, user.tenantId),
+                        input?.status && input.status !== 'all' ? eq(orders.status, input.status as "draft" | "confirmed" | "picking" | "in_transit" | "delivered" | "cancelled") : undefined
+                    )
+                )
                 .orderBy(sql`${orders.createdAt} DESC`);
 
             const orderIds = allOrders.map(o => o.id);
@@ -212,5 +218,80 @@ export const orderRouter = createTRPCRouter({
                     imageUrl: item.images && item.images.length > 0 ? item.images[0] : null,
                 })),
             }));
+        }),
+
+    cancelOrder: protectedProcedure
+        .input(
+            z.object({
+                orderId: z.string().uuid(),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const { db, user } = ctx;
+
+            if (!user?.tenantId) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'Usuário sem organização vinculada.',
+                });
+            }
+
+            try {
+                return await db.transaction(async (tx) => {
+                    // Check if order exists, belongs to the buyer, and is in allowed state
+                    const targetOrder = await tx.query.orders.findFirst({
+                        where: and(
+                            eq(orders.id, input.orderId),
+                            eq(orders.buyerTenantId, user.tenantId)
+                        )
+                    });
+
+                    if (!targetOrder) {
+                        throw new TRPCError({
+                            code: 'NOT_FOUND',
+                            message: 'Pedido não encontrado ou você não tem permissão para acessá-lo.',
+                        });
+                    }
+
+                    if (targetOrder.status !== 'confirmed') {
+                        throw new TRPCError({
+                            code: 'BAD_REQUEST',
+                            message: 'Apenas pedidos com status "Processando" podem ser cancelados.',
+                        });
+                    }
+
+                    // Fetch order items to refund stock
+                    const items = await tx.query.orderItems.findMany({
+                        where: eq(orderItems.orderId, targetOrder.id)
+                    });
+
+                    // Update order status to 'cancelled'
+                    await tx.update(orders)
+                        .set({ status: 'cancelled' })
+                        .where(eq(orders.id, targetOrder.id));
+
+                    // Refund stock to product lots
+                    for (const item of items) {
+                        if (!item.lotId) continue;
+
+                        await tx.update(productLots)
+                            .set({
+                                availableQty: sql`${productLots.availableQty} + ${item.qty}::numeric`
+                            })
+                            .where(eq(productLots.id, item.lotId));
+                    }
+
+                    return { success: true };
+                });
+            } catch (error) {
+                console.error("[ERRO_CANCELAR_PEDIDO]: ", error);
+                if (error instanceof TRPCError) {
+                    throw error;
+                }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Ocorreu um erro ao cancelar o pedido.',
+                });
+            }
         }),
 });
