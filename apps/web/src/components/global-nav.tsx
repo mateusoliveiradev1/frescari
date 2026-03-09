@@ -5,6 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@frescari/ui";
 import { authClient } from "@/lib/auth-client";
 import { useState, useRef, useEffect } from "react";
+import { ShoppingCart } from "lucide-react";
+import { useCartStore, useCartTotals, CartStore } from "@/store/useCartStore";
+import { CartDrawer } from "@/components/CartDrawer";
 
 export function GlobalNav({ session: initialSession }: { session: any }) {
     const pathname = usePathname();
@@ -102,6 +105,9 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
                         {navLinks()}
                     </div>
 
+                    {/* Cart trigger button */}
+                    <CartButton />
+
                     {/* Mobile Login / Register (only when logged out) */}
                     {!user && (
                         <div className="flex md:hidden items-center gap-3">
@@ -149,6 +155,37 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
                     )}
                 </div>
             </div>
+
+            {/* The cart panel itself */}
+            <CartDrawer />
         </nav>
+    );
+}
+
+// Client-only cart button to avoid hydration mismatch with local storage counts
+function CartButton() {
+    const toggleCart = useCartStore((state: CartStore) => state.toggleCart);
+    const { totalItems } = useCartTotals();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
+
+    return (
+        <button
+            onClick={toggleCart}
+            className="group relative flex items-center justify-center p-2 text-bark hover:text-forest transition-colors"
+            aria-label="Abrir carrinho"
+        >
+            <ShoppingCart className="w-5 h-5" />
+            {totalItems > 0 && (
+                <span className="absolute top-0 right-0 -mr-1 -mt-1 flex h-4 w-4 items-center justify-center rounded-full bg-ember text-[9px] font-bold text-white shadow-sm ring-2 ring-cream">
+                    {totalItems}
+                </span>
+            )}
+        </button>
     );
 }

@@ -3,23 +3,7 @@ export const dynamic = 'force-dynamic';
 import { ProductCard, ProductCardSkeleton } from '@frescari/ui';
 import { Suspense } from 'react';
 import { unstable_noStore as noStore } from 'next/cache';
-
-// ── Lot shape returned by the enriched tRPC query ──
-interface CatalogLot {
-    id: string;
-    lotCode: string;
-    harvestDate: string;
-    expiryDate: string;
-    availableQty: number;
-    freshnessScore: number | null;
-    productName: string;
-    saleUnit: string;
-    imageUrl: string | null;
-    farmName: string;
-    originalPrice: number;
-    finalPrice: number;
-    isLastChance: boolean;
-}
+import { CatalogLot } from '@/store/useCartStore';
 
 // ─────────────────────────────────────────────────────────
 // LotsList — async server component
@@ -118,20 +102,7 @@ async function LotsList() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                         {lastChanceLots.map((lot) => (
-                            <ProductCard
-                                key={lot.id}
-                                lotCode={lot.lotCode}
-                                productName={lot.productName}
-                                finalPrice={lot.finalPrice}
-                                originalPrice={lot.originalPrice}
-                                availableQty={lot.availableQty}
-                                saleUnit={lot.saleUnit}
-                                farmName={lot.farmName}
-                                harvestDate={lot.harvestDate}
-                                imageUrl={lot.imageUrl}
-                                isLastChance={true}
-                                style={{ animationDelay: "0ms" }}
-                            />
+                            <ProductCardWrapper key={lot.id} lot={lot} isLastChance={true} delay="0ms" />
                         ))}
                     </div>
                 </section>
@@ -151,25 +122,38 @@ async function LotsList() {
                     )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-24">
                         {regularLots.map((lot) => (
-                            <ProductCard
-                                key={lot.id}
-                                lotCode={lot.lotCode}
-                                productName={lot.productName}
-                                finalPrice={lot.finalPrice}
-                                originalPrice={lot.originalPrice}
-                                availableQty={lot.availableQty}
-                                saleUnit={lot.saleUnit}
-                                farmName={lot.farmName}
-                                harvestDate={lot.harvestDate}
-                                imageUrl={lot.imageUrl}
-                                isLastChance={false}
-                            />
+                            <ProductCardWrapper key={lot.id} lot={lot} isLastChance={false} />
                         ))}
                     </div>
                 </section>
             )}
         </div>
     );
+}
+
+// Client wrapper to connect Zustand action to the server component list
+"use client";
+import { useCartStore as _useCartStore, CartStore } from '@/store/useCartStore';
+
+function ProductCardWrapper({ lot, isLastChance, delay }: { lot: CatalogLot; isLastChance: boolean, delay?: string }) {
+    const addItem = _useCartStore((state: CartStore) => state.addItem);
+
+    return (
+        <ProductCard
+            lotCode={lot.lotCode}
+            productName={lot.productName}
+            finalPrice={lot.finalPrice}
+            originalPrice={lot.originalPrice}
+            availableQty={lot.availableQty}
+            saleUnit={lot.saleUnit}
+            farmName={lot.farmName}
+            harvestDate={lot.harvestDate}
+            imageUrl={lot.imageUrl}
+            isLastChance={isLastChance}
+            style={delay ? { animationDelay: delay } : undefined}
+            onReserve={() => addItem(lot)}
+        />
+    )
 }
 
 // ─────────────────────────────────────────────────────────
