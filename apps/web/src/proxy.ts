@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
  * Redirects authenticated users with no tenantId to /onboarding.
  * Uses Better Auth session cookie to read user data server-side.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Skip middleware for these paths
