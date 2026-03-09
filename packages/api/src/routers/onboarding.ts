@@ -47,6 +47,7 @@ export const onboardingRouter = createTRPCRouter({
 
                 return { tenantId: newTenant.id, type: newTenant.type };
             } catch (error) {
+                console.error("[ERRO_DB_ONBOARDING_DETALHADO]: ", error);
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Falha ao configurar a conta. Tente novamente.',
