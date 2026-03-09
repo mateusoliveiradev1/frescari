@@ -18,8 +18,14 @@ export function InventoryForm() {
     const [imageUrl, setImageUrl] = useState<string | null>(null);
 
     // Queries & Mutations
-    // @ts-expect-error - Bypassing tRPC workspace type issues
-    const { data: products, isLoading: loadingProducts } = trpc.product.getProducts.useQuery();
+    // @ts-expect-error local monorepo limits
+    const { data: masterProducts, isLoading: loadingMaster } = trpc.product.searchMasterProducts.useQuery(
+        { query: productId },
+        { enabled: productId.length > 1 }
+    );
+    const [isComboboxOpen, setIsComboboxOpen] = useState(false);
+    const [selectedMasterId, setSelectedMasterId] = useState("");
+
 
     const utils = trpc.useUtils();
 
@@ -33,6 +39,7 @@ export function InventoryForm() {
             setQty("");
             setProductId("");
             setImageUrl(null);
+            setSelectedMasterId("");
 
             // CRITICAL: Invalidate dashboard queries so metrics update instantly
             // @ts-expect-error local monorepo trpc generics limit
@@ -62,7 +69,7 @@ export function InventoryForm() {
         const lotCode = `LOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
         createLot.mutate({
-            productId,
+            productId: selectedMasterId || productId, // Usar o masterId se existir, fallback pro nome se for criação livre no futuro (ajustar backend depois)
             lotCode,
             availableQty: Number(qty),
             harvestDate,
@@ -97,7 +104,7 @@ export function InventoryForm() {
                                 </svg>
                             </button>
                             <div className="absolute bottom-2 left-2 px-2 py-1 bg-forest/90 text-cream text-[10px] font-bold uppercase tracking-wider rounded-sm">
-                                ✓ Foto carregada
+                                ✓ Foto de Catálogo ou Carregada
                             </div>
                         </div>
                     ) : (
@@ -121,33 +128,64 @@ export function InventoryForm() {
                     )}
                 </div>
 
-                {/* ── Product Select ── */}
-                <div className="space-y-1.5">
+                {/* ── Product Combobox ── */}
+                <div className="space-y-1.5 relative">
                     <label htmlFor="product" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
-                        Produto
+                        Produto (Catálogo Mestre)
                     </label>
-                    <select
+                    <input
+                        type="text"
                         id="product"
                         value={productId}
-                        onChange={(e) => setProductId(e.target.value)}
+                        onChange={(e) => {
+                            setProductId(e.target.value);
+                            setIsComboboxOpen(true);
+                            if (selectedMasterId) setSelectedMasterId("");
+                        }}
+                        onFocus={() => setIsComboboxOpen(true)}
+                        onBlur={() => setTimeout(() => setIsComboboxOpen(false), 200)} // Delay for click
+                        placeholder="Busque por Tomate, Banana, Cebola..."
                         className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                        disabled={loadingProducts || createLot.isPending}
+                        disabled={createLot.isPending}
                         required
-                    >
-                        <option value="" disabled>Selecione um produto</option>
-                        {products?.map((p: { id: string; name: string; saleUnit: string }) => (
-                            <option key={p.id} value={p.id}>
-                                {p.name} ({p.saleUnit})
-                            </option>
-                        ))}
-                    </select>
-                    {loadingProducts && <p className="text-xs text-bark/60 mt-1">Carregando produtos...</p>}
+                        autoComplete="off"
+                    />
+
+                    {isComboboxOpen && (masterProducts?.length || loadingMaster) ? (
+                        <div className="absolute z-10 w-full mt-1 bg-cream border border-soil/15 rounded-sm shadow-card max-h-60 overflow-y-auto">
+                            {loadingMaster ? (
+                                <div className="p-3 text-xs text-bark/60">Buscando no catálogo...</div>
+                            ) : masterProducts?.length ? (
+                                <ul>
+                                    {masterProducts.map((p: any) => (
+                                        <li
+                                            key={p.id}
+                                            onClick={() => {
+                                                setProductId(p.name);
+                                                setSelectedMasterId(p.id);
+                                                if (p.defaultImageUrl && !imageUrl) {
+                                                    setImageUrl(p.defaultImageUrl);
+                                                }
+                                                setIsComboboxOpen(false);
+                                            }}
+                                            className="px-4 py-2 hover:bg-sage/40 cursor-pointer font-sans text-sm flex items-center justify-between"
+                                        >
+                                            <span className="font-bold text-soil">{p.name}</span>
+                                            <span className="text-xs text-bark/60 bg-soil/5 px-2 py-0.5 rounded-full">{p.category}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="p-3 text-xs text-bark/60">Nenhum produto encontrado no catálogo mestre.</div>
+                            )}
+                        </div>
+                    ) : null}
                 </div>
 
                 {/* ── Quantity ── */}
                 <div className="space-y-1.5">
                     <label htmlFor="qty" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
-                        Quantidade Disponível
+                        Quantidade Disponível (kg/unidade)
                     </label>
                     <input
                         id="qty"

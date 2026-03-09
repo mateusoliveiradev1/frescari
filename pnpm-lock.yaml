@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      drizzle-kit:
-        specifier: 0.31.9
-        version: 0.31.9
       drizzle-orm:
         specifier: 0.45.1
         version: 0.45.1(@neondatabase/serverless@1.0.2)(@types/pg@8.18.0)(kysely@0.28.11)(postgres@3.4.8)
@@ -18,6 +15,9 @@ importers:
       '@types/node':
         specifier: ^25.3.3
         version: 25.3.3
+      drizzle-kit:
+        specifier: 0.31.9
+        version: 0.31.9
       turbo:
         specifier: ^2.8.14
         version: 2.8.14

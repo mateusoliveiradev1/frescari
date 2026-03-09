@@ -112,11 +112,20 @@ export const productCategories = pgTable('product_categories', {
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const masterProducts = pgTable('master_products', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    category: text('category').notNull(),
+    defaultImageUrl: text('default_image_url'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const products = pgTable('products', {
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
     farmId: uuid('farm_id').references(() => farms.id).notNull(),
     categoryId: uuid('category_id').references(() => productCategories.id).notNull(),
+    masterProductId: uuid('master_product_id').references(() => masterProducts.id),
     sku: text('sku'),
     name: text('name').notNull(),
     saleUnit: saleUnitEnum('sale_unit').notNull(),

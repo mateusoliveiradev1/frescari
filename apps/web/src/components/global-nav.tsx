@@ -70,6 +70,9 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
                     <Link href="/dashboard/inventario" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${pathname.startsWith('/dashboard/inventario') ? 'text-forest' : 'text-bark hover:text-forest'}`}>
                         Meu Inventário
                     </Link>
+                    <Link href="/dashboard/vendas" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors flex items-center gap-1.5 ${pathname.startsWith('/dashboard/vendas') ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                        Meus Pedidos
+                    </Link>
                     <Link href="/catalogo" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${pathname.startsWith('/catalogo') ? 'text-forest' : 'text-bark hover:text-forest'}`}>
                         Catálogo
                     </Link>
