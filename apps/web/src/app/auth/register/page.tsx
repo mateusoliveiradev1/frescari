@@ -225,7 +225,7 @@ export default function RegisterPage() {
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Fazenda São João"
+                            placeholder={role === "producer" ? "Ex: Fazenda São João" : "Ex: Restaurante Sabor de Minas"}
                             required
                             autoComplete="name"
                             disabled={loading}
