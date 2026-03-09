@@ -30,8 +30,8 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
 
     const handleSignOut = async () => {
         await authClient.signOut();
-        router.push("/");
-        router.refresh(); // Refresh to trigger a re-fetch of the session on the server
+        useCartStore.getState().clearCart();
+        window.location.href = '/';
     };
 
     const navLinks = () => {
