@@ -311,29 +311,26 @@ export default function PedidosPage() {
                                 </div>
 
                                 {/* Total Summary */}
-                                <div className="flex items-center justify-between pt-6 border-t border-border/80 mt-2 bg-sage/10 -mx-8 px-8 pb-8 -mb-8 rounded-b-xl">
-                                    <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Valor Total</span>
+                                <div className="flex items-center justify-between pt-6 border-t border-border/80 mt-4 bg-sage/10 -mx-8 px-8 pb-8 -mb-8 rounded-b-xl">
+                                    <div className="flex flex-col gap-1.5 items-start">
+                                        <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Valor Total</span>
+                                        {selectedOrder.status === 'confirmed' && (
+                                            <button
+                                                className="text-[10px] font-bold uppercase tracking-widest text-red-500/80 hover:text-red-600 transition-colors"
+                                                disabled={isCancelling}
+                                                onClick={() => {
+                                                    if (confirm('Tem certeza que deseja cancelar este pedido? O estoque será devolvido à fazenda.')) {
+                                                        cancelOrder({ orderId: selectedOrder.id });
+                                                    }
+                                                }}
+                                            >
+                                                {isCancelling ? 'Cancelando...' : 'Cancelar Pedido'}
+                                            </button>
+                                        )}
+                                    </div>
                                     <span className="text-3xl font-display font-black text-forest">
                                         {formatCurrency(selectedOrder.totalAmount)}
                                     </span>
-                                </div>
-
-                                {/* Actions (Absolute or over bg) */}
-                                <div className="absolute bottom-8 left-8 right-8 flex justify-end gap-3 mt-8">
-                                    {selectedOrder.status === 'confirmed' && (
-                                        <Button
-                                            variant="danger"
-                                            className="hover:opacity-90"
-                                            disabled={isCancelling}
-                                            onClick={() => {
-                                                if (confirm('Tem certeza que deseja cancelar este pedido? O estoque será devolvido à fazenda.')) {
-                                                    cancelOrder({ orderId: selectedOrder.id });
-                                                }
-                                            }}
-                                        >
-                                            {isCancelling ? 'Cancelando...' : 'Cancelar Pedido'}
-                                        </Button>
-                                    )}
                                 </div>
                             </>
                         )}
