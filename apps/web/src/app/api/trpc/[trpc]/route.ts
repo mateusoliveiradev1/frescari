@@ -18,6 +18,9 @@ const handler = async (req: Request) => {
         // @ts-expect-error local monorepo trpc generics limit
         router: appRouter,
         createContext: () => createTRPCContext({ req, session, user }),
+        onError: ({ error }) => {
+            console.error("[TRPC_GLOBAL_ERROR]: ", error.message, error.cause ?? "Sem causa raiz");
+        },
     });
 };
 

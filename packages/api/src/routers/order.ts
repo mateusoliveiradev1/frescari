@@ -17,6 +17,7 @@ export const orderRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
+            console.log("[MUTATION_START]: Payload recebido", input);
             const { db, session } = ctx;
 
             if (!session.user.tenantId) {
