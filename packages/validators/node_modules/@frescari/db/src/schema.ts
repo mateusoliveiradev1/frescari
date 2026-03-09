@@ -33,11 +33,13 @@ export const planEnum = pgEnum('plan', ['free', 'pro', 'enterprise']);
 export const roleEnum = pgEnum('role', ['producer', 'distributor', 'buyer', 'admin']);
 export const saleUnitEnum = pgEnum('sale_unit', ['kg', 'g', 'unit', 'box', 'dozen', 'bunch']);
 export const orderStatusEnum = pgEnum('order_status', ['draft', 'confirmed', 'picking', 'in_transit', 'delivered', 'cancelled']);
+export const tenantTypeEnum = pgEnum('tenant_type', ['PRODUCER', 'BUYER']);
 
 export const tenants = pgTable('tenants', {
     id: uuid('id').primaryKey().defaultRandom(),
     slug: text('slug').unique().notNull(),
     name: text('name').notNull(),
+    type: tenantTypeEnum('type'),
     plan: planEnum('plan').notNull().default('free'),
     geoRegion: geometry('geo_region'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
