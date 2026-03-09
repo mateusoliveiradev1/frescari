@@ -2,8 +2,10 @@
 
 import * as React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Plus, Minus, ShoppingCart, Trash2 } from 'lucide-react';
+import { X, Plus, Minus, ShoppingCart, Trash2, Loader2 } from 'lucide-react';
 import { useCartStore, useCartTotals, selectCartIsOpen, CartStore, CartItem } from '@/store/useCartStore';
+import { trpc } from '@/trpc/react';
+import { useRouter } from 'next/navigation';
 
 const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -18,6 +20,29 @@ export function CartDrawer() {
 
     // Calculate totals directly from the hook
     const { totalItems, subtotal, originalSubtotal, savings } = useCartTotals();
+
+    const router = useRouter();
+    // @ts-ignore - bypassing workspace type propagation issues
+    const createOrder = trpc.order.createOrder.useMutation({
+        onSuccess: () => {
+            clearCart();
+            setIsOpen(false);
+            router.push('/pedidos');
+        },
+        onError: (err: any) => {
+            alert(err.message || 'Ocorreu um erro ao finalizar o pedido.');
+        },
+    });
+
+    const handleCheckout = () => {
+        if (items.length === 0) return;
+        createOrder.mutate({
+            items: items.map(item => ({
+                lotId: item.id,
+                quantity: item.cartQty
+            }))
+        });
+    };
 
     // Prevent hydration mismatch for zustand persist (optional, but good practice)
     const [isMounted, setIsMounted] = React.useState(false);
@@ -182,13 +207,18 @@ export function CartDrawer() {
                             <div className="flex gap-3">
                                 <button
                                     onClick={clearCart}
-                                    className="px-4 py-3 rounded-xl border border-forest/20 font-semibold text-bark hover:bg-forest/5 transition-colors"
+                                    disabled={createOrder.isPending}
+                                    className="px-4 py-3 rounded-xl border border-forest/20 font-semibold text-bark hover:bg-forest/5 transition-colors disabled:opacity-50"
                                 >
                                     Limpar
                                 </button>
-                                <button className="flex-1 px-4 py-3 rounded-xl bg-forest text-cream font-bold hover:bg-forest/90 transition-colors shadow-md hover:shadow-lg hover:-translate-y-[1px] active:translate-y-0 relative">
+                                <button
+                                    onClick={handleCheckout}
+                                    disabled={createOrder.isPending || items.length === 0}
+                                    className="flex-1 px-4 py-3 rounded-xl bg-forest text-cream font-bold hover:bg-forest/90 transition-colors shadow-md hover:shadow-lg hover:-translate-y-[1px] active:translate-y-0 relative disabled:opacity-50 disabled:pointer-events-none"
+                                >
                                     <span className="flex items-center justify-center gap-2">
-                                        Finalizar Pedido
+                                        {createOrder.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Finalizar Pedido"}
                                     </span>
                                 </button>
                             </div>
