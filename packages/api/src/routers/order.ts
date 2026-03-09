@@ -18,16 +18,16 @@ export const orderRouter = createTRPCRouter({
         )
         .mutation(async ({ ctx, input }) => {
             console.log("[MUTATION_START]: Payload recebido", input);
-            const { db, session } = ctx;
+            const { db, session, user } = ctx;
 
-            if (!session.user.tenantId) {
+            if (!session || !user?.tenantId) {
                 throw new TRPCError({
                     code: 'FORBIDDEN',
                     message: 'Comprador não possui uma organização vinculada (tenantId ausente).',
                 });
             }
 
-            const buyerTenantId = session.user.tenantId;
+            const buyerTenantId = user.tenantId;
             const lotIds = input.items.map((i) => i.lotId);
 
             if (lotIds.length === 0) {
