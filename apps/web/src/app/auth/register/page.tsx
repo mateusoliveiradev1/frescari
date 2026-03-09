@@ -220,7 +220,7 @@ export default function RegisterPage() {
 
                     <form onSubmit={handleRegister} className="space-y-5" noValidate>
                         <Field
-                            label="Nome ou Razão Social"
+                            label={role === "producer" ? "Nome da Fazenda / Razão Social" : "Nome do Restaurante / Sacolão"}
                             id="name"
                             type="text"
                             value={name}
