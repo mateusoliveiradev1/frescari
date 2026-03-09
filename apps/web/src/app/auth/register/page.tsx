@@ -79,12 +79,6 @@ function SuccessAlert({ message }: { message: string }) {
     );
 }
 
-type Role = "buyer" | "producer";
-
-const roles: { value: Role; label: string; sub: string }[] = [
-    { value: "buyer", label: "Comprador", sub: "Quero comprar insumos" },
-    { value: "producer", label: "Produtor", sub: "Quero vender minha safra" },
-];
 
 // ────────────────────────────────────────────
 // Loading spinner
@@ -111,7 +105,6 @@ export default function RegisterPage() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [role, setRole] = useState<Role>("buyer");
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
@@ -129,14 +122,14 @@ export default function RegisterPage() {
                     email,
                     password,
                     name,
-                    // @ts-expect-error better-auth plugin types misaligned
-                    role,
                 },
                 {
                     onSuccess: () => {
                         setSuccess("Conta criada com sucesso! Redirecionando…");
-                        // Small delay so user sees the success message
-                        setTimeout(() => router.push("/dashboard"), 800);
+                        // Refresh to sync navbar server cache with new session
+                        router.refresh();
+                        // Redirect to onboarding
+                        setTimeout(() => router.push("/onboarding"), 800);
                     },
                     onError: (ctx) => {
                         // Map common Better Auth error codes to user-friendly PT-BR messages
@@ -220,51 +213,16 @@ export default function RegisterPage() {
 
                     <form onSubmit={handleRegister} className="space-y-5" noValidate>
                         <Field
-                            label={role === "producer" ? "Nome da Fazenda / Razão Social" : "Nome do Restaurante / Sacolão"}
+                            label="Nome Completo"
                             id="name"
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder={role === "producer" ? "Ex: Fazenda São João" : "Ex: Restaurante Sabor de Minas"}
+                            placeholder="Ex: Maria Silva"
                             required
                             autoComplete="name"
                             disabled={loading}
                         />
-
-                        {/* Role toggle */}
-                        <div className="space-y-1.5">
-                            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
-                                Tipo de Conta
-                            </p>
-                            <div className="grid grid-cols-2 gap-2">
-                                {roles.map((r) => (
-                                    <label
-                                        key={r.value}
-                                        className={cn(
-                                            "cursor-pointer border rounded-sm p-3.5 flex flex-col gap-0.5 transition-all duration-150",
-                                            loading && "opacity-50 pointer-events-none",
-                                            role === r.value
-                                                ? "border-forest bg-sage text-forest"
-                                                : "border-soil/12 text-bark hover:border-soil/25 hover:bg-cream-dark"
-                                        )}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="role"
-                                            value={r.value}
-                                            checked={role === r.value}
-                                            onChange={() => setRole(r.value)}
-                                            className="sr-only"
-                                            disabled={loading}
-                                        />
-                                        <span className="font-sans text-xs font-bold uppercase tracking-wide">
-                                            {r.label}
-                                        </span>
-                                        <span className="font-sans text-[10px] text-bark/70">{r.sub}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
 
                         <Field
                             label="Email Corporativo"
