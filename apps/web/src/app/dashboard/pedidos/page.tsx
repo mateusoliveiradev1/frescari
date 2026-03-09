@@ -76,6 +76,7 @@ const OrderCardSkeleton = () => (
 export default function PedidosPage() {
     const [selectedOrder, setSelectedOrder] = useState<DBOrder | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isConfirmingCancel, setIsConfirmingCancel] = useState(false);
 
     const [filterStatus, setFilterStatus] = useState<string>("all");
 
@@ -87,6 +88,7 @@ export default function PedidosPage() {
     const { mutate: cancelOrder, isPending: isCancelling } = (trpc.order as any).cancelOrder.useMutation({
         onSuccess: () => {
             toast.success('Pedido cancelado com sucesso e estoque estornado!');
+            setIsConfirmingCancel(false);
             setIsDialogOpen(false);
             (utils.order as any).listMyOrders.invalidate();
         },
@@ -103,6 +105,7 @@ export default function PedidosPage() {
 
     const handleViewDetails = (order: DBOrder) => {
         setSelectedOrder(order);
+        setIsConfirmingCancel(false);
         setIsDialogOpen(true);
     };
 
@@ -311,26 +314,49 @@ export default function PedidosPage() {
                                 </div>
 
                                 {/* Total Summary */}
-                                <div className="flex items-center justify-between pt-6 border-t border-border/80 mt-4 bg-sage/10 -mx-8 px-8 pb-8 -mb-8 rounded-b-xl">
-                                    <div className="flex flex-col gap-1.5 items-start">
+                                <div className="flex flex-col gap-4 pt-6 border-t border-border/80 mt-4 bg-sage/10 -mx-8 px-8 pb-8 -mb-8 rounded-b-xl overflow-hidden transition-all duration-300">
+                                    <div className="flex items-center justify-between">
                                         <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Valor Total</span>
-                                        {selectedOrder.status === 'confirmed' && (
-                                            <button
-                                                className="text-[10px] font-bold uppercase tracking-widest text-red-500/80 hover:text-red-600 transition-colors"
-                                                disabled={isCancelling}
-                                                onClick={() => {
-                                                    if (confirm('Tem certeza que deseja cancelar este pedido? O estoque será devolvido à fazenda.')) {
-                                                        cancelOrder({ orderId: selectedOrder.id });
-                                                    }
-                                                }}
-                                            >
-                                                {isCancelling ? 'Cancelando...' : 'Cancelar Pedido'}
-                                            </button>
-                                        )}
+                                        <span className="text-3xl font-display font-black text-forest">
+                                            {formatCurrency(selectedOrder.totalAmount)}
+                                        </span>
                                     </div>
-                                    <span className="text-3xl font-display font-black text-forest">
-                                        {formatCurrency(selectedOrder.totalAmount)}
-                                    </span>
+
+                                    {selectedOrder.status === 'confirmed' && (
+                                        <div className="flex flex-col border-t border-border/50 pt-4 mt-2">
+                                            {!isConfirmingCancel ? (
+                                                <button
+                                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold text-red-600 bg-red-50/50 hover:bg-red-100 hover:text-red-700 border border-red-200 transition-colors"
+                                                    onClick={() => setIsConfirmingCancel(true)}
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                    Cancelar Pedido
+                                                </button>
+                                            ) : (
+                                                <div className="animate-in slide-in-from-bottom-2 fade-in duration-300 flex flex-col gap-3">
+                                                    <p className="text-sm font-medium text-forest text-center">
+                                                        Cancelar o pedido e estornar o estoque?
+                                                    </p>
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            className="flex-1 py-2.5 rounded-lg text-sm font-bold text-muted-foreground bg-white border border-border hover:bg-gray-50 hover:text-forest transition-colors"
+                                                            onClick={() => setIsConfirmingCancel(false)}
+                                                            disabled={isCancelling}
+                                                        >
+                                                            Voltar
+                                                        </button>
+                                                        <button
+                                                            className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex justify-center items-center gap-2"
+                                                            onClick={() => cancelOrder({ orderId: selectedOrder.id })}
+                                                            disabled={isCancelling}
+                                                        >
+                                                            {isCancelling ? 'Aguarde...' : 'Confirmar Cancelamento'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </>
                         )}
