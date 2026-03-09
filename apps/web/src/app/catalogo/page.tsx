@@ -1,6 +1,7 @@
 import { getServerTrpc } from '@/trpc/server';
 export const dynamic = 'force-dynamic';
-import { ProductCard, ProductCardSkeleton } from '@frescari/ui';
+import { ProductCardSkeleton } from '@frescari/ui';
+import { ProductCardWrapper } from '@/components/ProductCardWrapper';
 import { Suspense } from 'react';
 import { unstable_noStore as noStore } from 'next/cache';
 import { CatalogLot } from '@/store/useCartStore';
@@ -129,31 +130,6 @@ async function LotsList() {
             )}
         </div>
     );
-}
-
-// Client wrapper to connect Zustand action to the server component list
-"use client";
-import { useCartStore as _useCartStore, CartStore } from '@/store/useCartStore';
-
-function ProductCardWrapper({ lot, isLastChance, delay }: { lot: CatalogLot; isLastChance: boolean, delay?: string }) {
-    const addItem = _useCartStore((state: CartStore) => state.addItem);
-
-    return (
-        <ProductCard
-            lotCode={lot.lotCode}
-            productName={lot.productName}
-            finalPrice={lot.finalPrice}
-            originalPrice={lot.originalPrice}
-            availableQty={lot.availableQty}
-            saleUnit={lot.saleUnit}
-            farmName={lot.farmName}
-            harvestDate={lot.harvestDate}
-            imageUrl={lot.imageUrl}
-            isLastChance={isLastChance}
-            style={delay ? { animationDelay: delay } : undefined}
-            onReserve={() => addItem(lot)}
-        />
-    )
 }
 
 // ─────────────────────────────────────────────────────────
