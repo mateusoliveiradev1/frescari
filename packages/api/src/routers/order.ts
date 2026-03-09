@@ -294,4 +294,101 @@ export const orderRouter = createTRPCRouter({
                 });
             }
         }),
+
+    // ─── Seller-side: list orders received by the producer ───
+    listReceivedOrders: protectedProcedure
+        .input(z.object({ status: z.string().optional() }).optional())
+        .query(async ({ ctx, input }) => {
+            const { db, user } = ctx;
+
+            if (!user?.tenantId) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'Usuário sem organização vinculada.',
+                });
+            }
+
+            const allOrders = await db
+                .select({
+                    id: orders.id,
+                    status: orders.status,
+                    totalAmount: orders.totalAmount,
+                    createdAt: orders.createdAt,
+                    buyerTenantId: orders.buyerTenantId,
+                    buyerName: tenants.name,
+                })
+                .from(orders)
+                .innerJoin(tenants, eq(orders.buyerTenantId, tenants.id))
+                .where(
+                    and(
+                        eq(orders.sellerTenantId, user.tenantId),
+                        input?.status && input.status !== 'all'
+                            ? eq(orders.status, input.status as "draft" | "confirmed" | "picking" | "in_transit" | "delivered" | "cancelled")
+                            : undefined
+                    )
+                )
+                .orderBy(sql`${orders.createdAt} DESC`);
+
+            const orderIds = allOrders.map(o => o.id);
+
+            if (orderIds.length === 0) return [];
+
+            const items = await db
+                .select({
+                    orderId: orderItems.orderId,
+                    qty: orderItems.qty,
+                    unitPrice: orderItems.unitPrice,
+                    productName: products.name,
+                    saleUnit: products.saleUnit,
+                })
+                .from(orderItems)
+                .innerJoin(products, eq(orderItems.productId, products.id))
+                .where(inArray(orderItems.orderId, orderIds));
+
+            return allOrders.map((order, index, arr) => ({
+                ...order,
+                visualId: (arr.length - index).toString().padStart(4, '0'),
+                items: items.filter(item => item.orderId === order.id),
+            }));
+        }),
+
+    // ─── Seller-side: update order status ───
+    updateOrderStatus: protectedProcedure
+        .input(
+            z.object({
+                orderId: z.string().uuid(),
+                status: z.enum(['confirmed', 'picking', 'in_transit', 'delivered', 'cancelled']),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const { db, user } = ctx;
+
+            if (!user?.tenantId) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'Usuário sem organização vinculada.',
+                });
+            }
+
+            // Validate order belongs to this seller
+            const targetOrder = await db.query.orders.findFirst({
+                where: and(
+                    eq(orders.id, input.orderId),
+                    eq(orders.sellerTenantId, user.tenantId)
+                )
+            });
+
+            if (!targetOrder) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Pedido não encontrado.',
+                });
+            }
+
+            await db.update(orders)
+                .set({ status: input.status })
+                .where(eq(orders.id, input.orderId));
+
+            return { success: true };
+        }),
 });

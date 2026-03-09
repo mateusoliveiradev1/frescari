@@ -141,6 +141,7 @@ export const productLots = pgTable('product_lots', {
     priceOverride: numeric('price_override', { precision: 12, scale: 4 }),
     freshnessScore: integer('freshness_score'), // 0 to 100
     storageLocation: text('storage_location'),
+    imageUrl: text('image_url'),
     isExpired: boolean('is_expired').default(false).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
