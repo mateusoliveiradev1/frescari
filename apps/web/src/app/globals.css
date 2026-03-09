@@ -112,3 +112,13 @@ select {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Custom Utilities ── */
+/* Hide native scrollbar for elements while keeping them scrollable */
+.scrollbar-none {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+}
+.scrollbar-none::-webkit-scrollbar { 
+  display: none;  /* Safari and Chrome */
+}

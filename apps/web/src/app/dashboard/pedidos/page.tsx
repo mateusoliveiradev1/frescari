@@ -147,7 +147,7 @@ export default function PedidosPage() {
                     </div>
 
                     {/* Filter Pills */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                    <div className="flex items-center gap-2 w-full overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory scroll-smooth">
                         {[
                             { id: "all", label: "Todos" },
                             { id: "confirmed", label: "Processando" },
@@ -159,7 +159,7 @@ export default function PedidosPage() {
                             <button
                                 key={filter.id}
                                 onClick={() => setFilterStatus(filter.id)}
-                                className={`px-4 py-1.5 rounded-full text-sm font-bold tracking-wide transition-colors whitespace-nowrap border ${filterStatus === filter.id
+                                className={`snap-start shrink-0 px-4 py-1.5 rounded-full text-sm font-bold tracking-wide transition-colors whitespace-nowrap border ${filterStatus === filter.id
                                     ? "bg-forest text-cream border-forest"
                                     : "bg-white text-muted-foreground border-border hover:bg-sage/20 hover:text-forest hover:border-forest/30"
                                     }`}
