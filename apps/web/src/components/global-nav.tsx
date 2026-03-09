@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@frescari/ui";
 import { authClient } from "@/lib/auth-client";
 import { useState, useRef, useEffect } from "react";
 import { ShoppingCart } from "lucide-react";
 import { useCartStore, useCartTotals, CartStore } from "@/store/useCartStore";
-import { CartDrawer } from "@/components/CartDrawer";
+
+const CartDrawer = dynamic(
+    () => import("@/components/CartDrawer").then((mod) => mod.CartDrawer),
+    { ssr: false }
+);
 
 export function GlobalNav({ session: initialSession }: { session: any }) {
     const pathname = usePathname();
