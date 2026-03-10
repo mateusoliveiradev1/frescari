@@ -96,7 +96,7 @@ export const checkoutRouter = createTRPCRouter({
                 deliveryFee: z.number().min(0),
             }),
         )
-        .mutation(async ({ input }) => {
+        .mutation(async ({ ctx, input }) => {
             if (!stripeSecretKey) {
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
@@ -105,11 +105,32 @@ export const checkoutRouter = createTRPCRouter({
                 });
             }
 
+            const buyerTenantId = ctx.user?.tenantId as string | undefined;
+            if (!buyerTenantId) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'Comprador sem organização vinculada.',
+                });
+            }
+
             const lineItems = buildLineItems(input.items, input.deliveryFee);
 
-            // Compose metadata for traceability
-            const lotIds = input.items.map((i) => i.lotId).join(',');
+            // Compose address line for display
             const addressLine = `${input.address.street}, ${input.address.number} - ${input.address.city}/${input.address.state} - CEP: ${input.address.cep}`;
+
+            // Serialize items for webhook reconstruction (Stripe metadata max 500 chars per value)
+            const itemsJson = JSON.stringify(
+                input.items.map((i) => ({
+                    lotId: i.lotId,
+                    qty: i.quantity,
+                    pt: i.pricingType,
+                    name: i.productName,
+                    price: i.unitPrice,
+                })),
+            );
+
+            // Structured address JSON for webhook
+            const addressJson = JSON.stringify(input.address);
 
             try {
                 const session = await stripe.checkout.sessions.create({
@@ -117,15 +138,18 @@ export const checkoutRouter = createTRPCRouter({
                     payment_intent_data: {
                         capture_method: 'manual',
                         metadata: {
-                            lot_ids: lotIds,
+                            buyer_tenant_id: buyerTenantId,
                             delivery_address: addressLine,
                         },
                     },
                     line_items: lineItems,
-                    success_url: `${APP_URL}/dashboard/pedidos?checkout=success`,
+                    success_url: `${APP_URL}/sucesso?session_id={CHECKOUT_SESSION_ID}`,
                     cancel_url: `${APP_URL}/catalogo?checkout=cancelled`,
                     metadata: {
-                        lot_ids: lotIds,
+                        buyer_tenant_id: buyerTenantId,
+                        items: itemsJson,
+                        address: addressJson,
+                        delivery_fee: input.deliveryFee.toString(),
                         delivery_address: addressLine,
                     },
                 });
@@ -153,3 +177,4 @@ export const checkoutRouter = createTRPCRouter({
             }
         }),
 });
+
