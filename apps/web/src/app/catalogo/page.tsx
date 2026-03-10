@@ -70,9 +70,9 @@ async function LotsList() {
         );
     }
 
-    // ── Separate Last Chance from regular lots
-    const lastChanceLots = lots.filter((l) => l.isLastChance);
-    const regularLots = lots.filter((l) => !l.isLastChance);
+    // ── Separate Last Chance from regular lots using SSOT status
+    const lastChanceLots = lots.filter((l) => l.status === 'last_chance');
+    const regularLots = lots.filter((l) => l.status === 'fresco');
     const totalCount = lots.length;
 
     return (

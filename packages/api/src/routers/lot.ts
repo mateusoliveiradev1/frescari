@@ -148,28 +148,20 @@ export const lotRouter = createTRPCRouter({
                     .leftJoin(farms, eq(products.farmId, farms.id));
 
                 const now = new Date();
-                const twentyFourHours = 24 * 60 * 60 * 1000;
-
                 return results
-                    // Filter out expired or out-of-stock lots
-                    .filter((row) => !row.lot.isExpired && Number(row.lot.availableQty) > 0)
                     .map((row) => {
                         const lot = row.lot;
                         const product = row.product;
-                        const expiryDate = new Date(lot.expiryDate);
-                        const timeToExpiry = expiryDate.getTime() - now.getTime();
+                        const status = calculateLotStatus(lot.expiryDate);
 
                         const originalPrice = lot.priceOverride ? Number(lot.priceOverride) :
                             (product ? Number(product.pricePerUnit) : 0);
 
-                        const isExpiringSoon = timeToExpiry <= twentyFourHours;
-                        const isFreshnessLow = lot.freshnessScore !== null && lot.freshnessScore < 30;
-
-                        let isLastChance = false;
+                        // Price logic follows SSOT status
+                        const isLastChance = status === 'last_chance';
                         let finalPrice = originalPrice;
 
-                        if (isExpiringSoon || isFreshnessLow) {
-                            isLastChance = true;
+                        if (isLastChance) {
                             finalPrice = originalPrice * 0.6; // 40% discount
                         }
 
@@ -190,9 +182,11 @@ export const lotRouter = createTRPCRouter({
                             pricingType: lot.pricingType || 'UNIT',
                             estimatedWeight: lot.estimatedWeight ? Number(lot.estimatedWeight) : null,
                             unit: lot.unit || 'un',
-                            status: calculateLotStatus(lot.expiryDate),
+                            status,
                         };
                     })
+                    // Filter out expired (SSOT) or out-of-stock lots for the public catalog
+                    .filter((lot) => lot.status !== 'vencido' && lot.availableQty > 0)
                     .sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
             } catch (error: any) {
                 console.error('[DB_CATALOG_ERROR]:', error);
