@@ -162,8 +162,8 @@ export default function VendasPage() {
                             key={f.id}
                             onClick={() => setFilterStatus(f.id)}
                             className={`px-4 py-1.5 rounded-full text-sm font-bold tracking-wide transition-colors border ${filterStatus === f.id
-                                    ? "bg-forest text-cream border-forest"
-                                    : "bg-white text-bark border-soil/10 hover:bg-sage/20 hover:text-forest hover:border-forest/30"
+                                ? "bg-forest text-cream border-forest"
+                                : "bg-white text-bark border-soil/10 hover:bg-sage/20 hover:text-forest hover:border-forest/30"
                                 }`}
                         >
                             {f.label}
@@ -206,103 +206,62 @@ export default function VendasPage() {
                                         const isExpanded = expandedOrderId === order.id;
 
                                         return (
-                                            <>
-                                                <tr
-                                                    key={order.id}
-                                                    className="border-b border-soil/5 hover:bg-cream-dark/20 transition-colors cursor-pointer"
-                                                    onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                                                >
-                                                    <td className="py-4 px-6">
-                                                        <span className="font-display font-bold text-forest">
-                                                            #{order.visualId}
+                                            <tr
+                                                key={order.id}
+                                                className="border-b border-soil/5 hover:bg-cream-dark/20 transition-colors cursor-pointer"
+                                                onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                                            >
+                                                <td className="py-4 px-6">
+                                                    <span className="font-display font-bold text-forest">
+                                                        #{order.visualId}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    <div className="flex items-center gap-2">
+                                                        <User className="w-4 h-4 text-bark/50" />
+                                                        <span className="font-sans text-sm font-medium text-soil">
+                                                            {order.buyerName}
                                                         </span>
-                                                    </td>
-                                                    <td className="py-4 px-6">
-                                                        <div className="flex items-center gap-2">
-                                                            <User className="w-4 h-4 text-bark/50" />
-                                                            <span className="font-sans text-sm font-medium text-soil">
-                                                                {order.buyerName}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-4 px-6">
-                                                        <div className="flex items-center gap-1.5 text-xs text-bark">
-                                                            <Calendar className="w-3.5 h-3.5" />
-                                                            {formatDate(order.createdAt)}
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-4 px-6 text-right">
-                                                        <span className="font-display font-bold text-soil">
-                                                            {formatCurrency(order.totalAmount)}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-4 px-6 text-center">
-                                                        <span
-                                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusStyles[order.status] || statusStyles.draft
-                                                                }`}
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    <div className="flex items-center gap-1.5 text-xs text-bark">
+                                                        <Calendar className="w-3.5 h-3.5" />
+                                                        {formatDate(order.createdAt)}
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 px-6 text-right">
+                                                    <span className="font-display font-bold text-soil">
+                                                        {formatCurrency(order.totalAmount)}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 px-6 text-center">
+                                                    <span
+                                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusStyles[order.status] || statusStyles.draft
+                                                            }`}
+                                                    >
+                                                        {statusIcons[order.status]}
+                                                        {statusLabels[order.status] || order.status}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 px-6 text-center">
+                                                    {nextStatus && order.status !== "cancelled" ? (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleAdvanceStatus(order.id, order.status);
+                                                            }}
+                                                            disabled={isUpdating}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-forest text-cream text-[10px] font-bold uppercase tracking-wider rounded-sm hover:bg-forest/90 transition-colors disabled:opacity-50"
                                                         >
-                                                            {statusIcons[order.status]}
-                                                            {statusLabels[order.status] || order.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-4 px-6 text-center">
-                                                        {nextStatus && order.status !== "cancelled" ? (
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleAdvanceStatus(order.id, order.status);
-                                                                }}
-                                                                disabled={isUpdating}
-                                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-forest text-cream text-[10px] font-bold uppercase tracking-wider rounded-sm hover:bg-forest/90 transition-colors disabled:opacity-50"
-                                                            >
-                                                                {statusIcons[nextStatus]}
-                                                                {statusLabels[nextStatus]}
-                                                            </button>
-                                                        ) : (
-                                                            <span className="text-xs text-bark/40">—</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-
-                                                {/* Expanded items row */}
-                                                {isExpanded && (
-                                                    <tr key={`${order.id}-items`} className="bg-sage/10">
-                                                        <td colSpan={6} className="px-6 py-4">
-                                                            <div className="space-y-2">
-                                                                <p className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/60 mb-3">
-                                                                    Itens do Pedido
-                                                                </p>
-                                                                {order.items.map((item, idx) => (
-                                                                    <div
-                                                                        key={idx}
-                                                                        className="flex items-center justify-between py-2 px-4 bg-white rounded-sm border border-soil/5"
-                                                                    >
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className="w-8 h-8 bg-sage/30 rounded-sm flex items-center justify-center">
-                                                                                <PackageOpen className="w-4 h-4 text-forest/40" />
-                                                                            </div>
-                                                                            <span className="font-sans text-sm font-medium text-soil">
-                                                                                {item.productName}
-                                                                            </span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-6 text-sm">
-                                                                            <span className="text-bark">
-                                                                                {item.qty}{" "}
-                                                                                {item.saleUnit === "unit" ? "un" : item.saleUnit}
-                                                                            </span>
-                                                                            <span className="font-semibold text-soil">
-                                                                                {formatCurrency(
-                                                                                    Number(item.unitPrice) * Number(item.qty)
-                                                                                )}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </>
+                                                            {statusIcons[nextStatus]}
+                                                            {statusLabels[nextStatus]}
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-xs text-bark/40">—</span>
+                                                    )}
+                                                </td>
+                                            </tr>
                                         );
                                     })}
                                 </tbody>
