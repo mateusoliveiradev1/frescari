@@ -30,8 +30,12 @@ export function InventoryForm({
             setSelectedMasterId(initialData.productId || "");
             setQty(initialData.availableQty?.toString() || "");
             setPrice(initialData.priceOverride?.toString() || "");
-            // Handle date conversion to YYYY-MM-DD for input[type="date"]
-            const formatForInput = (d: any) => d ? new Date(d).toISOString().split("T")[0] : "";
+            // Handle date conversion to YYYY-MM-DD for input[type="date"], forcing UTC to avoid timezone shift
+            const formatForInput = (d: any) => {
+                if (!d) return "";
+                const date = new Date(d);
+                return date.toISOString().split("T")[0];
+            };
             setExpiryDate(formatForInput(initialData.expiryDate));
             setHarvestDate(formatForInput(initialData.harvestDate));
             setImageUrl(initialData.imageUrl || null);

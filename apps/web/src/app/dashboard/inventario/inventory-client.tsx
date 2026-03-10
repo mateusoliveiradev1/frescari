@@ -72,7 +72,12 @@ export function InventoryClient() {
     };
 
     const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('pt-BR');
+        return new Intl.DateTimeFormat('pt-BR', {
+            timeZone: 'UTC',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).format(new Date(dateStr));
     };
 
     return (
