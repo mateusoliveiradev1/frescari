@@ -5,7 +5,7 @@ import { trpc } from "@/trpc/react";
 import { Button } from "@frescari/ui";
 import { useRouter } from "next/navigation";
 import { Toaster, toast } from "sonner";
-import { UploadDropzone } from "@/lib/uploadthing";
+import { UploadButton, UploadDropzone } from "@/lib/uploadthing";
 
 export function InventoryForm({
     onSuccess,
@@ -205,36 +205,40 @@ export function InventoryForm({
                         </div>
                     </div>
                 ) : (
-                    <UploadDropzone
-                        endpoint="lotImage"
-                        onUploadBegin={() => {
-                            console.log('[UPLOADTHING] Upload iniciado');
-                            setIsUploading(true);
-                        }}
-                        // @ts-ignore
-                        onDropRejected={() => {
-                            alert('Arquivo rejeitado! Verifique o tamanho (Max 8MB) ou o tipo (JPG, PNG, WebP).');
-                        }}
-                        onClientUploadComplete={(res) => {
-                            console.log('[UPLOADTHING] Upload finalizado:', res);
-                            if (res?.[0]) {
-                                setImageUrl(res[0].url);
-                                toast.success('Imagem carregada com sucesso! 📸');
-                            }
-                            setIsUploading(false);
-                        }}
-                        onUploadError={(error: Error) => {
-                            console.error('[UPLOADTHING_ERROR]', error);
-                            alert(`Erro no upload: ${error.message}`);
-                            toast.error(`Erro no upload: ${error.message}`);
-                            setIsUploading(false);
-                        }}
-                        className="border-2 border-dashed border-soil/15 bg-cream hover:bg-sage/20 rounded-sm transition-colors ut-button:bg-forest ut-button:hover:bg-forest/90 ut-button:text-cream ut-button:font-sans ut-button:text-xs ut-button:font-bold ut-button:uppercase ut-button:tracking-wider ut-button:rounded-sm ut-label:text-bark ut-label:font-sans ut-allowed-content:text-bark/50"
-                        content={{
-                            label: "Arraste a foto ou clique para enviar",
-                            allowedContent: "Imagens até 8MB (JPG, PNG, WebP)",
-                        }}
-                    />
+                    <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-soil/15 bg-cream hover:bg-sage/5 rounded-sm transition-colors">
+                        <UploadButton
+                            endpoint="lotImage"
+                            onUploadBegin={() => {
+                                console.log('[UPLOADTHING] Upload iniciado');
+                                setIsUploading(true);
+                            }}
+                            onClientUploadComplete={(res) => {
+                                console.log('[UPLOADTHING] Upload finalizado:', res);
+                                if (res?.[0]) {
+                                    setImageUrl(res[0].url);
+                                    toast.success('Imagem carregada com sucesso! 📸');
+                                }
+                                setIsUploading(false);
+                            }}
+                            onUploadError={(error: Error) => {
+                                console.error('[UPLOADTHING_ERROR]', error);
+                                alert(`Erro no upload: ${error.message}`);
+                                toast.error(`Erro no upload: ${error.message}`);
+                                setIsUploading(false);
+                            }}
+                            appearance={{
+                                button: "bg-forest hover:bg-forest/90 text-cream font-sans text-xs font-bold uppercase tracking-wider rounded-sm px-6 py-2",
+                                allowedContent: "text-bark/50 font-sans text-[10px] uppercase tracking-tighter mt-2",
+                            }}
+                            content={{
+                                button: "Selecionar Foto",
+                                allowedContent: "Imagens até 8MB (JPG, PNG, WebP)",
+                            }}
+                        />
+                        <p className="text-[10px] text-bark/40 mt-4 text-center font-sans">
+                            Dica: Use fotos bem iluminadas do produto real.
+                        </p>
+                    </div>
                 )}
             </div>
 
