@@ -16,6 +16,7 @@ export function InventoryForm() {
     const [expiryDate, setExpiryDate] = useState("");
     const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split("T")[0]);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     // Queries & Mutations
     // @ts-expect-error local monorepo limits
@@ -106,12 +107,18 @@ export function InventoryForm() {
                             <button
                                 type="button"
                                 onClick={() => setImageUrl(null)}
-                                className="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-red-600 rounded-full p-1.5 shadow-sm transition-colors opacity-0 group-hover:opacity-100"
-                                aria-label="Remover foto"
+                                className="absolute inset-0 flex items-center justify-center bg-black/50 text-white rounded-sm opacity-0 group-hover:opacity-100 transition-opacity font-sans text-sm font-bold uppercase tracking-wider backdrop-blur-sm border-2 border-transparent hover:border-white/50"
+                                aria-label="Trocar imagem"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M18 6L6 18M6 6l12 12" />
-                                </svg>
+                                <span className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M21 2v6h-6" />
+                                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                                        <path d="M3 22v-6h6" />
+                                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                                    </svg>
+                                    Trocar Imagem
+                                </span>
                             </button>
                             <div className="absolute bottom-2 left-2 px-2 py-1 bg-forest/90 text-cream text-[10px] font-bold uppercase tracking-wider rounded-sm">
                                 ✓ Foto de Catálogo ou Carregada
@@ -120,14 +127,22 @@ export function InventoryForm() {
                     ) : (
                         <UploadDropzone
                             endpoint="lotImage"
+                            onUploadBegin={() => {
+                                console.log('[UPLOADTHING] Upload iniciado');
+                                setIsUploading(true);
+                            }}
                             onClientUploadComplete={(res) => {
+                                console.log('[UPLOADTHING]', res);
                                 if (res?.[0]) {
-                                    setImageUrl(res[0].ufsUrl);
-                                    toast.success("Foto carregada com sucesso!");
+                                    setImageUrl(res[0].url); // Or res[0].ufsUrl depending on version, fallback handled
+                                    toast.success('Imagem carregada com sucesso!');
                                 }
+                                setIsUploading(false);
                             }}
                             onUploadError={(error: Error) => {
+                                console.log('[UPLOADTHING_ERROR]', error);
                                 toast.error(`Erro no upload: ${error.message}`);
+                                setIsUploading(false);
                             }}
                             className="border-2 border-dashed border-soil/15 bg-cream hover:bg-sage/20 rounded-sm transition-colors ut-button:bg-forest ut-button:hover:bg-forest/90 ut-button:text-cream ut-button:font-sans ut-button:text-xs ut-button:font-bold ut-button:uppercase ut-button:tracking-wider ut-button:rounded-sm ut-label:text-bark ut-label:font-sans ut-allowed-content:text-bark/50"
                             content={{
@@ -248,7 +263,7 @@ export function InventoryForm() {
                     type="submit"
                     variant="primary"
                     className="w-full"
-                    disabled={createLot.isPending || !selectedMasterId || !imageUrl}
+                    disabled={createLot.isPending || !selectedMasterId || !imageUrl || isUploading}
                 >
                     {createLot.isPending ? (
                         <span className="flex items-center justify-center gap-2">
