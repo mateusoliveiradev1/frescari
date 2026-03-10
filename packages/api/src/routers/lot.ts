@@ -186,6 +186,8 @@ export const lotRouter = createTRPCRouter({
                             originalPrice,
                             finalPrice,
                             isLastChance,
+                            pricingType: lot.pricingType || 'UNIT',
+                            estimatedWeight: lot.estimatedWeight ? Number(lot.estimatedWeight) : null,
                         };
                     })
                     .sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
