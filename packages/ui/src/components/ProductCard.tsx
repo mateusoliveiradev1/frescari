@@ -57,6 +57,7 @@ export interface ProductCardProps extends React.HTMLAttributes<HTMLDivElement> {
     harvestDate?: string;
     imageUrl?: string | null;
     onReserve?: () => void;
+    onOpenDetails?: () => void;
 }
 
 export function ProductCard({
@@ -74,6 +75,7 @@ export function ProductCard({
     harvestDate,
     imageUrl,
     onReserve,
+    onOpenDetails,
     className,
     ...props
 }: ProductCardProps) {
@@ -104,7 +106,12 @@ export function ProductCard({
             {...props}
         >
             {/* ── Image area ── */}
-            <div className="relative w-full aspect-[4/3] overflow-hidden bg-sage/50">
+            <button
+                className="relative w-full aspect-[4/3] overflow-hidden bg-sage/50 text-left"
+                onClick={onOpenDetails}
+                type="button"
+                aria-label={`Ver detalhes de ${productName}`}
+            >
                 {imageUrl ? (
                     <Image
                         src={imageUrl}
@@ -166,7 +173,7 @@ export function ProductCard({
                         {availableQty} {unit || formatUnit(saleUnit).replace("/", "")}
                     </span>
                 </div>
-            </div>
+            </button>
 
             {/* ── Body ── */}
             <div className="flex flex-col flex-1 p-4 gap-2">
@@ -189,16 +196,21 @@ export function ProductCard({
                     Lote {lotCode}
                 </p>
 
-                {/* Product name — display headline */}
-                <h3 className={cn(
-                    "font-display text-lg font-bold leading-tight",
-                    "transition-colors duration-150",
-                    isLastChance
-                        ? "text-soil group-hover:text-ember"
-                        : "text-soil group-hover:text-forest"
-                )}>
-                    {productName}
-                </h3>
+                <button
+                    className="text-left group/title"
+                    onClick={onOpenDetails}
+                    type="button"
+                >
+                    <h3 className={cn(
+                        "font-display text-lg font-bold leading-tight",
+                        "transition-colors duration-150",
+                        isLastChance
+                            ? "text-soil group-hover/title:text-ember"
+                            : "text-soil group-hover/title:text-forest"
+                    )}>
+                        {productName}
+                    </h3>
+                </button>
 
                 {/* ── Price block ── */}
                 <div className="mt-auto flex items-end justify-between pt-2">
