@@ -163,10 +163,9 @@ export function CartDrawer() {
                                                         <p className="text-xs text-bark/80">
                                                             {item.farmName}
                                                         </p>
-                                                        <span className="inline-flex items-center rounded-md bg-forest/10 px-2 py-0.5 text-[10px] font-medium text-forest ring-1 ring-inset ring-forest/20">
-                                                            {item.pricingType === 'WEIGHT' && 'Quilo'}
-                                                            {item.pricingType === 'UNIT' && 'Unidade'}
-                                                            {item.pricingType === 'BOX' && `Caixa${item.estimatedWeight ? ` ~${item.estimatedWeight}kg` : ''}`}
+                                                        <span className="inline-flex items-center rounded-md bg-forest/10 px-2 py-0.5 text-[10px] font-medium text-forest ring-1 ring-inset ring-forest/20 capitalize">
+                                                            {item.unit}
+                                                            {item.pricingType === 'BOX' && item.estimatedWeight ? ` (~${item.estimatedWeight}kg)` : ''}
                                                         </span>
                                                     </div>
                                                     {item.isLastChance && (
@@ -186,7 +185,7 @@ export function CartDrawer() {
                                                         )}
                                                         <span className="font-sans font-bold text-forest">
                                                             {formatCurrency(item.finalPrice)}
-                                                            <span className="text-xs font-normal text-bark"> / {item.saleUnit}</span>
+                                                            <span className="text-xs font-normal text-bark"> / {item.unit}</span>
                                                         </span>
                                                     </div>
 
