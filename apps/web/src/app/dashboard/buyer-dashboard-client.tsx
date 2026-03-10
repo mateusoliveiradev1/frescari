@@ -86,12 +86,15 @@ export default function BuyerDashboard({ user }: { user: any }) {
                                     className="w-full relative group"
                                 >
                                     <CarouselContent className="-ml-4">
-                                        {lastChanceLots.map((lot) => (
+                                        {lastChanceLots.map((lot, index) => (
                                             <CarouselItem key={lot.id} className="pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-                                                <ProductCardWrapper
-                                                    lot={lot as any}
-                                                    isLastChance={true}
-                                                />
+                                                <div className="p-1">
+                                                    <ProductCardWrapper
+                                                        lot={lot as any}
+                                                        isLastChance={true}
+                                                        priority={index < 2}
+                                                    />
+                                                </div>
                                             </CarouselItem>
                                         ))}
                                     </CarouselContent>
@@ -116,11 +119,12 @@ export default function BuyerDashboard({ user }: { user: any }) {
                                 </div>
 
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                    {freshLots.map((lot) => (
+                                    {freshLots.map((lot, index) => (
                                         <ProductCardWrapper
                                             key={lot.id}
                                             lot={lot as any}
                                             isLastChance={false}
+                                            priority={index < 2}
                                         />
                                     ))}
                                 </div>

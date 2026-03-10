@@ -5,7 +5,7 @@ import { ProductCard } from '@frescari/ui';
 import { useCartStore, CartStore, CatalogLot } from '@/store/useCartStore';
 import { ProductDetailsSheet } from './ProductDetailsSheet';
 
-export function ProductCardWrapper({ lot, isLastChance, delay }: { lot: CatalogLot; isLastChance: boolean, delay?: string }) {
+export function ProductCardWrapper({ lot, isLastChance, delay, priority }: { lot: CatalogLot; isLastChance: boolean, delay?: string, priority?: boolean }) {
     const addItem = useCartStore((state: CartStore) => state.addItem);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
@@ -24,6 +24,7 @@ export function ProductCardWrapper({ lot, isLastChance, delay }: { lot: CatalogL
                 harvestDate={lot.harvestDate}
                 imageUrl={lot.imageUrl}
                 isLastChance={isLastChance}
+                priority={priority}
                 style={delay ? { animationDelay: delay } : undefined}
                 onReserve={() => addItem(lot)}
                 onOpenDetails={() => setIsDetailsOpen(true)}

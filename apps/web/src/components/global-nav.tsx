@@ -6,8 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@frescari/ui";
 import { authClient } from "@/lib/auth-client";
 import { useState, useRef, useEffect } from "react";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Menu } from "lucide-react";
 import { useCartStore, useCartTotals, CartStore } from "@/store/useCartStore";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@frescari/ui";
 
 const CartDrawer = dynamic(
     () => import("@/components/CartDrawer").then((mod) => mod.CartDrawer),
@@ -18,6 +25,7 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
     const pathname = usePathname();
     const router = useRouter();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
 
     const user = initialSession?.user;
@@ -33,30 +41,46 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    // Close menu when switching pages
+    useEffect(() => {
+        setIsMenuOpen(false);
+    }, [pathname]);
+
     const handleSignOut = async () => {
         await authClient.signOut();
         useCartStore.getState().clearCart();
         window.location.href = '/';
     };
 
-    const navLinks = () => {
+    const navLinks = (isMobile = false) => {
+        const linkClass = isMobile
+            ? "font-sans text-lg font-bold uppercase tracking-widest text-bark hover:text-forest transition-colors py-4 border-b border-soil/5 last:border-0"
+            : "font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors";
+
+        const getActiveStoreClass = (href: string) => {
+            if (isMobile) return pathname === href || pathname.startsWith(href) ? "text-forest" : "text-bark";
+            return pathname === href || pathname.startsWith(href) ? "text-forest" : "text-bark hover:text-forest";
+        };
+
         if (!user) {
             return (
                 <>
                     {pathname === "/" && (
-                        <Link href="#como-funciona" className="font-sans text-[11px] font-bold uppercase tracking-[0.18em] text-bark hover:text-forest transition-colors">
+                        <Link href="#como-funciona" className={`${linkClass} ${pathname === '/' ? 'text-forest' : 'text-bark hover:text-forest'}`}>
                             Como Funciona
                         </Link>
                     )}
-                    <Link href="/catalogo" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${pathname.startsWith('/catalogo') ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                    <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`}>
                         Catálogo
                     </Link>
-                    <Link href="/auth/login" className="font-sans text-[11px] font-bold uppercase tracking-[0.18em] text-bark hover:text-forest transition-colors">
+                    <Link href="/auth/login" className={`${linkClass} text-bark hover:text-forest`}>
                         Entrar
                     </Link>
-                    <Link href="/auth/register">
-                        <Button variant="primary" size="sm">Começar Agora</Button>
-                    </Link>
+                    {!isMobile && (
+                        <Link href="/auth/register">
+                            <Button variant="primary" size="sm">Começar Agora</Button>
+                        </Link>
+                    )}
                 </>
             );
         }
@@ -64,16 +88,16 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
         if (role === 'producer') {
             return (
                 <>
-                    <Link href="/dashboard" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                    <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`}>
                         Dashboard
                     </Link>
-                    <Link href="/dashboard/inventario" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${pathname.startsWith('/dashboard/inventario') ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                    <Link href="/dashboard/inventario" className={`${linkClass} ${getActiveStoreClass('/dashboard/inventario')}`}>
                         Meu Inventário
                     </Link>
-                    <Link href="/dashboard/vendas" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors flex items-center gap-1.5 ${pathname.startsWith('/dashboard/vendas') ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                    <Link href="/dashboard/vendas" className={`${linkClass} ${getActiveStoreClass('/dashboard/vendas')}`}>
                         Meus Pedidos
                     </Link>
-                    <Link href="/catalogo" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${pathname.startsWith('/catalogo') ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                    <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`}>
                         Catálogo
                     </Link>
                 </>
@@ -83,13 +107,13 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
         // buyer
         return (
             <>
-                <Link href="/dashboard" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`}>
                     Painel de Compras
                 </Link>
-                <Link href="/catalogo" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${pathname.startsWith('/catalogo') ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`}>
                     Catálogo
                 </Link>
-                <Link href="/dashboard/pedidos" className={`font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors ${pathname.startsWith('/dashboard/pedidos') ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                <Link href="/dashboard/pedidos" className={`${linkClass} ${getActiveStoreClass('/dashboard/pedidos')}`}>
                     Meus Pedidos
                 </Link>
             </>
@@ -107,7 +131,7 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
                     <span className="font-display text-xl font-bold text-soil italic tracking-tight hidden sm:block">Frescari</span>
                 </Link>
 
-                <div className="flex items-center gap-6 sm:gap-8">
+                <div className="flex items-center gap-3 sm:gap-8">
                     {/* Desktop Links */}
                     <div className="hidden md:flex items-center gap-8">
                         {navLinks()}
@@ -118,19 +142,60 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
 
                     {/* Mobile Login / Register (only when logged out) */}
                     {!user && (
-                        <div className="flex md:hidden items-center gap-3">
-                            <Link href="/auth/login" className="font-sans text-[11px] font-bold uppercase tracking-[0.18em] text-bark hover:text-forest transition-colors">
+                        <div className="flex items-center gap-3">
+                            <Link href="/auth/login" className="hidden sm:block font-sans text-[11px] font-bold uppercase tracking-[0.18em] text-bark hover:text-forest transition-colors">
                                 Entrar
                             </Link>
                             <Link href="/auth/register">
-                                <Button variant="primary" size="sm">Começar</Button>
+                                <Button variant="primary" size="sm" className="h-9 px-4 sm:h-10 sm:px-6">Começar</Button>
                             </Link>
                         </div>
                     )}
 
-                    {/* Profile Dropdown */}
+                    {/* Mobile Hamburger Menu */}
+                    <div className="md:hidden">
+                        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+                            <SheetTrigger asChild>
+                                <button className="p-2 text-bark hover:text-forest transition-colors outline-none">
+                                    <Menu className="w-6 h-6" />
+                                </button>
+                            </SheetTrigger>
+                            <SheetContent side="right" className="w-[300px] flex flex-col pt-12">
+                                <SheetHeader>
+                                    <SheetTitle className="text-left font-display italic text-3xl mb-8">Menu</SheetTitle>
+                                </SheetHeader>
+                                <div className="flex flex-col flex-1">
+                                    {navLinks(true)}
+                                </div>
+
+                                {user && (
+                                    <div className="mt-auto pt-6 border-t border-soil/10">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-10 h-10 rounded-sm bg-forest flex items-center justify-center">
+                                                <span className="font-display text-white text-lg font-black leading-none">
+                                                    {user.name?.charAt(0).toUpperCase() ?? "U"}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <p className="font-sans text-sm font-bold text-soil">{user.name}</p>
+                                                <p className="font-sans text-xs text-bark">{user.email}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={handleSignOut}
+                                            className="w-full py-3 px-4 rounded-sm bg-red-50 text-red-600 font-sans text-sm font-bold uppercase tracking-widest text-center"
+                                        >
+                                            Sair da Conta
+                                        </button>
+                                    </div>
+                                )}
+                            </SheetContent>
+                        </Sheet>
+                    </div>
+
+                    {/* Profile Dropdown (Desktop Only) */}
                     {user && (
-                        <div className="relative" ref={profileRef}>
+                        <div className="hidden md:block relative" ref={profileRef}>
                             <button
                                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                                 className="flex items-center gap-2 px-3 py-1.5 rounded-sm bg-sage/60 border border-forest/15 hover:bg-sage transition-colors cursor-pointer"

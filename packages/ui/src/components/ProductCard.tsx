@@ -56,6 +56,7 @@ export interface ProductCardProps extends React.HTMLAttributes<HTMLDivElement> {
     farmName?: string;
     harvestDate?: string;
     imageUrl?: string | null;
+    priority?: boolean;
     onReserve?: () => void;
     onOpenDetails?: () => void;
 }
@@ -76,6 +77,7 @@ export function ProductCard({
     imageUrl,
     onReserve,
     onOpenDetails,
+    priority = false,
     className,
     ...props
 }: ProductCardProps) {
@@ -119,7 +121,7 @@ export function ProductCard({
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        loading="lazy"
+                        priority={priority}
                     />
                 ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
