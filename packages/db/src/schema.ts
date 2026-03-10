@@ -32,7 +32,7 @@ const geometry = customType<{ data: any; driverData: string }>({
 export const planEnum = pgEnum('plan', ['free', 'pro', 'enterprise']);
 export const roleEnum = pgEnum('role', ['producer', 'distributor', 'buyer', 'admin']);
 export const saleUnitEnum = pgEnum('sale_unit', ['kg', 'g', 'unit', 'box', 'dozen', 'bunch']);
-export const orderStatusEnum = pgEnum('order_status', ['draft', 'confirmed', 'picking', 'in_transit', 'delivered', 'cancelled']);
+export const orderStatusEnum = pgEnum('order_status', ['draft', 'confirmed', 'payment_authorized', 'awaiting_weight', 'picking', 'in_transit', 'delivered', 'cancelled']);
 export const tenantTypeEnum = pgEnum('tenant_type', ['PRODUCER', 'BUYER']);
 export const pricingTypeEnum = pgEnum('pricing_type', ['UNIT', 'WEIGHT', 'BOX']);
 
