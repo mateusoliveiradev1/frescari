@@ -1,6 +1,6 @@
 import { createTRPCRouter, publicProcedure, protectedProcedure } from '../trpc';
 import { createLotInputSchema, updateLotInventorySchema } from '@frescari/validators';
-import { productLots, products } from '@frescari/db';
+import { productLots, products, masterProducts, farms } from '@frescari/db';
 import { eq, and, gt, sql, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
@@ -42,17 +42,71 @@ export const lotRouter = createTRPCRouter({
                 }
             }
 
-            // Validate product belongs to tenant
-            const product = await ctx.db.query.products.findFirst({
-                where: eq(sql`${products.id}::text`, input.productId),
+            // 1. Resolve Product: Check if the tenant already has this master product registered
+            let product = await ctx.db.query.products.findFirst({
+                where: and(
+                    eq(products.tenantId, tenantId),
+                    eq(products.masterProductId, input.productId)
+                ),
             });
-            // We removed tenantId restriction from products above, so product can be global.
+
+            // 2. If not found by masterProductId, maybe input.productId IS the local productId (legacy)
             if (!product) {
-                throw new TRPCError({ code: 'NOT_FOUND', message: 'Product not found in global catalog.' });
+                product = await ctx.db.query.products.findFirst({
+                    where: eq(products.id, input.productId),
+                });
+            }
+
+            // 3. If STILL not found, check if it's a valid Master Product and create the link
+            if (!product) {
+                const masterProduct = await ctx.db.query.masterProducts.findFirst({
+                    where: eq(masterProducts.id, input.productId)
+                });
+
+                if (masterProduct) {
+                    // Find or create a farm for this tenant
+                    let farm = await ctx.db.query.farms.findFirst({
+                        where: eq(farms.tenantId, tenantId)
+                    });
+
+                    if (!farm) {
+                        // Create a default farm if none exists
+                        const [newFarm] = await ctx.db.insert(farms).values({
+                            name: `Farm ${ctx.user.name}`,
+                            tenantId,
+                        }).returning();
+                        farm = newFarm;
+                    }
+
+                    // Get a category ID (or use a default one)
+                    const category = await ctx.db.query.productCategories.findFirst();
+                    if (!category) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'No categories found in system.' });
+
+                    // Auto-create the tenant product
+                    const [newProduct] = await ctx.db.insert(products).values({
+                        tenantId,
+                        farmId: farm!.id,
+                        categoryId: category.id,
+                        masterProductId: masterProduct.id,
+                        name: masterProduct.name,
+                        saleUnit: 'unit', // Default
+                        pricePerUnit: '0', // Must be updated later
+                        minOrderQty: '1',
+                        images: masterProduct.defaultImageUrl ? [masterProduct.defaultImageUrl] : [],
+                        isActive: true
+                    }).returning();
+
+                    product = newProduct;
+                }
+            }
+
+            if (!product) {
+                throw new TRPCError({ code: 'NOT_FOUND', message: 'Product not found and not in master catalog.' });
             }
 
             const valuesToInsert = {
                 ...input,
+                productId: product.id, // Use the local product ID
                 tenantId,
                 // Calculate initial freshness score (mock logic for creation, real logic is via worker)
                 freshnessScore: 100,

@@ -23,7 +23,7 @@ async function seedMasterProducts() {
     console.log("Seeding master products...");
     for (const product of masterProductsData) {
 
-        const id = 'mp_' + Math.random().toString(36).substring(2, 9);
+        const id = crypto.randomUUID();
 
         await sql`
             INSERT INTO "master_products" ("id", "name", "category", "default_image_url")
