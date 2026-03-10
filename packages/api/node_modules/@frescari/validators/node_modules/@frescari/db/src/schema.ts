@@ -154,6 +154,7 @@ export const productLots = pgTable('product_lots', {
     estimatedWeight: numeric('estimated_weight', { precision: 10, scale: 3 }),
     freshnessScore: integer('freshness_score'), // 0 to 100
     storageLocation: text('storage_location'),
+    unit: text('unit').default('un').notNull(),
     imageUrl: text('image_url'),
     isExpired: boolean('is_expired').default(false).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

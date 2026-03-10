@@ -80,6 +80,14 @@ export function InventoryClient() {
         }).format(new Date(dateStr));
     };
 
+    const formatQuantity = (qty: string, unit: string) => {
+        const num = parseFloat(qty);
+        return `${new Intl.NumberFormat('pt-BR', {
+            maximumFractionDigits: 2,
+            minimumFractionDigits: 0
+        }).format(num)} ${unit || 'un'}`;
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -181,7 +189,7 @@ export function InventoryClient() {
                                                     <div className="text-[10px] text-bark/50 uppercase tracking-widest mt-0.5">{lot.lotCode}</div>
                                                 </TableCell>
                                                 <TableCell className="font-sans text-bark/80">
-                                                    {lot.availableQty} {lot.pricingType === 'UNIT' ? 'un' : 'kg'}
+                                                    {formatQuantity(lot.availableQty, lot.unit)}
                                                 </TableCell>
                                                 <TableCell className="font-bold text-forest font-sans">
                                                     {formatCurrency(lot.priceOverride)}

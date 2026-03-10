@@ -21,6 +21,7 @@ export function InventoryForm({
     const [expiryDate, setExpiryDate] = useState("");
     const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split("T")[0]);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [unit, setUnit] = useState("un");
     const [isUploading, setIsUploading] = useState(false);
 
     // Sync initialData
@@ -38,6 +39,7 @@ export function InventoryForm({
             };
             setExpiryDate(formatForInput(initialData.expiryDate));
             setHarvestDate(formatForInput(initialData.harvestDate));
+            setUnit(initialData.unit || "un");
             setImageUrl(initialData.imageUrl || null);
         }
     }, [initialData]);
@@ -82,6 +84,7 @@ export function InventoryForm({
         setQty("");
         setPrice("");
         setProductId("");
+        setUnit("un");
         setImageUrl(null);
         setSelectedMasterId("");
 
@@ -98,6 +101,34 @@ export function InventoryForm({
         if (onSuccess) {
             onSuccess();
         }
+    };
+
+    const handleCreate = (formData: any) => {
+        const lotCode = `LOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        createLot.mutate({
+            productId: formData.productId,
+            lotCode,
+            availableQty: formData.availableQty,
+            priceOverride: formData.priceOverride,
+            harvestDate: formData.harvestDate,
+            expiryDate: formData.expiryDate,
+            unit,
+            imageUrl: imageUrl || "",
+        });
+    };
+
+    const handleUpdate = (formData: any) => {
+        if (!initialData?.id) return;
+
+        updateLot.mutate({
+            id: initialData.id,
+            availableQty: Number(formData.availableQty),
+            priceOverride: Number(formData.priceOverride),
+            harvestDate: formData.harvestDate,
+            expiryDate: formData.expiryDate,
+            unit,
+            imageUrl: imageUrl || "",
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -124,26 +155,18 @@ export function InventoryForm({
             return;
         }
 
+        const formData = {
+            availableQty: Number(qty),
+            priceOverride: parsedPrice,
+            harvestDate,
+            expiryDate,
+            productId: selectedMasterId,
+        };
+
         if (initialData?.id) {
-            updateLot.mutate({
-                id: initialData.id,
-                availableQty: Number(qty),
-                priceOverride: parsedPrice,
-                harvestDate,
-                expiryDate,
-                imageUrl: imageUrl || undefined,
-            });
+            handleUpdate(formData);
         } else {
-            const lotCode = `LOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-            createLot.mutate({
-                productId: selectedMasterId,
-                lotCode,
-                availableQty: Number(qty),
-                priceOverride: parsedPrice,
-                harvestDate,
-                expiryDate,
-                imageUrl: imageUrl || undefined,
-            });
+            handleCreate(formData);
         }
     };
 
@@ -264,23 +287,50 @@ export function InventoryForm({
                 ) : null}
             </div>
 
-            {/* ── Quantity ── */}
-            <div className="space-y-1.5">
-                <label htmlFor="qty" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
-                    Quantidade Disponível (kg/unidade)
-                </label>
-                <input
-                    id="qty"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={qty}
-                    onChange={(e) => setQty(e.target.value)}
-                    placeholder="Ex: 50.5"
-                    className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                    disabled={createLot.isPending || updateLot.isPending}
-                    required
-                />
+            {/* ── Quantity and Unit ── */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                    <label htmlFor="qty" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
+                        Quantidade Disponível
+                    </label>
+                    <input
+                        id="qty"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={qty}
+                        onChange={(e) => setQty(e.target.value)}
+                        placeholder="Ex: 50.5"
+                        className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
+                        disabled={createLot.isPending || updateLot.isPending}
+                        required
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <label htmlFor="unit" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
+                        Unidade
+                    </label>
+                    <div className="relative">
+                        <select
+                            id="unit"
+                            value={unit}
+                            onChange={(e) => setUnit(e.target.value)}
+                            className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15 appearance-none cursor-pointer"
+                            disabled={createLot.isPending || updateLot.isPending}
+                            required
+                        >
+                            <option value="kg">Quilogramas (kg)</option>
+                            <option value="un">Unidades (un)</option>
+                            <option value="cx">Caixas (cx)</option>
+                            <option value="maço">Maços (maço)</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-bark/40">
+                            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* ── Price ── */}
