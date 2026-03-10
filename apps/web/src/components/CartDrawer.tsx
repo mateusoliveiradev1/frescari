@@ -37,17 +37,10 @@ export function CartDrawer() {
     const DELIVERY_FEE = 8.00;
 
     // @ts-ignore - bypassing workspace type propagation issues
-    const createOrder = trpc.order.createOrder.useMutation({
-        onSuccess: () => {
-            clearCart();
-            setIsOpen(false);
-            setDeliveryStreet('');
-            setDeliveryNumber('');
-            setDeliveryCep('');
-            setDeliveryCity('');
-            setDeliveryState('');
-            setDeliveryNotes('');
-            router.push('/dashboard/pedidos');
+    const createCheckout = trpc.checkout.createCheckoutSession.useMutation({
+        onSuccess: (data: { url: string }) => {
+            // Redirect to Stripe Checkout
+            window.location.href = data.url;
         },
         onError: (err: any) => {
             toast.error(err.message || 'Falha ao iniciar pagamento. Verifique sua conexão e tente novamente.');
@@ -74,18 +67,23 @@ export function CartDrawer() {
             return;
         }
 
-        createOrder.mutate({
-            deliveryStreet: deliveryStreet.trim(),
-            deliveryNumber: deliveryNumber.trim(),
-            deliveryCep: deliveryCep.trim(),
-            deliveryCity: deliveryCity.trim(),
-            deliveryState: deliveryState.trim().toUpperCase(),
-            deliveryFee: DELIVERY_FEE,
-            deliveryNotes: deliveryNotes.trim() ? deliveryNotes.trim() : undefined,
+        createCheckout.mutate({
             items: items.map(item => ({
                 lotId: item.id,
-                quantity: item.cartQty
-            }))
+                quantity: item.cartQty,
+                pricingType: item.pricingType,
+                productName: item.productName,
+                unitPrice: item.finalPrice,
+                imageUrl: item.imageUrl,
+            })),
+            address: {
+                street: deliveryStreet.trim(),
+                number: deliveryNumber.trim(),
+                cep: deliveryCep.trim(),
+                city: deliveryCity.trim(),
+                state: deliveryState.trim().toUpperCase(),
+            },
+            deliveryFee: DELIVERY_FEE,
         });
     };
 
@@ -325,18 +323,18 @@ export function CartDrawer() {
                             <div className="flex gap-3">
                                 <button
                                     onClick={clearCart}
-                                    disabled={createOrder.isPending}
+                                    disabled={createCheckout.isPending}
                                     className="px-4 py-3 rounded-xl border border-forest/20 font-semibold text-bark hover:bg-forest/5 transition-colors disabled:opacity-50"
                                 >
                                     Limpar
                                 </button>
                                 <button
                                     onClick={handleCheckout}
-                                    disabled={createOrder.isPending || items.length === 0 || !isAddressComplete}
+                                    disabled={createCheckout.isPending || items.length === 0 || !isAddressComplete}
                                     className="flex-1 px-4 py-3 rounded-xl bg-forest text-cream font-bold hover:bg-forest/90 transition-colors shadow-md hover:shadow-lg hover:-translate-y-[1px] active:translate-y-0 relative disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     <span className="flex items-center justify-center gap-2">
-                                        {createOrder.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Finalizar Pedido"}
+                                        {createCheckout.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Ir para Pagamento"}
                                     </span>
                                 </button>
                             </div>
