@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { db } from '@frescari/db';
 import { orders, orderItems, productLots, products } from '@frescari/db';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql, and } from 'drizzle-orm';
 
 // ── Stripe SDK ───────────────────────────────────────────────────────
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '');
@@ -27,6 +27,8 @@ interface MetadataAddress {
 
 // ── Webhook handler ──────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+    console.log('[WEBHOOK] ── Incoming request ──');
+
     if (!webhookSecret) {
         console.error('[WEBHOOK] STRIPE_WEBHOOK_SECRET is not configured.');
         return NextResponse.json(
@@ -35,10 +37,12 @@ export async function POST(req: NextRequest) {
         );
     }
 
+    // CRITICAL: Must use req.text() to get raw body for signature verification
     const body = await req.text();
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
+        console.error('[WEBHOOK] Missing stripe-signature header.');
         return NextResponse.json(
             { error: 'Missing stripe-signature header' },
             { status: 400 },
@@ -58,6 +62,8 @@ export async function POST(req: NextRequest) {
         );
     }
 
+    console.log(`[WEBHOOK] Evento recebido: ${event.type}, ID: ${event.id}`);
+
     // ── Handle events ────────────────────────────────────────────────
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -65,10 +71,14 @@ export async function POST(req: NextRequest) {
         try {
             await handleCheckoutCompleted(session);
         } catch (error) {
-            console.error('[WEBHOOK] Error processing checkout.session.completed:', error);
-            // Return 200 to prevent Stripe from retrying on application errors
-            // that would fail again (e.g. duplicate order). Log for manual review.
-            return NextResponse.json({ received: true, error: 'Processing error logged' });
+            console.error('[WEBHOOK ERROR] Falha ao processar checkout.session.completed:', error);
+            // Return 500 so Stripe retries on transient errors (e.g. DB down).
+            // For permanent errors (missing metadata), handleCheckoutCompleted
+            // already logs the details before throwing.
+            return NextResponse.json(
+                { received: true, error: 'Processing error logged' },
+                { status: 500 },
+            );
         }
     }
 
@@ -77,58 +87,93 @@ export async function POST(req: NextRequest) {
 
 // ── Business logic ───────────────────────────────────────────────────
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+    console.log(`[WEBHOOK] Processando sessão: ${session.id}`);
+
+    // ── 1. Extract & validate metadata ───────────────────────────────
     const metadata = session.metadata;
     if (!metadata) {
-        console.error('[WEBHOOK] Session has no metadata:', session.id);
-        return;
+        throw new Error(`[WEBHOOK] Session ${session.id} has no metadata.`);
     }
 
     const buyerTenantId = metadata.buyer_tenant_id;
     const itemsRaw = metadata.items;
     const addressRaw = metadata.address;
-    const deliveryFee = parseFloat(metadata.delivery_fee ?? '0');
+    const deliveryFeeStr = metadata.delivery_fee ?? '0';
 
     if (!buyerTenantId || !itemsRaw || !addressRaw) {
-        console.error('[WEBHOOK] Missing required metadata fields:', {
-            buyerTenantId,
-            hasItems: !!itemsRaw,
-            hasAddress: !!addressRaw,
-        });
-        return;
+        throw new Error(
+            `[WEBHOOK] Metadados obrigatórios ausentes na sessão ${session.id}: ` +
+            `buyer_tenant_id=${buyerTenantId ? '✓' : '✗'}, ` +
+            `items=${itemsRaw ? '✓' : '✗'}, ` +
+            `address=${addressRaw ? '✓' : '✗'}`,
+        );
     }
 
-    // Parse metadata
-    const parsedItems: MetadataItem[] = JSON.parse(itemsRaw);
-    const parsedAddress: MetadataAddress = JSON.parse(addressRaw);
+    console.log(`[WEBHOOK] Metadados extraídos: buyer=${buyerTenantId}, deliveryFee=${deliveryFeeStr}`);
+
+    // ── 2. Parse JSON safely ─────────────────────────────────────────
+    let parsedItems: MetadataItem[];
+    let parsedAddress: MetadataAddress;
+
+    try {
+        parsedItems = JSON.parse(itemsRaw) as MetadataItem[];
+    } catch (e) {
+        throw new Error(`[WEBHOOK] Failed to parse items JSON for session ${session.id}: ${itemsRaw}`);
+    }
+
+    try {
+        parsedAddress = JSON.parse(addressRaw) as MetadataAddress;
+    } catch (e) {
+        throw new Error(`[WEBHOOK] Failed to parse address JSON for session ${session.id}: ${addressRaw}`);
+    }
 
     if (parsedItems.length === 0) {
-        console.error('[WEBHOOK] No items in metadata for session:', session.id);
+        throw new Error(`[WEBHOOK] No items in metadata for session ${session.id}.`);
+    }
+
+    const deliveryFee = parseFloat(deliveryFeeStr);
+    console.log(`[WEBHOOK] Itens parseados: ${parsedItems.length} item(ns), deliveryFee=${deliveryFee}`);
+
+    // ── 3. Idempotency guard ─────────────────────────────────────────
+    const existingOrder = await db
+        .select({ id: orders.id })
+        .from(orders)
+        .where(eq(orders.stripeSessionId, session.id))
+        .limit(1);
+
+    if (existingOrder.length > 0) {
+        console.log(`[WEBHOOK] ⚠️ Sessão ${session.id} já processada (order ${existingOrder[0]!.id}). Ignorando duplicata.`);
         return;
     }
 
-    // Fetch lot data from DB for seller tenant IDs and product IDs
+    // ── 4. Fetch lot data from DB ────────────────────────────────────
     const lotIds = parsedItems.map((i) => i.lotId);
+    console.log(`[WEBHOOK] Buscando lotes no banco: ${lotIds.join(', ')}`);
+
     const fetchedLots = await db
         .select({
             lotId: productLots.id,
-            productId: products.id,
+            productId: productLots.productId,
             sellerTenantId: productLots.tenantId,
+            availableQty: productLots.availableQty,
         })
         .from(productLots)
-        .innerJoin(products, eq(productLots.productId, products.id))
         .where(inArray(productLots.id, lotIds));
 
     if (fetchedLots.length === 0) {
-        console.error('[WEBHOOK] No lots found for IDs:', lotIds);
-        return;
+        throw new Error(`[WEBHOOK] Nenhum lote encontrado no banco para IDs: ${lotIds.join(', ')}`);
     }
 
-    // Compose a single-line address for legacy display
+    console.log(`[WEBHOOK] Lotes encontrados no banco: ${fetchedLots.length}`);
+
+    // ── 5. Map items to lot data ─────────────────────────────────────
     const composedAddress = `${parsedAddress.street}, ${parsedAddress.number} - ${parsedAddress.city}/${parsedAddress.state} - CEP: ${parsedAddress.cep}`;
 
-    // Group items by seller
     const itemsWithLotData = parsedItems.map((item) => {
         const lotData = fetchedLots.find((l) => l.lotId === item.lotId);
+        if (!lotData) {
+            console.warn(`[WEBHOOK] ⚠️ Lote ${item.lotId} não encontrado no banco. Será ignorado.`);
+        }
         return {
             ...item,
             productId: lotData?.productId ?? '',
@@ -136,6 +181,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         };
     });
 
+    // ── 6. Group items by seller ─────────────────────────────────────
     const ordersBySeller = itemsWithLotData.reduce(
         (acc, item) => {
             if (!item.sellerTenantId) return acc;
@@ -146,23 +192,29 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         {} as Record<string, typeof itemsWithLotData>,
     );
 
-    // Create orders per seller inside a transaction
+    const sellerCount = Object.keys(ordersBySeller).length;
+    console.log(`[WEBHOOK] Pedidos agrupados por ${sellerCount} vendedor(es).`);
+
+    // ── 7. Create orders inside a DB transaction ─────────────────────
+    console.log('[WEBHOOK] Iniciando transação no banco...');
+
     await db.transaction(async (tx) => {
         for (const sellerId of Object.keys(ordersBySeller)) {
-            const items = ordersBySeller[sellerId]!;
-            const itemsTotal = items.reduce(
+            const sellerItems = ordersBySeller[sellerId]!;
+            const itemsTotal = sellerItems.reduce(
                 (sum, item) => sum + item.price * item.qty,
                 0,
             );
             const orderTotal = itemsTotal + deliveryFee;
 
-            // Create the Order with awaiting_weight status
+            // ── Insert Order ─────────────────────────────────────────
             const [newOrder] = await tx
                 .insert(orders)
                 .values({
                     buyerTenantId,
                     sellerTenantId: sellerId,
                     status: 'awaiting_weight',
+                    stripeSessionId: session.id,
                     deliveryStreet: parsedAddress.street,
                     deliveryNumber: parsedAddress.number,
                     deliveryCep: parsedAddress.cep,
@@ -174,10 +226,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                 })
                 .returning();
 
-            // Create Order Items
+            if (!newOrder) {
+                throw new Error(`[WEBHOOK] Falha ao inserir order para seller ${sellerId} — returning() vazio.`);
+            }
+
+            console.log(`[WEBHOOK] ✅ Pedido criado: ${newOrder.id} | Vendedor: ${sellerId} | Total: R$${orderTotal.toFixed(2)}`);
+
+            // ── Insert Order Items ───────────────────────────────────
             await tx.insert(orderItems).values(
-                items.map((i) => ({
-                    orderId: newOrder!.id,
+                sellerItems.map((i) => ({
+                    orderId: newOrder.id,
                     lotId: i.lotId,
                     productId: i.productId,
                     qty: i.qty.toString(),
@@ -185,19 +243,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                 })),
             );
 
-            // Deduct stock atomically
-            for (const item of items) {
+            console.log(`[WEBHOOK] ✅ ${sellerItems.length} item(ns) inserido(s) para pedido ${newOrder.id}`);
+
+            // ── Deduct stock atomically ──────────────────────────────
+            for (const item of sellerItems) {
                 await tx
                     .update(productLots)
                     .set({
-                        availableQty: sql`GREATEST(0, CAST(${productLots.availableQty} AS NUMERIC) - ${item.qty})`,
+                        availableQty: sql`GREATEST(0, ${productLots.availableQty} - ${item.qty.toString()}::numeric)`,
                     })
                     .where(eq(productLots.id, item.lotId));
+
+                console.log(`[WEBHOOK] ✅ Estoque decrementado: lote ${item.lotId} (-${item.qty})`);
             }
         }
     });
 
     console.log(
-        `[WEBHOOK] ✅ Orders created for session ${session.id} | Buyer: ${buyerTenantId}`,
+        `[WEBHOOK] ✅ Transação completa para sessão ${session.id} | Comprador: ${buyerTenantId}`,
     );
 }
