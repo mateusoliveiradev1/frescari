@@ -69,6 +69,14 @@ export const updateLotInventorySchema = z.object({
     newAvailableQty: z.number().positive()
 });
 
+export const deliveryAddressSchema = z.object({
+    street: z.string().min(3, "Rua é obrigatória."),
+    number: z.string().min(1, "Número é obrigatório."),
+    cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP inválido (ex: 01234-567)."),
+    city: z.string().min(2, "Cidade é obrigatória."),
+    state: z.string().length(2, "Estado deve ter 2 letras (UF)."),
+});
+
 export const checkoutOrderSchema = z.object({
     buyerTenantId: z.string().uuid(),
     sellerTenantId: z.string().uuid(),
@@ -77,7 +85,9 @@ export const checkoutOrderSchema = z.object({
         productId: z.string().uuid(),
         qty: z.number().positive(),
     })),
-    deliveryAddress: z.string().optional(),
+    deliveryAddress: deliveryAddressSchema,
+    deliveryFee: z.number().min(0).default(0),
+    deliveryNotes: z.string().optional(),
     deliveryGeo: z.tuple([z.number(), z.number()]).optional() // [lat, lng]
 });
 

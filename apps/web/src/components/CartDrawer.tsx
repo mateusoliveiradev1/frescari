@@ -26,15 +26,26 @@ export function CartDrawer() {
     const router = useRouter();
     const { data: session } = authClient.useSession();
 
-    const [deliveryAddress, setDeliveryAddress] = React.useState('');
+    const [deliveryStreet, setDeliveryStreet] = React.useState('');
+    const [deliveryNumber, setDeliveryNumber] = React.useState('');
+    const [deliveryCep, setDeliveryCep] = React.useState('');
+    const [deliveryCity, setDeliveryCity] = React.useState('');
+    const [deliveryState, setDeliveryState] = React.useState('');
     const [deliveryNotes, setDeliveryNotes] = React.useState('');
+
+    // Delivery fee — MVP fixed value; future: recalculated via distance API
+    const DELIVERY_FEE = 8.00;
 
     // @ts-ignore - bypassing workspace type propagation issues
     const createOrder = trpc.order.createOrder.useMutation({
         onSuccess: () => {
             clearCart();
             setIsOpen(false);
-            setDeliveryAddress('');
+            setDeliveryStreet('');
+            setDeliveryNumber('');
+            setDeliveryCep('');
+            setDeliveryCity('');
+            setDeliveryState('');
             setDeliveryNotes('');
             router.push('/dashboard/pedidos');
         },
@@ -42,6 +53,12 @@ export function CartDrawer() {
             toast.error(err.message || 'Falha ao iniciar pagamento. Verifique sua conexão e tente novamente.');
         },
     });
+
+    const isAddressComplete = deliveryStreet.trim().length >= 3 &&
+        deliveryNumber.trim().length >= 1 &&
+        /^\d{5}-?\d{3}$/.test(deliveryCep.trim()) &&
+        deliveryCity.trim().length >= 2 &&
+        deliveryState.trim().length === 2;
 
     const handleCheckout = () => {
         if (items.length === 0) return;
@@ -52,13 +69,18 @@ export function CartDrawer() {
             return;
         }
 
-        if (!deliveryAddress.trim()) {
-            toast.error("Por favor, preencha o endereço de entrega.");
+        if (!isAddressComplete) {
+            toast.error("Por favor, preencha todos os campos do endereço de entrega.");
             return;
         }
 
         createOrder.mutate({
-            deliveryAddress: deliveryAddress.trim(),
+            deliveryStreet: deliveryStreet.trim(),
+            deliveryNumber: deliveryNumber.trim(),
+            deliveryCep: deliveryCep.trim(),
+            deliveryCity: deliveryCity.trim(),
+            deliveryState: deliveryState.trim().toUpperCase(),
+            deliveryFee: DELIVERY_FEE,
             deliveryNotes: deliveryNotes.trim() ? deliveryNotes.trim() : undefined,
             items: items.map(item => ({
                 lotId: item.id,
@@ -248,33 +270,36 @@ export function CartDrawer() {
                     {/* Footer */}
                     {items.length > 0 && (
                         <div className="border-t border-forest/10 bg-white p-6 pb-8 space-y-4">
-                            {/* Delivery Form */}
+                            {/* Structured Delivery Form */}
                             <div className="space-y-3 mb-4 p-4 bg-forest/5 rounded-xl border border-forest/10">
-                                <div>
-                                    <label htmlFor="address" className="block text-xs font-semibold text-soil mb-1">
-                                        Endereço Completo de Entrega *
-                                    </label>
-                                    <input
-                                        id="address"
-                                        type="text"
-                                        placeholder="Ex: Rua das Flores, 123, Bairro Centro"
-                                        value={deliveryAddress}
-                                        onChange={(e) => setDeliveryAddress(e.target.value)}
-                                        className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white"
-                                    />
+                                <p className="text-xs font-bold text-soil uppercase tracking-wider">Endereço de Entrega</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="col-span-2">
+                                        <label htmlFor="street" className="block text-[10px] font-semibold text-bark mb-0.5">Rua *</label>
+                                        <input id="street" type="text" placeholder="Rua das Flores" value={deliveryStreet} onChange={(e) => setDeliveryStreet(e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white" />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="number" className="block text-[10px] font-semibold text-bark mb-0.5">Nº *</label>
+                                        <input id="number" type="text" placeholder="123" value={deliveryNumber} onChange={(e) => setDeliveryNumber(e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label htmlFor="cep" className="block text-[10px] font-semibold text-bark mb-0.5">CEP *</label>
+                                        <input id="cep" type="text" placeholder="01234-567" value={deliveryCep} onChange={(e) => setDeliveryCep(e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white" maxLength={9} />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="city" className="block text-[10px] font-semibold text-bark mb-0.5">Cidade *</label>
+                                        <input id="city" type="text" placeholder="São Paulo" value={deliveryCity} onChange={(e) => setDeliveryCity(e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white" />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="state" className="block text-[10px] font-semibold text-bark mb-0.5">UF *</label>
+                                        <input id="state" type="text" placeholder="SP" value={deliveryState} onChange={(e) => setDeliveryState(e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white uppercase" maxLength={2} />
+                                    </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="notes" className="block text-xs font-semibold text-soil mb-1">
-                                        Observações (Opcional)
-                                    </label>
-                                    <input
-                                        id="notes"
-                                        type="text"
-                                        placeholder="Ex: Deixar na portaria"
-                                        value={deliveryNotes}
-                                        onChange={(e) => setDeliveryNotes(e.target.value)}
-                                        className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white"
-                                    />
+                                    <label htmlFor="notes" className="block text-[10px] font-semibold text-bark mb-0.5">Observações (Opcional)</label>
+                                    <input id="notes" type="text" placeholder="Ex: Deixar na portaria" value={deliveryNotes} onChange={(e) => setDeliveryNotes(e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-forest/20 focus:outline-none focus:ring-2 focus:ring-forest/30 transition-all bg-white" />
                                 </div>
                             </div>
 
@@ -284,9 +309,17 @@ export function CartDrawer() {
                                     <span>- {formatCurrency(savings)}</span>
                                 </div>
                             )}
-                            <div className="flex items-center justify-between text-lg font-bold text-soil">
-                                <span>Subtotal</span>
+                            <div className="flex items-center justify-between text-sm text-bark">
+                                <span>Subtotal dos itens</span>
                                 <span>{formatCurrency(subtotal)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm text-bark">
+                                <span>Taxa de entrega</span>
+                                <span>{formatCurrency(DELIVERY_FEE)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-lg font-bold text-soil border-t border-forest/10 pt-3">
+                                <span>Total</span>
+                                <span>{formatCurrency(subtotal + DELIVERY_FEE)}</span>
                             </div>
 
                             <div className="flex gap-3">
@@ -299,7 +332,7 @@ export function CartDrawer() {
                                 </button>
                                 <button
                                     onClick={handleCheckout}
-                                    disabled={createOrder.isPending || items.length === 0 || !deliveryAddress.trim()}
+                                    disabled={createOrder.isPending || items.length === 0 || !isAddressComplete}
                                     className="flex-1 px-4 py-3 rounded-xl bg-forest text-cream font-bold hover:bg-forest/90 transition-colors shadow-md hover:shadow-lg hover:-translate-y-[1px] active:translate-y-0 relative disabled:opacity-50 disabled:pointer-events-none"
                                 >
                                     <span className="flex items-center justify-center gap-2">

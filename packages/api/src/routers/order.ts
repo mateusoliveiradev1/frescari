@@ -8,7 +8,12 @@ export const orderRouter = createTRPCRouter({
     createOrder: protectedProcedure
         .input(
             z.object({
-                deliveryAddress: z.string().min(5, "O endereço é obrigatório e deve ser completo."),
+                deliveryStreet: z.string().min(3, "Rua é obrigatória."),
+                deliveryNumber: z.string().min(1, "Número é obrigatório."),
+                deliveryCep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP inválido."),
+                deliveryCity: z.string().min(2, "Cidade é obrigatória."),
+                deliveryState: z.string().length(2, "Estado deve ter 2 letras (UF)."),
+                deliveryFee: z.number().min(0).default(0),
                 deliveryNotes: z.string().optional(),
                 items: z.array(
                     z.object({
@@ -38,6 +43,9 @@ export const orderRouter = createTRPCRouter({
                     message: 'Carrinho vazio.',
                 });
             }
+
+            // Compose a single-line address for legacy display
+            const composedAddress = `${input.deliveryStreet}, ${input.deliveryNumber} - ${input.deliveryCity}/${input.deliveryState} - CEP: ${input.deliveryCep}`;
 
             try {
                 // Begin Transaction
@@ -77,6 +85,7 @@ export const orderRouter = createTRPCRouter({
                             });
                         }
 
+                        // Strict integer validation for UNIT and BOX pricing types
                         if ((lotData.pricingType === 'UNIT' || lotData.pricingType === 'BOX') && !Number.isInteger(reqItem.quantity)) {
                             throw new TRPCError({
                                 code: 'BAD_REQUEST',
@@ -117,14 +126,22 @@ export const orderRouter = createTRPCRouter({
 
                     for (const sellerId in ordersBySeller) {
                         const items = ordersBySeller[sellerId];
-                        const orderTotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+                        const itemsTotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+                        // Final formula: (sum of base_price * qty) + deliveryFee
+                        const orderTotal = itemsTotal + input.deliveryFee;
 
                         // Create the Order
                         const [newOrder] = await tx.insert(orders).values({
                             buyerTenantId,
                             sellerTenantId: sellerId,
                             status: 'confirmed',
-                            deliveryAddress: input.deliveryAddress,
+                            deliveryStreet: input.deliveryStreet,
+                            deliveryNumber: input.deliveryNumber,
+                            deliveryCep: input.deliveryCep,
+                            deliveryCity: input.deliveryCity,
+                            deliveryState: input.deliveryState,
+                            deliveryAddress: composedAddress,
+                            deliveryFee: input.deliveryFee.toFixed(2),
                             deliveryNotes: input.deliveryNotes,
                             totalAmount: orderTotal.toFixed(4),
                         }).returning();

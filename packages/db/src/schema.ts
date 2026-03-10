@@ -165,11 +165,19 @@ export const orders = pgTable('orders', {
     buyerTenantId: uuid('buyer_tenant_id').references(() => tenants.id).notNull(),
     sellerTenantId: uuid('seller_tenant_id').references(() => tenants.id).notNull(),
     status: orderStatusEnum('status').default('draft').notNull(),
+    // Structured address fields
+    deliveryStreet: text('delivery_street').notNull(),
+    deliveryNumber: text('delivery_number').notNull(),
+    deliveryCep: text('delivery_cep').notNull(),
+    deliveryCity: text('delivery_city').notNull(),
+    deliveryState: text('delivery_state').notNull(),
+    // Legacy single-line field (kept for backward compat / display)
     deliveryAddress: text('delivery_address').notNull(),
     deliveryNotes: text('delivery_notes'),
     deliveryPoint: geometry('delivery_point'),
     deliveryWindowStart: timestamp('delivery_window_start', { withTimezone: true }),
     deliveryWindowEnd: timestamp('delivery_window_end', { withTimezone: true }),
+    deliveryFee: numeric('delivery_fee', { precision: 10, scale: 2 }).default('0').notNull(),
     totalAmount: numeric('total_amount', { precision: 14, scale: 4 }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
