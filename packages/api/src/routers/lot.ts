@@ -182,7 +182,7 @@ export const lotRouter = createTRPCRouter({
                             freshnessScore: lot.freshnessScore,
                             productName: product?.name || "Produto Desconhecido",
                             saleUnit: product?.saleUnit || "unit",
-                            imageUrl: product?.images?.[0] || null,
+                            imageUrl: lot.imageUrl || product?.images?.[0] || null,
                             farmName: row.farmName || "Produtor Local",
                             originalPrice,
                             finalPrice,
