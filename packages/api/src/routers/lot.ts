@@ -284,5 +284,76 @@ export const lotRouter = createTRPCRouter({
                 console.error('[DB_ERROR]: Erro na query getRecentLots:', error);
                 throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
             }
-        })
+        }),
+
+    getByProducer: protectedProcedure
+        .query(async ({ ctx }) => {
+            const tenantId = ctx.tenantId;
+            if (!tenantId) return [];
+
+            const results = await ctx.db.select({
+                lot: productLots,
+                product: products,
+            }).from(productLots)
+                .innerJoin(products, eq(productLots.productId, products.id))
+                .where(eq(productLots.tenantId, tenantId))
+                .orderBy(sql`${productLots.createdAt} DESC`);
+
+            return results.map(row => ({
+                ...row.lot,
+                productName: row.product.name,
+                imageUrl: row.lot.imageUrl || row.product.images?.[0] || null,
+            }));
+        }),
+
+    delete: protectedProcedure
+        .input(z.object({ id: z.string().uuid() }))
+        .mutation(async ({ ctx, input }) => {
+            const tenantId = ctx.tenantId;
+            if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED' });
+
+            const [deleted] = await ctx.db.delete(productLots)
+                .where(and(
+                    eq(productLots.id, input.id),
+                    eq(productLots.tenantId, tenantId)
+                ))
+                .returning();
+
+            if (!deleted) throw new TRPCError({ code: 'NOT_FOUND', message: 'Lote não encontrado ou permissão negada.' });
+
+            return { success: true };
+        }),
+
+    update: protectedProcedure
+        .input(z.object({
+            id: z.string().uuid(),
+            availableQty: z.number().optional(),
+            priceOverride: z.number().optional(),
+            expiryDate: z.string().optional(),
+            pricingType: z.enum(['UNIT', 'WEIGHT', 'BOX']).optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const tenantId = ctx.tenantId;
+            if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED' });
+
+            const { id, ...data } = input;
+
+            const updateValues: Record<string, any> = {};
+            if (data.availableQty !== undefined) updateValues.availableQty = data.availableQty.toString();
+            if (data.priceOverride !== undefined) updateValues.priceOverride = data.priceOverride.toString();
+            if (data.expiryDate !== undefined) updateValues.expiryDate = data.expiryDate;
+            if (data.pricingType !== undefined) updateValues.pricingType = data.pricingType;
+
+            const [updated] = await ctx.db.update(productLots)
+                .set(updateValues)
+                .where(and(
+                    eq(productLots.id, id),
+                    eq(productLots.tenantId, tenantId)
+                ))
+                .returning();
+
+            if (!updated) throw new TRPCError({ code: 'NOT_FOUND', message: 'Lote não encontrado ou permissão negada.' });
+
+            return updated;
+        }),
 });
