@@ -31,6 +31,7 @@ import { toast } from "sonner";
 
 export function InventoryClient() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [editingLot, setEditingLot] = useState<any>(null);
 
     // @ts-expect-error local monorepo trpc generics limit
     const { data: lots, isLoading, refetch } = trpc.lot.getByProducer.useQuery();
@@ -54,6 +55,18 @@ export function InventoryClient() {
         }
     };
 
+    const handleEdit = (lot: any) => {
+        setEditingLot(lot);
+        setIsCreateOpen(true);
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        setIsCreateOpen(open);
+        if (!open) {
+            setEditingLot(null);
+        }
+    };
+
     const formatCurrency = (val: string) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(val));
     };
@@ -74,7 +87,7 @@ export function InventoryClient() {
                     </p>
                 </div>
 
-                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                <Dialog open={isCreateOpen} onOpenChange={handleOpenChange}>
                     <DialogTrigger asChild>
                         <Button variant="primary" className="h-12 px-6 gap-2 rounded-full shadow-lg shadow-forest/10">
                             <Plus className="h-5 w-5" />
@@ -83,10 +96,15 @@ export function InventoryClient() {
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
-                            <DialogTitle className="text-2xl font-display text-soil">Registrar Novo Lote</DialogTitle>
+                            <DialogTitle className="text-2xl font-display text-soil">
+                                {editingLot ? "Editar Lote" : "Registrar Novo Lote"}
+                            </DialogTitle>
                         </DialogHeader>
                         <div className="py-4">
-                            <InventoryForm onSuccess={() => setIsCreateOpen(false)} />
+                            <InventoryForm
+                                initialData={editingLot}
+                                onSuccess={() => handleOpenChange(false)}
+                            />
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -186,7 +204,10 @@ export function InventoryClient() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end" className="w-[160px] p-1 border-forest/10 font-sans shadow-xl">
-                                                            <DropdownMenuItem className="gap-2 cursor-pointer focus:bg-forest/5 focus:text-forest">
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleEdit(lot)}
+                                                                className="gap-2 cursor-pointer focus:bg-forest/5 focus:text-forest"
+                                                            >
                                                                 <Pencil className="h-4 w-4" />
                                                                 Editar
                                                             </DropdownMenuItem>

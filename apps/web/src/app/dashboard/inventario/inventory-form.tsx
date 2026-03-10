@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/trpc/react";
 import { Button } from "@frescari/ui";
 import { useRouter } from "next/navigation";
 import { Toaster, toast } from "sonner";
 import { UploadDropzone } from "@/lib/uploadthing";
 
-export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
+export function InventoryForm({
+    onSuccess,
+    initialData
+}: {
+    onSuccess?: () => void,
+    initialData?: any
+}) {
     // Form state
     const [productId, setProductId] = useState("");
     const [qty, setQty] = useState("");
@@ -16,6 +22,21 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
     const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split("T")[0]);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+
+    // Sync initialData
+    useEffect(() => {
+        if (initialData) {
+            setProductId(initialData.productName || "");
+            setSelectedMasterId(initialData.productId || "");
+            setQty(initialData.availableQty?.toString() || "");
+            setPrice(initialData.priceOverride?.toString() || "");
+            // Handle date conversion to YYYY-MM-DD for input[type="date"]
+            const formatForInput = (d: any) => d ? new Date(d).toISOString().split("T")[0] : "";
+            setExpiryDate(formatForInput(initialData.expiryDate));
+            setHarvestDate(formatForInput(initialData.harvestDate));
+            setImageUrl(initialData.imageUrl || null);
+        }
+    }, [initialData]);
 
     // Queries & Mutations
     // @ts-expect-error local monorepo limits
@@ -35,31 +56,45 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
             toast.success("Lote registrado com sucesso! 🌿", {
                 description: "O novo lote já está disponível no catálogo.",
             });
-
-            setQty("");
-            setPrice("");
-            setProductId("");
-            setImageUrl(null);
-            setSelectedMasterId("");
-
-            // CRITICAL: Invalidate dashboard queries so metrics update instantly
-            // @ts-expect-error local monorepo trpc generics limit
-            utils.lot.getDashboardMetrics.invalidate();
-            // @ts-expect-error local monorepo trpc generics limit
-            utils.lot.getRecentLots.invalidate();
-            // @ts-expect-error local monorepo trpc generics limit
-            utils.lot.getByProducer.invalidate();
-            // @ts-expect-error local monorepo trpc generics limit
-            utils.lot.invalidate();
-
-            if (onSuccess) {
-                onSuccess();
-            }
+            handlePostSuccess();
         },
         onError: (err: any) => {
             toast.error(err.message || "Erro ao registrar o lote.");
         }
     });
+
+    // @ts-ignore
+    const updateLot = trpc.lot.update.useMutation({
+        onSuccess: () => {
+            toast.success("Lote atualizado com sucesso! 🌿");
+            handlePostSuccess();
+        },
+        onError: (err: any) => {
+            toast.error(err.message || "Erro ao atualizar o lote.");
+        }
+    });
+
+    const handlePostSuccess = () => {
+        setQty("");
+        setPrice("");
+        setProductId("");
+        setImageUrl(null);
+        setSelectedMasterId("");
+
+        // CRITICAL: Invalidate dashboard queries so metrics update instantly
+        // @ts-expect-error local monorepo trpc generics limit
+        utils.lot.getDashboardMetrics.invalidate();
+        // @ts-expect-error local monorepo trpc generics limit
+        utils.lot.getRecentLots.invalidate();
+        // @ts-expect-error local monorepo trpc generics limit
+        utils.lot.getByProducer.invalidate();
+        // @ts-expect-error local monorepo trpc generics limit
+        utils.lot.invalidate();
+
+        if (onSuccess) {
+            onSuccess();
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -79,23 +114,33 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
             return;
         }
 
-        const lotCode = `LOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
         const parsedPrice = parseFloat(price.replace(",", "."));
         if (isNaN(parsedPrice) || parsedPrice < 0) {
             toast.error("Por favor, insira um preço válido.");
             return;
         }
 
-        createLot.mutate({
-            productId: selectedMasterId,
-            lotCode,
-            availableQty: Number(qty),
-            priceOverride: parsedPrice,
-            harvestDate,
-            expiryDate,
-            ...(imageUrl ? { imageUrl } : {}),
-        });
+        if (initialData?.id) {
+            updateLot.mutate({
+                id: initialData.id,
+                availableQty: Number(qty),
+                priceOverride: parsedPrice,
+                harvestDate,
+                expiryDate,
+                imageUrl: imageUrl || undefined,
+            });
+        } else {
+            const lotCode = `LOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+            createLot.mutate({
+                productId: selectedMasterId,
+                lotCode,
+                availableQty: Number(qty),
+                priceOverride: parsedPrice,
+                harvestDate,
+                expiryDate,
+                imageUrl: imageUrl || undefined,
+            });
+        }
     };
 
     return (
@@ -179,7 +224,7 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
                     onBlur={() => setTimeout(() => setIsComboboxOpen(false), 200)} // Delay for click
                     placeholder="Busque por Tomate, Banana, Cebola..."
                     className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                    disabled={createLot.isPending}
+                    disabled={createLot.isPending || updateLot.isPending || !!initialData}
                     required
                     autoComplete="off"
                 />
@@ -229,7 +274,7 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
                     onChange={(e) => setQty(e.target.value)}
                     placeholder="Ex: 50.5"
                     className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                    disabled={createLot.isPending}
+                    disabled={createLot.isPending || updateLot.isPending}
                     required
                 />
             </div>
@@ -246,7 +291,7 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                    disabled={createLot.isPending}
+                    disabled={createLot.isPending || updateLot.isPending}
                     required
                 />
             </div>
@@ -261,7 +306,7 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
                         value={harvestDate}
                         onChange={(e) => setHarvestDate(e.target.value)}
                         className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                        disabled={createLot.isPending}
+                        disabled={createLot.isPending || updateLot.isPending}
                         required
                     />
                 </div>
@@ -276,7 +321,7 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
                         value={expiryDate}
                         onChange={(e) => setExpiryDate(e.target.value)}
                         className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                        disabled={createLot.isPending}
+                        disabled={createLot.isPending || updateLot.isPending}
                         required
                     />
                 </div>
@@ -286,9 +331,9 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
                 type="submit"
                 variant="primary"
                 className="w-full"
-                disabled={createLot.isPending || !selectedMasterId || !imageUrl || isUploading || !price}
+                disabled={createLot.isPending || updateLot.isPending || !selectedMasterId || !imageUrl || isUploading || !price}
             >
-                {createLot.isPending ? (
+                {createLot.isPending || updateLot.isPending ? (
                     <span className="flex items-center justify-center gap-2">
                         <svg
                             className="animate-spin h-4 w-4 text-white"
@@ -303,7 +348,7 @@ export function InventoryForm({ onSuccess }: { onSuccess?: () => void }) {
                         Salvando...
                     </span>
                 ) : (
-                    "Registrar Lote"
+                    initialData?.id ? "Salvar Alterações" : "Registrar Lote"
                 )}
             </Button>
         </form>

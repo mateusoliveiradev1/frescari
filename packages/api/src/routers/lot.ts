@@ -330,7 +330,9 @@ export const lotRouter = createTRPCRouter({
             availableQty: z.number().optional(),
             priceOverride: z.number().optional(),
             expiryDate: z.string().optional(),
+            harvestDate: z.string().optional(),
             pricingType: z.enum(['UNIT', 'WEIGHT', 'BOX']).optional(),
+            imageUrl: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             const tenantId = ctx.tenantId;
@@ -342,7 +344,9 @@ export const lotRouter = createTRPCRouter({
             if (data.availableQty !== undefined) updateValues.availableQty = data.availableQty.toString();
             if (data.priceOverride !== undefined) updateValues.priceOverride = data.priceOverride.toString();
             if (data.expiryDate !== undefined) updateValues.expiryDate = data.expiryDate;
+            if (data.harvestDate !== undefined) updateValues.harvestDate = data.harvestDate;
             if (data.pricingType !== undefined) updateValues.pricingType = data.pricingType;
+            if (data.imageUrl !== undefined) updateValues.imageUrl = data.imageUrl;
 
             const [updated] = await ctx.db.update(productLots)
                 .set(updateValues)
