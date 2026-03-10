@@ -43,7 +43,7 @@ export const insertProductLotSchema = createInsertSchema(productLots).extend({
     harvestDate: z.coerce.string(),
     expiryDate: z.coerce.string(),
     availableQty: z.string().or(z.number()),
-    priceOverride: z.string().or(z.number()).optional().nullable(),
+    priceOverride: z.number().min(0),
     freshnessScore: z.number().min(0).max(100).optional()
 });
 export const selectProductLotSchema = createSelectSchema(productLots);

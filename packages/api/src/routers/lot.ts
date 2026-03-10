@@ -108,6 +108,8 @@ export const lotRouter = createTRPCRouter({
                 ...input,
                 productId: product.id, // Use the local product ID
                 tenantId,
+                availableQty: input.availableQty.toString(),
+                priceOverride: input.priceOverride.toString(),
                 // Calculate initial freshness score (mock logic for creation, real logic is via worker)
                 freshnessScore: 100,
                 reservedQty: '0',

@@ -13,6 +13,7 @@ export function InventoryForm() {
     // Form state
     const [productId, setProductId] = useState("");
     const [qty, setQty] = useState("");
+    const [price, setPrice] = useState("");
     const [expiryDate, setExpiryDate] = useState("");
     const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split("T")[0]);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -38,6 +39,7 @@ export function InventoryForm() {
             });
 
             setQty("");
+            setPrice("");
             setProductId("");
             setImageUrl(null);
             setSelectedMasterId("");
@@ -62,7 +64,7 @@ export function InventoryForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!productId || !qty || !expiryDate || !harvestDate) {
+        if (!productId || !qty || !expiryDate || !harvestDate || !price) {
             toast.error("Preencha todos os campos obrigatórios.");
             return;
         }
@@ -79,10 +81,17 @@ export function InventoryForm() {
 
         const lotCode = `LOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
+        const parsedPrice = parseFloat(price.replace(",", "."));
+        if (isNaN(parsedPrice) || parsedPrice < 0) {
+            toast.error("Por favor, insira um preço válido.");
+            return;
+        }
+
         createLot.mutate({
             productId: selectedMasterId,
             lotCode,
             availableQty: Number(qty),
+            priceOverride: parsedPrice,
             harvestDate,
             expiryDate,
             ...(imageUrl ? { imageUrl } : {}),
@@ -226,7 +235,22 @@ export function InventoryForm() {
                     />
                 </div>
 
-                {/* ── Dates ── */}
+                {/* ── Price ── */}
+                <div className="space-y-1.5">
+                    <label htmlFor="price" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
+                        Preço (R$)
+                    </label>
+                    <input
+                        id="price"
+                        type="text"
+                        placeholder="Ex: 15,90"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
+                        disabled={createLot.isPending}
+                        required
+                    />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                         <label htmlFor="harvestDate" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
@@ -263,7 +287,7 @@ export function InventoryForm() {
                     type="submit"
                     variant="primary"
                     className="w-full"
-                    disabled={createLot.isPending || !selectedMasterId || !imageUrl || isUploading}
+                    disabled={createLot.isPending || !selectedMasterId || !imageUrl || isUploading || !price}
                 >
                     {createLot.isPending ? (
                         <span className="flex items-center justify-center gap-2">
