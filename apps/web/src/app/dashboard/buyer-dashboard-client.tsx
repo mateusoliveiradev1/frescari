@@ -35,8 +35,8 @@ export default function BuyerDashboard({ user }: { user: any }) {
     // Type assertion to bypass unbuilt package constraints
     const lots = lotsRaw as unknown as DashboardLot[];
 
-    const lastChanceLots = lots.filter(l => l.status === 'last_chance');
-    const freshLots = lots.filter(l => l.status === 'fresco');
+    const lastChanceLots = lots.filter(l => l.status === 'last_chance').slice(0, 6);
+    const freshLots = lots.filter(l => l.status === 'fresco').slice(0, 8);
 
     return (
         <div className="min-h-screen bg-cream">
