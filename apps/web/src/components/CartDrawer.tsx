@@ -39,6 +39,10 @@ export function CartDrawer() {
     // @ts-ignore - bypassing workspace type propagation issues
     const createCheckout = trpc.checkout.createCheckoutSession.useMutation({
         onSuccess: (data: { url: string }) => {
+            // Close the cart drawer and clear items BEFORE redirecting to Stripe
+            // This ensures users don't see old cart items when returning to the success page
+            setIsOpen(false);
+            clearCart();
             // Redirect to Stripe Checkout
             window.location.href = data.url;
         },

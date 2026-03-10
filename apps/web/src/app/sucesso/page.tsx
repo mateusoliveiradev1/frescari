@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { CartCleaner } from './cart-cleaner';
 
 export const metadata: Metadata = {
     title: 'Pedido Recebido — Frescari',
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 export default function SucessoPage() {
     return (
         <main className="min-h-screen bg-cream flex items-center justify-center px-6 py-20">
+            <CartCleaner />
             <div className="max-w-lg w-full text-center space-y-8">
                 {/* Decorative Icon */}
                 <div className="mx-auto w-20 h-20 rounded-full bg-forest/10 flex items-center justify-center">
