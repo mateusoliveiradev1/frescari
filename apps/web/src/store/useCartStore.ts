@@ -19,6 +19,7 @@ export interface CatalogLot {
     pricingType: 'UNIT' | 'WEIGHT' | 'BOX';
     estimatedWeight: number | null;
     unit: string;
+    status: 'fresco' | 'last_chance' | 'vencido';
 }
 
 export interface CartItem extends CatalogLot {

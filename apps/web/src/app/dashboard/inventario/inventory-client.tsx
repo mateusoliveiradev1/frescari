@@ -170,8 +170,8 @@ export function InventoryClient() {
                                 </TableHeader>
                                 <TableBody>
                                     {lots?.map((lot: any) => {
-                                        const isExpired = new Date(lot.expiryDate) < new Date();
-                                        const isLastChance = !isExpired && new Date(lot.expiryDate) < new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+                                        const isExpired = lot.status === 'vencido';
+                                        const isLastChance = lot.status === 'last_chance';
 
                                         return (
                                             <TableRow key={lot.id} className="group border-forest/5 hover:bg-forest/[0.02] transition-colors">
@@ -202,11 +202,11 @@ export function InventoryClient() {
                                                 </TableCell>
                                                 <TableCell>
                                                     {isExpired ? (
-                                                        <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-100 rounded-full font-sans weight-bold">Vencido</Badge>
+                                                        <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-100 rounded-full font-sans weight-bold">Vencido ⚠️</Badge>
                                                     ) : isLastChance ? (
-                                                        <Badge className="bg-orange-50 text-orange-600 border-orange-100 rounded-full font-sans weight-bold">Last Chance</Badge>
+                                                        <Badge className="bg-orange-50 text-orange-600 border-orange-100 rounded-full font-sans weight-bold">Última Colheita 🔥</Badge>
                                                     ) : (
-                                                        <Badge className="bg-forest/10 text-forest border-forest/20 rounded-full font-sans weight-bold">Ativo</Badge>
+                                                        <Badge className="bg-forest/10 text-forest border-forest/20 rounded-full font-sans weight-bold">Fresco</Badge>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right pr-8">

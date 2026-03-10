@@ -44,6 +44,9 @@ export interface ProductCardProps extends React.HTMLAttributes<HTMLDivElement> {
     /** @deprecated — use originalPrice instead */
     priceOverride?: number | null
     availableQty: number
+    /** Computed status from backend: fresco | last_chance | vencido */
+    status: 'fresco' | 'last_chance' | 'vencido';
+    /** @deprecated — price logic now uses 'status' */
     isLastChance?: boolean;
     /** Enum: kg | g | unit | box | dozen | bunch */
     saleUnit?: string;
@@ -62,7 +65,8 @@ export function ProductCard({
     originalPrice,
     priceOverride,
     availableQty,
-    isLastChance = false,
+    status = 'fresco',
+    isLastChance: propsLastChance,
     saleUnit = "unit",
     unit,
     farmName,
@@ -73,6 +77,8 @@ export function ProductCard({
     ...props
 }: ProductCardProps) {
     const displayOriginal = originalPrice ?? (priceOverride != null ? Number(priceOverride) : undefined)
+    const isLastChance = status === 'last_chance';
+    const isExpired = status === 'vencido';
 
     return (
         <article
@@ -128,6 +134,8 @@ export function ProductCard({
                         <div className="px-2.5 py-1 rounded-[3px] bg-red-100 text-red-700 font-sans text-[10px] font-bold uppercase tracking-wider shadow-sm border border-red-200">
                             Esgotado
                         </div>
+                    ) : isExpired ? (
+                        <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-100 font-bold tracking-tight">Vencido ⚠️</Badge>
                     ) : isLastChance ? (
                         <Badge variant="LastChance">Última Colheita 🔥</Badge>
                     ) : (
@@ -146,7 +154,7 @@ export function ProductCard({
                     <span className={cn(
                         "font-sans text-[9px] font-bold uppercase tracking-wider",
                         "px-2 py-1 rounded-[2px]",
-                        availableQty <= 0
+                        (availableQty <= 0 || isExpired)
                             ? "bg-red-500 text-white"
                             : isLastChance
                                 ? "bg-ember text-white"
@@ -204,7 +212,7 @@ export function ProductCard({
                         {/* Final price */}
                         <span className={cn(
                             "font-display font-black text-2xl tracking-tight leading-none",
-                            availableQty <= 0 ? "text-bark/50" : isLastChance ? "text-ember" : "text-forest"
+                            (availableQty <= 0 || isExpired) ? "text-bark/50" : isLastChance ? "text-ember" : "text-forest"
                         )}>
                             {finalPrice.toLocaleString("pt-BR", {
                                 style: "currency",
@@ -233,9 +241,9 @@ export function ProductCard({
                     className="w-full"
                     onClick={onReserve}
                     aria-label={`Reservar lote de ${productName}`}
-                    disabled={availableQty <= 0}
+                    disabled={availableQty <= 0 || isExpired}
                 >
-                    {availableQty <= 0 ? "Esgotado" : isLastChance ? "Garantir Agora" : "Reservar Lote"}
+                    {availableQty <= 0 ? "Esgotado" : isExpired ? "Vencido" : isLastChance ? "Garantir Agora" : "Reservar Lote"}
                 </Button>
             </div>
         </article>

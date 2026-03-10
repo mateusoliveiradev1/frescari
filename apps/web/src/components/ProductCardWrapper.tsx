@@ -15,6 +15,7 @@ export function ProductCardWrapper({ lot, isLastChance, delay }: { lot: CatalogL
             availableQty={lot.availableQty}
             saleUnit={lot.saleUnit}
             unit={lot.unit}
+            status={lot.status}
             farmName={lot.farmName}
             harvestDate={lot.harvestDate}
             imageUrl={lot.imageUrl}

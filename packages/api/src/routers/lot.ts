@@ -3,6 +3,7 @@ import { createLotInputSchema, updateLotInventorySchema } from '@frescari/valida
 import { productLots, products, masterProducts, farms } from '@frescari/db';
 import { eq, and, gt, sql, inArray } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
+import { calculateLotStatus } from '../utils/lot-status';
 import { z } from 'zod';
 
 export const lotRouter = createTRPCRouter({
@@ -189,6 +190,7 @@ export const lotRouter = createTRPCRouter({
                             pricingType: lot.pricingType || 'UNIT',
                             estimatedWeight: lot.estimatedWeight ? Number(lot.estimatedWeight) : null,
                             unit: lot.unit || 'un',
+                            status: calculateLotStatus(lot.expiryDate),
                         };
                     })
                     .sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
@@ -304,6 +306,7 @@ export const lotRouter = createTRPCRouter({
                 ...row.lot,
                 productName: row.product.name,
                 imageUrl: row.lot.imageUrl || row.product.images?.[0] || null,
+                status: calculateLotStatus(row.lot.expiryDate),
             }));
         }),
 
