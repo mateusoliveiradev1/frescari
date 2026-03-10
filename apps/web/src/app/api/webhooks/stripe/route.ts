@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { db } from '@frescari/db';
 import { orders, orderItems, productLots, products } from '@frescari/db';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 
 // ── Stripe SDK ───────────────────────────────────────────────────────
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '');
@@ -185,12 +185,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                 })),
             );
 
-            // Deduct stock
+            // Deduct stock atomically
             for (const item of items) {
                 await tx
                     .update(productLots)
                     .set({
-                        availableQty: `${Math.max(0, Number((await tx.select({ qty: productLots.availableQty }).from(productLots).where(eq(productLots.id, item.lotId)).then(r => r[0]?.qty ?? '0'))) - item.qty)}`,
+                        availableQty: sql`GREATEST(0, CAST(${productLots.availableQty} AS NUMERIC) - ${item.qty})`,
                     })
                     .where(eq(productLots.id, item.lotId));
             }
