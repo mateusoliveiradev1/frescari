@@ -74,12 +74,9 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
                     <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`}>
                         Catálogo
                     </Link>
-                    <Link href="/auth/login" className={`${linkClass} text-bark hover:text-forest`}>
-                        Entrar
-                    </Link>
-                    {!isMobile && (
-                        <Link href="/auth/register">
-                            <Button variant="primary" size="sm">Começar Agora</Button>
+                    {isMobile && (
+                        <Link href="/auth/login" className={`${linkClass} text-bark hover:text-forest`}>
+                            Entrar
                         </Link>
                     )}
                 </>
@@ -141,7 +138,7 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
                     {/* Cart trigger button */}
                     {user && <CartButton />}
 
-                    {/* Mobile Login / Register (only when logged out) */}
+                    {/* Auth Actions (Desktop & Mobile header) */}
                     {!user && (
                         <div className="flex items-center gap-3">
                             <Link href="/auth/login" className="hidden sm:block font-sans text-[11px] font-bold uppercase tracking-[0.18em] text-bark hover:text-forest transition-colors">
