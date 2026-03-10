@@ -11,6 +11,7 @@ import { useCartStore, useCartTotals, CartStore } from "@/store/useCartStore";
 import {
     Sheet,
     SheetContent,
+    SheetDescription,
     SheetHeader,
     SheetTitle,
     SheetTrigger,
@@ -163,6 +164,9 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
                             <SheetContent side="right" className="w-[300px] flex flex-col pt-12">
                                 <SheetHeader>
                                     <SheetTitle className="text-left font-display italic text-3xl mb-8">Menu</SheetTitle>
+                                    <SheetDescription className="sr-only">
+                                        Menu de navegação principal para compradores e produtores.
+                                    </SheetDescription>
                                 </SheetHeader>
                                 <div className="flex flex-col flex-1">
                                     {navLinks(true)}

@@ -68,6 +68,9 @@ export function ProductDetailsSheet({ lot, isOpen, onClose }: ProductDetailsShee
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <SheetContent className="overflow-y-auto sm:max-w-xl">
                 <SheetHeader className="space-y-4">
+                    <SheetDescription className="sr-only">
+                        Detalhes detalhados do produto, incluindo preço, quantidade disponível e informações de colheita.
+                    </SheetDescription>
                     {/* Hero Image Section — Organic Luxury Differentiation */}
                     <div className="relative w-full aspect-video rounded-sm overflow-hidden bg-sage/20 mb-4 shadow-inner">
                         {lot.imageUrl ? (
