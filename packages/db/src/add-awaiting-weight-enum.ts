@@ -11,7 +11,7 @@ import { client } from './index';
 async function migrate() {
     console.log('[MIGRATION] Adding awaiting_weight to order_status enum…');
     await client.query(
-        `ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'awaiting_weight' AFTER 'payment_authorized';`,
+        `ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'awaiting_weight';`,
     );
     console.log('[MIGRATION] ✅ Done.');
     await client.end();
