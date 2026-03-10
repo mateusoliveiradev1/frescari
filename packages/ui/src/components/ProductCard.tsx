@@ -44,13 +44,15 @@ export interface ProductCardProps extends React.HTMLAttributes<HTMLDivElement> {
     /** @deprecated — use originalPrice instead */
     priceOverride?: number | null
     availableQty: number
-    isLastChance?: boolean
+    isLastChance?: boolean;
     /** Enum: kg | g | unit | box | dozen | bunch */
-    saleUnit?: string
-    farmName?: string
-    harvestDate?: string
-    imageUrl?: string | null
-    onReserve?: () => void
+    saleUnit?: string;
+    /** Dynamic unit string (e.g., 'kg', 'cx', 'un') */
+    unit?: string;
+    farmName?: string;
+    harvestDate?: string;
+    imageUrl?: string | null;
+    onReserve?: () => void;
 }
 
 export function ProductCard({
@@ -62,6 +64,7 @@ export function ProductCard({
     availableQty,
     isLastChance = false,
     saleUnit = "unit",
+    unit,
     farmName,
     harvestDate,
     imageUrl,
@@ -149,7 +152,7 @@ export function ProductCard({
                                 ? "bg-ember text-white"
                                 : "bg-cream/90 text-bark backdrop-blur-sm border border-soil/10"
                     )}>
-                        {availableQty} {formatUnit(saleUnit).replace("/", "")}
+                        {availableQty} {unit || formatUnit(saleUnit).replace("/", "")}
                     </span>
                 </div>
             </div>
@@ -208,7 +211,7 @@ export function ProductCard({
                                 currency: "BRL",
                             })}
                             <span className="font-sans text-[10px] font-normal text-bark/60 ml-1">
-                                {formatUnit(saleUnit)}
+                                /{unit || saleUnit}
                             </span>
                         </span>
                     </div>

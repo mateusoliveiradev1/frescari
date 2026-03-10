@@ -18,6 +18,7 @@ export interface CatalogLot {
     isLastChance: boolean;
     pricingType: 'UNIT' | 'WEIGHT' | 'BOX';
     estimatedWeight: number | null;
+    unit: string;
 }
 
 export interface CartItem extends CatalogLot {
