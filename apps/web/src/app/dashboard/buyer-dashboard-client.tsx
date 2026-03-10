@@ -30,7 +30,7 @@ interface DashboardLot {
 export default function BuyerDashboard({ user }: { user: any }) {
     const router = useRouter();
 
-    const { data: lotsRaw = [], isLoading } = (trpc as any).lot.getAvailableLots.useQuery();
+    const { data: lotsRaw = [], isLoading } = (trpc as any).lot.getAvailableLots.useQuery({});
 
     // Type assertion to bypass unbuilt package constraints
     const lots = lotsRaw as unknown as DashboardLot[];
