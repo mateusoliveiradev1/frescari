@@ -179,6 +179,7 @@ export const orders = pgTable('orders', {
     deliveryWindowEnd: timestamp('delivery_window_end', { withTimezone: true }),
     deliveryFee: numeric('delivery_fee', { precision: 10, scale: 2 }).default('0').notNull(),
     totalAmount: numeric('total_amount', { precision: 14, scale: 4 }).notNull(),
+    stripeSessionId: text('stripe_session_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
