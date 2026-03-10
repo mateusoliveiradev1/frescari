@@ -211,23 +211,28 @@ export function InventoryForm({
                             console.log('[UPLOADTHING] Upload iniciado');
                             setIsUploading(true);
                         }}
+                        // @ts-ignore
+                        onDropRejected={() => {
+                            alert('Arquivo rejeitado! Verifique o tamanho (Max 8MB) ou o tipo (JPG, PNG, WebP).');
+                        }}
                         onClientUploadComplete={(res) => {
-                            console.log('[UPLOADTHING]', res);
+                            console.log('[UPLOADTHING] Upload finalizado:', res);
                             if (res?.[0]) {
-                                setImageUrl(res[0].url); // Or res[0].ufsUrl depending on version, fallback handled
-                                toast.success('Imagem carregada com sucesso!');
+                                setImageUrl(res[0].url);
+                                toast.success('Imagem carregada com sucesso! 📸');
                             }
                             setIsUploading(false);
                         }}
                         onUploadError={(error: Error) => {
-                            console.log('[UPLOADTHING_ERROR]', error);
+                            console.error('[UPLOADTHING_ERROR]', error);
+                            alert(`Erro no upload: ${error.message}`);
                             toast.error(`Erro no upload: ${error.message}`);
                             setIsUploading(false);
                         }}
                         className="border-2 border-dashed border-soil/15 bg-cream hover:bg-sage/20 rounded-sm transition-colors ut-button:bg-forest ut-button:hover:bg-forest/90 ut-button:text-cream ut-button:font-sans ut-button:text-xs ut-button:font-bold ut-button:uppercase ut-button:tracking-wider ut-button:rounded-sm ut-label:text-bark ut-label:font-sans ut-allowed-content:text-bark/50"
                         content={{
                             label: "Arraste a foto ou clique para enviar",
-                            allowedContent: "Imagens até 4MB (JPG, PNG, WebP)",
+                            allowedContent: "Imagens até 8MB (JPG, PNG, WebP)",
                         }}
                     />
                 )}

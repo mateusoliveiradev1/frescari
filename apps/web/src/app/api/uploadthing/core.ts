@@ -5,7 +5,7 @@ const f = createUploadthing();
 export const ourFileRouter = {
     lotImage: f({
         image: {
-            maxFileSize: "4MB",
+            maxFileSize: "8MB",
             maxFileCount: 1,
         },
     }).onUploadComplete(async ({ file }) => {
