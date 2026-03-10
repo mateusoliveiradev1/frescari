@@ -11,6 +11,8 @@ import { trpc } from "@/trpc/react";
 const statusStyles = {
     draft: "bg-gray-100 text-gray-700 border-gray-200",
     confirmed: "bg-amber-100 text-amber-800 border-amber-200",
+    payment_authorized: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    awaiting_weight: "bg-amber-50 text-amber-700 border-amber-300",
     picking: "bg-blue-100 text-blue-800 border-blue-200",
     in_transit: "bg-sky-100 text-sky-800 border-sky-200",
     delivered: "bg-green-100 text-green-800 border-green-200",
@@ -20,6 +22,8 @@ const statusStyles = {
 const statusLabels = {
     draft: "Rascunho",
     confirmed: "Processando",
+    payment_authorized: "Pagamento Autorizado",
+    awaiting_weight: "Aguardando Pesagem",
     picking: "Em separação",
     in_transit: "A Caminho",
     delivered: "Entregue",
@@ -151,6 +155,8 @@ export default function PedidosPage() {
                         {[
                             { id: "all", label: "Todos" },
                             { id: "confirmed", label: "Processando" },
+                            { id: "payment_authorized", label: "Pgto Autorizado" },
+                            { id: "awaiting_weight", label: "Ag. Pesagem" },
                             { id: "picking", label: "Em separação" },
                             { id: "in_transit", label: "A Caminho" },
                             { id: "delivered", label: "Entregue" },
