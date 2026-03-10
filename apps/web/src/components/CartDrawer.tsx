@@ -83,6 +83,9 @@ export function CartDrawer() {
 
                 {/* Drawer Panel */}
                 <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-cream shadow-2xl border-l border-forest/10 flex flex-col data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
+                    <Dialog.Description className="sr-only">
+                        Resumo dos itens no seu carrinho de compras e formulário de endereço para finalização do pedido.
+                    </Dialog.Description>
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-5 border-b border-forest/10 bg-white">
                         <Dialog.Title className="font-display text-xl font-bold text-soil flex items-center gap-2">

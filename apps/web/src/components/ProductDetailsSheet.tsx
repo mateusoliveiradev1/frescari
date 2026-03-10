@@ -185,17 +185,19 @@ export function ProductDetailsSheet({ lot, isOpen, onClose }: ProductDetailsShee
                             </div>
                         </div>
 
-                        {/* CTA */}
-                        <Button
-                            variant={lot.status === 'last_chance' ? 'lastChance' : 'primary'}
-                            size="lg"
-                            className="w-full h-16 text-lg font-bold gap-3"
-                            onClick={handleAddToCart}
-                            disabled={lot.availableQty <= 0 || lot.status === 'vencido'}
-                        >
-                            <ShoppingCart size={20} />
-                            Adicionar {quantity} {lot.unit || lot.saleUnit} ao Carrinho
-                        </Button>
+                        {/* CTA — Sticky on Mobile for increased conversion */}
+                        <div className="sticky bottom-0 bg-cream pt-4 pb-6 mt-auto border-t border-soil/10 -mx-6 px-6 sm:mx-0 sm:px-0 sm:border-none sm:relative sm:pb-0">
+                            <Button
+                                variant={lot.status === 'last_chance' ? 'lastChance' : 'primary'}
+                                size="lg"
+                                className="w-full h-16 text-lg font-bold gap-3 rounded-sm shadow-md hover:shadow-lg transition-all"
+                                onClick={handleAddToCart}
+                                disabled={lot.availableQty <= 0 || lot.status === 'vencido'}
+                            >
+                                <ShoppingCart size={20} />
+                                Adicionar {quantity} {lot.unit || lot.saleUnit} ao Carrinho
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </SheetContent>
