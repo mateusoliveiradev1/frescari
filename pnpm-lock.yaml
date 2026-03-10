@@ -87,6 +87,9 @@ importers:
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      stripe:
+        specifier: 17.5.0
+        version: 17.5.0
       superjson:
         specifier: 2.2.1
         version: 2.2.1
