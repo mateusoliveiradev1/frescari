@@ -68,17 +68,35 @@ export async function POST(req: NextRequest) {
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        try {
-            await handleCheckoutCompleted(session);
-        } catch (error) {
-            console.error('[WEBHOOK ERROR] Falha ao processar checkout.session.completed:', error);
-            // Return 500 so Stripe retries on transient errors (e.g. DB down).
-            // For permanent errors (missing metadata), handleCheckoutCompleted
-            // already logs the details before throwing.
-            return NextResponse.json(
-                { received: true, error: 'Processing error logged' },
-                { status: 500 },
-            );
+        if (session.metadata?.orderId) {
+            try {
+                console.log(`[WEBHOOK] Atualizando pedido existente: ${session.metadata.orderId}`);
+                await db
+                    .update(orders)
+                    .set({ status: 'payment_authorized' })
+                    .where(eq(orders.id, session.metadata.orderId));
+                console.log(`[WEBHOOK] Pedido ${session.metadata.orderId} atualizado para payment_authorized`);
+            } catch (error) {
+                console.error(`[WEBHOOK ERROR] Falha ao atualizar pedido ${session.metadata.orderId}:`, error);
+                // Policy: Return 200 so Stripe doesn't retry infinitely on DB failure for existing order
+                return NextResponse.json(
+                    { received: true, error: 'Database update failed for existing order' },
+                    { status: 200 },
+                );
+            }
+        } else {
+            try {
+                await handleCheckoutCompleted(session);
+            } catch (error) {
+                console.error('[WEBHOOK ERROR] Falha ao processar checkout.session.completed:', error);
+                // Return 500 so Stripe retries on transient errors (e.g. DB down).
+                // For permanent errors (missing metadata), handleCheckoutCompleted
+                // already logs the details before throwing.
+                return NextResponse.json(
+                    { received: true, error: 'Processing error logged' },
+                    { status: 500 },
+                );
+            }
         }
     }
 
