@@ -80,10 +80,6 @@ export const stripeRouter = createTRPCRouter({
                         card_payments: { requested: true },
                         transfers: { requested: true },
                     },
-                    business_type: 'company',
-                    company: {
-                        name: tenant.name,
-                    },
                     business_profile: {
                         name: tenant.name,
                     },
