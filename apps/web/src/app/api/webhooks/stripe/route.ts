@@ -176,8 +176,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             productId: productLots.productId,
             sellerTenantId: productLots.tenantId,
             availableQty: productLots.availableQty,
+            saleUnit: products.saleUnit,
+            pricingType: productLots.pricingType,
         })
         .from(productLots)
+        .innerJoin(products, eq(productLots.productId, products.id))
         .where(inArray(productLots.id, lotIds));
 
     if (fetchedLots.length === 0) {
@@ -198,6 +201,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             ...item,
             productId: lotData?.productId ?? '',
             sellerTenantId: lotData?.sellerTenantId ?? '',
+            saleUnit: lotData?.saleUnit,
+            pricingType: lotData?.pricingType,
         };
     });
 
@@ -227,8 +232,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             );
             const orderTotal = itemsTotal + deliveryFee;
 
-            const hasWeightItems = sellerItems.some((i) => i.pt === 'WEIGHT');
-            const initialStatus = hasWeightItems ? 'awaiting_weight' : (isAllUnitOrder ? 'confirmed' : 'awaiting_weight');
+            const hasWeightItems = sellerItems.some(
+                (i) => i.saleUnit === 'kg' || i.saleUnit === 'g' || i.pricingType === 'WEIGHT' || i.pt === 'WEIGHT'
+            );
+            const initialStatus = hasWeightItems ? 'awaiting_weight' : (isAllUnitOrder ? 'confirmed' : 'confirmed');
 
             const paymentIntentId = typeof session.payment_intent === 'string'
                 ? session.payment_intent
