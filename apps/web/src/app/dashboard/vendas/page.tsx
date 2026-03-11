@@ -15,12 +15,14 @@ import {
     PackageOpen,
     LayoutGrid,
     ArrowLeft,
+    Scale
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { trpc } from "@/trpc/react";
 
 const statusStyles: Record<string, string> = {
     draft: "bg-gray-100 text-gray-700 border-gray-200",
+    awaiting_weight: "bg-purple-100 text-purple-800 border-purple-200",
     confirmed: "bg-amber-100 text-amber-800 border-amber-200",
     picking: "bg-blue-100 text-blue-800 border-blue-200",
     in_transit: "bg-sky-100 text-sky-800 border-sky-200",
@@ -30,6 +32,7 @@ const statusStyles: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
     draft: "Rascunho",
+    awaiting_weight: "Aguard. Pesagem",
     confirmed: "Processando",
     picking: "Em separação",
     in_transit: "A Caminho",
@@ -38,6 +41,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusIcons: Record<string, React.ReactNode> = {
+    awaiting_weight: <Scale className="w-3.5 h-3.5" />,
     confirmed: <Package className="w-3.5 h-3.5" />,
     picking: <Package className="w-3.5 h-3.5" />,
     in_transit: <TruckIcon className="w-3.5 h-3.5" />,
@@ -45,9 +49,10 @@ const statusIcons: Record<string, React.ReactNode> = {
     cancelled: <XCircle className="w-3.5 h-3.5" />,
 };
 
-const statusFlow = ["confirmed", "picking", "in_transit", "delivered"];
+const statusFlow = ["awaiting_weight", "confirmed", "picking", "in_transit", "delivered"];
 
 interface ReceivedOrderItem {
+    id: string;
     orderId: string;
     qty: string;
     unitPrice: string;
@@ -86,6 +91,10 @@ export default function VendasPage() {
     const [filterStatus, setFilterStatus] = useState<string>("all");
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
+    // Modal state for weighing
+    const [weighingOrder, setWeighingOrder] = useState<ReceivedOrder | null>(null);
+    const [weighingWeights, setWeighingWeights] = useState<Record<string, number>>({});
+
     const utils = trpc.useUtils();
 
     const { data: fetchOrders, isLoading } = (trpc.order as any).listReceivedOrders.useQuery({
@@ -99,6 +108,18 @@ export default function VendasPage() {
         },
         onError: (error: any) => {
             toast.error(error.message || "Erro ao atualizar status.");
+        },
+    });
+
+    const { mutate: captureWeight, isPending: isCapturing } = (trpc.order as any).captureWeighedOrder.useMutation({
+        onSuccess: () => {
+            toast.success("Pesagem confirmada e pagamento capturado com sucesso!");
+            setWeighingOrder(null);
+            setWeighingWeights({});
+            (utils.order as any).listReceivedOrders.invalidate();
+        },
+        onError: (error: any) => {
+            toast.error(error.message || "Erro ao capturar pagamento.");
         },
     });
 
@@ -152,6 +173,7 @@ export default function VendasPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                     {[
                         { id: "all", label: "Todos" },
+                        { id: "awaiting_weight", label: "Aguard. Pesagem" },
                         { id: "confirmed", label: "Processando" },
                         { id: "picking", label: "Em separação" },
                         { id: "in_transit", label: "A Caminho" },
@@ -245,7 +267,23 @@ export default function VendasPage() {
                                                     </span>
                                                 </td>
                                                 <td className="py-4 px-6 text-center">
-                                                    {nextStatus && order.status !== "cancelled" ? (
+                                                    {order.status === "awaiting_weight" ? (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setWeighingOrder(order);
+                                                                const initialWeights: Record<string, number> = {};
+                                                                order.items.forEach(item => {
+                                                                    initialWeights[item.id] = Number(item.qty);
+                                                                });
+                                                                setWeighingWeights(initialWeights);
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-sm hover:bg-purple-700 transition-colors"
+                                                        >
+                                                            <Scale className="w-3.5 h-3.5" />
+                                                            Pesar
+                                                        </button>
+                                                    ) : nextStatus && order.status !== "cancelled" ? (
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -292,6 +330,79 @@ export default function VendasPage() {
                     </div>
                 )}
             </main>
+
+            {/* WEIGHING MODAL */}
+            {weighingOrder && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+                        <div className="p-6 border-b border-soil/10">
+                            <h2 className="text-xl font-display font-bold text-soil flex items-center gap-2">
+                                <Scale className="w-5 h-5 text-purple-600" />
+                                Estação de Pesagem
+                            </h2>
+                            <p className="text-sm text-bark mt-1">
+                                Pedido #{weighingOrder.visualId} • {weighingOrder.buyerName}
+                            </p>
+                        </div>
+                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                            {weighingOrder.items.map(item => {
+                                const isWeight = item.saleUnit?.toLowerCase() === 'kg' || item.saleUnit?.toLowerCase() === 'g' || item.saleUnit?.toLowerCase() === 'peso' || item.saleUnit === 'WEIGHT';
+                                return (
+                                    <div key={item.id} className="flex flex-col gap-2">
+                                        <label className="text-sm font-medium text-soil">
+                                            {item.productName}
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={weighingWeights[item.id] || ''}
+                                                onChange={(e) => setWeighingWeights(prev => ({
+                                                    ...prev,
+                                                    [item.id]: parseFloat(e.target.value) || 0
+                                                }))}
+                                                disabled={!isWeight}
+                                                className={`w-full flex-1 rounded-sm border border-soil/20 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 ${!isWeight ? 'bg-gray-100 opacity-70' : ''}`}
+                                            />
+                                            <span className="text-xs font-bold text-bark uppercase w-12">{item.saleUnit}</span>
+                                        </div>
+                                        <p className="text-[10px] text-bark/60">
+                                            Qtd solicitada: {item.qty} {item.saleUnit} {!isWeight && "(Não pesável)"}
+                                        </p>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                        <div className="p-4 border-t border-soil/10 bg-cream-dark/30 flex justify-end gap-3">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setWeighingOrder(null)}
+                                disabled={isCapturing}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                                onClick={() => {
+                                    const weighedItems = Object.entries(weighingWeights).map(([orderItemId, finalWeight]) => ({
+                                        orderItemId,
+                                        finalWeight
+                                    }));
+
+                                    captureWeight({
+                                        orderId: weighingOrder.id,
+                                        weighedItems
+                                    });
+                                }}
+                                disabled={isCapturing || Object.keys(weighingWeights).length === 0}
+                            >
+                                {isCapturing ? "Processando..." : "Confirmar e Cobrar"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <Toaster richColors position="bottom-right" />
         </div>
