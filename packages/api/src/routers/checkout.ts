@@ -2,6 +2,8 @@ import { z } from 'zod';
 import Stripe from 'stripe';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
+import { db, tenants, productLots } from '@frescari/db';
+import { eq } from 'drizzle-orm';
 
 // ── Stripe SDK initialisation ────────────────────────────────────────
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -113,6 +115,31 @@ export const checkoutRouter = createTRPCRouter({
                 });
             }
 
+            // Get product Lot and obtain the sellerTenantId -> stripeAccountId
+            const firstLotId = input.items[0]?.lotId;
+            if (!firstLotId) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Carrinho inválido.',
+                });
+            }
+
+            const [lotData] = await db
+                .select({ stripeAccountId: tenants.stripeAccountId })
+                .from(productLots)
+                .innerJoin(tenants, eq(tenants.id, productLots.tenantId))
+                .where(eq(productLots.id, firstLotId))
+                .limit(1);
+
+            const producerStripeAccountId = lotData?.stripeAccountId;
+
+            if (!producerStripeAccountId) {
+                throw new TRPCError({
+                    code: 'PRECONDITION_FAILED',
+                    message: 'Produtor não possui conta Stripe configurada para receber pagamentos.',
+                });
+            }
+
             const lineItems = buildLineItems(input.items, input.deliveryFee);
 
             // Compose address line for display
@@ -139,11 +166,29 @@ export const checkoutRouter = createTRPCRouter({
             const captureMethod = hasWeightProducts ? 'manual' : 'automatic';
             const isAllUnitOrder = !hasWeightProducts;
 
+            // Calculate total cart value in order to get dynamic application_fee_amount (e.g. 10%)
+            const itemsTotalBRL = input.items.reduce(
+                (sum, item) => sum + (item.unitPrice * item.quantity),
+                0
+            );
+
+            const totalAmountBrl = itemsTotalBRL + input.deliveryFee;
+            // Converting back to generalized integer cents for math (ignoring weight safety logic gap on this fee calculation to follow direct BRL total requested unless specific rule is needed).
+            // Using standard representation conversion
+            const totalAmountCents = Math.round(totalAmountBrl * 100);
+
+            // Fixed temporary platform fee of 10%
+            const calculatedFeeCents = Math.round(totalAmountCents * 0.1);
+
             try {
                 const session = await stripe.checkout.sessions.create({
                     mode: 'payment',
                     payment_intent_data: {
                         capture_method: captureMethod,
+                        application_fee_amount: calculatedFeeCents,
+                        transfer_data: {
+                            destination: producerStripeAccountId,
+                        },
                         metadata: {
                             buyer_tenant_id: buyerTenantId,
                             delivery_address: addressLine,
