@@ -43,6 +43,7 @@ export const tenants = pgTable('tenants', {
     type: tenantTypeEnum('type'),
     plan: planEnum('plan').notNull().default('free'),
     geoRegion: geometry('geo_region'),
+    stripeAccountId: text('stripe_account_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
