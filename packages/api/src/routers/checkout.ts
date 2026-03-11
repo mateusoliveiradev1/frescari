@@ -132,14 +132,22 @@ export const checkoutRouter = createTRPCRouter({
             // Structured address JSON for webhook
             const addressJson = JSON.stringify(input.address);
 
+            const hasWeightProducts = input.items.some(
+                (item) => item.pricingType === 'WEIGHT'
+            );
+
+            const captureMethod = hasWeightProducts ? 'manual' : 'automatic';
+            const isAllUnitOrder = !hasWeightProducts;
+
             try {
                 const session = await stripe.checkout.sessions.create({
                     mode: 'payment',
                     payment_intent_data: {
-                        capture_method: 'manual',
+                        capture_method: captureMethod,
                         metadata: {
                             buyer_tenant_id: buyerTenantId,
                             delivery_address: addressLine,
+                            is_all_unit_order: isAllUnitOrder.toString(),
                         },
                     },
                     line_items: lineItems,
@@ -151,6 +159,7 @@ export const checkoutRouter = createTRPCRouter({
                         address: addressJson,
                         delivery_fee: input.deliveryFee.toString(),
                         delivery_address: addressLine,
+                        is_all_unit_order: isAllUnitOrder.toString(),
                     },
                 });
 

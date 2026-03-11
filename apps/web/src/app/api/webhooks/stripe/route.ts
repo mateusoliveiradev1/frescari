@@ -129,6 +129,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     console.log(`[WEBHOOK] Metadados extraídos: buyer=${buyerTenantId}, deliveryFee=${deliveryFeeStr}`);
 
+    const isAllUnitOrder = metadata.is_all_unit_order === 'true';
+
     // ── 2. Parse JSON safely ─────────────────────────────────────────
     let parsedItems: MetadataItem[];
     let parsedAddress: MetadataAddress;
@@ -225,13 +227,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             );
             const orderTotal = itemsTotal + deliveryFee;
 
+            const initialStatus = isAllUnitOrder ? 'confirmed' : 'awaiting_weight';
+
             // ── Insert Order ─────────────────────────────────────────
             const [newOrder] = await tx
                 .insert(orders)
                 .values({
                     buyerTenantId,
                     sellerTenantId: sellerId,
-                    status: 'awaiting_weight',
+                    status: initialStatus,
                     stripeSessionId: session.id,
                     deliveryStreet: parsedAddress.street,
                     deliveryNumber: parsedAddress.number,
