@@ -81,6 +81,7 @@ export const stripeRouter = createTRPCRouter({
                 // Se NÃO POSSUIR conta stripe
                 const account = await stripe.accounts.create({
                     type: 'express',
+                    business_type: 'individual',
                     email: userEmail,
                     capabilities: {
                         card_payments: { requested: true },
