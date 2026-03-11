@@ -192,6 +192,7 @@ export const orderItems = pgTable('order_items', {
     productId: uuid('product_id').references(() => products.id).notNull(),
     qty: numeric('qty', { precision: 12, scale: 3 }).notNull(),
     unitPrice: numeric('unit_price', { precision: 12, scale: 4 }).notNull(),
+    saleUnit: text('sale_unit').default('unit').notNull(),
 });
 
 // Relations
