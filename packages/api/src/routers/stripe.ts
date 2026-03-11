@@ -38,11 +38,12 @@ export const stripeRouter = createTRPCRouter({
             }
 
             try {
-                // Busque o tenant de forma idenpotente e obtenha o email
+                // Busque o tenant de forma idenpotente e obtenha o email e nome do usuário
                 const [dbInfo] = await db
                     .select({
                         tenant: tenants,
                         email: users.email,
+                        name: users.name,
                     })
                     .from(tenants)
                     .innerJoin(users, eq(users.tenantId, tenants.id))
@@ -58,6 +59,11 @@ export const stripeRouter = createTRPCRouter({
 
                 const tenant = dbInfo.tenant;
                 const userEmail = dbInfo.email;
+                const userName = dbInfo.name || '';
+
+                const nameParts = userName.trim().split(' ');
+                const firstName = nameParts[0] || '';
+                const lastName = nameParts.slice(1).join(' ') || firstName;
 
                 if (tenant.type === 'BUYER') {
                     throw new TRPCError({
@@ -80,8 +86,14 @@ export const stripeRouter = createTRPCRouter({
                         card_payments: { requested: true },
                         transfers: { requested: true },
                     },
+                    individual: {
+                        first_name: firstName,
+                        last_name: lastName,
+                        email: userEmail,
+                    },
                     business_profile: {
                         name: tenant.name,
+                        url: 'https://frescari.com.br',
                     },
                     metadata: {
                         tenant_id: tenant.id,
