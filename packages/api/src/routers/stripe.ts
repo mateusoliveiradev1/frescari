@@ -84,6 +84,7 @@ export const stripeRouter = createTRPCRouter({
                     business_type: 'individual',
                     email: userEmail,
                     capabilities: {
+                        // Resgata explicitamente transfers e card_payments necessários para contas BR
                         card_payments: { requested: true },
                         transfers: { requested: true },
                     },
