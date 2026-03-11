@@ -181,6 +181,7 @@ export const orders = pgTable('orders', {
     deliveryFee: numeric('delivery_fee', { precision: 10, scale: 2 }).default('0').notNull(),
     totalAmount: numeric('total_amount', { precision: 14, scale: 4 }).notNull(),
     stripeSessionId: text('stripe_session_id'),
+    paymentIntentId: text('payment_intent_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

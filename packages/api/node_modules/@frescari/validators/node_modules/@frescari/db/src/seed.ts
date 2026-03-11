@@ -10,6 +10,7 @@ import {
     productCategories,
     orderItems,
     orders,
+    masterProducts
 } from './schema';
 
 config({ path: '../../.env' });
@@ -21,28 +22,21 @@ const db = drizzle(queryFn);
 // Helpers
 // ────────────────────────────────────────────
 
-/** Returns an ISO date string (YYYY-MM-DD) offset by `days` from today */
 function dateOffset(days: number): string {
     const d = new Date();
     d.setDate(d.getDate() + days);
     return d.toISOString().split('T')[0]!;
 }
 
-const today = dateOffset(0);
-
 // ────────────────────────────────────────────
 // Main Seed
 // ────────────────────────────────────────────
 
 async function main() {
-    console.log('🌱 Starting Frescari Super Seed...\n');
+    console.log('🌱 Starting High-Fidelity Frescari Seed...\n');
 
-    // --------------------------------------------------------
-    // 1. CLEANUP — FK-safe deletion order
-    // --------------------------------------------------------
     console.log('🧹 Cleaning old seed data...');
 
-    // Find seed tenants to scope the cleanup
     const seedTenants = await db
         .select({ id: tenants.id })
         .from(tenants)
@@ -51,7 +45,6 @@ async function main() {
     const seedTenantIds = seedTenants.map((t) => t.id);
 
     if (seedTenantIds.length > 0) {
-        // Delete order items for orders from seed tenants
         const seedOrders = await db
             .select({ id: orders.id })
             .from(orders)
@@ -60,366 +53,205 @@ async function main() {
             );
         for (const o of seedOrders) {
             await db.delete(orderItems).where(eq(orderItems.orderId, o.id));
-        }
-        for (const o of seedOrders) {
             await db.delete(orders).where(eq(orders.id, o.id));
         }
 
-        // Delete product lots for seed tenants
         const seedProducts = await db
             .select({ id: products.id })
             .from(products)
-            .where(
-                sql`${products.tenantId} = ANY(${seedTenantIds})`
-            );
+            .where(sql`${products.tenantId} = ANY(${seedTenantIds})`);
+
         for (const p of seedProducts) {
             await db.delete(productLots).where(eq(productLots.productId, p.id));
         }
 
-        // Delete products
         for (const tid of seedTenantIds) {
             await db.delete(products).where(eq(products.tenantId, tid));
-        }
-
-        // Delete farms
-        for (const tid of seedTenantIds) {
             await db.delete(farms).where(eq(farms.tenantId, tid));
-        }
-
-        // Delete seed tenants
-        for (const tid of seedTenantIds) {
             await db.delete(tenants).where(eq(tenants.id, tid));
         }
     }
 
-    // Delete seed categories
-    const seedCategorySlugs = [
-        'frutas-seed',
-        'verduras-seed',
-        'legumes-seed',
-        'temperos-seed',
-    ];
+    const seedCategorySlugs = ['hortalicas-seed', 'folhas-seed', 'raizes-seed'];
     for (const slug of seedCategorySlugs) {
-        await db
-            .delete(productCategories)
-            .where(eq(productCategories.slug, slug));
+        await db.delete(productCategories).where(eq(productCategories.slug, slug));
     }
 
     console.log('✅ Old seed data cleaned.\n');
 
     // --------------------------------------------------------
-    // 2. TENANTS (one per farm)
+    // 1. TENANT (Fornecedor de Teste com Stripe Válida)
     // --------------------------------------------------------
-    console.log('🏢 Creating tenants...');
+    console.log('🏢 Creating Test Supplier (Producer)...');
 
-    const [tenantSaoJoao] = await db
+    const [fornecedorTeste] = await db
         .insert(tenants)
-        .values({ name: 'Fazenda São João Ltda', slug: 'fazenda-sao-joao-seed', plan: 'pro' })
-        .returning();
-
-    const [tenantValeVerde] = await db
-        .insert(tenants)
-        .values({ name: 'Hidroponia Vale Verde ME', slug: 'hidroponia-vale-verde-seed', plan: 'pro' })
-        .returning();
-
-    const [tenantSitioDolSol] = await db
-        .insert(tenants)
-        .values({ name: 'Sítio do Sol Orgânicos', slug: 'sitio-do-sol-seed', plan: 'free' })
-        .returning();
-
-    // --------------------------------------------------------
-    // 3. FARMS
-    // --------------------------------------------------------
-    console.log('🌾 Creating farms...');
-
-    const [farmSaoJoao] = await db
-        .insert(farms)
         .values({
-            tenantId: tenantSaoJoao!.id,
-            name: 'Fazenda São João',
-            address: 'Rodovia BR-153, Km 42 — Anápolis, GO',
-            certifications: ['GlobalGAP', 'Selo Orgânico Brasil'],
-        })
-        .returning();
-
-    const [farmValeVerde] = await db
-        .insert(farms)
-        .values({
-            tenantId: tenantValeVerde!.id,
-            name: 'Hidroponia Vale Verde',
-            address: 'Estrada Municipal 15, Km 3 — Mogi das Cruzes, SP',
-            certifications: ['Hidroponia Sustentável', 'ISO 22000'],
-        })
-        .returning();
-
-    const [farmSol] = await db
-        .insert(farms)
-        .values({
-            tenantId: tenantSitioDolSol!.id,
-            name: 'Sítio do Sol',
-            address: 'Lote 12, Núcleo Rural Monjolo — Brazlândia, DF',
-            certifications: ['Orgânico MAPA', 'Selo SISORG'],
+            name: 'Fornecedor de Teste Hortifruti',
+            slug: 'fornecedor-teste-seed',
+            plan: 'pro',
+            type: 'PRODUCER',
+            stripeAccountId: 'acct_1QyABCDEF1234567' // Realistic looking Stripe ID pattern
         })
         .returning();
 
     // --------------------------------------------------------
-    // 4. CATEGORIES
+    // 2. FARMS
     // --------------------------------------------------------
-    console.log('📦 Creating categories...');
+    console.log('🌾 Creating Farms...');
 
-    const [catFrutas] = await db
-        .insert(productCategories)
-        .values({ name: 'Frutas', slug: 'frutas-seed' })
-        .returning();
-
-    const [catVerduras] = await db
-        .insert(productCategories)
-        .values({ name: 'Verduras', slug: 'verduras-seed' })
-        .returning();
-
-    const [catLegumes] = await db
-        .insert(productCategories)
-        .values({ name: 'Legumes', slug: 'legumes-seed' })
-        .returning();
-
-    const [catTemperos] = await db
-        .insert(productCategories)
-        .values({ name: 'Temperos', slug: 'temperos-seed' })
+    const [farmPrincipal] = await db
+        .insert(farms)
+        .values({
+            tenantId: fornecedorTeste!.id,
+            name: 'Sítio Central Produção Br',
+            address: 'Rodovia SP-55, Km 12 — São Paulo, SP',
+            certifications: ['Orgânico Certificado MAPA', 'GlobalGAP'],
+        })
         .returning();
 
     // --------------------------------------------------------
-    // 5. PRODUCTS — Premium Ceasa descriptions
+    // 3. CATEGORIES
     // --------------------------------------------------------
-    console.log('🍅 Creating products...');
+    console.log('📦 Creating Categories...');
 
-    // --- Fazenda São João (5 products) ---
-    const saoJoaoProducts = await db
+    const [catHortalicas] = await db.insert(productCategories).values({ name: 'Hortaliças', slug: 'hortalicas-seed' }).returning();
+    const [catFolhas] = await db.insert(productCategories).values({ name: 'Folhas', slug: 'folhas-seed' }).returning();
+    const [catRaizes] = await db.insert(productCategories).values({ name: 'Raízes', slug: 'raizes-seed' }).returning();
+
+    // --------------------------------------------------------
+    // 4. MASTER PRODUCTS
+    // --------------------------------------------------------
+    console.log('📚 Creating/Fetching Master Products...');
+
+    const mpData = [
+        { name: 'Tomate Carmem', category: 'Hortaliças', defaultImageUrl: 'https://images.unsplash.com/photo-1546470427-0d4db154ceb8?w=800&q=80', pricingType: 'WEIGHT' as const },
+        { name: 'Alface Crespa Hidropônica', category: 'Folhas', defaultImageUrl: 'https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=800&q=80', pricingType: 'UNIT' as const },
+        { name: 'Batata Inglesa Lavada', category: 'Raízes', defaultImageUrl: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80', pricingType: 'WEIGHT' as const },
+        { name: 'Cebola Roxa', category: 'Hortaliças', defaultImageUrl: 'https://images.unsplash.com/photo-1466814314367-45caeebcbddc?w=800&q=80', pricingType: 'WEIGHT' as const },
+    ];
+
+    const masterProductsMap: Record<string, string> = {};
+
+    for (const mp of mpData) {
+        // Insert and return id, on conflict we just use the name to fetch later or update.
+        // Drizzle PG handles ON CONFLICT differently depending on constraints, assuming we don't have unique constraint on name, we just insert.
+        // Actually, just for safety, let's insert them fresh as it's a seed script, maybe delete old ones if they match by name.
+
+        await db.delete(masterProducts).where(eq(masterProducts.name, mp.name));
+
+        const [inserted] = await db.insert(masterProducts).values({
+            name: mp.name,
+            category: mp.category,
+            defaultImageUrl: mp.defaultImageUrl,
+            pricingType: mp.pricingType
+        }).returning({ id: masterProducts.id });
+
+        masterProductsMap[mp.name] = inserted!.id;
+    }
+
+    // --------------------------------------------------------
+    // 5. PRODUCTS — Linkados ao Master Product
+    // --------------------------------------------------------
+    console.log('🍅 Creating realistic Products...');
+
+    const createdProducts = await db
         .insert(products)
         .values([
             {
-                tenantId: tenantSaoJoao!.id,
-                farmId: farmSaoJoao!.id,
-                categoryId: catFrutas!.id,
-                name: 'Morango Carmem Selecionado',
-                sku: 'FSJ-MOR-001',
-                saleUnit: 'box' as const,
-                unitWeightG: 300,
-                pricePerUnit: '24.90',
-                minOrderQty: '10.000',
-                images: ['https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=800&q=80'],
-                isActive: true,
-            },
-            {
-                tenantId: tenantSaoJoao!.id,
-                farmId: farmSaoJoao!.id,
-                categoryId: catLegumes!.id,
-                name: 'Tomate Carmem Selecionado',
-                sku: 'FSJ-TOM-001',
+                tenantId: fornecedorTeste!.id,
+                farmId: farmPrincipal!.id,
+                categoryId: catHortalicas!.id,
+                masterProductId: masterProductsMap['Tomate Carmem'],
+                name: 'Tomate Carmem Extra Especial',
+                sku: 'FTE-TOM-001',
                 saleUnit: 'kg' as const,
                 unitWeightG: null,
-                pricePerUnit: '11.50',
-                minOrderQty: '20.000',
+                pricePerUnit: '8.50',
+                minOrderQty: '10.000',
                 images: ['https://images.unsplash.com/photo-1546470427-0d4db154ceb8?w=800&q=80'],
                 isActive: true,
             },
             {
-                tenantId: tenantSaoJoao!.id,
-                farmId: farmSaoJoao!.id,
-                categoryId: catLegumes!.id,
-                name: 'Pimentão Vermelho Extra',
-                sku: 'FSJ-PIM-001',
-                saleUnit: 'kg' as const,
-                unitWeightG: null,
-                pricePerUnit: '14.80',
-                minOrderQty: '10.000',
-                images: ['https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=800&q=80'],
-                isActive: true,
-            },
-            {
-                tenantId: tenantSaoJoao!.id,
-                farmId: farmSaoJoao!.id,
-                categoryId: catFrutas!.id,
-                name: 'Manga Tommy Premium',
-                sku: 'FSJ-MAN-001',
+                tenantId: fornecedorTeste!.id,
+                farmId: farmPrincipal!.id,
+                categoryId: catFolhas!.id,
+                masterProductId: masterProductsMap['Alface Crespa Hidropônica'],
+                name: 'Alface Crespa Hidropônica (Pé Grande)',
+                sku: 'FTE-ALF-001',
                 saleUnit: 'unit' as const,
-                unitWeightG: 450,
-                pricePerUnit: '6.90',
-                minOrderQty: '30.000',
-                images: ['https://images.unsplash.com/photo-1553279768-865429fa0078?w=800&q=80'],
-                isActive: true,
-            },
-            {
-                tenantId: tenantSaoJoao!.id,
-                farmId: farmSaoJoao!.id,
-                categoryId: catVerduras!.id,
-                name: 'Couve Manteiga Orgânica',
-                sku: 'FSJ-COU-001',
-                saleUnit: 'bunch' as const,
-                unitWeightG: 200,
-                pricePerUnit: '4.50',
+                unitWeightG: 350,
+                pricePerUnit: '3.90',
                 minOrderQty: '20.000',
-                images: ['https://images.unsplash.com/photo-1524179091875-bf99a9a6af57?w=800&q=80'],
-                isActive: true,
-            },
-        ])
-        .returning();
-
-    // --- Hidroponia Vale Verde (4 products) ---
-    const valeVerdeProducts = await db
-        .insert(products)
-        .values([
-            {
-                tenantId: tenantValeVerde!.id,
-                farmId: farmValeVerde!.id,
-                categoryId: catVerduras!.id,
-                name: 'Alface Crespa Hidropônica',
-                sku: 'HVV-ALF-001',
-                saleUnit: 'unit' as const,
-                unitWeightG: 250,
-                pricePerUnit: '5.90',
-                minOrderQty: '30.000',
                 images: ['https://images.unsplash.com/photo-1622206151226-18ca2c9ab4a1?w=800&q=80'],
                 isActive: true,
             },
             {
-                tenantId: tenantValeVerde!.id,
-                farmId: farmValeVerde!.id,
-                categoryId: catVerduras!.id,
-                name: 'Rúcula Hidropônica Premium',
-                sku: 'HVV-RUC-001',
-                saleUnit: 'bunch' as const,
-                unitWeightG: 150,
-                pricePerUnit: '6.50',
-                minOrderQty: '20.000',
-                images: ['https://images.unsplash.com/photo-1506073881649-4e23be3e9ed0?w=800&q=80'],
-                isActive: true,
-            },
-            {
-                tenantId: tenantValeVerde!.id,
-                farmId: farmValeVerde!.id,
-                categoryId: catTemperos!.id,
-                name: 'Manjericão Fresco Hidropônico',
-                sku: 'HVV-MAN-001',
-                saleUnit: 'bunch' as const,
-                unitWeightG: 80,
-                pricePerUnit: '7.90',
-                minOrderQty: '15.000',
-                images: ['https://images.unsplash.com/photo-1618164436241-4473940d1f5c?w=800&q=80'],
-                isActive: true,
-            },
-            {
-                tenantId: tenantValeVerde!.id,
-                farmId: farmValeVerde!.id,
-                categoryId: catFrutas!.id,
-                name: 'Morango Hidropônico Premium',
-                sku: 'HVV-MOR-001',
-                saleUnit: 'box' as const,
-                unitWeightG: 250,
-                pricePerUnit: '29.90',
-                minOrderQty: '8.000',
-                images: ['https://images.unsplash.com/photo-1587393855524-087f83d95bc9?w=800&q=80'],
-                isActive: true,
-            },
-        ])
-        .returning();
-
-    // --- Sítio do Sol (3 products) ---
-    const solProducts = await db
-        .insert(products)
-        .values([
-            {
-                tenantId: tenantSitioDolSol!.id,
-                farmId: farmSol!.id,
-                categoryId: catVerduras!.id,
-                name: 'Alface Crespa Orgânica',
-                sku: 'SDS-ALF-001',
-                saleUnit: 'unit' as const,
-                unitWeightG: 280,
-                pricePerUnit: '6.50',
-                minOrderQty: '20.000',
-                images: ['https://images.unsplash.com/photo-1556801712-76c8eb07bbc9?w=800&q=80'],
-                isActive: true,
-            },
-            {
-                tenantId: tenantSitioDolSol!.id,
-                farmId: farmSol!.id,
-                categoryId: catLegumes!.id,
-                name: 'Abobrinha Italiana Orgânica',
-                sku: 'SDS-ABO-001',
+                tenantId: fornecedorTeste!.id,
+                farmId: farmPrincipal!.id,
+                categoryId: catRaizes!.id,
+                masterProductId: masterProductsMap['Batata Inglesa Lavada'],
+                name: 'Batata Inglesa Lisa Lavada - Padrão Exportação',
+                sku: 'FTE-BAT-001',
                 saleUnit: 'kg' as const,
                 unitWeightG: null,
-                pricePerUnit: '9.90',
-                minOrderQty: '15.000',
-                images: ['https://images.unsplash.com/photo-1563252722-6434563a985d?w=800&q=80'],
+                pricePerUnit: '6.20',
+                minOrderQty: '50.000',
+                images: ['https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=800&q=80'],
                 isActive: true,
             },
             {
-                tenantId: tenantSitioDolSol!.id,
-                farmId: farmSol!.id,
-                categoryId: catTemperos!.id,
-                name: 'Cebolinha Verde Orgânica',
-                sku: 'SDS-CEB-001',
-                saleUnit: 'bunch' as const,
-                unitWeightG: 100,
-                pricePerUnit: '3.90',
-                minOrderQty: '25.000',
-                images: ['https://images.unsplash.com/photo-1591073113125-e46713c829ed?w=800&q=80'],
+                tenantId: fornecedorTeste!.id,
+                farmId: farmPrincipal!.id,
+                categoryId: catHortalicas!.id,
+                masterProductId: masterProductsMap['Cebola Roxa'],
+                name: 'Cebola Roxa Padrão A',
+                sku: 'FTE-CEB-001',
+                saleUnit: 'kg' as const,
+                unitWeightG: null,
+                pricePerUnit: '9.80',
+                minOrderQty: '15.000',
+                images: ['https://images.unsplash.com/photo-1466814314367-45caeebcbddc?w=800&q=80'],
                 isActive: true,
-            },
+            }
         ])
         .returning();
 
     // --------------------------------------------------------
-    // 6. PRODUCT LOTS — Harvest & Expiry dates
-    //    - Some expire in <24h for "Last Chance" testing
-    //    - Others expire in 5-10 days (normal shelf life)
+    // 6. PRODUCT LOTS
     // --------------------------------------------------------
-    console.log('📅 Creating product lots...');
+    console.log('📅 Creating Product Lots...');
 
-    const allProducts = [...saoJoaoProducts, ...valeVerdeProducts, ...solProducts];
-
-    // Lot configurations: [harvestDaysAgo, expiryDaysFromNow, qty, freshnessScore]
-    type LotConfig = [number, number, string, number];
+    type LotConfig = [number, number, string, number, string]; // [harvestDaysAgo, expiryDays, qty, freshness, pricingType]
 
     const lotConfigs: Record<string, LotConfig[]> = {
-        // Fazenda São João
-        'FSJ-MOR-001': [[-3, 0, '80.000', 15], [-1, 5, '200.000', 75]],       // morango — lot 1 expiring TODAY = Last Chance!
-        'FSJ-TOM-001': [[-5, 1, '150.000', 25], [-2, 7, '400.000', 85]],      // tomate — lot 1 expiring TOMORROW = Last Chance!
-        'FSJ-PIM-001': [[-3, 8, '100.000', 80]],                                // pimentão — normal
-        'FSJ-MAN-001': [[-2, 6, '300.000', 70]],                                // manga — normal
-        'FSJ-COU-001': [[-1, 2, '150.000', 55], [-0, 7, '250.000', 90]],       // couve — one near-expiry
-
-        // Hidroponia Vale Verde
-        'HVV-ALF-001': [[-1, 0, '120.000', 10], [-0, 4, '300.000', 85]],       // alface — lot 1 Last Chance!
-        'HVV-RUC-001': [[-2, 5, '200.000', 70]],                                // rúcula — normal
-        'HVV-MAN-001': [[-1, 3, '100.000', 60]],                                // manjericão — normal
-        'HVV-MOR-001': [[-2, 1, '60.000', 30], [-0, 8, '150.000', 90]],        // morango — lot 1 near-expiry
-
-        // Sítio do Sol
-        'SDS-ALF-001': [[-1, 3, '180.000', 65]],                                // alface orgânica
-        'SDS-ABO-001': [[-3, 10, '250.000', 85]],                               // abobrinha — long shelf life
-        'SDS-CEB-001': [[-1, 1, '200.000', 35], [-0, 6, '300.000', 85]],       // cebolinha — lot 1 near-expiry
+        'FTE-TOM-001': [[-2, 5, '200.000', 85, 'WEIGHT'], [-1, 6, '500.000', 95, 'WEIGHT']],
+        'FTE-ALF-001': [[-1, 3, '150.000', 80, 'UNIT'], [0, 4, '300.000', 100, 'UNIT']],
+        'FTE-BAT-001': [[-5, 20, '1000.000', 90, 'WEIGHT']],
+        'FTE-CEB-001': [[-4, 30, '400.000', 90, 'WEIGHT']],
     };
 
     let lotCounter = 0;
-    for (const product of allProducts) {
+    for (const product of createdProducts) {
         const sku = product.sku ?? '';
         const configs = lotConfigs[sku];
         if (!configs) continue;
 
         for (let i = 0; i < configs.length; i++) {
-            const [harvestDaysAgo, expiryDays, qty, freshness] = configs[i]!;
+            const [harvestDaysAgo, expiryDays, qty, freshness, lpt] = configs[i]!;
             lotCounter++;
 
             await db.insert(productLots).values({
                 tenantId: product.tenantId,
                 productId: product.id,
-                lotCode: `${sku}-L${String(i + 1).padStart(2, '0')}`,
+                lotCode: `${sku}-LOT-${String(i + 1).padStart(2, '0')}`,
                 harvestDate: dateOffset(harvestDaysAgo),
                 expiryDate: dateOffset(expiryDays),
                 availableQty: qty,
+                pricingType: lpt as 'UNIT' | 'WEIGHT' | 'BOX',
                 freshnessScore: freshness,
-                storageLocation: 'Câmara Fria A',
+                storageLocation: 'Câmara Fria Principal',
+                imageUrl: product.images?.[0]
             });
         }
     }
@@ -427,15 +259,13 @@ async function main() {
     // --------------------------------------------------------
     // Summary
     // --------------------------------------------------------
-    console.log('\n✅ Super Seed completed successfully!');
-    console.log(`   🏢 3 tenants`);
-    console.log(`   🌾 3 farms`);
-    console.log(`   📦 4 categories`);
-    console.log(`   🍅 ${allProducts.length} products`);
-    console.log(`   📅 ${lotCounter} product lots`);
-    console.log(
-        `   ⚡ ${Object.values(lotConfigs).flat().filter(([, exp]) => exp <= 1).length} "Last Chance" lots (expiring ≤ 24h)\n`
-    );
+    console.log('\n✅ High-Fidelity Seed completed successfully!');
+    console.log(`   🏢 1 Test Supplier (Configured with Stripe)`);
+    console.log(`   🌾 1 Farm`);
+    console.log(`   📚 4 Master Products`);
+    console.log(`   📦 3 Categories`);
+    console.log(`   🍅 ${createdProducts.length} Vendor Products (linked to Master)`);
+    console.log(`   📅 ${lotCounter} Product Lots created\n`);
 }
 
 main().catch((err) => {
