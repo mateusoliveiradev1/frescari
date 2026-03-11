@@ -77,6 +77,7 @@ export const stripeRouter = createTRPCRouter({
                     type: 'express',
                     email: userEmail,
                     capabilities: {
+                        card_payments: { requested: true },
                         transfers: { requested: true },
                     },
                     business_type: 'company',
