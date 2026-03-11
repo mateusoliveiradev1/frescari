@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { db } from '@frescari/db';
-import { orders, orderItems, productLots, products } from '@frescari/db';
+import { orders, orderItems, productLots, products, masterProducts } from '@frescari/db';
 import { eq, inArray, sql, and } from 'drizzle-orm';
 
 // ── Stripe SDK ───────────────────────────────────────────────────────
@@ -178,9 +178,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             availableQty: productLots.availableQty,
             saleUnit: products.saleUnit,
             pricingType: productLots.pricingType,
+            masterPricingType: masterProducts.pricingType,
         })
         .from(productLots)
         .innerJoin(products, eq(productLots.productId, products.id))
+        .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
         .where(inArray(productLots.id, lotIds));
 
     if (fetchedLots.length === 0) {
@@ -203,6 +205,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             sellerTenantId: lotData?.sellerTenantId ?? '',
             saleUnit: lotData?.saleUnit,
             pricingType: lotData?.pricingType,
+            masterPricingType: lotData?.masterPricingType,
         };
     });
 
@@ -233,7 +236,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             const orderTotal = itemsTotal + deliveryFee;
 
             const hasWeightItems = sellerItems.some(
-                (i) => i.saleUnit === 'kg' || i.saleUnit === 'g' || i.pricingType === 'WEIGHT' || i.pt === 'WEIGHT'
+                (i) => i.saleUnit === 'kg' || i.saleUnit === 'g' || i.pricingType === 'WEIGHT' || i.masterPricingType === 'WEIGHT' || i.pt === 'WEIGHT'
             );
             const initialStatus = hasWeightItems ? 'awaiting_weight' : (isAllUnitOrder ? 'confirmed' : 'confirmed');
 
