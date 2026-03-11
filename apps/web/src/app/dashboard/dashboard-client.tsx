@@ -1,22 +1,23 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+
 import { Button } from "@frescari/ui";
 import Link from "next/link";
-import { authClient } from "@/lib/auth-client";
 import { trpc } from "@/trpc/react";
+import { StripeConnectButton } from "@/components/StripeConnectButton";
 
 function Skeleton({ className }: { className?: string }) {
     return <div className={`animate-pulse bg-soil/10 rounded-sm ${className}`} />;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function DashboardClient({ user }: { user: any }) {
-    const router = useRouter();
 
-    // @ts-expect-error local monorepo trpc generics limit
     const { data: metrics, isLoading: isMetricsLoading } = trpc.lot.getDashboardMetrics.useQuery();
-    // @ts-expect-error local monorepo trpc generics limit
     const { data: recentLots, isLoading: isLotsLoading } = trpc.lot.getRecentLots.useQuery();
+
+    const [now] = useState(() => Date.now());
 
     return (
         <div className="min-h-screen bg-cream">
@@ -32,9 +33,12 @@ export default function DashboardClient({ user }: { user: any }) {
                             Visão Geral
                         </h1>
                     </div>
-                    <Button variant="primary" asChild className="shrink-0 bg-forest hover:bg-forest/90 text-cream">
-                        <Link href="/dashboard/inventario">Criar Novo Lote</Link>
-                    </Button>
+                    <div className="flex items-center gap-3">
+                        <StripeConnectButton />
+                        <Button variant="primary" asChild className="shrink-0 bg-forest hover:bg-forest/90 text-cream">
+                            <Link href="/dashboard/inventario">Criar Novo Lote</Link>
+                        </Button>
+                    </div>
                 </div>
 
                 {/* ── Quick stats row ── */}
@@ -112,8 +116,9 @@ export default function DashboardClient({ user }: { user: any }) {
                                             </tr>
                                         ))
                                     ) : recentLots && recentLots.length > 0 ? (
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         recentLots.map((lot: any) => {
-                                            const isLastChance = lot.freshnessScore !== null && lot.freshnessScore < 30 || new Date(lot.expiryDate) <= new Date(Date.now() + 24 * 60 * 60 * 1000);
+                                            const isLastChance = (lot.freshnessScore !== null && lot.freshnessScore < 30) || new Date(lot.expiryDate) <= new Date(now + 24 * 60 * 60 * 1000);
                                             const statusText = lot.isExpired ? "Expirado" : isLastChance ? "Last Chance" : "Ativo";
                                             const isExpired = lot.isExpired;
 
