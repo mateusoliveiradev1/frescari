@@ -2,8 +2,8 @@ import { z } from 'zod';
 import Stripe from 'stripe';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
-import { db, tenants, productLots } from '@frescari/db';
-import { eq } from 'drizzle-orm';
+import { db, tenants, productLots, products, masterProducts } from '@frescari/db';
+import { eq, inArray } from 'drizzle-orm';
 
 // ── Stripe SDK initialisation ────────────────────────────────────────
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -59,21 +59,25 @@ function toStripeCents(
 }
 
 function buildLineItems(
-    items: CheckoutItem[],
+    items: Array<CheckoutItem & { masterPricingType?: 'UNIT' | 'WEIGHT' | 'BOX' | null; productSaleUnit?: string | null; dbPricingType?: 'UNIT' | 'WEIGHT' | 'BOX' | null; dBPx?: number | null; }>,
     deliveryFee: number,
 ): Stripe.Checkout.SessionCreateParams.LineItem[] {
     const productLines: Stripe.Checkout.SessionCreateParams.LineItem[] =
-        items.map((item) => ({
-            price_data: {
-                currency: 'brl',
-                product_data: {
-                    name: item.productName,
-                    ...(item.imageUrl ? { images: [item.imageUrl] } : {}),
+        items.map((item) => {
+            const isWeight = item.pricingType === 'WEIGHT' || item.masterPricingType === 'WEIGHT' || item.productSaleUnit === 'kg' || item.productSaleUnit === 'g' || item.dbPricingType === 'WEIGHT';
+
+            return {
+                price_data: {
+                    currency: 'brl',
+                    product_data: {
+                        name: item.productName,
+                        ...(item.imageUrl ? { images: [item.imageUrl] } : {}),
+                    },
+                    unit_amount: toStripeCents(item.unitPrice, isWeight ? 'WEIGHT' : 'UNIT'),
                 },
-                unit_amount: toStripeCents(item.unitPrice, item.pricingType),
-            },
-            quantity: item.quantity,
-        }));
+                quantity: item.quantity,
+            };
+        });
 
     // Delivery fee as a standalone line-item
     const deliveryLine: Stripe.Checkout.SessionCreateParams.LineItem = {
@@ -124,14 +128,23 @@ export const checkoutRouter = createTRPCRouter({
                 });
             }
 
-            const [lotData] = await db
-                .select({ stripeAccountId: tenants.stripeAccountId })
+            const lotIdsToFetch = input.items.map((i) => i.lotId);
+
+            const lotDataForStripe = await db
+                .select({
+                    lotId: productLots.id,
+                    stripeAccountId: tenants.stripeAccountId,
+                    masterPricingType: masterProducts.pricingType,
+                    productSaleUnit: products.saleUnit,
+                    dbPricingType: productLots.pricingType
+                })
                 .from(productLots)
                 .innerJoin(tenants, eq(tenants.id, productLots.tenantId))
-                .where(eq(productLots.id, firstLotId))
-                .limit(1);
+                .innerJoin(products, eq(productLots.productId, products.id))
+                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                .where(inArray(productLots.id, lotIdsToFetch));
 
-            const producerStripeAccountId = lotData?.stripeAccountId;
+            const producerStripeAccountId = lotDataForStripe[0]?.stripeAccountId;
 
             if (!producerStripeAccountId) {
                 throw new TRPCError({
@@ -140,7 +153,18 @@ export const checkoutRouter = createTRPCRouter({
                 });
             }
 
-            const lineItems = buildLineItems(input.items, input.deliveryFee);
+            // Merge original items with accurate pricing types from db
+            const safeItems = input.items.map((item) => {
+                const mergedLot = lotDataForStripe.find(ld => ld.lotId === item.lotId);
+                return {
+                    ...item,
+                    masterPricingType: mergedLot?.masterPricingType,
+                    productSaleUnit: mergedLot?.productSaleUnit,
+                    dbPricingType: mergedLot?.dbPricingType
+                };
+            });
+
+            const lineItems = buildLineItems(safeItems, input.deliveryFee);
 
             // Compose address line for display
             const addressLine = `${input.address.street}, ${input.address.number} - ${input.address.city}/${input.address.state} - CEP: ${input.address.cep}`;
@@ -159,8 +183,8 @@ export const checkoutRouter = createTRPCRouter({
             // Structured address JSON for webhook
             const addressJson = JSON.stringify(input.address);
 
-            const hasWeightProducts = input.items.some(
-                (item) => item.pricingType === 'WEIGHT'
+            const hasWeightProducts = safeItems.some(
+                (item) => item.pricingType === 'WEIGHT' || item.masterPricingType === 'WEIGHT' || item.productSaleUnit === 'kg' || item.productSaleUnit === 'g' || item.dbPricingType === 'WEIGHT'
             );
 
             const captureMethod = hasWeightProducts ? 'manual' : 'automatic';

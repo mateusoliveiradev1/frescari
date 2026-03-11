@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import Stripe from 'stripe';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
-import { productLots, products, orders, orderItems, tenants } from '@frescari/db';
-import { eq, inArray, desc, asc, sql, and } from 'drizzle-orm';
+import { productLots, products, orders, orderItems, tenants, masterProducts } from '@frescari/db';
+import { eq, inArray, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -65,9 +65,12 @@ export const orderRouter = createTRPCRouter({
                             priceOverride: productLots.priceOverride,
                             pricePerUnit: products.pricePerUnit,
                             pricingType: productLots.pricingType,
+                            masterPricingType: masterProducts.pricingType,
+                            saleUnit: products.saleUnit
                         })
                         .from(productLots)
                         .innerJoin(products, eq(productLots.productId, products.id))
+                        .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
                         .where(inArray(productLots.id, lotIds));
 
                     if (fetchedLots.length !== lotIds.length) {
@@ -90,7 +93,8 @@ export const orderRouter = createTRPCRouter({
                         }
 
                         // Strict integer validation for UNIT and BOX pricing types
-                        if ((lotData.pricingType === 'UNIT' || lotData.pricingType === 'BOX') && !Number.isInteger(reqItem.quantity)) {
+                        const isWeight = lotData.pricingType === 'WEIGHT' || lotData.masterPricingType === 'WEIGHT' || lotData.saleUnit === 'kg' || lotData.saleUnit === 'g';
+                        if (!isWeight && !Number.isInteger(reqItem.quantity)) {
                             throw new TRPCError({
                                 code: 'BAD_REQUEST',
                                 message: `A quantidade para o produto ${lotData.productId} deve ser um número inteiro.`,
@@ -236,11 +240,14 @@ export const orderRouter = createTRPCRouter({
                     saleUnit: products.saleUnit,
                     farmName: tenants.name,
                     images: products.images,
+                    pricingType: productLots.pricingType,
+                    masterPricingType: masterProducts.pricingType,
                 })
                 .from(orderItems)
                 .innerJoin(products, eq(orderItems.productId, products.id))
                 .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
                 .innerJoin(tenants, eq(productLots.tenantId, tenants.id))
+                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
                 .where(inArray(orderItems.orderId, orderIds));
 
             // Group items into their respective orders
@@ -374,9 +381,13 @@ export const orderRouter = createTRPCRouter({
                     unitPrice: orderItems.unitPrice,
                     productName: products.name,
                     saleUnit: products.saleUnit,
+                    pricingType: productLots.pricingType,
+                    masterPricingType: masterProducts.pricingType,
                 })
                 .from(orderItems)
                 .innerJoin(products, eq(orderItems.productId, products.id))
+                .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
                 .where(inArray(orderItems.orderId, orderIds));
 
             return allOrders.map((order, index, arr) => ({
