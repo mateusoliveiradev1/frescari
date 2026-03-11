@@ -40,9 +40,10 @@ export const onboardingRouter = createTRPCRouter({
                     type: input.type,
                 }).returning();
 
-                // 2. Update the User with the new tenantId
+                // 2. Update the User with the new tenantId and role
+                const newRole = input.type === 'PRODUCER' ? 'producer' : 'buyer';
                 await db.update(users)
-                    .set({ tenantId: newTenant.id })
+                    .set({ tenantId: newTenant.id, role: newRole })
                     .where(eq(users.id, user.id));
 
                 return { tenantId: newTenant.id, type: newTenant.type };

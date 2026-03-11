@@ -45,7 +45,6 @@ export function InventoryForm({
     }, [initialData]);
 
     // Queries & Mutations
-    // @ts-expect-error local monorepo limits
     const { data: masterProducts, isLoading: loadingMaster } = trpc.product.searchMasterProducts.useQuery(
         { query: productId },
         { enabled: productId.length > 1 }
@@ -89,13 +88,9 @@ export function InventoryForm({
         setSelectedMasterId("");
 
         // CRITICAL: Invalidate dashboard queries so metrics update instantly
-        // @ts-expect-error local monorepo trpc generics limit
         utils.lot.getDashboardMetrics.invalidate();
-        // @ts-expect-error local monorepo trpc generics limit
         utils.lot.getRecentLots.invalidate();
-        // @ts-expect-error local monorepo trpc generics limit
         utils.lot.getByProducer.invalidate();
-        // @ts-expect-error local monorepo trpc generics limit
         utils.lot.invalidate();
 
         if (onSuccess) {

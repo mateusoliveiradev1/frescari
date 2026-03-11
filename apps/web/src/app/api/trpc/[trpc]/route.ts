@@ -15,7 +15,6 @@ const handler = async (req: Request) => {
     return fetchRequestHandler({
         endpoint: "/api/trpc",
         req,
-        // @ts-expect-error local monorepo trpc generics limit
         router: appRouter,
         createContext: () => createTRPCContext({ req, session, user }),
         onError: ({ error }) => {

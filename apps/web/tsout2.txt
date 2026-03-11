@@ -1,0 +1,22 @@
+src/app/api/trpc/[trpc]/route.ts(18,9): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/dashboard-client.tsx(16,5): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/dashboard-client.tsx(18,5): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/dashboard-client.tsx(120,56): error TS2345: Argument of type '(lot: { id: string; product?: { name: string; } | null; lotCode: string; availableQty: string | number; isExpired: boolean; freshnessScore: number | null; expiryDate: string; imageUrl?: string; price: number; metrics?: unknown; }) => JSX.Element' is not assignable to parameter of type '(value: { unit: string; id: string; createdAt: Date; tenantId: string; pricingType: "UNIT" | "WEIGHT" | "BOX"; productId: string; lotCode: string; harvestDate: string; expiryDate: string; availableQty: string; ... 7 more ...; product: { ...; }; }, index: number, array: { ...; }[]) => Element'.
+  Types of parameters 'lot' and 'value' are incompatible.
+    Property 'price' is missing in type '{ unit: string; id: string; createdAt: Date; tenantId: string; pricingType: "UNIT" | "WEIGHT" | "BOX"; productId: string; lotCode: string; harvestDate: string; expiryDate: string; availableQty: string; ... 7 more ...; product: { ...; }; }' but required in type '{ id: string; product?: { name: string; } | null | undefined; lotCode: string; availableQty: string | number; isExpired: boolean; freshnessScore: number | null; expiryDate: string; imageUrl?: string | undefined; price: number; metrics?: unknown; }'.
+src/app/dashboard/inventario/inventory-client.tsx(36,5): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/inventario/inventory-client.tsx(40,5): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/inventario/inventory-client.tsx(44,13): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/inventario/inventory-form.tsx(48,5): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/inventario/inventory-form.tsx(92,9): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/inventario/inventory-form.tsx(94,9): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/inventario/inventory-form.tsx(96,9): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/inventario/inventory-form.tsx(98,9): error TS2578: Unused '@ts-expect-error' directive.
+src/app/dashboard/page.tsx(23,29): error TS2322: Type '{ user: { id: string; createdAt: Date; updatedAt: Date; email: string; emailVerified: boolean; name: string; image?: string | null | undefined; role: string | null | undefined; tenantId?: string | ... 1 more ... | undefined; }; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'user' does not exist on type 'IntrinsicAttributes'.
+src/app/onboarding/page.tsx(15,5): error TS2578: Unused '@ts-expect-error' directive.
+src/components/StripeConnectButton.tsx(18,5): error TS2578: Unused '@ts-expect-error' directive.
+src/components/StripeConnectButton.tsx(24,9): error TS2322: Type '(error: Error) => void' is not assignable to type '(error: TRPCClientErrorLike<{ input: {}; output: { url: string; }; transformer: true; errorShape: DefaultErrorShape; }>, variables: {}, context: unknown) => unknown'.
+  Types of parameters 'error' and 'error' are incompatible.
+    Property 'name' is missing in type 'TRPCClientErrorBase<DefaultErrorShape>' but required in type 'Error'.
+src/trpc/react.tsx(6,1): error TS2578: Unused '@ts-expect-error' directive.

@@ -15,7 +15,6 @@ export function StripeConnectButton() {
     const router = useRouter();
     const [isRedirecting, setIsRedirecting] = useState(false);
 
-    // @ts-expect-error local monorepo trpc generics limit
     const { mutate: connectStripe, isPending } = trpc.stripe.createStripeConnect.useMutation({
         onSuccess: (data: { url: string }) => {
             setIsRedirecting(true);

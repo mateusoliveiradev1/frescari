@@ -33,15 +33,12 @@ export function InventoryClient() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingLot, setEditingLot] = useState<any>(null);
 
-    // @ts-expect-error local monorepo trpc generics limit
     const { data: lots, isLoading, refetch } = trpc.lot.getByProducer.useQuery();
     const utils = trpc.useUtils();
 
-    // @ts-expect-error local monorepo
     const deleteLot = trpc.lot.delete.useMutation({
         onSuccess: () => {
             toast.success("Lote removido com sucesso.");
-            // @ts-expect-error local monorepo
             utils.lot.getByProducer.invalidate();
         },
         onError: (err: any) => {

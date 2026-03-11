@@ -30,6 +30,13 @@ export const stripeRouter = createTRPCRouter({
                 });
             }
 
+            if (!stripeSecretKey) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Stripe secret key não configurada.',
+                });
+            }
+
             try {
                 // Busque o tenant de forma idenpotente
                 const [tenant] = await db
@@ -42,6 +49,13 @@ export const stripeRouter = createTRPCRouter({
                     throw new TRPCError({
                         code: 'NOT_FOUND',
                         message: 'Organização não encontrada.',
+                    });
+                }
+
+                if (tenant.type === 'BUYER') {
+                    throw new TRPCError({
+                        code: 'FORBIDDEN',
+                        message: 'Apenas produtores podem configurar recebimentos.',
                     });
                 }
 
@@ -85,7 +99,7 @@ export const stripeRouter = createTRPCRouter({
             } catch (error) {
                 if (error instanceof TRPCError) throw error;
 
-                console.error('[STRIPE_CONNECT_ERROR]:', error);
+                console.error('[STRIPE_DEBUG]', error);
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Falha ao criar conta conectada no Stripe. Verifique os logs.',

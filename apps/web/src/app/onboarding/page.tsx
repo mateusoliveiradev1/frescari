@@ -12,7 +12,6 @@ export default function OnboardingPage() {
     const [selectedType, setSelectedType] = useState<TenantType | null>(null);
     const [companyName, setCompanyName] = useState("");
 
-    // @ts-expect-error - Bypassing strict cross-package generic constraints for unbuilt local workspace dependency
     const setupAccount = trpc.onboarding.setupAccount.useMutation({
         onSuccess: (data: { tenantId: string; type: string | null }) => {
             if (data.type === "BUYER") {
