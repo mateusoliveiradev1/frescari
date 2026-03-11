@@ -227,7 +227,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             );
             const orderTotal = itemsTotal + deliveryFee;
 
-            const initialStatus = isAllUnitOrder ? 'confirmed' : 'awaiting_weight';
+            const hasWeightItems = sellerItems.some((i) => i.pt === 'WEIGHT');
+            const initialStatus = hasWeightItems ? 'awaiting_weight' : (isAllUnitOrder ? 'confirmed' : 'awaiting_weight');
+
+            const paymentIntentId = typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : session.payment_intent?.id;
 
             // ── Insert Order ─────────────────────────────────────────
             const [newOrder] = await tx
@@ -237,6 +242,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                     sellerTenantId: sellerId,
                     status: initialStatus,
                     stripeSessionId: session.id,
+                    paymentIntentId: paymentIntentId ?? null,
                     deliveryStreet: parsedAddress.street,
                     deliveryNumber: parsedAddress.number,
                     deliveryCep: parsedAddress.cep,
