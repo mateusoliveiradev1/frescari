@@ -118,7 +118,8 @@ export const orderRouter = createTRPCRouter({
                             productId: lotData.productId,
                             sellerTenantId: lotData.sellerTenantId,
                             unitPrice: finalUnitPrice,
-                            totalPrice: finalUnitPrice * reqItem.quantity
+                            totalPrice: finalUnitPrice * reqItem.quantity,
+                            saleUnit: (lotData.pricingType === 'WEIGHT' || lotData.masterPricingType === 'WEIGHT' || lotData.saleUnit === 'kg' || lotData.saleUnit === 'g') ? 'kg' : 'unit'
                         };
                     });
 
@@ -161,7 +162,8 @@ export const orderRouter = createTRPCRouter({
                                 lotId: i.lotId,
                                 productId: i.productId,
                                 qty: i.quantity.toString(),
-                                unitPrice: i.unitPrice.toFixed(4)
+                                unitPrice: i.unitPrice.toFixed(4),
+                                saleUnit: i.saleUnit
                             }))
                         );
 
@@ -237,7 +239,7 @@ export const orderRouter = createTRPCRouter({
                     qty: orderItems.qty,
                     unitPrice: orderItems.unitPrice,
                     productName: products.name,
-                    saleUnit: products.saleUnit,
+                    saleUnit: orderItems.saleUnit,
                     farmName: tenants.name,
                     images: products.images,
                     pricingType: productLots.pricingType,
@@ -380,7 +382,7 @@ export const orderRouter = createTRPCRouter({
                     qty: orderItems.qty,
                     unitPrice: orderItems.unitPrice,
                     productName: products.name,
-                    saleUnit: products.saleUnit,
+                    saleUnit: orderItems.saleUnit,
                     pricingType: productLots.pricingType,
                     masterPricingType: masterProducts.pricingType,
                 })

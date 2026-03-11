@@ -272,13 +272,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
             // ── Insert Order Items ───────────────────────────────────
             await tx.insert(orderItems).values(
-                sellerItems.map((i) => ({
-                    orderId: newOrder.id,
-                    lotId: i.lotId,
-                    productId: i.productId,
-                    qty: i.qty.toString(),
-                    unitPrice: i.price.toFixed(4),
-                })),
+                sellerItems.map((i) => {
+                    const isWeight = i.saleUnit === 'kg' || i.saleUnit === 'g' || i.pricingType === 'WEIGHT' || i.masterPricingType === 'WEIGHT' || i.pt === 'WEIGHT';
+                    return {
+                        orderId: newOrder.id,
+                        lotId: i.lotId,
+                        productId: i.productId,
+                        qty: i.qty.toString(),
+                        unitPrice: i.price.toFixed(4),
+                        saleUnit: isWeight ? 'kg' : 'unit',
+                    };
+                }),
             );
 
             console.log(`[WEBHOOK] ✅ ${sellerItems.length} item(ns) inserido(s) para pedido ${newOrder.id}`);
