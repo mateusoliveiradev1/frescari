@@ -2,7 +2,7 @@ import { z } from 'zod';
 import Stripe from 'stripe';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
-import { tenants } from '@frescari/db';
+import { tenants, users } from '@frescari/db';
 import { eq } from 'drizzle-orm';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -38,19 +38,26 @@ export const stripeRouter = createTRPCRouter({
             }
 
             try {
-                // Busque o tenant de forma idenpotente
-                const [tenant] = await db
-                    .select()
+                // Busque o tenant de forma idenpotente e obtenha o email
+                const [dbInfo] = await db
+                    .select({
+                        tenant: tenants,
+                        email: users.email,
+                    })
                     .from(tenants)
+                    .innerJoin(users, eq(users.tenantId, tenants.id))
                     .where(eq(tenants.id, tenantId))
                     .limit(1);
 
-                if (!tenant) {
+                if (!dbInfo || !dbInfo.tenant) {
                     throw new TRPCError({
                         code: 'NOT_FOUND',
                         message: 'Organização não encontrada.',
                     });
                 }
+
+                const tenant = dbInfo.tenant;
+                const userEmail = dbInfo.email;
 
                 if (tenant.type === 'BUYER') {
                     throw new TRPCError({
@@ -68,12 +75,15 @@ export const stripeRouter = createTRPCRouter({
                 // Se NÃO POSSUIR conta stripe
                 const account = await stripe.accounts.create({
                     type: 'express',
+                    email: userEmail,
                     capabilities: {
-                        card_payments: { requested: true },
                         transfers: { requested: true },
                     },
                     business_type: 'company',
                     company: {
+                        name: tenant.name,
+                    },
+                    business_profile: {
                         name: tenant.name,
                     },
                     metadata: {
