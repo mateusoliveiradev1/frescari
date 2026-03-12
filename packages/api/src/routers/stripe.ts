@@ -30,7 +30,7 @@ export const stripeRouter = createTRPCRouter({
             }
 
             try {
-                // Busque o tenant de forma idenpotente e obtenha o email e nome do usuário
+                // Busca o tenant de forma idempotente e obtém o email e nome do usuário.
                 const [dbInfo] = await db
                     .select({
                         tenant: tenants,
@@ -57,26 +57,19 @@ export const stripeRouter = createTRPCRouter({
                 const firstName = nameParts[0] || '';
                 const lastName = nameParts.slice(1).join(' ') || firstName;
 
-                if (tenant.type === 'BUYER') {
-                    throw new TRPCError({
-                        code: 'FORBIDDEN',
-                        message: 'Apenas produtores podem configurar recebimentos.',
-                    });
-                }
-
-                // Se JÁ POSSUIR uma conta conectada
+                // Se já possuir uma conta conectada
                 if (tenant.stripeAccountId) {
                     const loginLink = await stripe.accounts.createLoginLink(tenant.stripeAccountId);
                     return { url: loginLink.url };
                 }
 
-                // Se NÃO POSSUIR conta stripe
+                // Se não possuir conta Stripe
                 const account = await stripe.accounts.create({
                     type: 'express',
                     business_type: 'individual',
                     email: userEmail,
                     capabilities: {
-                        // Resgata explicitamente transfers e card_payments necessários para contas BR
+                        // Contas BR precisam de transfers e card_payments explicitamente.
                         card_payments: { requested: true },
                         transfers: { requested: true },
                     },
@@ -94,17 +87,16 @@ export const stripeRouter = createTRPCRouter({
                     },
                 });
 
-                // Atualize o DB salvando o ID gerado (protegendo a idenpotência para as próximas chamadas)
+                // Salva o ID gerado para manter a criação idempotente nas próximas chamadas.
                 await db
                     .update(tenants)
                     .set({ stripeAccountId: account.id })
                     .where(eq(tenants.id, tenantId));
 
-                // Geranado o link de onboarding do fluxo Express
                 const accountLink = await stripe.accountLinks.create({
                     account: account.id,
-                    refresh_url: `${APP_URL}/dashboard/vendas`, // Local de recarregamento caso vença/invalide
-                    return_url: `${APP_URL}/dashboard/vendas`,  // Pode redirecionar para uma page de verificação de conta
+                    refresh_url: `${APP_URL}/dashboard/vendas`,
+                    return_url: `${APP_URL}/dashboard/vendas`,
                     type: 'account_onboarding',
                 });
 

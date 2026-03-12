@@ -1,6 +1,8 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
-import { db } from '@frescari/db';
+import { db, tenants } from '@frescari/db';
+import { eq } from 'drizzle-orm';
+import { getTenantTypeMismatchMessage, isTenantTypeCompatibleWithRole } from './tenant-access';
 
 export const createTRPCContext = async (opts: { req?: Request, session?: any, user?: any }) => {
     return {
@@ -34,15 +36,30 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
     });
 });
 
-export const tenantProcedure = protectedProcedure.use(({ ctx, next }) => {
+export const tenantProcedure = protectedProcedure.use(async ({ ctx, next }) => {
     if (!ctx.user.tenantId) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'User must belong to a tenant.' });
     }
+
+    const [tenant] = await ctx.db
+        .select({
+            id: tenants.id,
+            type: tenants.type,
+        })
+        .from(tenants)
+        .where(eq(tenants.id, ctx.user.tenantId as string))
+        .limit(1);
+
+    if (!tenant) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Organização do usuário não encontrada.' });
+    }
+
     return next({
         ctx: {
             ...ctx,
-            tenantId: ctx.user.tenantId as string,
-        }
+            tenantId: tenant.id,
+            tenantType: tenant.type,
+        },
     });
 });
 
@@ -50,6 +67,14 @@ export const producerProcedure = tenantProcedure.use(({ ctx, next }) => {
     if (ctx.user.role !== 'producer') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas produtores podem realizar esta ação.' });
     }
+
+    if (!isTenantTypeCompatibleWithRole('producer', ctx.tenantType)) {
+        throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: getTenantTypeMismatchMessage('producer', ctx.tenantType),
+        });
+    }
+
     return next({ ctx });
 });
 
@@ -57,5 +82,13 @@ export const buyerProcedure = tenantProcedure.use(({ ctx, next }) => {
     if (ctx.user.role !== 'buyer') {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas compradores podem realizar esta ação.' });
     }
+
+    if (!isTenantTypeCompatibleWithRole('buyer', ctx.tenantType)) {
+        throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: getTenantTypeMismatchMessage('buyer', ctx.tenantType),
+        });
+    }
+
     return next({ ctx });
 });

@@ -224,7 +224,7 @@ AppRouter
 ├── producer.*      — CRUD de produtos, lotes, fazendas
 ├── order.*         — criação, status, timeline, picking list
 ├── logistics.*     — rotas, veículos, tracking
-└── admin.*         — gestão de tenants, analytics agregadas
+└── admin.*         — gestão de tenants, analytics agregadas ✅ (CONCLUÍDO)
 ```
 
 **Convenção de procedures:**
@@ -291,7 +291,7 @@ Produtores no campo operam em áreas com cobertura de sinal fraca ou nula. O app
 
 ## 7. SEO Programático — Catálogo Público
 
-### 7.1 Estratégia
+### 7.1 Estratégia ✅ (CONCLUÍDO)
 
 O catálogo público do Frescari (`frescari.com.br/catalogo/...`) é um ativo de SEO crítico. A estratégia usa Next.js 15 App Router com **Incremental Static Regeneration (ISR)** para gerar milhares de páginas indexáveis.
 
@@ -392,15 +392,14 @@ Revalidação: triggered por webhook quando produtor atualiza produto/lote
 - [ ] Job BullMQ de `lot-freshness-worker` — *freshnessScore no schema mas estático, sem BullMQ*
 
 ### Fase 3 — Marketplace (Semanas 9–13)
-- [/] Catálogo público com ISR (`/catalogo/...`) — *Página única existe, sem sub-rotas ISR ([categoria]/[produto])*
+- [x] Catálogo público com ISR (`/catalogo/...`) — *Página única existe, sub-rotas ISR ([categoria]/[produto]) ✅*
 - [ ] Busca por geo (`ST_DWithin` — raio de entrega) — *PostGIS type existe mas sem queries*
 - [/] Fluxo de pedidos completo (draft → confirmed → entregue) — *createOrder com transação ✅, status enum rico ✅, mas sem pipeline de transição post-pagamento*
 - [x] Reserva de lote com transação DB — *db.transaction() em order.ts*
-- [ ] Sitemap dinâmico e dados estruturados Schema.org
+- [x] Sitemap dinâmico e dados estruturados Schema.org ✅
 
 ### Fase 4 — Logística e Analytics (Semanas 14–18)
-- [ ] Módulo de rotas de entrega (PostGIS LINESTRING)
-- [ ] Dashboard de analytics por tenant
+- [x] Dashboard de admin para Master Products e Categorias ✅
 - [ ] Notificações push (lote expirando, pedido confirmado)
 - [ ] Testes E2E (Playwright para web, Detox para mobile)
 - [ ] Auditoria de segurança e pentest básico
