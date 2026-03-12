@@ -24,6 +24,15 @@ export const metadata: Metadata = {
   title: "Frescari — Hortifruti Direto da Horta",
   description:
     "Produtos colhidos hoje em fazendas a menos de 50km de você. Apoie o produtor local e garanta o máximo de frescor.",
+  applicationName: "Frescari",
+  icons: {
+    icon: [{ url: "/icon", sizes: "64x64", type: "image/png" }],
+    shortcut: [{ url: "/icon", sizes: "64x64", type: "image/png" }],
+    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    title: "Frescari",
+  },
 };
 
 export default function RootLayout({

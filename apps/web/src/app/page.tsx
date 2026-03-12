@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@frescari/ui";
 import { ScrollReveal } from "../components/scroll-reveal";
+import { BrandLogo } from "@/components/brand-logo";
 
 // ─────────────────────────────────────────────────────
 // Frescari Landing Page — Organic Editorial Luxury
@@ -233,12 +234,7 @@ export default function Home() {
       {/* ── Footer ── */}
       <footer className="py-10 border-t border-soil/8 bg-cream">
         <div className="max-w-[1400px] mx-auto px-6 md:px-8 lg:px-12 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-forest rounded-sm flex items-center justify-center">
-              <span className="font-display text-white font-black text-sm italic leading-none">F</span>
-            </div>
-            <span className="font-display text-sm font-bold text-soil italic">Frescari</span>
-          </div>
+          <BrandLogo size="sm" />
           <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
             © 2025 Frescari — Alimento real, perto de você.
           </p>

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@frescari/ui";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 
 // ────────────────────────────────────────────
 // Reusable form input styled for Frescari DS
@@ -70,8 +70,6 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const router = useRouter();
-
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
@@ -109,11 +107,8 @@ export default function LoginPage() {
                     className="absolute inset-0 opacity-10"
                     style={{ backgroundImage: "radial-gradient(#f9f6f0 1px, transparent 1px)", backgroundSize: "22px 22px" }}
                 />
-                <Link href="/" className="flex items-center gap-3 relative z-10">
-                    <div className="w-9 h-9 bg-cream/15 rounded-sm border border-cream/20 flex items-center justify-center">
-                        <span className="font-display text-cream font-black text-lg italic leading-none">F</span>
-                    </div>
-                    <span className="font-display text-cream text-xl font-bold italic">Frescari</span>
+                <Link href="/" className="relative z-10">
+                    <BrandLogo variant="inverse" size="md" showDescriptor />
                 </Link>
 
                 <div className="relative z-10 space-y-6">
@@ -135,11 +130,8 @@ export default function LoginPage() {
                 <div className="w-full max-w-sm space-y-8">
 
                     {/* Mobile logo */}
-                    <div className="flex lg:hidden items-center gap-2">
-                        <div className="w-8 h-8 bg-forest rounded-sm flex items-center justify-center">
-                            <span className="font-display text-white font-black text-base italic leading-none">F</span>
-                        </div>
-                        <span className="font-display text-soil text-lg font-bold italic">Frescari</span>
+                    <div className="flex lg:hidden">
+                        <BrandLogo size="sm" />
                     </div>
 
                     <div className="space-y-1">

@@ -5,9 +5,10 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { Button } from "@frescari/ui";
 import { authClient } from "@/lib/auth-client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { ShoppingCart, Menu } from "lucide-react";
 import { useCartStore, useCartTotals, CartStore } from "@/store/useCartStore";
+import { BrandLogo } from "@/components/brand-logo";
 import {
     Sheet,
     SheetContent,
@@ -67,11 +68,6 @@ export function GlobalNav() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Close menu when switching pages
-    useEffect(() => {
-        setIsMenuOpen(false);
-    }, [pathname]);
-
     const handleSignOut = async () => {
         await authClient.signOut();
         useCartStore.getState().clearCart();
@@ -82,6 +78,9 @@ export function GlobalNav() {
         const linkClass = isMobile
             ? "font-sans text-lg font-bold uppercase tracking-widest text-bark hover:text-forest transition-colors py-4 border-b border-soil/5 last:border-0"
             : "font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors";
+        const mobileLinkProps = isMobile
+            ? { onClick: () => setIsMenuOpen(false) }
+            : undefined;
 
         const getActiveStoreClass = (href: string) => {
             if (isMobile) return pathname === href || pathname.startsWith(href) ? "text-forest" : "text-bark";
@@ -92,15 +91,15 @@ export function GlobalNav() {
             return (
                 <>
                     {pathname === "/" && (
-                        <Link href="#como-funciona" className={`${linkClass} ${pathname === '/' ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                        <Link href="#como-funciona" className={`${linkClass} ${pathname === '/' ? 'text-forest' : 'text-bark hover:text-forest'}`} {...mobileLinkProps}>
                             Como Funciona
                         </Link>
                     )}
-                    <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`}>
+                    <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`} {...mobileLinkProps}>
                         Catálogo
                     </Link>
                     {isMobile && (
-                        <Link href="/auth/login" className={`${linkClass} text-bark hover:text-forest`}>
+                        <Link href="/auth/login" className={`${linkClass} text-bark hover:text-forest`} {...mobileLinkProps}>
                             Entrar
                         </Link>
                     )}
@@ -111,16 +110,16 @@ export function GlobalNav() {
         if (role === 'producer') {
             return (
                 <>
-                    <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                    <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`} {...mobileLinkProps}>
                         Dashboard
                     </Link>
-                    <Link href="/dashboard/inventario" className={`${linkClass} ${getActiveStoreClass('/dashboard/inventario')}`}>
+                    <Link href="/dashboard/inventario" className={`${linkClass} ${getActiveStoreClass('/dashboard/inventario')}`} {...mobileLinkProps}>
                         Meu Inventário
                     </Link>
-                    <Link href="/dashboard/vendas" className={`${linkClass} ${getActiveStoreClass('/dashboard/vendas')}`}>
+                    <Link href="/dashboard/vendas" className={`${linkClass} ${getActiveStoreClass('/dashboard/vendas')}`} {...mobileLinkProps}>
                         Meus Pedidos
                     </Link>
-                    <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`}>
+                    <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`} {...mobileLinkProps}>
                         Catálogo
                     </Link>
                 </>
@@ -130,13 +129,13 @@ export function GlobalNav() {
         // buyer
         return (
             <>
-                <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`}>
+                <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`} {...mobileLinkProps}>
                     Painel de Compras
                 </Link>
-                <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`}>
+                <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`} {...mobileLinkProps}>
                     Catálogo
                 </Link>
-                <Link href="/dashboard/pedidos" className={`${linkClass} ${getActiveStoreClass('/dashboard/pedidos')}`}>
+                <Link href="/dashboard/pedidos" className={`${linkClass} ${getActiveStoreClass('/dashboard/pedidos')}`} {...mobileLinkProps}>
                     Meus Pedidos
                 </Link>
             </>
@@ -148,10 +147,10 @@ export function GlobalNav() {
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12 h-[72px] flex items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-3 group">
-                    <div className="w-9 h-9 bg-forest rounded-sm flex items-center justify-center transition-all group-hover:bg-forest-hover">
-                        <span className="font-display text-white font-black text-lg italic leading-none">F</span>
-                    </div>
-                    <span className="font-display text-xl font-bold text-soil italic tracking-tight hidden sm:block">Frescari</span>
+                    <BrandLogo
+                        size="md"
+                        className="transition-transform duration-200 group-hover:-translate-y-0.5"
+                    />
                 </Link>
 
                 <div className="flex items-center gap-3 sm:gap-8">
@@ -265,13 +264,21 @@ export function GlobalNav() {
 function CartButton() {
     const toggleCart = useCartStore((state: CartStore) => state.toggleCart);
     const { totalItems } = useCartTotals();
-    const [mounted, setMounted] = useState(false);
+    const hasHydrated = useSyncExternalStore(
+        (callback) => {
+            const unsubscribeHydrate = useCartStore.persist.onHydrate(callback);
+            const unsubscribeFinish = useCartStore.persist.onFinishHydration(callback);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+            return () => {
+                unsubscribeHydrate();
+                unsubscribeFinish();
+            };
+        },
+        () => useCartStore.persist.hasHydrated(),
+        () => false,
+    );
 
-    if (!mounted) return null;
+    if (!hasHydrated) return null;
 
     return (
         <button
