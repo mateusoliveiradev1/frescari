@@ -93,13 +93,13 @@ export function MasterProductManager() {
 
     const updateMasterProduct = trpc.admin.updateMasterProduct.useMutation({
         onSuccess: async () => {
-            toast.success("Produto mestre atualizado com sucesso.");
+            await utils.admin.listMasterProducts.invalidate();
+            toast.success("Produto e lotes sincronizados!");
             setEditingId(null);
             setForm(initialForm);
-            await utils.admin.listMasterProducts.invalidate();
         },
         onError: (error) => {
-            toast.error(error.message || "Não foi possível atualizar o produto mestre.");
+            toast.error(error.message || "Não foi possível sincronizar produto e lotes.");
         },
     });
 

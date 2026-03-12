@@ -1,8 +1,9 @@
 import { TRPCError } from '@trpc/server';
-import { asc, eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { masterProducts, productCategories } from '@frescari/db';
+import { masterProducts, productCategories, productLots, products } from '@frescari/db';
 
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 
@@ -210,38 +211,86 @@ export const adminRouter = createTRPCRouter({
             }),
         )
         .mutation(async ({ ctx, input }) => {
-            const category = await ctx.db.query.productCategories.findFirst({
-                where: eq(productCategories.id, input.categoryId),
+            const updatedProduct = await ctx.db.transaction(async (tx) => {
+                const [currentProduct] = await tx
+                    .select({
+                        id: masterProducts.id,
+                        name: masterProducts.name,
+                    })
+                    .from(masterProducts)
+                    .where(eq(masterProducts.id, input.id))
+                    .limit(1);
+
+                if (!currentProduct) {
+                    throw new TRPCError({
+                        code: 'NOT_FOUND',
+                        message: 'Produto mestre não encontrado.',
+                    });
+                }
+
+                const [category] = await tx
+                    .select({
+                        id: productCategories.id,
+                        name: productCategories.name,
+                    })
+                    .from(productCategories)
+                    .where(eq(productCategories.id, input.categoryId))
+                    .limit(1);
+
+                if (!category) {
+                    throw new TRPCError({
+                        code: 'NOT_FOUND',
+                        message: 'Categoria selecionada não encontrada.',
+                    });
+                }
+
+                const linkedProducts = await tx
+                    .select({
+                        id: products.id,
+                    })
+                    .from(products)
+                    .where(eq(products.masterProductId, input.id));
+
+                const linkedProductIds = linkedProducts.map((product) => product.id);
+
+                const [nextMasterProduct] = await tx
+                    .update(masterProducts)
+                    .set({
+                        name: input.name,
+                        category: category.name,
+                        pricingType: input.pricingType,
+                        defaultImageUrl: normalizeOptionalText(input.defaultImageUrl),
+                    })
+                    .where(eq(masterProducts.id, input.id))
+                    .returning();
+
+                if (linkedProductIds.length > 0) {
+                    await tx
+                        .update(products)
+                        .set({
+                            name: input.name,
+                            categoryId: category.id,
+                        })
+                        .where(inArray(products.id, linkedProductIds));
+
+                    if (currentProduct.name !== input.name) {
+                        await tx
+                            .update(productLots)
+                            .set({
+                                lotCode: sql<string>`replace(${productLots.lotCode}, ${currentProduct.name}, ${input.name})`,
+                            })
+                            .where(inArray(productLots.productId, linkedProductIds));
+                    }
+                }
+
+                return {
+                    ...nextMasterProduct,
+                    categoryId: category.id,
+                };
             });
 
-            if (!category) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Categoria selecionada não encontrada.',
-                });
-            }
+            revalidatePath('/catalogo', 'layout');
 
-            const [updatedProduct] = await ctx.db
-                .update(masterProducts)
-                .set({
-                    name: input.name,
-                    category: category.name,
-                    pricingType: input.pricingType,
-                    defaultImageUrl: normalizeOptionalText(input.defaultImageUrl),
-                })
-                .where(eq(masterProducts.id, input.id))
-                .returning();
-
-            if (!updatedProduct) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Produto mestre não encontrado.',
-                });
-            }
-
-            return {
-                ...updatedProduct,
-                categoryId: category.id,
-            };
+            return updatedProduct;
         }),
 });
