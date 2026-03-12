@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import Stripe from 'stripe';
-import { createTRPCRouter, protectedProcedure } from '../trpc';
+import { createTRPCRouter, buyerProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { db, tenants, productLots, products, masterProducts } from '@frescari/db';
 import { eq, inArray } from 'drizzle-orm';
@@ -94,7 +94,7 @@ function buildLineItems(
 
 // ── Router ───────────────────────────────────────────────────────────
 export const checkoutRouter = createTRPCRouter({
-    createCheckoutSession: protectedProcedure
+    createCheckoutSession: buyerProcedure
         .input(
             z.object({
                 items: z.array(checkoutItemSchema).min(1, 'Carrinho vazio.'),

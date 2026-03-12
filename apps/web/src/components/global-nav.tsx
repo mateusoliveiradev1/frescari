@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Button } from "@frescari/ui";
 import { authClient } from "@/lib/auth-client";
 import { useState, useRef, useEffect } from "react";
@@ -22,15 +22,40 @@ const CartDrawer = dynamic(
     { ssr: false }
 );
 
-export function GlobalNav({ session: initialSession }: { session: any }) {
+type SessionUser = {
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+};
+
+export function GlobalNav() {
     const pathname = usePathname();
-    const router = useRouter();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [user, setUser] = useState<SessionUser | null>(null);
     const profileRef = useRef<HTMLDivElement>(null);
 
-    const user = initialSession?.user;
     const role = user?.role;
+    const canUseCart = role === "buyer";
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadSession = async () => {
+            const response = await authClient.getSession();
+            if (cancelled) {
+                return;
+            }
+
+            setUser((response.data?.user as SessionUser | undefined) ?? null);
+        };
+
+        void loadSession();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -136,7 +161,7 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
                     </div>
 
                     {/* Cart trigger button */}
-                    {user && <CartButton />}
+                    {canUseCart && <CartButton />}
 
                     {/* Auth Actions (Desktop & Mobile header) */}
                     {!user && (
@@ -231,7 +256,7 @@ export function GlobalNav({ session: initialSession }: { session: any }) {
             </div>
 
             {/* The cart panel itself */}
-            {user && <CartDrawer />}
+            {canUseCart && <CartDrawer />}
         </nav>
     );
 }
