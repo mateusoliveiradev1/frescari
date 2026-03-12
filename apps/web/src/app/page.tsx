@@ -2,6 +2,12 @@ import Link from "next/link";
 import { Button } from "@frescari/ui";
 import { ScrollReveal } from "../components/scroll-reveal";
 import { BrandLogo } from "@/components/brand-logo";
+import {
+  DirectProducerIcon,
+  HarvestSignalIllustration,
+  LowCarbonIcon,
+  NightHarvestIcon,
+} from "@/components/frescari-iconography";
 
 // ─────────────────────────────────────────────────────
 // Frescari Landing Page — Organic Editorial Luxury
@@ -12,37 +18,19 @@ const features = [
     title: "Colheita Noturna",
     label: "Frescor Garantido",
     desc: "Produtos colhidos na madrugada para entrega na manhã seguinte — distância mínima, frescor máximo.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-        <path d="M14 3C14 3 4 10 4 18C4 23.5 8.5 26 14 26C19.5 26 24 23.5 24 18C24 10 14 3 14 3Z" fill="#e8f0e3" stroke="#0d3321" strokeWidth="1.5" />
-        <circle cx="14" cy="9" r="2" fill="#0d3321" opacity="0.5" />
-        <path d="M14 26V16" stroke="#0d3321" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
+    icon: <NightHarvestIcon className="h-9 w-9" />,
   },
   {
     title: "Zero Intermediário",
     label: "Direto do Produtor",
     desc: "Cada compra vai diretamente ao produtor familiar. Mais renda para quem cultiva, preço justo para quem compra.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-        <circle cx="9" cy="14" r="5" fill="#e8f0e3" stroke="#0d3321" strokeWidth="1.5" />
-        <circle cx="19" cy="14" r="5" fill="#e8f0e3" stroke="#0d3321" strokeWidth="1.5" />
-        <path d="M14 14H14.01" stroke="#0d3321" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
+    icon: <DirectProducerIcon className="h-9 w-9" />,
   },
   {
     title: "CO₂ Reduzido",
     label: "Sustentabilidade Real",
     desc: "Rotas inteligentes de menos de 50km reduzem a pegada de carbono de cada colheita. Tecnologia a favor da terra.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-        <path d="M6 20C6 14 10 6 14 4C18 6 22 14 22 20" stroke="#0d3321" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M10 20C10 16 12 12 14 10C16 12 18 16 18 20" fill="#e8f0e3" stroke="#0d3321" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M8 24H20" stroke="#0d3321" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
+    icon: <LowCarbonIcon className="h-9 w-9" />,
   },
 ];
 
@@ -115,14 +103,7 @@ export default function Home() {
                 style={{ backgroundImage: "radial-gradient(#0d3321 1px, transparent 1px)", backgroundSize: "20px 20px" }}
               />
               <div className="absolute inset-0 flex items-center justify-center flex-col gap-6 p-12 text-center">
-                {/* Leaf SVG illustration */}
-                <svg width="80" height="80" viewBox="0 0 80 80" fill="none" aria-hidden="true">
-                  <path d="M40 8C40 8 12 24 12 46C12 62 24 72 40 72C56 72 68 62 68 46C68 24 40 8 40 8Z"
-                    fill="#e8f0e3" stroke="#0d3321" strokeWidth="2" />
-                  <path d="M40 72C40 72 40 40 40 24" stroke="#0d3321" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M40 54C40 54 26 44 22 30" stroke="#0d3321" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-                  <path d="M40 46C40 46 54 36 58 22" stroke="#0d3321" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-                </svg>
+                <HarvestSignalIllustration className="h-24 w-24" />
                 <div>
                   <p className="font-display text-2xl font-bold text-forest italic">Conexão Real</p>
                   <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark mt-1">
@@ -184,7 +165,7 @@ export default function Home() {
                   className="group h-full p-8 bg-cream border border-soil/8 rounded-sm shadow-card hover:-translate-y-1 hover:shadow-card-hover transition-all duration-200 cursor-default"
                 >
                   {/* Icon */}
-                  <div className="w-12 h-12 rounded-sm bg-sage/60 border border-forest/15 flex items-center justify-center mb-6 group-hover:bg-sage transition-colors">
+                  <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-[16px_12px_18px_10px] border border-forest/15 bg-gradient-to-br from-sage via-sage/75 to-cream shadow-[inset_0_1px_0_rgba(249,246,240,0.6),0_10px_20px_-18px_rgba(13,51,33,0.45)] transition-all duration-200 group-hover:-rotate-2 group-hover:from-sage group-hover:to-sage/60">
                     {feature.icon}
                   </div>
                   {/* Label */}
