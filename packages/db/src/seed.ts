@@ -105,7 +105,14 @@ async function main() {
         .values({
             tenantId: fornecedorTeste!.id,
             name: 'Sítio Central Produção Br',
-            address: 'Rodovia SP-55, Km 12 — São Paulo, SP',
+            address: {
+                street: 'Rodovia SP-55',
+                number: 'Km 12',
+                city: 'São Paulo',
+                state: 'SP',
+                postalCode: '',
+                country: 'BR',
+            },
             certifications: ['Orgânico Certificado MAPA', 'GlobalGAP'],
         })
         .returning();
