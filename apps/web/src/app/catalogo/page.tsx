@@ -1,20 +1,17 @@
-import { getServerTrpc } from '@/trpc/server';
-export const dynamic = 'force-dynamic';
 import { ProductCardSkeleton } from '@frescari/ui';
 import { ProductCardWrapper } from '@/components/ProductCardWrapper';
 import { Suspense } from 'react';
-import { unstable_noStore as noStore } from 'next/cache';
-import { CatalogLot } from '@/store/useCartStore';
+import { getAvailableCatalogLots, type PublicCatalogLot } from '@/lib/catalog-public';
+
+export const revalidate = 3600;
 
 // ─────────────────────────────────────────────────────────
 // LotsList — async server component
 // ─────────────────────────────────────────────────────────
 async function LotsList() {
-    noStore();
-    let lots: CatalogLot[] = [];
+    let lots: PublicCatalogLot[] = [];
     try {
-        const serverTrpc = await getServerTrpc();
-        lots = await serverTrpc.lot.getAvailableLots({});
+        lots = await getAvailableCatalogLots();
     } catch (e) {
         console.error("Failed to fetch lots", e);
     }

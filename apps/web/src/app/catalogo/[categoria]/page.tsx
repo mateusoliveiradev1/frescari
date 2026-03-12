@@ -1,0 +1,205 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { ProductCardWrapper } from "@/components/ProductCardWrapper";
+import { getCategoryPageData, getCategoryStaticParams } from "@/lib/catalog-public";
+import { getSiteUrl, sanitizeText } from "@/lib/catalog-seo";
+
+export const revalidate = 3600;
+
+type CategoryPageProps = {
+  params: Promise<{
+    categoria: string;
+  }>;
+};
+
+function formatPrice(value: number): string {
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+export async function generateStaticParams(): Promise<Array<{ categoria: string }>> {
+  return getCategoryStaticParams();
+}
+
+export async function generateMetadata({
+  params,
+}: CategoryPageProps): Promise<Metadata> {
+  const { categoria } = await params;
+  const data = await getCategoryPageData(categoria);
+
+  if (!data) {
+    return {
+      title: "Categoria não encontrada | Frescari",
+    };
+  }
+
+  const title = `${sanitizeText(data.category.name)} direto da horta | Frescari`;
+  const description = sanitizeText(data.category.description, 160);
+  const canonical = `${getSiteUrl()}${data.category.path}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "website",
+    },
+  };
+}
+
+export default async function CategoryPage({ params }: CategoryPageProps) {
+  const { categoria } = await params;
+  const data = await getCategoryPageData(categoria);
+
+  if (!data) {
+    notFound();
+  }
+
+  return (
+    <main className="min-h-screen bg-cream">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-12 px-6 py-16 lg:px-12">
+        <nav className="flex items-center gap-2 text-sm text-bark/70">
+          <Link href="/catalogo" className="transition-colors hover:text-forest">
+            Catálogo
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-soil">{data.category.name}</span>
+        </nav>
+
+        <header className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)] lg:items-end">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-forest/20 bg-forest/10 px-3 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-forest" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-forest">
+                Página de categoria em ISR
+              </span>
+            </div>
+
+            <h1 className="font-display text-5xl font-black tracking-tight text-soil sm:text-6xl">
+              {data.category.name}
+            </h1>
+
+            <p className="max-w-3xl text-lg leading-relaxed text-bark">
+              {data.category.description}
+            </p>
+          </div>
+
+          <aside className="grid gap-4 rounded-[28px] border border-soil/10 bg-white/70 p-6 shadow-sm backdrop-blur">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
+                Produtos indexados
+              </p>
+              <p className="mt-2 font-display text-4xl font-black text-soil">
+                {data.category.productCount}
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
+                  Lotes ativos
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-forest">
+                  {data.category.lotCount}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
+                  Melhor preço
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-forest">
+                  {formatPrice(
+                    Math.min(...data.products.map((product) => product.lowestPrice)),
+                  )}
+                </p>
+              </div>
+            </div>
+          </aside>
+        </header>
+
+        <section aria-labelledby="produtos-da-categoria" className="space-y-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
+                Navegação de produto
+              </p>
+              <h2
+                id="produtos-da-categoria"
+                className="font-display text-3xl font-bold text-soil"
+              >
+                Produtos publicados
+              </h2>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {data.products.map((product) => (
+              <Link
+                key={product.path}
+                href={product.path}
+                className="group rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-forest/30 hover:shadow-lg"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
+                  {product.offerCount} oferta{product.offerCount === 1 ? "" : "s"}
+                </p>
+                <h3 className="mt-3 font-display text-2xl font-bold text-soil transition-colors group-hover:text-forest">
+                  {product.name}
+                </h3>
+                <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-bark">
+                  {product.description}
+                </p>
+                <div className="mt-5 flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-bark/60">
+                      A partir de
+                    </p>
+                    <p className="mt-1 text-xl font-semibold text-forest">
+                      {formatPrice(product.lowestPrice)}/{product.saleUnit}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold text-soil">
+                    Ver produto →
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section aria-labelledby="lotes-da-categoria" className="space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="h-px flex-1 bg-forest/10" />
+            <h2
+              id="lotes-da-categoria"
+              className="text-[10px] font-bold uppercase tracking-[0.2em] text-bark"
+            >
+              Lotes disponíveis agora
+            </h2>
+            <div className="h-px flex-1 bg-forest/10" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 pb-24 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {data.lots.map((lot, index) => (
+              <ProductCardWrapper
+                key={lot.id}
+                lot={lot}
+                isLastChance={lot.status === "last_chance"}
+                priority={index < 4}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
