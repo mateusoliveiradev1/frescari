@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import {
     Sheet,
@@ -9,11 +9,23 @@ import {
     SheetTitle,
     SheetDescription,
     Badge,
-    Button,
-    cn
+    Button
 } from '@frescari/ui';
 import { Minus, Plus, ShoppingCart, Leaf, Calendar, Info } from 'lucide-react';
+import { toast } from 'sonner';
 import { CatalogLot, useCartStore, CartStore } from '@/store/useCartStore';
+import {
+    formatQuantityInput,
+    getDefaultDetailsQuantity,
+    getMaximumQuantity,
+    getQuantityInputPattern,
+    getQuantityMin,
+    getQuantityMinLabel,
+    getQuantityStep,
+    isWeightBasedQuantityItem,
+    normalizeQuantity,
+    roundQuantity,
+} from '@/lib/cart-quantity';
 
 interface ProductDetailsSheetProps {
     lot: CatalogLot | null;
@@ -23,28 +35,89 @@ interface ProductDetailsSheetProps {
 
 export function ProductDetailsSheet({ lot, isOpen, onClose }: ProductDetailsSheetProps) {
     const addItem = useCartStore((state: CartStore) => state.addItem);
-    const [quantity, setQuantity] = useState(1);
+    const [quantity, setQuantity] = useState(() => (lot ? getDefaultDetailsQuantity(lot) : 1));
+    const [quantityDraft, setQuantityDraft] = useState<string | null>(null);
 
     if (!lot) return null;
 
-    const isWeightBased = lot.pricingType === 'WEIGHT';
-    const step = isWeightBased ? 0.5 : 1;
+    const isWeightBased = isWeightBasedQuantityItem(lot);
+    const step = getQuantityStep(lot);
+    const minQuantity = getQuantityMin(lot);
+    const maximumQuantity = getMaximumQuantity(lot);
     const totalPrice = lot.finalPrice * quantity;
 
+    const clearQuantityDraft = () => {
+        setQuantityDraft(null);
+    };
+
+    const commitQuantityDraft = () => {
+        if (quantityDraft === null) {
+            return quantity;
+        }
+
+        const normalizedDraft = quantityDraft.trim();
+        clearQuantityDraft();
+
+        if (normalizedDraft === '' || normalizedDraft === '.' || normalizedDraft === ',') {
+            return quantity;
+        }
+
+        if (!getQuantityInputPattern(lot).test(normalizedDraft)) {
+            return quantity;
+        }
+
+        const parsedQuantity = Number(normalizedDraft.replace(',', '.'));
+        if (Number.isNaN(parsedQuantity)) {
+            return quantity;
+        }
+
+        const normalizedQuantity = normalizeQuantity(lot, parsedQuantity, { clampMin: false });
+        if (normalizedQuantity < minQuantity) {
+            toast.error(`A quantidade minima e ${getQuantityMinLabel(lot)}.`);
+            return null;
+        }
+
+        const safeQuantity = normalizeQuantity(lot, parsedQuantity);
+        if (parsedQuantity > maximumQuantity) {
+            toast.error('Quantidade acima do disponivel. Ajustamos para o maximo em estoque.');
+        }
+
+        setQuantity(safeQuantity);
+        return safeQuantity;
+    };
+
     const handleIncrement = () => {
-        if (quantity + step <= lot.availableQty) {
-            setQuantity(prev => prev + step);
+        clearQuantityDraft();
+
+        const nextQuantity = isWeightBased
+            ? roundQuantity(quantity + step)
+            : Math.trunc(quantity + step);
+
+        if (nextQuantity <= maximumQuantity) {
+            setQuantity(nextQuantity);
         }
     };
 
     const handleDecrement = () => {
-        if (quantity - step >= step) {
-            setQuantity(prev => prev - step);
+        clearQuantityDraft();
+
+        const nextQuantity = isWeightBased
+            ? roundQuantity(quantity - step)
+            : Math.trunc(quantity - step);
+
+        if (nextQuantity >= minQuantity) {
+            setQuantity(nextQuantity);
         }
     };
 
     const handleAddToCart = () => {
-        addItem(lot, quantity);
+        const resolvedQuantity = commitQuantityDraft();
+
+        if (!resolvedQuantity || resolvedQuantity <= 0) {
+            return;
+        }
+
+        addItem(lot, resolvedQuantity);
         onClose();
     };
 
@@ -159,17 +232,43 @@ export function ProductDetailsSheet({ lot, isOpen, onClose }: ProductDetailsShee
                                 <div className="flex items-center bg-cream border border-soil/20 rounded-sm overflow-hidden">
                                     <button
                                         onClick={handleDecrement}
-                                        disabled={quantity <= step}
+                                        disabled={quantity <= minQuantity}
                                         className="p-3 hover:bg-soil/5 disabled:opacity-30 transition-colors"
                                     >
                                         <Minus size={18} />
                                     </button>
-                                    <span className="px-6 font-display font-bold text-xl min-w-[3rem] text-center border-x border-soil/10">
-                                        {quantity}
-                                    </span>
+                                    <input
+                                        type="text"
+                                        inputMode={isWeightBased ? 'decimal' : 'numeric'}
+                                        value={quantityDraft ?? formatQuantityInput(lot, quantity)}
+                                        onChange={(e) => {
+                                            const nextValue = e.target.value;
+
+                                            if (!getQuantityInputPattern(lot).test(nextValue)) {
+                                                return;
+                                            }
+
+                                            setQuantityDraft(nextValue);
+                                        }}
+                                        onBlur={() => {
+                                            commitQuantityDraft();
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.currentTarget.blur();
+                                            }
+
+                                            if (e.key === 'Escape') {
+                                                clearQuantityDraft();
+                                                e.currentTarget.blur();
+                                            }
+                                        }}
+                                        className="min-w-[4.5rem] border-x border-soil/10 bg-transparent px-4 py-3 text-center font-display text-xl font-bold focus:outline-none"
+                                        aria-label={`Quantidade de ${lot.productName}`}
+                                    />
                                     <button
                                         onClick={handleIncrement}
-                                        disabled={quantity >= lot.availableQty}
+                                        disabled={quantity >= maximumQuantity}
                                         className="p-3 hover:bg-soil/5 disabled:opacity-30 transition-colors"
                                     >
                                         <Plus size={18} />
@@ -195,7 +294,7 @@ export function ProductDetailsSheet({ lot, isOpen, onClose }: ProductDetailsShee
                                 disabled={lot.availableQty <= 0 || lot.status === 'vencido'}
                             >
                                 <ShoppingCart size={20} />
-                                Adicionar {quantity} {lot.unit || lot.saleUnit} ao Carrinho
+                                Adicionar {formatQuantityInput(lot, quantity)} {lot.unit || lot.saleUnit} ao Carrinho
                             </Button>
                         </div>
                     </div>

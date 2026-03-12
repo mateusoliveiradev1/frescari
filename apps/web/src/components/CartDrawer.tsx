@@ -8,6 +8,17 @@ import { useCartStore, useCartTotals, selectCartIsOpen, CartStore, CartItem } fr
 import { trpc } from '@/trpc/react';
 import { toast } from 'sonner';
 import { authClient } from '@/lib/auth-client';
+import {
+    formatQuantityInput,
+    getMaximumQuantity,
+    getQuantityInputPattern,
+    getQuantityMin,
+    getQuantityMinLabel,
+    getQuantityStep,
+    isWeightBasedQuantityItem,
+    normalizeQuantity,
+    roundQuantity,
+} from '@/lib/cart-quantity';
 
 const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -15,21 +26,10 @@ const formatCurrency = (val: number) =>
 const WEIGHT_AUTHORIZATION_BUFFER = 0.1;
 
 const roundCurrency = (value: number) => Math.round(value * 100) / 100;
-
-const isWeightBasedCartItem = (
-    item: Pick<CartItem, 'pricingType' | 'saleUnit' | 'unit'>
-) => {
-    const normalizedSaleUnit = item.saleUnit?.toLowerCase();
-    const normalizedUnit = item.unit?.toLowerCase();
-
-    return item.pricingType === 'WEIGHT'
-        || normalizedSaleUnit === 'kg'
-        || normalizedSaleUnit === 'g'
-        || normalizedSaleUnit === 'peso'
-        || normalizedSaleUnit === 'weight'
-        || normalizedUnit === 'kg'
-        || normalizedUnit === 'g';
-};
+const isWeightBasedCartItem = isWeightBasedQuantityItem;
+const getCartQtyStep = getQuantityStep;
+const getCartQtyMin = getQuantityMin;
+const formatCartQtyInput = formatQuantityInput;
 
 export function CartDrawer() {
     const isOpen = useCartStore(selectCartIsOpen);
@@ -81,7 +81,14 @@ export function CartDrawer() {
         });
     };
 
-    const commitWeightQtyDraft = (item: CartItem) => {
+    const setQtyDraft = (itemId: string, value: string) => {
+        setQtyDrafts((current) => ({
+            ...current,
+            [itemId]: value,
+        }));
+    };
+
+    const commitQtyDraft = (item: CartItem) => {
         const rawDraft = qtyDrafts[item.id];
 
         if (rawDraft === undefined) {
@@ -91,16 +98,59 @@ export function CartDrawer() {
         clearQtyDraft(item.id);
 
         const normalizedDraft = rawDraft.trim();
-        if (normalizedDraft === '' || normalizedDraft === '.') {
+        if (normalizedDraft === '' || normalizedDraft === '.' || normalizedDraft === ',') {
             return;
         }
 
-        const parsedQty = Number(normalizedDraft);
+        const parsedQty = Number(normalizedDraft.replace(',', '.'));
         if (Number.isNaN(parsedQty)) {
             return;
         }
 
-        updateItemQty(item.id, parsedQty);
+        const minQty = getCartQtyMin(item);
+        const normalizedQty = normalizeQuantity(item, parsedQty, { clampMin: false });
+
+        if (normalizedQty < minQty) {
+            toast.error(`A quantidade minima e ${getQuantityMinLabel(item)}. Use a lixeira para remover o item.`);
+            return;
+        }
+
+        const safeQty = normalizeQuantity(item, parsedQty);
+        if (parsedQty > getMaximumQuantity(item)) {
+            toast.error('Quantidade acima do disponivel. Ajustamos para o maximo em estoque.');
+        }
+
+        updateItemQty(item.id, safeQty);
+    };
+
+    const handleQtyDraftChange = (item: CartItem, value: string) => {
+        const pattern = getQuantityInputPattern(item);
+
+        if (!pattern.test(value)) {
+            return;
+        }
+
+        setQtyDraft(item.id, value);
+    };
+
+    const adjustItemQty = (item: CartItem, direction: 'increase' | 'decrease') => {
+        clearQtyDraft(item.id);
+
+        const step = getCartQtyStep(item);
+        const minQty = getCartQtyMin(item);
+        const nextQty = isWeightBasedCartItem(item)
+            ? roundQuantity(direction === 'increase' ? item.cartQty + step : item.cartQty - step)
+            : Math.trunc(direction === 'increase' ? item.cartQty + step : item.cartQty - step);
+
+        if (direction === 'decrease' && nextQty < minQty) {
+            return;
+        }
+
+        if (direction === 'increase' && nextQty > getMaximumQuantity(item)) {
+            return;
+        }
+
+        updateItemQty(item.id, nextQty);
     };
 
     // Delivery fee — MVP fixed value; future: recalculated via distance API
@@ -291,84 +341,49 @@ export function CartDrawer() {
                                                                         {formatCurrency(item.originalPrice)}
                                                                     </span>
                                                                 )}
-                                                                <span className="font-sans text-sm font-bold text-forest">
-                                                                    {formatCurrency(item.finalPrice)}
-                                                                    <span className="text-xs font-normal text-bark"> / {item.unit}</span>
-                                                                </span>
-                                                            </div>
+                                                                    <span className="font-sans text-sm font-bold text-forest">
+                                                                        {formatCurrency(item.finalPrice)}
+                                                                        <span className="text-xs font-normal text-bark"> / {item.unit}</span>
+                                                                    </span>
+                                                                </div>
 
                                                             <div className="flex justify-end">
                                                                 <div className="flex shrink-0 items-center rounded-full border border-forest/15 bg-white p-1 shadow-sm">
                                                                     <button
-                                                                        onClick={() => {
-                                                                            if (isWeightBased) {
-                                                                                clearQtyDraft(item.id);
-                                                                            }
-
-                                                                            updateItemQty(
-                                                                                item.id,
-                                                                                isWeightBased
-                                                                                    ? Math.max(0, Number((item.cartQty - 0.5).toFixed(2)))
-                                                                                    : item.cartQty - 1
-                                                                            );
-                                                                        }}
-                                                                        className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-colors hover:bg-forest/10 hover:text-forest select-none"
+                                                                        onClick={() => adjustItemQty(item, 'decrease')}
+                                                                        className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-colors hover:bg-forest/10 hover:text-forest select-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-bark"
                                                                         aria-label="Decrease quantity"
+                                                                        disabled={item.cartQty <= getCartQtyMin(item)}
                                                                     >
                                                                         <Minus className="w-3.5 h-3.5" />
                                                                     </button>
 
-                                                                    {isWeightBased ? (
-                                                                        <input
-                                                                            type="text"
-                                                                            inputMode="decimal"
-                                                                            value={qtyDrafts[item.id] ?? String(item.cartQty)}
-                                                                            onChange={(e) => {
-                                                                                const val = e.target.value.replace(',', '.');
-
-                                                                                if (/^\d*\.?\d*$/.test(val)) {
-                                                                                    setQtyDrafts((current) => ({
-                                                                                        ...current,
-                                                                                        [item.id]: val,
-                                                                                    }));
-                                                                                }
-                                                                            }}
-                                                                            onBlur={() => commitWeightQtyDraft(item)}
-                                                                            onKeyDown={(e) => {
-                                                                                if (e.key === 'Enter') {
-                                                                                    e.currentTarget.blur();
-                                                                                }
-
-                                                                                if (e.key === 'Escape') {
-                                                                                    clearQtyDraft(item.id);
-                                                                                    e.currentTarget.blur();
-                                                                                }
-                                                                            }}
-                                                                            className="w-14 border-none bg-transparent p-0 text-center font-sans text-sm font-semibold focus:ring-0"
-                                                                            style={{ MozAppearance: 'textfield' }}
-                                                                        />
-                                                                    ) : (
-                                                                        <span className="w-12 text-center font-sans text-sm font-semibold select-none">
-                                                                            {item.cartQty}
-                                                                        </span>
-                                                                    )}
-
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            if (isWeightBased) {
-                                                                                clearQtyDraft(item.id);
+                                                                    <input
+                                                                        type="text"
+                                                                        inputMode={isWeightBased ? 'decimal' : 'numeric'}
+                                                                        value={qtyDrafts[item.id] ?? formatCartQtyInput(item, item.cartQty)}
+                                                                        onChange={(e) => handleQtyDraftChange(item, e.target.value)}
+                                                                        onBlur={() => commitQtyDraft(item)}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                e.currentTarget.blur();
                                                                             }
 
-                                                                            updateItemQty(
-                                                                                item.id,
-                                                                                isWeightBased
-                                                                                    ? Number((item.cartQty + 0.5).toFixed(2))
-                                                                                    : item.cartQty + 1
-                                                                            );
+                                                                            if (e.key === 'Escape') {
+                                                                                clearQtyDraft(item.id);
+                                                                                e.currentTarget.blur();
+                                                                            }
                                                                         }}
-                                                                        className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-colors hover:bg-forest/10 hover:text-forest select-none"
+                                                                        className="w-16 border-none bg-transparent p-0 text-center font-sans text-sm font-semibold tabular-nums focus:ring-0"
+                                                                        style={{ MozAppearance: 'textfield' }}
+                                                                        aria-label={`Quantidade de ${item.productName}`}
+                                                                    />
+
+                                                                    <button
+                                                                        onClick={() => adjustItemQty(item, 'increase')}
+                                                                        className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-colors hover:bg-forest/10 hover:text-forest select-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-bark"
                                                                         aria-label="Increase quantity"
-                                                                        disabled={item.cartQty >= item.availableQty}
+                                                                        disabled={roundQuantity(item.cartQty + getCartQtyStep(item)) > getMaximumQuantity(item)}
                                                                     >
                                                                         <Plus className="w-3.5 h-3.5" />
                                                                     </button>

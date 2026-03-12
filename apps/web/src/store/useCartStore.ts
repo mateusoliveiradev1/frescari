@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { persist, subscribeWithSelector } from 'zustand/middleware';
+import {
+    getDefaultAddQuantity,
+    normalizeQuantity,
+} from '@/lib/cart-quantity';
 
 // Reusing the same interface from the catalog (ensure it matches exactly what we need)
 export interface CatalogLot {
@@ -42,6 +46,19 @@ export interface CartActions {
 
 export type CartStore = CartState & CartActions;
 
+const sanitizePersistedCartItem = (item: CartItem) => {
+    const safeQty = normalizeQuantity(item, item.cartQty);
+
+    if (safeQty <= 0) {
+        return null;
+    }
+
+    return {
+        ...item,
+        cartQty: safeQty,
+    };
+};
+
 export const useCartStore = create<CartStore>()(
     subscribeWithSelector(
         persist(
@@ -49,34 +66,28 @@ export const useCartStore = create<CartStore>()(
                 items: [],
                 isOpen: false,
 
-                addItem: (lot: CatalogLot, qty = 1) => {
+                addItem: (lot: CatalogLot, qty) => {
                     const { items } = get();
                     const existingItem = items.find((i: CartItem) => i.id === lot.id);
+                    const requestedQty = qty ?? getDefaultAddQuantity(lot);
+                    const finalQtyToAdd = normalizeQuantity(lot, requestedQty);
 
-                    // Fractional logic: if it's weight based, default step could be 0.5. 
-                    // When adding from the card, we might pass a specific step.
-                    // For now, let's strictly add what is requested, or increment by default.
-
-                    // Determine step based on unit
-                    const isWeightBased = lot.pricingType === 'WEIGHT';
-                    const step = isWeightBased ? 0.5 : 1;
-                    const finalQtyToAdd = qty === 1 ? step : qty;
+                    if (finalQtyToAdd <= 0) {
+                        return;
+                    }
 
                     if (existingItem) {
-                        const newQty = existingItem.cartQty + finalQtyToAdd;
-                        // Avoid exceeding available qty
-                        const safeQty = newQty > lot.availableQty ? lot.availableQty : newQty;
+                        const safeQty = normalizeQuantity(lot, existingItem.cartQty + finalQtyToAdd);
 
                         set({
                             items: items.map((i: CartItem) =>
-                                i.id === lot.id ? { ...i, cartQty: safeQty } : i
+                                i.id === lot.id ? { ...i, ...lot, cartQty: safeQty } : i
                             ),
                             isOpen: true, // open cart when adding
                         });
                     } else {
-                        const safeQty = finalQtyToAdd > lot.availableQty ? lot.availableQty : finalQtyToAdd;
                         set({
-                            items: [...items, { ...lot, cartQty: safeQty }],
+                            items: [...items, { ...lot, cartQty: finalQtyToAdd }],
                             isOpen: true, // open cart when adding
                         });
                     }
@@ -89,27 +100,22 @@ export const useCartStore = create<CartStore>()(
                 },
 
                 updateItemQty: (lotId: string, newQty: number) => {
-                    if (newQty <= 0) {
-                        get().removeItem(lotId);
-                        return;
-                    }
-
                     const { items } = get();
                     const item = items.find((i: CartItem) => i.id === lotId);
 
-                    if (item && newQty > item.availableQty) {
-                        // Max out at available
-                        set({
-                            items: items.map((i: CartItem) =>
-                                i.id === lotId ? { ...i, cartQty: item.availableQty } : i
-                            ),
-                        });
+                    if (!item) {
+                        return;
+                    }
+
+                    const safeQty = normalizeQuantity(item, newQty);
+
+                    if (safeQty <= 0) {
                         return;
                     }
 
                     set({
                         items: items.map((i: CartItem) =>
-                            i.id === lotId ? { ...i, cartQty: newQty } : i
+                            i.id === lotId ? { ...i, cartQty: safeQty } : i
                         ),
                     });
                 },
@@ -128,6 +134,22 @@ export const useCartStore = create<CartStore>()(
             }),
             {
                 name: 'frescari-cart-storage',
+                merge: (persistedState, currentState) => {
+                    const persistedCart = persistedState as Partial<CartState> | undefined;
+                    const persistedItems = Array.isArray(persistedCart?.items)
+                        ? persistedCart.items
+                        : [];
+
+                    return {
+                        ...currentState,
+                        items: persistedItems
+                            .map((item) => sanitizePersistedCartItem(item as CartItem))
+                            .filter((item): item is CartItem => item !== null),
+                        isOpen: typeof persistedCart?.isOpen === 'boolean'
+                            ? persistedCart.isOpen
+                            : currentState.isOpen,
+                    };
+                },
             }
         )
     )

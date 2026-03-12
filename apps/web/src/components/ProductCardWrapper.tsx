@@ -30,6 +30,7 @@ export function ProductCardWrapper({ lot, isLastChance, delay, priority }: { lot
                 onOpenDetails={() => setIsDetailsOpen(true)}
             />
             <ProductDetailsSheet
+                key={`${lot.id}-${isDetailsOpen ? 'open' : 'closed'}`}
                 lot={lot}
                 isOpen={isDetailsOpen}
                 onClose={() => setIsDetailsOpen(false)}
