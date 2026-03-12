@@ -87,6 +87,9 @@ export function GlobalNav() {
         const linkClass = isMobile
             ? "font-sans text-lg font-bold uppercase tracking-widest text-bark hover:text-forest transition-colors py-4 border-b border-soil/5 last:border-0"
             : "font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors";
+        const deliveryBadgeClass = isMobile
+            ? "rounded-full bg-sage/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-forest"
+            : "rounded-full bg-sage/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-forest";
         const mobileLinkProps = isMobile
             ? { onClick: () => setIsMenuOpen(false) }
             : undefined;
@@ -123,13 +126,21 @@ export function GlobalNav() {
                         Dashboard
                     </Link>
                     <Link href="/dashboard/inventario" className={`${linkClass} ${getActiveStoreClass('/dashboard/inventario')}`} {...mobileLinkProps}>
-                        Meu Inventário
+                        Estoque e Lotes
                     </Link>
                     <Link href="/dashboard/vendas" className={`${linkClass} ${getActiveStoreClass('/dashboard/vendas')}`} {...mobileLinkProps}>
-                        Meus Pedidos
+                        Vendas
                     </Link>
                     <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`} {...mobileLinkProps}>
-                        Catálogo
+                        Vitrine
+                    </Link>
+                    <Link
+                        href="#"
+                        className={`${linkClass} ${getActiveStoreClass('#')} inline-flex items-center gap-2`}
+                        {...mobileLinkProps}
+                    >
+                        <span>Entregas</span>
+                        <span className={deliveryBadgeClass}>Em breve</span>
                     </Link>
                 </>
             );
@@ -139,13 +150,13 @@ export function GlobalNav() {
         return (
             <>
                 <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`} {...mobileLinkProps}>
-                    Painel de Compras
+                    {"Vis\u00e3o Geral"}
                 </Link>
                 <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`} {...mobileLinkProps}>
-                    Catálogo
+                    Mercado
                 </Link>
                 <Link href="/dashboard/pedidos" className={`${linkClass} ${getActiveStoreClass('/dashboard/pedidos')}`} {...mobileLinkProps}>
-                    Meus Pedidos
+                    {"Hist\u00f3rico e Faturas"}
                 </Link>
             </>
         );
