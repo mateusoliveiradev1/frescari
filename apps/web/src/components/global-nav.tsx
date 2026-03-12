@@ -125,6 +125,9 @@ export function GlobalNav() {
                     <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`} {...mobileLinkProps}>
                         Dashboard
                     </Link>
+                    <Link href="/dashboard/fazenda" className={`${linkClass} ${getActiveStoreClass('/dashboard/fazenda')}`} {...mobileLinkProps}>
+                        Minha Fazenda
+                    </Link>
                     <Link href="/dashboard/inventario" className={`${linkClass} ${getActiveStoreClass('/dashboard/inventario')}`} {...mobileLinkProps}>
                         Estoque e Lotes
                     </Link>
