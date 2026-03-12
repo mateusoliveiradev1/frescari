@@ -8,24 +8,68 @@ import {
     numeric,
     date,
     customType,
+    jsonb,
     pgEnum
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-// PostGIS Geometry custom type
+export type FarmAddress = {
+    street: string;
+    number: string;
+    neighborhood?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country?: string;
+    complement?: string;
+};
+
+// Keep the legacy geometry adapter for pre-existing flows outside farms.
 const geometry = customType<{ data: any; driverData: string }>({
     dataType() {
         return 'geometry(Point, 4326)';
     },
     toDriver(value) {
         if (value && typeof value === 'object' && 'type' in value) {
-            // Assume GeoJSON format
             return sql`ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(value)}), 4326)`;
         }
+
         return value;
     },
     fromDriver(value) {
         return value;
+    }
+});
+
+function parsePointHex(hex: string): [number, number] {
+    const bytes = new Uint8Array(hex.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)) ?? []);
+    const byteOrder = bytes[0];
+    const view = new DataView(bytes.buffer);
+    let offset = 1;
+
+    const geometryType = view.getUint32(offset, byteOrder === 1);
+    offset += 4;
+
+    if (geometryType & 0x20000000) {
+        offset += 4;
+    }
+
+    const longitude = view.getFloat64(offset, true);
+    offset += 8;
+    const latitude = view.getFloat64(offset, true);
+
+    return [longitude, latitude];
+}
+
+const postgisPoint = customType<{ data: [number, number]; driverData: string }>({
+    dataType() {
+        return 'geometry(Point, 4326)';
+    },
+    toDriver(value) {
+        return `SRID=4326;POINT(${value[0]} ${value[1]})`;
+    },
+    fromDriver(value) {
+        return parsePointHex(value);
     }
 });
 
@@ -99,8 +143,8 @@ export const farms = pgTable('farms', {
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
     name: text('name').notNull(),
-    location: geometry('location'),
-    address: text('address'), // using text to store JSON serialized or string
+    address: jsonb('address').$type<FarmAddress | null>(),
+    location: postgisPoint('location'),
     certifications: text('certifications').array(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
