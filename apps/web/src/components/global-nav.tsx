@@ -43,12 +43,21 @@ export function GlobalNav() {
         let cancelled = false;
 
         const loadSession = async () => {
-            const response = await authClient.getSession();
-            if (cancelled) {
-                return;
-            }
+            try {
+                const response = await authClient.getSession();
+                if (cancelled) {
+                    return;
+                }
 
-            setUser((response.data?.user as SessionUser | undefined) ?? null);
+                setUser((response.data?.user as SessionUser | undefined) ?? null);
+            } catch (error) {
+                if (cancelled) {
+                    return;
+                }
+
+                console.error("Failed to load session", error);
+                setUser(null);
+            }
         };
 
         void loadSession();

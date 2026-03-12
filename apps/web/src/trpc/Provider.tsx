@@ -6,6 +6,14 @@ import { httpBatchLink } from '@trpc/client';
 import superjson from 'superjson';
 import { useState } from 'react';
 
+const getTrpcUrl = () => {
+    if (typeof window !== 'undefined') {
+        return `${window.location.origin}/api/trpc`;
+    }
+
+    return 'http://localhost:3000/api/trpc';
+};
+
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
     const [queryClient] = useState(() => new QueryClient({
         defaultOptions: {
@@ -19,7 +27,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
         trpc.createClient({
             links: [
                 httpBatchLink({
-                    url: 'http://localhost:3000/api/trpc',
+                    url: getTrpcUrl(),
                     transformer: superjson,
                 }),
             ],
