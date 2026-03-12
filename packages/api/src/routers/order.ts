@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createHash } from 'crypto';
 import Stripe from 'stripe';
 import { createTRPCRouter, protectedProcedure, buyerProcedure, producerProcedure, tenantProcedure } from '../trpc';
 import { productLots, products, orders, orderItems, tenants, masterProducts } from '@frescari/db';
@@ -7,6 +8,26 @@ import { TRPCError } from '@trpc/server';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeSecretKey ?? '');
+const WEIGHT_SAFETY_MARGIN = 1.1;
+const PLATFORM_FEE_RATE = 0.1;
+
+const isWeightSaleUnit = (saleUnit?: string | null) => {
+    const normalizedSaleUnit = saleUnit?.toLowerCase();
+    return normalizedSaleUnit === 'kg'
+        || normalizedSaleUnit === 'g'
+        || normalizedSaleUnit === 'peso'
+        || normalizedSaleUnit === 'weight';
+};
+
+const isWeightBasedItem = (item: {
+    saleUnit?: string | null;
+    pricingType?: string | null;
+    masterPricingType?: string | null;
+}) => {
+    return item.pricingType?.toUpperCase() === 'WEIGHT'
+        || item.masterPricingType?.toUpperCase() === 'WEIGHT'
+        || isWeightSaleUnit(item.saleUnit);
+};
 
 export const orderRouter = createTRPCRouter({
     createOrder: buyerProcedure
@@ -334,6 +355,7 @@ export const orderRouter = createTRPCRouter({
                     id: orders.id,
                     status: orders.status,
                     totalAmount: orders.totalAmount,
+                    deliveryFee: orders.deliveryFee,
                     createdAt: orders.createdAt,
                     buyerTenantId: orders.buyerTenantId,
                     buyerName: tenants.name,
@@ -449,51 +471,151 @@ export const orderRouter = createTRPCRouter({
                 });
             }
 
-            if (targetOrder.status !== 'awaiting_weight') {
+            if (!['awaiting_weight', 'confirmed'].includes(targetOrder.status)) {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'Este pedido não está aguardando pesagem.',
                 });
             }
 
-            if (!targetOrder.stripeSessionId) {
+            if (!targetOrder.paymentIntentId && !targetOrder.stripeSessionId) {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'Este pedido não possui uma sessão de pagamento vinculada.',
                 });
             }
 
-            // 2. Fetch order items
-            const items = await db.query.orderItems.findMany({
-                where: eq(orderItems.orderId, targetOrder.id),
-            });
+            const items = await db
+                .select({
+                    id: orderItems.id,
+                    qty: orderItems.qty,
+                    unitPrice: orderItems.unitPrice,
+                    saleUnit: orderItems.saleUnit,
+                    productName: products.name,
+                    pricingType: productLots.pricingType,
+                    masterPricingType: masterProducts.pricingType,
+                })
+                .from(orderItems)
+                .innerJoin(products, eq(orderItems.productId, products.id))
+                .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                .where(eq(orderItems.orderId, targetOrder.id));
 
-            // 3. Recalculate totals
-            let itemsTotal = 0;
-            const updatedItemsParams: { id: string; qty: string }[] = [];
-
-            for (const item of items) {
-                const weighedInput = input.weighedItems.find(wi => wi.orderItemId === item.id);
-                const finalQty = weighedInput ? weighedInput.finalWeight : Number(item.qty);
-
-                itemsTotal += finalQty * Number(item.unitPrice);
-
-                if (weighedInput) {
-                    updatedItemsParams.push({ id: item.id, qty: finalQty.toString() });
-                }
+            if (items.length === 0) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'Este pedido nÃ£o possui itens para reconciliar.',
+                });
             }
 
-            const deliveryFee = Number(targetOrder.deliveryFee);
-            const totalAmountBrl = itemsTotal + deliveryFee;
+            const weightItems = items.filter(isWeightBasedItem);
 
-            // Converter para centavos
-            const totalAmountCents = Math.round(totalAmountBrl * 100);
-            const applicationFeeCents = Math.round(totalAmountCents * 0.1); // 10% fee
+            if (weightItems.length === 0) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Este pedido nÃ£o possui itens vendidos por peso.',
+                });
+            }
+
+            const itemsById = new Map(items.map(item => [item.id, item]));
+            const weightItemIds = new Set(weightItems.map(item => item.id));
+
+            const dynamicCaptureSchema = z.object({
+                orderId: z.string().uuid(),
+                weighedItems: z.array(
+                    z.object({
+                        orderItemId: z.string().uuid(),
+                        finalWeight: z.number().positive(),
+                    })
+                ).min(1, 'Ã‰ necessÃ¡rio informar ao menos um peso final.'),
+            }).superRefine((payload, validationContext) => {
+                const seenOrderItemIds = new Set<string>();
+
+                payload.weighedItems.forEach((weighedItem, index) => {
+                    if (!weightItemIds.has(weighedItem.orderItemId)) {
+                        validationContext.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: ['weighedItems', index, 'orderItemId'],
+                            message: 'Apenas itens vendidos por peso podem ser enviados para captura.',
+                        });
+                        return;
+                    }
+
+                    if (seenOrderItemIds.has(weighedItem.orderItemId)) {
+                        validationContext.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: ['weighedItems', index, 'orderItemId'],
+                            message: 'Cada item pesÃ¡vel deve ser informado apenas uma vez.',
+                        });
+                        return;
+                    }
+
+                    seenOrderItemIds.add(weighedItem.orderItemId);
+
+                    const targetItem = itemsById.get(weighedItem.orderItemId);
+                    if (!targetItem) {
+                        return;
+                    }
+
+                    const requestedWeight = Number(targetItem.qty);
+                    const maxAllowedWeight = requestedWeight * WEIGHT_SAFETY_MARGIN;
+
+                    if (weighedItem.finalWeight > maxAllowedWeight) {
+                        validationContext.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: ['weighedItems', index, 'finalWeight'],
+                            message: `${targetItem.productName} excede o limite de 10% (${maxAllowedWeight.toFixed(3)} ${targetItem.saleUnit}).`,
+                        });
+                    }
+                });
+
+                weightItems.forEach((weightItem) => {
+                    if (!seenOrderItemIds.has(weightItem.id)) {
+                        validationContext.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: ['weighedItems'],
+                            message: `Informe o peso final de ${weightItem.productName}.`,
+                        });
+                    }
+                });
+            });
+
+            const validatedPayload = dynamicCaptureSchema.safeParse(input);
+
+            if (!validatedPayload.success) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: validatedPayload.error.issues[0]?.message ?? 'Os pesos informados sÃ£o invÃ¡lidos.',
+                });
+            }
+
+            const finalWeightsByItemId = new Map(
+                validatedPayload.data.weighedItems.map(({ orderItemId, finalWeight }) => [orderItemId, finalWeight])
+            );
+
+            const itemsTotalCents = items.reduce((sum, item) => {
+                const finalQty = finalWeightsByItemId.get(item.id) ?? Number(item.qty);
+                return sum + Math.round(finalQty * Number(item.unitPrice) * 100);
+            }, 0);
+            const deliveryFeeCents = Math.round(Number(targetOrder.deliveryFee) * 100);
+            const grossAmountCents = itemsTotalCents + deliveryFeeCents;
+            const grossAmount = grossAmountCents / 100;
+            const platformFeeCents = Math.round(grossAmountCents * PLATFORM_FEE_RATE);
+            const netAmountCents = grossAmountCents - platformFeeCents;
+            const storedTotalCents = Math.round(Number(targetOrder.totalAmount) * 100);
+            const totalAmountCents = grossAmountCents;
+            const applicationFeeCents = platformFeeCents;
+            const totalAmountBrl = grossAmount;
+            const updatedItemsParams = Array.from(
+                finalWeightsByItemId.entries(),
+                ([id, finalWeight]) => ({ id, qty: finalWeight.toString() })
+            );
 
             // 4. Retrieve Stripe Session and PaymentIntent
-            let paymentIntentId: string;
+            let paymentIntentId = targetOrder.paymentIntentId ?? '';
+            if (!paymentIntentId) {
             try {
-                const session = await stripe.checkout.sessions.retrieve(targetOrder.stripeSessionId);
+                const session = await stripe.checkout.sessions.retrieve(targetOrder.stripeSessionId!);
                 const pi = session.payment_intent;
                 paymentIntentId = typeof pi === 'string' ? pi : (pi?.id ?? '');
 
@@ -508,13 +630,93 @@ export const orderRouter = createTRPCRouter({
                     cause: error,
                 });
             }
+            }
 
-            // 5. Capture Payment in Stripe
-            try {
-                await stripe.paymentIntents.capture(paymentIntentId, {
-                    amount_to_capture: totalAmountCents,
-                    application_fee_amount: applicationFeeCents,
+            if (!paymentIntentId) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'NÃ£o foi possÃ­vel identificar o Payment Intent do Stripe.',
                 });
+            }
+
+            let paymentIntent: Stripe.PaymentIntent;
+            try {
+                paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+            } catch (error) {
+                console.error('[STRIPE_PAYMENT_INTENT_RETRIEVE_ERROR]', error);
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Falha ao recuperar o pagamento do Stripe.',
+                    cause: error,
+                });
+            }
+
+            const alreadyCaptured = paymentIntent.status === 'succeeded';
+
+            if (alreadyCaptured) {
+                if (paymentIntent.amount_received !== grossAmountCents) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'O pagamento jÃ¡ foi capturado com um valor diferente. Revise este pedido manualmente.',
+                    });
+                }
+
+                if (targetOrder.status === 'confirmed') {
+                    if (storedTotalCents !== grossAmountCents) {
+                        throw new TRPCError({
+                            code: 'BAD_REQUEST',
+                            message: 'O pedido jÃ¡ foi confirmado com um total diferente. Revise este pedido manualmente.',
+                        });
+                    }
+
+                    return {
+                        success: true,
+                        finalAmount: grossAmount,
+                        grossAmount,
+                        platformFee: platformFeeCents / 100,
+                        netAmount: netAmountCents / 100,
+                        alreadyCaptured: true,
+                    };
+                }
+            } else {
+                if (targetOrder.status === 'confirmed') {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'O pedido jÃ¡ foi confirmado no sistema, mas o pagamento ainda nÃ£o estÃ¡ capturado. Revise manualmente.',
+                    });
+                }
+
+                if (paymentIntent.status !== 'requires_capture') {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'Este pagamento nÃ£o estÃ¡ em um estado capturÃ¡vel no Stripe.',
+                    });
+                }
+
+                if ((paymentIntent.amount_capturable ?? 0) < grossAmountCents) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: 'O valor final ultrapassa o total previamente autorizado. Revise os pesos informados.',
+                    });
+                }
+
+                const captureFingerprint = validatedPayload.data.weighedItems
+                    .slice()
+                    .sort((left, right) => left.orderItemId.localeCompare(right.orderItemId))
+                    .map(({ orderItemId, finalWeight }) => `${orderItemId}:${finalWeight.toFixed(3)}`)
+                    .join('|');
+                const idempotencyKey = `capture-weighed-order:${targetOrder.id}:${createHash('sha256')
+                    .update(captureFingerprint)
+                    .digest('hex')}`;
+
+                // 5. Capture Payment in Stripe
+                try {
+                    await stripe.paymentIntents.capture(paymentIntentId, {
+                        amount_to_capture: totalAmountCents,
+                        application_fee_amount: applicationFeeCents,
+                    }, {
+                        idempotencyKey,
+                    });
             } catch (error) {
                 console.error('[STRIPE_CAPTURE_ERROR]', error);
                 // Informar ao operador exatamente porque a captura falhou
@@ -523,6 +725,8 @@ export const orderRouter = createTRPCRouter({
                     message: 'O pagamento falhou ou foi recusado pela operadora. Não libere o pedido. Verifique logs do Stripe.',
                     cause: error,
                 });
+            }
+
             }
 
             // 6. DB Updates in Transaction
@@ -539,7 +743,8 @@ export const orderRouter = createTRPCRouter({
                     await tx.update(orders)
                         .set({
                             status: 'confirmed', // Movendo de "awaiting_weight" para "confirmed"
-                            totalAmount: totalAmountBrl.toFixed(4)
+                            totalAmount: totalAmountBrl.toFixed(4),
+                            paymentIntentId,
                         })
                         .where(eq(orders.id, targetOrder.id));
                 });
@@ -552,6 +757,13 @@ export const orderRouter = createTRPCRouter({
                 });
             }
 
-            return { success: true, finalAmount: totalAmountBrl };
+            return {
+                success: true,
+                finalAmount: totalAmountBrl,
+                grossAmount,
+                platformFee: platformFeeCents / 100,
+                netAmount: netAmountCents / 100,
+                alreadyCaptured,
+            };
         }),
 });
