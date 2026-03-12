@@ -1,4 +1,4 @@
-import { createTRPCRouter, publicProcedure, protectedProcedure } from '../trpc';
+import { createTRPCRouter, publicProcedure, protectedProcedure, producerProcedure, tenantProcedure } from '../trpc';
 import { insertProductSchema } from '@frescari/validators';
 import { products, farms, masterProducts } from '@frescari/db';
 import { eq, sql, ilike } from 'drizzle-orm';
@@ -6,10 +6,15 @@ import { z } from 'zod';
 
 export const productRouter = createTRPCRouter({
 
-    create: protectedProcedure
+    create: producerProcedure
         .input(insertProductSchema)
         .mutation(async ({ ctx, input }) => {
-            const [newProduct] = await ctx.db.insert(products).values(input as typeof products.$inferInsert).returning();
+            const dataToInsert = {
+                ...input,
+                tenantId: ctx.tenantId, // Force tenantId from context, never trust input
+            } as typeof products.$inferInsert;
+
+            const [newProduct] = await ctx.db.insert(products).values(dataToInsert).returning();
             return newProduct;
         }),
 
@@ -22,37 +27,23 @@ export const productRouter = createTRPCRouter({
             return product;
         }),
 
-    list: protectedProcedure
+    list: tenantProcedure
         .query(async ({ ctx }) => {
-            const tenantId = ctx.tenantId;
-            if (!tenantId) return [];
-
             const tenantProducts = await ctx.db.query.products.findMany({
-                where: eq(sql`${products.tenantId}::text`, tenantId),
+                where: eq(products.tenantId, ctx.tenantId),
             });
             return tenantProducts;
         }),
 
-    getProducts: protectedProcedure.query(async ({ ctx }) => {
-        const { db, session } = ctx;
-
-        let targetTenantId = session.user.tenantId;
-
-        // Se já tiver tenantId na sessão
-        if (!targetTenantId) {
-            // Busca o farm do user
-            const userFarm = await db.query.farms.findFirst({
-                where: eq(farms.id, session.user.id) // Simplificacao para o test
-            });
-            // targetTenantId = userFarm?.tenantId;
-        }
+    getProducts: tenantProcedure.query(async ({ ctx }) => {
+        const { db, tenantId } = ctx;
 
         const allProducts = await db.query.products.findMany({
+            where: eq(products.tenantId, tenantId),
             with: {
                 category: true,
                 farm: true
             }
-            // where: eq(products.tenantId, targetTenantId)
         });
 
         return allProducts;

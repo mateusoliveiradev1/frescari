@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import Stripe from 'stripe';
-import { createTRPCRouter, protectedProcedure } from '../trpc';
+import { createTRPCRouter, producerProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { tenants, users } from '@frescari/db';
 import { eq } from 'drizzle-orm';
@@ -17,18 +17,10 @@ const stripe = new Stripe(stripeSecretKey ?? '');
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 export const stripeRouter = createTRPCRouter({
-    createStripeConnect: protectedProcedure
+    createStripeConnect: producerProcedure
         .input(z.object({}))
         .mutation(async ({ ctx }) => {
-            const { db, user } = ctx;
-            const tenantId = user.tenantId as string | undefined;
-
-            if (!tenantId) {
-                throw new TRPCError({
-                    code: 'FORBIDDEN',
-                    message: 'Usuário sem organização vinculada.',
-                });
-            }
+            const { db, tenantId } = ctx;
 
             if (!stripeSecretKey) {
                 throw new TRPCError({

@@ -378,24 +378,24 @@ Revalidação: triggered por webhook quando produtor atualiza produto/lote
 ## 9. Roadmap do MVP em Fases
 
 ### Fase 1 — Fundação (Semanas 1–4)
-- [ ] Setup do Monorepo Turborepo com pnpm workspaces
-- [ ] Configurar PostgreSQL + PostGIS (Docker local + Neon.tech prod)
-- [ ] Schema Drizzle completo (`tenants`, `users`, `farms`, `products`, `product_lots`)
-- [ ] Auth funcional (cadastro, login, sessão)
-- [ ] tRPC server básico (`auth.*`, `tenant.*`)
+- [x] Setup do Monorepo Turborepo com pnpm workspaces
+- [/] Configurar PostgreSQL + PostGIS (Docker local + Neon.tech prod) — *PostgreSQL Neon ✅, PostGIS type declarado mas sem queries geo reais, sem Docker local*
+- [x] Schema Drizzle completo (`tenants`, `users`, `farms`, `products`, `product_lots`) — *+ masterProducts, auth tables, orderItems*
+- [x] Auth funcional (cadastro, login, sessão) — *Better Auth com email/password*
+- [/] tRPC server básico (`auth.*`, `tenant.*`) — *6 routers ativos (product, lot, order, onboarding, checkout, stripe), mas nomenclatura diverge do plano*
 
 ### Fase 2 — Produtor (Semanas 5–8)
-- [ ] CRUD completo de Fazendas, Produtos e Lotes (web + API)
-- [ ] App Expo com layout base e autenticação
+- [/] CRUD completo de Fazendas, Produtos e Lotes (web + API) — *Produtos e Lotes ✅, Fazendas: schema existe mas sem CRUD router*
+- [ ] App Expo com layout base e autenticação — *apps/mobile/ não existe*
 - [ ] Implementar Expo SQLite + schema local
 - [ ] Motor de sincronização offline básico (sync_queue)
-- [ ] Job BullMQ de `lot-freshness-worker`
+- [ ] Job BullMQ de `lot-freshness-worker` — *freshnessScore no schema mas estático, sem BullMQ*
 
 ### Fase 3 — Marketplace (Semanas 9–13)
-- [ ] Catálogo público com ISR (`/catalogo/...`)
-- [ ] Busca por geo (`ST_DWithin` — raio de entrega)
-- [ ] Fluxo de pedidos completo (draft → confirmed → entregue)
-- [ ] Reserva de lote com transação DB
+- [/] Catálogo público com ISR (`/catalogo/...`) — *Página única existe, sem sub-rotas ISR ([categoria]/[produto])*
+- [ ] Busca por geo (`ST_DWithin` — raio de entrega) — *PostGIS type existe mas sem queries*
+- [/] Fluxo de pedidos completo (draft → confirmed → entregue) — *createOrder com transação ✅, status enum rico ✅, mas sem pipeline de transição post-pagamento*
+- [x] Reserva de lote com transação DB — *db.transaction() em order.ts*
 - [ ] Sitemap dinâmico e dados estruturados Schema.org
 
 ### Fase 4 — Logística e Analytics (Semanas 14–18)
@@ -404,6 +404,18 @@ Revalidação: triggered por webhook quando produtor atualiza produto/lote
 - [ ] Notificações push (lote expirando, pedido confirmado)
 - [ ] Testes E2E (Playwright para web, Detox para mobile)
 - [ ] Auditoria de segurança e pentest básico
+
+### ⚡ Extras Implementados (Fora do Plano Original)
+- [x] Stripe Connect — split payments para produtores
+- [x] Stripe Checkout com sessão e webhook
+- [x] Captura de pagamento por peso (awaiting_weight / captureWeighedOrder)
+- [x] Master Products — catálogo-base centralizado com pricingType
+- [x] Upload de imagens (UploadThing)
+- [x] Onboarding flow completo (tipo PRODUCER/BUYER)
+- [x] Dashboard diferenciado Buyer vs Producer
+- [x] Página de sucesso pós-compra
+- [x] UI Design System (10 componentes compartilhados)
+- [x] Validators package (Zod schemas compartilhados E2E)
 
 ---
 

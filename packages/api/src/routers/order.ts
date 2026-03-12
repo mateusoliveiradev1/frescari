@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import Stripe from 'stripe';
-import { createTRPCRouter, protectedProcedure } from '../trpc';
+import { createTRPCRouter, protectedProcedure, buyerProcedure, producerProcedure, tenantProcedure } from '../trpc';
 import { productLots, products, orders, orderItems, tenants, masterProducts } from '@frescari/db';
 import { eq, inArray, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
@@ -9,7 +9,7 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeSecretKey ?? '');
 
 export const orderRouter = createTRPCRouter({
-    createOrder: protectedProcedure
+    createOrder: buyerProcedure
         .input(
             z.object({
                 deliveryStreet: z.string().min(3, "Rua é obrigatória."),
@@ -197,17 +197,10 @@ export const orderRouter = createTRPCRouter({
             }
         }),
 
-    listMyOrders: protectedProcedure
+    listMyOrders: tenantProcedure
         .input(z.object({ status: z.string().optional() }).optional())
         .query(async ({ ctx, input }) => {
-            const { db, user } = ctx;
-
-            if (!user?.tenantId) {
-                throw new TRPCError({
-                    code: 'FORBIDDEN',
-                    message: 'Usuário sem organização vinculada.',
-                });
-            }
+            const { db, tenantId } = ctx;
 
             // To ensure safety relative to relations setup, fetching manually using a standard select:
             const allOrders = await db
@@ -223,7 +216,7 @@ export const orderRouter = createTRPCRouter({
                 .innerJoin(tenants, eq(orders.sellerTenantId, tenants.id))
                 .where(
                     and(
-                        eq(orders.buyerTenantId, user.tenantId),
+                        eq(orders.buyerTenantId, tenantId),
                         input?.status && input.status !== 'all' ? eq(orders.status, input.status as "draft" | "confirmed" | "picking" | "in_transit" | "delivered" | "cancelled") : undefined
                     )
                 )
@@ -262,21 +255,14 @@ export const orderRouter = createTRPCRouter({
             }));
         }),
 
-    cancelOrder: protectedProcedure
+    cancelOrder: buyerProcedure
         .input(
             z.object({
                 orderId: z.string().uuid(),
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const { db, user } = ctx;
-
-            if (!user?.tenantId) {
-                throw new TRPCError({
-                    code: 'FORBIDDEN',
-                    message: 'Usuário sem organização vinculada.',
-                });
-            }
+            const { db, tenantId } = ctx;
 
             try {
                 return await db.transaction(async (tx) => {
@@ -284,7 +270,7 @@ export const orderRouter = createTRPCRouter({
                     const targetOrder = await tx.query.orders.findFirst({
                         where: and(
                             eq(orders.id, input.orderId),
-                            eq(orders.buyerTenantId, user.tenantId)
+                            eq(orders.buyerTenantId, tenantId)
                         )
                     });
 
@@ -338,17 +324,10 @@ export const orderRouter = createTRPCRouter({
         }),
 
     // ─── Seller-side: list orders received by the producer ───
-    listReceivedOrders: protectedProcedure
+    listReceivedOrders: producerProcedure
         .input(z.object({ status: z.string().optional() }).optional())
         .query(async ({ ctx, input }) => {
-            const { db, user } = ctx;
-
-            if (!user?.tenantId) {
-                throw new TRPCError({
-                    code: 'FORBIDDEN',
-                    message: 'Usuário sem organização vinculada.',
-                });
-            }
+            const { db, tenantId } = ctx;
 
             const allOrders = await db
                 .select({
@@ -363,7 +342,7 @@ export const orderRouter = createTRPCRouter({
                 .innerJoin(tenants, eq(orders.buyerTenantId, tenants.id))
                 .where(
                     and(
-                        eq(orders.sellerTenantId, user.tenantId),
+                        eq(orders.sellerTenantId, tenantId),
                         input?.status && input.status !== 'all'
                             ? eq(orders.status, input.status as "draft" | "confirmed" | "picking" | "in_transit" | "delivered" | "cancelled")
                             : undefined
@@ -400,7 +379,7 @@ export const orderRouter = createTRPCRouter({
         }),
 
     // ─── Seller-side: update order status ───
-    updateOrderStatus: protectedProcedure
+    updateOrderStatus: producerProcedure
         .input(
             z.object({
                 orderId: z.string().uuid(),
@@ -408,20 +387,13 @@ export const orderRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const { db, user } = ctx;
-
-            if (!user?.tenantId) {
-                throw new TRPCError({
-                    code: 'FORBIDDEN',
-                    message: 'Usuário sem organização vinculada.',
-                });
-            }
+            const { db, tenantId } = ctx;
 
             // Validate order belongs to this seller
             const targetOrder = await db.query.orders.findFirst({
                 where: and(
                     eq(orders.id, input.orderId),
-                    eq(orders.sellerTenantId, user.tenantId)
+                    eq(orders.sellerTenantId, tenantId)
                 )
             });
 
@@ -440,7 +412,7 @@ export const orderRouter = createTRPCRouter({
         }),
 
     // ─── Capture Weighed Order (Stripe Destination Charge) ───
-    captureWeighedOrder: protectedProcedure
+    captureWeighedOrder: producerProcedure
         .input(
             z.object({
                 orderId: z.string().uuid(),
@@ -453,14 +425,7 @@ export const orderRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const { db, user } = ctx;
-
-            if (!user?.tenantId) {
-                throw new TRPCError({
-                    code: 'FORBIDDEN',
-                    message: 'Usuário sem organização vinculada.',
-                });
-            }
+            const { db, tenantId } = ctx;
 
             if (!stripeSecretKey) {
                 throw new TRPCError({
@@ -473,7 +438,7 @@ export const orderRouter = createTRPCRouter({
             const targetOrder = await db.query.orders.findFirst({
                 where: and(
                     eq(orders.id, input.orderId),
-                    eq(orders.sellerTenantId, user.tenantId)
+                    eq(orders.sellerTenantId, tenantId)
                 ),
             });
 

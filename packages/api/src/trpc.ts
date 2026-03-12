@@ -30,7 +30,32 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
             ...ctx,
             session: ctx.session,
             user: ctx.user,
-            tenantId: ctx.user.tenantId, // extracted generically from context
         },
     });
+});
+
+export const tenantProcedure = protectedProcedure.use(({ ctx, next }) => {
+    if (!ctx.user.tenantId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'User must belong to a tenant.' });
+    }
+    return next({
+        ctx: {
+            ...ctx,
+            tenantId: ctx.user.tenantId as string,
+        }
+    });
+});
+
+export const producerProcedure = tenantProcedure.use(({ ctx, next }) => {
+    if (ctx.user.role !== 'producer') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas produtores podem realizar esta ação.' });
+    }
+    return next({ ctx });
+});
+
+export const buyerProcedure = tenantProcedure.use(({ ctx, next }) => {
+    if (ctx.user.role !== 'buyer') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas compradores podem realizar esta ação.' });
+    }
+    return next({ ctx });
 });

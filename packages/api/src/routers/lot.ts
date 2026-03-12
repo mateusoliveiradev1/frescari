@@ -1,4 +1,4 @@
-import { createTRPCRouter, publicProcedure, protectedProcedure } from '../trpc';
+import { createTRPCRouter, publicProcedure, protectedProcedure, producerProcedure } from '../trpc';
 import { createLotInputSchema, updateLotInventorySchema } from '@frescari/validators';
 import { productLots, products, masterProducts, farms } from '@frescari/db';
 import { eq, and, gt, sql, inArray } from 'drizzle-orm';
@@ -8,40 +8,10 @@ import { z } from 'zod';
 
 export const lotRouter = createTRPCRouter({
 
-    create: protectedProcedure
+    create: producerProcedure
         .input(createLotInputSchema)
         .mutation(async ({ ctx, input }) => {
-            let tenantId = ctx.tenantId;
-
-            // --- ON-THE-FLY TENANT CREATION (MVP FIX FOR PRODUCERS) ---
-            if (!tenantId) {
-                if (ctx.user.role === 'producer') {
-                    // Try to find if one exists for some reason
-                    const existingUser = await ctx.db.query.users.findFirst({
-                        where: eq(sql`${ctx.db._.fullSchema.users.id}::text`, ctx.user.id)
-                    });
-
-                    if (existingUser?.tenantId) {
-                        tenantId = existingUser.tenantId;
-                    } else {
-                        // Create a default tenant for this new producer
-                        const [newTenant] = await ctx.db.insert(ctx.db._.fullSchema.tenants).values({
-                            slug: `tenant-${ctx.user.id.substring(0, 8)}`,
-                            name: `Fazenda de ${ctx.user.name.split(' ')[0]}`,
-                            plan: 'free',
-                        }).returning();
-
-                        tenantId = newTenant.id;
-
-                        // Update the user record
-                        await ctx.db.update(ctx.db._.fullSchema.users)
-                            .set({ tenantId })
-                            .where(eq(sql`${ctx.db._.fullSchema.users.id}::text`, ctx.user.id));
-                    }
-                } else {
-                    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'User has no tenant and cannot create one.' });
-                }
-            }
+            const tenantId = ctx.tenantId;
 
             // 1. Resolve Product: Check if the tenant already has this master product registered
             let product = await ctx.db.query.products.findFirst({
@@ -122,12 +92,15 @@ export const lotRouter = createTRPCRouter({
             return newLot;
         }),
 
-    updateInventory: protectedProcedure
+    updateInventory: producerProcedure
         .input(updateLotInventorySchema)
         .mutation(async ({ ctx, input }) => {
             const [updatedLot] = await ctx.db.update(productLots)
                 .set({ availableQty: input.newAvailableQty.toString() })
-                .where(eq(productLots.id, input.lotId))
+                .where(and(
+                    eq(productLots.id, input.lotId),
+                    eq(productLots.tenantId, ctx.tenantId)
+                ))
                 .returning();
 
             return updatedLot;
@@ -194,19 +167,10 @@ export const lotRouter = createTRPCRouter({
             }
         }),
 
-    getDashboardMetrics: protectedProcedure
+    getDashboardMetrics: producerProcedure
         .query(async ({ ctx }) => {
             try {
-                // Defesa rígida contra undefined antes de tocar no banco
-                if (!ctx.user?.id) {
-                    throw new TRPCError({
-                        code: 'UNAUTHORIZED',
-                        message: 'Usuário não autenticado.'
-                    });
-                }
-
                 const tenantId = ctx.tenantId;
-                if (!tenantId) return { activeLots: 0, lastChanceQty: 0, co2AvoidedKg: 0 };
 
                 const allLots = await ctx.db.query.productLots.findMany({
                     where: eq(productLots.tenantId, tenantId),
@@ -253,19 +217,10 @@ export const lotRouter = createTRPCRouter({
             }
         }),
 
-    getRecentLots: protectedProcedure
+    getRecentLots: producerProcedure
         .query(async ({ ctx }) => {
             try {
-                // Defesa rígida contra undefined antes de tocar no banco
-                if (!ctx.user?.id) {
-                    throw new TRPCError({
-                        code: 'UNAUTHORIZED',
-                        message: 'Usuário não autenticado.'
-                    });
-                }
-
                 const tenantId = ctx.tenantId;
-                if (!tenantId) return [];
 
                 const recentLots = await ctx.db.query.productLots.findMany({
                     where: eq(productLots.tenantId, tenantId),
@@ -283,10 +238,9 @@ export const lotRouter = createTRPCRouter({
             }
         }),
 
-    getByProducer: protectedProcedure
+    getByProducer: producerProcedure
         .query(async ({ ctx }) => {
             const tenantId = ctx.tenantId;
-            if (!tenantId) return [];
 
             const results = await ctx.db.select({
                 lot: productLots,
@@ -304,11 +258,10 @@ export const lotRouter = createTRPCRouter({
             }));
         }),
 
-    delete: protectedProcedure
+    delete: producerProcedure
         .input(z.object({ id: z.string().uuid() }))
         .mutation(async ({ ctx, input }) => {
             const tenantId = ctx.tenantId;
-            if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED' });
 
             const [deleted] = await ctx.db.delete(productLots)
                 .where(and(
@@ -322,7 +275,7 @@ export const lotRouter = createTRPCRouter({
             return { success: true };
         }),
 
-    update: protectedProcedure
+    update: producerProcedure
         .input(z.object({
             id: z.string().uuid(),
             availableQty: z.number().optional(),
@@ -335,7 +288,6 @@ export const lotRouter = createTRPCRouter({
         }))
         .mutation(async ({ ctx, input }) => {
             const tenantId = ctx.tenantId;
-            if (!tenantId) throw new TRPCError({ code: 'UNAUTHORIZED' });
 
             const { id, ...data } = input;
 
