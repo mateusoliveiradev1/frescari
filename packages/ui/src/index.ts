@@ -1,4 +1,5 @@
 export * from './lib/utils';
+export * from './lib/formatters';
 export * from './components/Button';
 export * from './components/Badge';
 export * from './components/Carousel';

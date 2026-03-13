@@ -9,10 +9,12 @@ export const productRouter = createTRPCRouter({
     create: producerProcedure
         .input(insertProductSchema)
         .mutation(async ({ ctx, input }) => {
-            const dataToInsert = {
+            const dataToInsert: typeof products.$inferInsert = {
                 ...input,
                 tenantId: ctx.tenantId, // Force tenantId from context, never trust input
-            } as typeof products.$inferInsert;
+                pricePerUnit: input.pricePerUnit.toString(),
+                minOrderQty: input.minOrderQty.toString(),
+            };
 
             const [newProduct] = await ctx.db.insert(products).values(dataToInsert).returning();
             return newProduct;
