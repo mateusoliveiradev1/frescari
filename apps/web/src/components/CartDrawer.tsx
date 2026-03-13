@@ -40,18 +40,128 @@ type CartInfoTooltipProps = {
 };
 
 function CartInfoTooltip({ content, label }: CartInfoTooltipProps) {
+    const [open, setOpen] = React.useState(false);
+    const [prefersTapInteraction, setPrefersTapInteraction] = React.useState(false);
+    const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+    const contentRef = React.useRef<HTMLDivElement | null>(null);
+
+    React.useEffect(() => {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+            return;
+        }
+
+        const mediaQuery = window.matchMedia('(hover: none), (pointer: coarse)');
+        const updateInteractionMode = () => {
+            setPrefersTapInteraction(mediaQuery.matches);
+            if (!mediaQuery.matches) {
+                setOpen(false);
+            }
+        };
+
+        updateInteractionMode();
+
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', updateInteractionMode);
+            return () => mediaQuery.removeEventListener('change', updateInteractionMode);
+        }
+
+        mediaQuery.addListener(updateInteractionMode);
+        return () => mediaQuery.removeListener(updateInteractionMode);
+    }, []);
+
+    React.useEffect(() => {
+        if (!prefersTapInteraction || !open) {
+            return;
+        }
+
+        const handlePointerDown = (event: PointerEvent) => {
+            if (!(event.target instanceof Node)) {
+                return;
+            }
+
+            if (
+                triggerRef.current?.contains(event.target)
+                || contentRef.current?.contains(event.target)
+            ) {
+                return;
+            }
+
+            setOpen(false);
+        };
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpen(false);
+            }
+        };
+
+        const handleScroll = () => {
+            setOpen(false);
+        };
+
+        document.addEventListener('pointerdown', handlePointerDown, true);
+        document.addEventListener('keydown', handleEscape);
+        window.addEventListener('scroll', handleScroll, true);
+
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown, true);
+            document.removeEventListener('keydown', handleEscape);
+            window.removeEventListener('scroll', handleScroll, true);
+        };
+    }, [open, prefersTapInteraction]);
+
+    const handleTouchLikePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+        if (!prefersTapInteraction || event.pointerType === 'mouse') {
+            return;
+        }
+
+        event.preventDefault();
+        setOpen((current) => !current);
+    };
+
+    const handleTapClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        if (prefersTapInteraction) {
+            event.preventDefault();
+        }
+    };
+
+    const handleTapKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+        if (!prefersTapInteraction) {
+            return;
+        }
+
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setOpen((current) => !current);
+        }
+    };
+
     return (
-        <Tooltip>
+        <Tooltip
+            onOpenChange={setOpen}
+            open={open}
+        >
             <TooltipTrigger asChild>
                 <button
                     aria-label={label}
+                    aria-expanded={prefersTapInteraction ? open : undefined}
                     className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-forest/15 bg-white text-bark/70 transition-colors hover:border-forest/30 hover:text-soil focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest/30"
+                    onClick={handleTapClick}
+                    onKeyDown={handleTapKeyDown}
+                    onPointerDown={handleTouchLikePointerDown}
+                    ref={triggerRef}
                     type="button"
                 >
                     <CircleHelp className="h-3.5 w-3.5" />
                 </button>
             </TooltipTrigger>
-            <TooltipContent align="start" className="max-w-[320px]" side="top">
+            <TooltipContent
+                align={prefersTapInteraction ? 'center' : 'start'}
+                className="max-w-[320px]"
+                collisionPadding={16}
+                ref={contentRef}
+                side="top"
+            >
                 <p>{content}</p>
             </TooltipContent>
         </Tooltip>
@@ -266,10 +376,10 @@ export function CartDrawer() {
         <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
             <Dialog.Portal>
                 {/* Backdrop */}
-                <Dialog.Overlay className="fixed inset-0 z-50 bg-bark/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+                <Dialog.Overlay className="fixed inset-0 z-[140] bg-bark/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
 
                 {/* Drawer Panel */}
-                <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-full max-w-[34rem] bg-cream shadow-2xl border-l border-forest/10 flex flex-col data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] sm:max-w-[36rem]">
+                <Dialog.Content className="fixed inset-y-0 right-0 z-[150] flex w-full max-w-[34rem] flex-col border-l border-forest/10 bg-cream shadow-2xl data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] sm:max-w-[36rem]">
                     <Dialog.Description className="sr-only">
                         Resumo dos itens no seu carrinho de compras e formulário de endereço para finalização do pedido.
                     </Dialog.Description>

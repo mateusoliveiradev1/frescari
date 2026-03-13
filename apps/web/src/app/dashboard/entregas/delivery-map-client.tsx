@@ -197,14 +197,14 @@ export function DeliveryMapClient({
     return (
         <div
             className={cn(
-                "overflow-hidden rounded-[28px_18px_24px_18px] border border-soil/10 bg-cream shadow-card",
+                "relative isolate z-0 overflow-hidden rounded-[28px_18px_24px_18px] border border-soil/10 bg-cream shadow-card",
             )}
         >
             <MapContainer
                 center={[DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude]}
                 zoom={BASE_ZOOM}
                 scrollWheelZoom
-                className="h-[640px] w-full"
+                className="relative z-0 h-[640px] w-full"
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

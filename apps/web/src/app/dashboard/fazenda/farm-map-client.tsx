@@ -151,7 +151,7 @@ export function FarmMapClient({
         <div
             aria-describedby="farm-map-instructions"
             className={cn(
-                "overflow-hidden rounded-[24px_18px_22px_18px] border border-soil/10 bg-cream shadow-card",
+                "relative isolate z-0 overflow-hidden rounded-[24px_18px_22px_18px] border border-soil/10 bg-cream shadow-card",
                 className,
             )}
         >
@@ -174,7 +174,7 @@ export function FarmMapClient({
                 center={[coordinates.latitude, coordinates.longitude]}
                 zoom={zoomLevel}
                 scrollWheelZoom={!disabled}
-                className="h-[420px] w-full"
+                className="relative z-0 h-[420px] w-full"
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
