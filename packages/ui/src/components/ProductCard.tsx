@@ -69,6 +69,7 @@ export function ProductCard({
     priceOverride,
     availableQty,
     status = 'fresco',
+    isLastChance: _deprecatedIsLastChance,
     saleUnit = "unit",
     unit,
     farmName,
@@ -80,6 +81,8 @@ export function ProductCard({
     className,
     ...props
 }: ProductCardProps) {
+    void _deprecatedIsLastChance
+
     const displayOriginal = originalPrice ?? (priceOverride != null ? Number(priceOverride) : undefined)
     const isLastChance = status === 'last_chance';
     const isExpired = status === 'vencido';
