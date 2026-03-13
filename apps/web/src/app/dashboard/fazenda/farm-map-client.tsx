@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { cn } from "@frescari/ui";
 import {
     MapContainer,
     Marker,
     TileLayer,
+    Tooltip,
     useMap,
     useMapEvents,
 } from "react-leaflet";
@@ -19,11 +20,12 @@ import {
 import {
     DEFAULT_FARM_COORDINATES,
     type FarmCoordinates,
+    type FarmMapInteractionSource,
     type FarmMapProps,
 } from "./farm-map.types";
 
 const DEFAULT_ZOOM = 5;
-const FOCUSED_ZOOM = 14;
+const FOCUSED_ZOOM = 13;
 
 const farmPinIcon = divIcon({
     className: "farm-map-pin",
@@ -55,9 +57,14 @@ function isDefaultCoordinates(coordinates: FarmCoordinates) {
 function MapClickHandler({
     disabled,
     onChange,
+    onLocationCommit,
 }: {
     disabled: boolean;
     onChange: (coordinates: FarmCoordinates) => void;
+    onLocationCommit?: (
+        coordinates: FarmCoordinates,
+        source: FarmMapInteractionSource,
+    ) => Promise<void> | void;
 }) {
     useMapEvents({
         click(event) {
@@ -65,12 +72,13 @@ function MapClickHandler({
                 return;
             }
 
-            onChange(
-                roundCoordinates({
-                    latitude: event.latlng.lat,
-                    longitude: event.latlng.lng,
-                }),
-            );
+            const nextCoordinates = roundCoordinates({
+                latitude: event.latlng.lat,
+                longitude: event.latlng.lng,
+            });
+
+            onChange(nextCoordinates);
+            void onLocationCommit?.(nextCoordinates, "click");
         },
     });
 
@@ -85,10 +93,21 @@ function MapViewport({
     zoom: number;
 }) {
     const map = useMap();
+    const isFirstRender = useRef(true);
 
     useEffect(() => {
-        map.setView([coordinates.latitude, coordinates.longitude], zoom, {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            map.setView([coordinates.latitude, coordinates.longitude], zoom, {
+                animate: false,
+            });
+
+            return;
+        }
+
+        map.flyTo([coordinates.latitude, coordinates.longitude], zoom, {
             animate: true,
+            duration: 1.35,
         });
     }, [coordinates.latitude, coordinates.longitude, map, zoom]);
 
@@ -98,6 +117,7 @@ function MapViewport({
 export function FarmMapClient({
     value,
     onChange,
+    onLocationCommit,
     disabled = false,
     className,
 }: FarmMapProps) {
@@ -115,25 +135,41 @@ export function FarmMapClient({
                       dragend(event) {
                           const marker = event.target as LeafletMarker;
                           const latlng = marker.getLatLng();
+                          const nextCoordinates = roundCoordinates({
+                              latitude: latlng.lat,
+                              longitude: latlng.lng,
+                          });
 
-                          onChange(
-                              roundCoordinates({
-                                  latitude: latlng.lat,
-                                  longitude: latlng.lng,
-                              }),
-                          );
+                          onChange(nextCoordinates);
+                          void onLocationCommit?.(nextCoordinates, "drag");
                       },
                   },
-        [disabled, onChange],
+        [disabled, onChange, onLocationCommit],
     );
 
     return (
         <div
+            aria-describedby="farm-map-instructions"
             className={cn(
                 "overflow-hidden rounded-[24px_18px_22px_18px] border border-soil/10 bg-cream shadow-card",
                 className,
             )}
         >
+            <p className="sr-only" id="farm-map-instructions">
+                Arraste o pino para o local exato da sua porteira ou producao.
+                Tambem e possivel clicar no mapa para reposicionar o ponto.
+            </p>
+
+            <div className="border-b border-soil/8 bg-white/75 px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/65">
+                    Ponto operacional
+                </p>
+                <p className="mt-1 text-sm leading-6 text-bark/75">
+                    Marque a porteira, o patio de carga ou o centro produtivo
+                    com precisao.
+                </p>
+            </div>
+
             <MapContainer
                 center={[coordinates.latitude, coordinates.longitude]}
                 zoom={zoomLevel}
@@ -144,15 +180,60 @@ export function FarmMapClient({
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                <MapClickHandler disabled={disabled} onChange={onChange} />
+                <MapClickHandler
+                    disabled={disabled}
+                    onChange={onChange}
+                    onLocationCommit={onLocationCommit}
+                />
                 <MapViewport coordinates={coordinates} zoom={zoomLevel} />
                 <Marker
                     draggable={!disabled}
                     eventHandlers={markerEvents}
                     icon={farmPinIcon}
                     position={[coordinates.latitude, coordinates.longitude]}
-                />
+                >
+                    <Tooltip
+                        className="farm-map-tooltip"
+                        direction="top"
+                        offset={[0, -18]}
+                        opacity={1}
+                        permanent
+                    >
+                        <span>
+                            Arraste-me para o local exato da sua porteira /
+                            producao
+                        </span>
+                    </Tooltip>
+                </Marker>
             </MapContainer>
+
+            <style jsx global>{`
+                .farm-map-tooltip {
+                    background: transparent;
+                    border: none;
+                    box-shadow: none;
+                }
+
+                .farm-map-tooltip::before {
+                    display: none;
+                }
+
+                .farm-map-tooltip .leaflet-tooltip-content {
+                    max-width: 240px;
+                    border: 1px solid rgba(44, 32, 24, 0.08);
+                    border-radius: 18px;
+                    background: rgba(249, 246, 240, 0.98);
+                    color: #2c2018;
+                    padding: 10px 14px;
+                    text-align: center;
+                    font-size: 11px;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    line-height: 1.6;
+                    box-shadow: 0 22px 44px rgba(44, 32, 24, 0.12);
+                }
+            `}</style>
         </div>
     );
 }

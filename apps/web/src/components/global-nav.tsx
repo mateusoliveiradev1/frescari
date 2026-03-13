@@ -87,9 +87,6 @@ export function GlobalNav() {
         const linkClass = isMobile
             ? "font-sans text-lg font-bold uppercase tracking-widest text-bark hover:text-forest transition-colors py-4 border-b border-soil/5 last:border-0"
             : "font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors";
-        const deliveryBadgeClass = isMobile
-            ? "rounded-full bg-sage/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-forest"
-            : "rounded-full bg-sage/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-forest";
         const mobileLinkProps = isMobile
             ? { onClick: () => setIsMenuOpen(false) }
             : undefined;
@@ -138,12 +135,11 @@ export function GlobalNav() {
                         Vitrine
                     </Link>
                     <Link
-                        href="#"
-                        className={`${linkClass} ${getActiveStoreClass('#')} inline-flex items-center gap-2`}
+                        href="/dashboard/entregas"
+                        className={`${linkClass} ${getActiveStoreClass('/dashboard/entregas')} inline-flex items-center gap-2`}
                         {...mobileLinkProps}
                     >
                         <span>Entregas</span>
-                        <span className={deliveryBadgeClass}>Em breve</span>
                     </Link>
                 </>
             );

@@ -9,3 +9,4 @@ export * from './components/Dialog';
 export * from './components/DropdownMenu';
 export * from './components/Card';
 export * from './components/Sheet';
+export * from './components/Tooltip';

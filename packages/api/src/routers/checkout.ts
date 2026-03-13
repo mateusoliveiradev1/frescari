@@ -4,6 +4,13 @@ import { createTRPCRouter, buyerProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { db, tenants, productLots, products, masterProducts } from '@frescari/db';
 import { eq, inArray } from 'drizzle-orm';
+import {
+    buildDeliveryAddressLine,
+    geocodeDeliveryAddress,
+    serializeDeliveryPointMetadata,
+    type DeliveryAddress as GeocodingDeliveryAddress,
+    type GeocodedPoint,
+} from '../geocoding';
 
 // ── Stripe SDK initialisation ────────────────────────────────────────
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -166,8 +173,33 @@ export const checkoutRouter = createTRPCRouter({
 
             const lineItems = buildLineItems(safeItems, input.deliveryFee);
 
-            // Compose address line for display
-            const addressLine = `${input.address.street}, ${input.address.number} - ${input.address.city}/${input.address.state} - CEP: ${input.address.cep}`;
+            let geocodedDeliveryPoint: GeocodedPoint | null = null;
+
+            try {
+                geocodedDeliveryPoint = await geocodeDeliveryAddress(
+                    input.address as GeocodingDeliveryAddress,
+                );
+            } catch (error) {
+                console.error('[GEOCODING_ERROR]:', error);
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message:
+                        'Nao foi possivel validar o endereco de entrega. Revise os dados e tente novamente.',
+                    cause: error,
+                });
+            }
+
+            if (!geocodedDeliveryPoint) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message:
+                        'Nao foi possivel localizar o endereco de entrega informado. Revise os dados e tente novamente.',
+                });
+            }
+
+            const addressLine = buildDeliveryAddressLine(
+                input.address as GeocodingDeliveryAddress,
+            );
 
             // Serialize items for webhook reconstruction (Stripe metadata max 500 chars per value)
             const itemsJson = JSON.stringify(
@@ -182,6 +214,7 @@ export const checkoutRouter = createTRPCRouter({
 
             // Structured address JSON for webhook
             const addressJson = JSON.stringify(input.address);
+            const deliveryPointJson = serializeDeliveryPointMetadata(geocodedDeliveryPoint);
 
             const hasWeightProducts = safeItems.some(
                 (item) => item.pricingType === 'WEIGHT' || item.masterPricingType === 'WEIGHT' || item.productSaleUnit === 'kg' || item.productSaleUnit === 'g' || item.dbPricingType === 'WEIGHT'
@@ -216,6 +249,9 @@ export const checkoutRouter = createTRPCRouter({
                         metadata: {
                             buyer_tenant_id: buyerTenantId,
                             delivery_address: addressLine,
+                            address: addressJson,
+                            delivery_fee: input.deliveryFee.toString(),
+                            delivery_point: deliveryPointJson,
                             is_all_unit_order: isAllUnitOrder.toString(),
                         },
                     },
@@ -228,6 +264,7 @@ export const checkoutRouter = createTRPCRouter({
                         address: addressJson,
                         delivery_fee: input.deliveryFee.toString(),
                         delivery_address: addressLine,
+                        delivery_point: deliveryPointJson,
                         is_all_unit_order: isAllUnitOrder.toString(),
                     },
                 });

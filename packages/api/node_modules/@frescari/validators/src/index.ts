@@ -77,6 +77,12 @@ export const upsertFarmInputSchema = z.object({
 
 export const saveFarmLocationInputSchema = upsertFarmInputSchema;
 
+export const farmLocationSearchInputSchema = z.object({
+    query: z.string().trim().min(2, 'Informe um CEP ou cidade com ao menos 2 caracteres.'),
+}).strict();
+
+export const reverseGeocodeFarmInputSchema = farmCoordinatesSchema;
+
 export const insertProductCategorySchema = createInsertSchema(productCategories);
 export const selectProductCategorySchema = createSelectSchema(productCategories);
 

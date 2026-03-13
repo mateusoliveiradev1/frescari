@@ -8,9 +8,15 @@ export const DEFAULT_FARM_COORDINATES: FarmCoordinates = {
     longitude: -51.92528,
 };
 
+export type FarmMapInteractionSource = "click" | "drag";
+
 export type FarmMapProps = {
     value: FarmCoordinates;
     onChange: (coordinates: FarmCoordinates) => void;
+    onLocationCommit?: (
+        coordinates: FarmCoordinates,
+        source: FarmMapInteractionSource,
+    ) => Promise<void> | void;
     disabled?: boolean;
     className?: string;
 };

@@ -5,6 +5,12 @@ import { createTRPCRouter, protectedProcedure, buyerProcedure, producerProcedure
 import { productLots, products, orders, orderItems, tenants, masterProducts } from '@frescari/db';
 import { eq, inArray, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
+import {
+    buildDeliveryAddressLine,
+    geocodeDeliveryAddress,
+    toDeliveryPointGeoJson,
+    type GeocodedPoint,
+} from '../geocoding';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeSecretKey ?? '');
@@ -70,7 +76,36 @@ export const orderRouter = createTRPCRouter({
             }
 
             // Compose a single-line address for legacy display
-            const composedAddress = `${input.deliveryStreet}, ${input.deliveryNumber} - ${input.deliveryCity}/${input.deliveryState} - CEP: ${input.deliveryCep}`;
+            const deliveryAddress = {
+                street: input.deliveryStreet,
+                number: input.deliveryNumber,
+                cep: input.deliveryCep,
+                city: input.deliveryCity,
+                state: input.deliveryState,
+            };
+            const composedAddress = buildDeliveryAddressLine(deliveryAddress);
+
+            let geocodedDeliveryPoint: GeocodedPoint | null = null;
+
+            try {
+                geocodedDeliveryPoint = await geocodeDeliveryAddress(deliveryAddress);
+            } catch (error) {
+                console.error('[GEOCODING_ERROR_CREATE_ORDER]:', error);
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Nao foi possivel validar o endereco de entrega. Revise os dados e tente novamente.',
+                    cause: error,
+                });
+            }
+
+            if (!geocodedDeliveryPoint) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Nao foi possivel localizar o endereco de entrega informado. Revise os dados e tente novamente.',
+                });
+            }
+
+            const deliveryPoint = toDeliveryPointGeoJson(geocodedDeliveryPoint);
 
             try {
                 // Begin Transaction
@@ -171,6 +206,7 @@ export const orderRouter = createTRPCRouter({
                             deliveryCity: input.deliveryCity,
                             deliveryState: input.deliveryState,
                             deliveryAddress: composedAddress,
+                            deliveryPoint,
                             deliveryFee: input.deliveryFee.toFixed(2),
                             deliveryNotes: input.deliveryNotes,
                             totalAmount: orderTotal.toFixed(4),
@@ -471,7 +507,7 @@ export const orderRouter = createTRPCRouter({
                 });
             }
 
-            if (!['awaiting_weight', 'confirmed'].includes(targetOrder.status)) {
+            if (!['awaiting_weight', 'payment_authorized', 'confirmed'].includes(targetOrder.status)) {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'Este pedido não está aguardando pesagem.',

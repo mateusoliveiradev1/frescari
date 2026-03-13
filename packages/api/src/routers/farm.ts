@@ -1,8 +1,16 @@
 import { TRPCError } from '@trpc/server';
 import { and, eq } from 'drizzle-orm';
 import { farms } from '@frescari/db';
-import { saveFarmLocationInputSchema } from '@frescari/validators';
+import {
+    farmLocationSearchInputSchema,
+    reverseGeocodeFarmInputSchema,
+    saveFarmLocationInputSchema,
+} from '@frescari/validators';
 
+import {
+    geocodeFarmLocationQuery,
+    reverseGeocodeFarmLocation,
+} from '../geocoding';
 import { createTRPCRouter, producerProcedure } from '../trpc';
 
 type FarmRecord = typeof farms.$inferSelect;
@@ -38,6 +46,28 @@ export const farmRouter = createTRPCRouter({
 
         return currentFarm ? mapFarmResponse(currentFarm) : null;
     }),
+
+    searchLocation: producerProcedure
+        .input(farmLocationSearchInputSchema)
+        .mutation(async ({ input }) => {
+            const result = await geocodeFarmLocationQuery(input.query);
+
+            if (!result) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message:
+                        'Nao encontramos um ponto para esse CEP ou cidade. Revise o termo e tente novamente.',
+                });
+            }
+
+            return result;
+        }),
+
+    reverseGeocodeLocation: producerProcedure
+        .input(reverseGeocodeFarmInputSchema)
+        .mutation(async ({ input }) => {
+            return reverseGeocodeFarmLocation(input);
+        }),
 
     saveLocation: producerProcedure
         .input(saveFarmLocationInputSchema)

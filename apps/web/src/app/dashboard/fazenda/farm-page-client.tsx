@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@frescari/ui";
 import type { FarmAddress } from "@frescari/db";
-import { LoaderCircle, MapPin, Route, Save, Tractor } from "lucide-react";
+import { LoaderCircle, MapPin, Route, Save, Search, Tractor } from "lucide-react";
 import Link from "next/link";
 import {
     Controller,
@@ -20,6 +20,7 @@ import { FarmMap } from "./farm-map";
 import {
     DEFAULT_FARM_COORDINATES,
     type FarmCoordinates,
+    type FarmMapInteractionSource,
 } from "./farm-map.types";
 
 type FarmFormValues = {
@@ -45,6 +46,19 @@ type FarmSeed =
       }
     | null
     | undefined;
+
+type MapFeedbackTone = "loading" | "success" | "error" | "neutral";
+
+type FarmMapSearchResult = {
+    label: string;
+    latitude: number;
+    longitude: number;
+};
+
+type FarmAddressSuggestion = {
+    label: string;
+    address: Partial<FarmAddress>;
+} | null;
 
 const baseInputClassName =
     "w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil outline-none transition focus:border-forest focus:ring-2 focus:ring-forest/15 placeholder:text-bark/35";
@@ -108,6 +122,26 @@ function roundCoordinates(coordinates: FarmCoordinates): FarmCoordinates {
     };
 }
 
+function hasText(value: string | null | undefined): value is string {
+    return typeof value === "string" && value.trim().length > 0;
+}
+
+function buildMapFeedbackClassName(tone: MapFeedbackTone) {
+    if (tone === "error") {
+        return "border-red-200 bg-red-50 text-red-800";
+    }
+
+    if (tone === "success") {
+        return "border-emerald-200 bg-emerald-50 text-emerald-800";
+    }
+
+    if (tone === "loading") {
+        return "border-forest/15 bg-sage/45 text-forest";
+    }
+
+    return "border-soil/10 bg-white/80 text-bark/75";
+}
+
 function FieldShell({
     label,
     htmlFor,
@@ -160,6 +194,12 @@ function SummaryItem({
 
 export function FarmPageClient() {
     const utils = trpc.useUtils();
+    const reverseLookupSequenceRef = useRef(0);
+    const [mapSearchQuery, setMapSearchQuery] = useState<string | null>(null);
+    const [mapFeedback, setMapFeedback] = useState<{
+        tone: MapFeedbackTone;
+        message: string;
+    } | null>(null);
     const currentFarmQuery = trpc.farm.getCurrent.useQuery(undefined, {
         refetchOnWindowFocus: false,
     });
@@ -181,11 +221,16 @@ export function FarmPageClient() {
         },
     });
 
+    const searchLocationMutation = trpc.farm.searchLocation.useMutation();
+    const reverseGeocodeMutation = trpc.farm.reverseGeocodeLocation.useMutation();
+
     const {
         control,
+        getValues,
         register,
         handleSubmit,
         reset,
+        setValue,
         formState: { errors, isDirty },
     } = useForm<FarmFormValues>({
         defaultValues: getDefaultFormValues(),
@@ -197,6 +242,14 @@ export function FarmPageClient() {
         name: "location",
     });
 
+    const defaultMapSearchQuery = useMemo(
+        () =>
+            currentFarmQuery.data?.address?.postalCode ??
+            currentFarmQuery.data?.address?.city ??
+            "",
+        [currentFarmQuery.data],
+    );
+
     useEffect(() => {
         if (!currentFarmQuery.data || isDirty) {
             return;
@@ -204,6 +257,164 @@ export function FarmPageClient() {
 
         reset(parseFarmToFormValues(currentFarmQuery.data));
     }, [currentFarmQuery.data, isDirty, reset]);
+
+    const applyAddressSuggestion = (
+        suggestion: FarmAddressSuggestion,
+        source: "search" | FarmMapInteractionSource,
+    ) => {
+        if (!suggestion) {
+            setMapFeedback({
+                tone: "neutral",
+                message:
+                    source === "search"
+                        ? "Mapa centralizado, mas o endereco textual ainda precisa ser ajustado manualmente."
+                        : "Ponto atualizado. Se necessario, ajuste o endereco textual manualmente.",
+            });
+            return;
+        }
+
+        const currentAddress = getValues("address");
+        const updates: Array<[keyof FarmFormValues["address"], string]> = [];
+
+        const queueUpdate = (
+            field: keyof FarmFormValues["address"],
+            nextValue: string | undefined,
+            mode: "fill-empty" | "replace" = "fill-empty",
+        ) => {
+            if (!hasText(nextValue)) {
+                return;
+            }
+
+            const currentValue = currentAddress[field]?.trim() ?? "";
+            const normalizedNextValue = nextValue.trim();
+            const shouldApply =
+                mode === "replace"
+                    ? currentValue !== normalizedNextValue
+                    : currentValue.length === 0;
+
+            if (shouldApply) {
+                updates.push([field, normalizedNextValue]);
+            }
+        };
+
+        queueUpdate("street", suggestion.address.street);
+        queueUpdate("number", suggestion.address.number);
+        queueUpdate("neighborhood", suggestion.address.neighborhood);
+        queueUpdate("city", suggestion.address.city, "replace");
+        queueUpdate("state", suggestion.address.state, "replace");
+        queueUpdate("postalCode", suggestion.address.postalCode, "replace");
+        queueUpdate("country", suggestion.address.country, "replace");
+
+        for (const [field, value] of updates) {
+            setValue(`address.${field}`, value, {
+                shouldDirty: true,
+                shouldTouch: true,
+                shouldValidate: true,
+            });
+        }
+
+        setMapFeedback({
+            tone: "success",
+            message:
+                updates.length > 0
+                    ? `Sugestao do mapa aplicada com base em ${suggestion.label}.`
+                    : `Ponto localizado em ${suggestion.label}. Confira os campos do endereco antes de salvar.`,
+        });
+    };
+
+    const requestAddressSuggestion = async (
+        coordinates: FarmCoordinates,
+        source: "search" | FarmMapInteractionSource,
+    ) => {
+        const requestId = reverseLookupSequenceRef.current + 1;
+        reverseLookupSequenceRef.current = requestId;
+
+        setMapFeedback({
+            tone: "loading",
+            message:
+                source === "search"
+                    ? "Sincronizando o endereco sugerido para esse ponto..."
+                    : "Buscando uma sugestao de endereco para o pino...",
+        });
+
+        try {
+            const suggestion = (await reverseGeocodeMutation.mutateAsync(
+                coordinates,
+            )) as FarmAddressSuggestion;
+
+            if (requestId !== reverseLookupSequenceRef.current) {
+                return;
+            }
+
+            applyAddressSuggestion(suggestion, source);
+        } catch (error) {
+            if (requestId !== reverseLookupSequenceRef.current) {
+                return;
+            }
+
+            setMapFeedback({
+                tone: "error",
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Nao foi possivel sugerir o endereco a partir do ponto marcado.",
+            });
+        }
+    };
+
+    const handleMapSearchSubmit = async () => {
+        const normalizedQuery = (mapSearchQuery ?? defaultMapSearchQuery).trim();
+
+        if (normalizedQuery.length < 2) {
+            setMapFeedback({
+                tone: "error",
+                message: "Informe um CEP ou cidade com ao menos 2 caracteres.",
+            });
+            return;
+        }
+
+        setMapFeedback({
+            tone: "loading",
+            message: "Buscando a melhor area para centralizar o mapa...",
+        });
+
+        try {
+            const result = (await searchLocationMutation.mutateAsync({
+                query: normalizedQuery,
+            })) as FarmMapSearchResult;
+            const nextCoordinates = roundCoordinates({
+                latitude: result.latitude,
+                longitude: result.longitude,
+            });
+
+            setValue("location", nextCoordinates, {
+                shouldDirty: true,
+                shouldTouch: true,
+                shouldValidate: true,
+            });
+            setMapFeedback({
+                tone: "success",
+                message: `Mapa centralizado em ${result.label}.`,
+            });
+
+            await requestAddressSuggestion(nextCoordinates, "search");
+        } catch (error) {
+            setMapFeedback({
+                tone: "error",
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Nao foi possivel localizar esse CEP ou cidade.",
+            });
+        }
+    };
+
+    const handleMapLocationCommit = async (
+        coordinates: FarmCoordinates,
+        _source: FarmMapInteractionSource,
+    ) => {
+        await requestAddressSuggestion(roundCoordinates(coordinates), _source);
+    };
 
     const onSubmit = handleSubmit(async (values) => {
         await saveMutation.mutateAsync({
@@ -566,6 +777,91 @@ export function FarmPageClient() {
                             </div>
 
                             <div className="mt-6 space-y-4">
+                                <div className="rounded-[20px] border border-soil/10 bg-cream-dark/35 p-4">
+                                    <div
+                                        aria-label="Buscar localizacao da fazenda no mapa"
+                                        className="flex flex-col gap-3 lg:flex-row lg:items-end"
+                                        role="search"
+                                    >
+                                        <div className="flex-1 space-y-1.5">
+                                            <label
+                                                className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                                                htmlFor="farm-map-search"
+                                            >
+                                                Buscar por CEP ou cidade
+                                            </label>
+                                            <input
+                                                className={baseInputClassName}
+                                                id="farm-map-search"
+                                                onChange={(event) =>
+                                                    setMapSearchQuery(
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                onKeyDown={(event) => {
+                                                    if (event.key !== "Enter") {
+                                                        return;
+                                                    }
+
+                                                    event.preventDefault();
+                                                    void handleMapSearchSubmit();
+                                                }}
+                                                placeholder="Ex: 18150-000 ou Ibiuna"
+                                                value={mapSearchQuery ?? defaultMapSearchQuery}
+                                            />
+                                            <p className="text-xs text-bark/60">
+                                                O mapa faz um voo suave ate a
+                                                regiao encontrada e ajuda a
+                                                sugerir o endereco.
+                                            </p>
+                                        </div>
+
+                                        <Button
+                                            className="justify-center"
+                                            disabled={
+                                                searchLocationMutation.isPending
+                                            }
+                                            onClick={() => {
+                                                void handleMapSearchSubmit();
+                                            }}
+                                            type="button"
+                                        >
+                                            {searchLocationMutation.isPending ? (
+                                                <>
+                                                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                                                    Buscando
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Search className="h-4 w-4" />
+                                                    Encontrar no mapa
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
+
+                                    {mapFeedback ? (
+                                        <div
+                                            aria-live="polite"
+                                            className={`mt-4 flex items-start gap-3 rounded-[16px] border px-4 py-3 text-sm leading-6 ${buildMapFeedbackClassName(
+                                                mapFeedback.tone,
+                                            )}`}
+                                            role={
+                                                mapFeedback.tone === "error"
+                                                    ? "alert"
+                                                    : "status"
+                                            }
+                                        >
+                                            {mapFeedback.tone === "loading" ? (
+                                                <LoaderCircle className="mt-0.5 h-4 w-4 animate-spin shrink-0" />
+                                            ) : (
+                                                <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                                            )}
+                                            <p>{mapFeedback.message}</p>
+                                        </div>
+                                    ) : null}
+                                </div>
+
                                 <Controller
                                     control={control}
                                     name="location"
@@ -573,6 +869,9 @@ export function FarmPageClient() {
                                         <FarmMap
                                             disabled={saveMutation.isPending}
                                             onChange={field.onChange}
+                                            onLocationCommit={
+                                                handleMapLocationCommit
+                                            }
                                             value={field.value}
                                         />
                                     )}

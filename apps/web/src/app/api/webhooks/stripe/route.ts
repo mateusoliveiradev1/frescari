@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { db } from '@frescari/db';
 import { orders, orderItems, productLots, products, masterProducts } from '@frescari/db';
-import { eq, inArray, sql, and } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
+import {
+    buildDeliveryAddressLine,
+    geocodeDeliveryAddress,
+    parseDeliveryPointMetadata,
+    toDeliveryPointGeoJson,
+} from '@frescari/api';
+
+import { resolveAuthorizedOrderStatus } from './resolve-order-status';
 
 // ── Stripe SDK ───────────────────────────────────────────────────────
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '');
@@ -70,12 +78,35 @@ export async function POST(req: NextRequest) {
 
         if (session.metadata?.orderId) {
             try {
+                const targetOrder = await db.query.orders.findFirst({
+                    where: eq(orders.id, session.metadata.orderId),
+                });
+
+                if (!targetOrder) {
+                    throw new Error(`Pedido ${session.metadata.orderId} nao encontrado para atualizacao do webhook.`);
+                }
+
+                const paymentIntentId = typeof session.payment_intent === 'string'
+                    ? session.payment_intent
+                    : session.payment_intent?.id;
+                const nextStatus = resolveAuthorizedOrderStatus(targetOrder.status);
+                const parsedDeliveryPoint = parseDeliveryPointMetadata(
+                    session.metadata.delivery_point ?? session.metadata.deliveryPoint,
+                );
+
                 console.log(`[WEBHOOK] Atualizando pedido existente: ${session.metadata.orderId}`);
                 await db
                     .update(orders)
-                    .set({ status: 'payment_authorized' })
+                    .set({
+                        status: nextStatus,
+                        stripeSessionId: targetOrder.stripeSessionId ?? session.id,
+                        paymentIntentId: paymentIntentId ?? targetOrder.paymentIntentId,
+                        ...(parsedDeliveryPoint && !targetOrder.deliveryPoint
+                            ? { deliveryPoint: toDeliveryPointGeoJson(parsedDeliveryPoint) }
+                            : {}),
+                    })
                     .where(eq(orders.id, session.metadata.orderId));
-                console.log(`[WEBHOOK] Pedido ${session.metadata.orderId} atualizado para payment_authorized`);
+                console.log(`[WEBHOOK] Pedido ${session.metadata.orderId} atualizado para ${nextStatus}`);
             } catch (error) {
                 console.error(`[WEBHOOK ERROR] Falha ao atualizar pedido ${session.metadata.orderId}:`, error);
                 // Policy: Return 200 so Stripe doesn't retry infinitely on DB failure for existing order
@@ -117,6 +148,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const itemsRaw = metadata.items;
     const addressRaw = metadata.address;
     const deliveryFeeStr = metadata.delivery_fee ?? '0';
+    const deliveryPointRaw = metadata.delivery_point ?? metadata.deliveryPoint;
 
     if (!buyerTenantId || !itemsRaw || !addressRaw) {
         throw new Error(
@@ -134,16 +166,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     // ── 2. Parse JSON safely ─────────────────────────────────────────
     let parsedItems: MetadataItem[];
     let parsedAddress: MetadataAddress;
+    const metadataDeliveryPoint = parseDeliveryPointMetadata(deliveryPointRaw);
 
     try {
         parsedItems = JSON.parse(itemsRaw) as MetadataItem[];
-    } catch (e) {
+    } catch {
         throw new Error(`[WEBHOOK] Failed to parse items JSON for session ${session.id}: ${itemsRaw}`);
     }
 
     try {
         parsedAddress = JSON.parse(addressRaw) as MetadataAddress;
-    } catch (e) {
+    } catch {
         throw new Error(`[WEBHOOK] Failed to parse address JSON for session ${session.id}: ${addressRaw}`);
     }
 
@@ -153,6 +186,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     const deliveryFee = parseFloat(deliveryFeeStr);
     console.log(`[WEBHOOK] Itens parseados: ${parsedItems.length} item(ns), deliveryFee=${deliveryFee}`);
+
+    let resolvedDeliveryPoint = metadataDeliveryPoint;
+
+    if (!resolvedDeliveryPoint) {
+        console.warn(
+            `[WEBHOOK] metadata.delivery_point ausente ou invalido para sessao ${session.id}. Aplicando fallback de geocoding.`,
+        );
+        resolvedDeliveryPoint = await geocodeDeliveryAddress(parsedAddress);
+    }
+
+    if (!resolvedDeliveryPoint) {
+        throw new Error(
+            `[WEBHOOK] Nao foi possivel determinar delivery_point para a sessao ${session.id}.`,
+        );
+    }
+
+    const deliveryPoint = toDeliveryPointGeoJson(resolvedDeliveryPoint);
 
     // ── 3. Idempotency guard ─────────────────────────────────────────
     const existingOrder = await db
@@ -192,7 +242,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     console.log(`[WEBHOOK] Lotes encontrados no banco: ${fetchedLots.length}`);
 
     // ── 5. Map items to lot data ─────────────────────────────────────
-    const composedAddress = `${parsedAddress.street}, ${parsedAddress.number} - ${parsedAddress.city}/${parsedAddress.state} - CEP: ${parsedAddress.cep}`;
+    const composedAddress = buildDeliveryAddressLine(parsedAddress);
 
     const itemsWithLotData = parsedItems.map((item) => {
         const lotData = fetchedLots.find((l) => l.lotId === item.lotId);
@@ -259,6 +309,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                     deliveryCity: parsedAddress.city,
                     deliveryState: parsedAddress.state.toUpperCase(),
                     deliveryAddress: composedAddress,
+                    deliveryPoint,
                     deliveryFee: deliveryFee.toFixed(2),
                     totalAmount: orderTotal.toFixed(4),
                 })

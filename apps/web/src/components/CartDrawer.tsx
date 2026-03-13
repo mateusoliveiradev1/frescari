@@ -3,7 +3,8 @@
 import * as React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import Image from 'next/image';
-import { X, Plus, Minus, ShoppingCart, Trash2, Loader2, Scale } from 'lucide-react';
+import { X, Plus, Minus, ShoppingCart, Trash2, Loader2, Scale, CircleHelp } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@frescari/ui';
 import { useCartStore, useCartTotals, selectCartIsOpen, CartStore, CartItem } from '@/store/useCartStore';
 import { trpc } from '@/trpc/react';
 import { toast } from 'sonner';
@@ -30,6 +31,32 @@ const isWeightBasedCartItem = isWeightBasedQuantityItem;
 const getCartQtyStep = getQuantityStep;
 const getCartQtyMin = getQuantityMin;
 const formatCartQtyInput = formatQuantityInput;
+const hasWeightUnitHint = (value?: string | null) =>
+    /(kg|quilo|quilos|g|grama|gramas|peso|weight)/i.test(value ?? '');
+
+type CartInfoTooltipProps = {
+    content: string;
+    label: string;
+};
+
+function CartInfoTooltip({ content, label }: CartInfoTooltipProps) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <button
+                    aria-label={label}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-forest/15 bg-white text-bark/70 transition-colors hover:border-forest/30 hover:text-soil focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest/30"
+                    type="button"
+                >
+                    <CircleHelp className="h-3.5 w-3.5" />
+                </button>
+            </TooltipTrigger>
+            <TooltipContent align="start" className="max-w-[320px]" side="top">
+                <p>{content}</p>
+            </TooltipContent>
+        </Tooltip>
+    );
+}
 
 export function CartDrawer() {
     const isOpen = useCartStore(selectCartIsOpen);
@@ -155,9 +182,15 @@ export function CartDrawer() {
 
     // Delivery fee — MVP fixed value; future: recalculated via distance API
     const DELIVERY_FEE = 8.00;
-    const hasWeightBasedItems = items.some((item) => isWeightBasedCartItem(item));
-    const weightBasedSubtotal = items.reduce(
-        (acc, item) => acc + (isWeightBasedCartItem(item) ? item.finalPrice * item.cartQty : 0),
+    const weightBasedItems = items.filter(
+        (item) =>
+            isWeightBasedCartItem(item)
+            || hasWeightUnitHint(item.saleUnit)
+            || hasWeightUnitHint(item.unit),
+    );
+    const hasWeightBasedItems = weightBasedItems.length > 0;
+    const weightBasedSubtotal = weightBasedItems.reduce(
+        (acc, item) => acc + (item.finalPrice * item.cartQty),
         0
     );
     const estimatedTotal = roundCurrency(subtotal + DELIVERY_FEE);
@@ -229,6 +262,7 @@ export function CartDrawer() {
     if (!isMounted) return null;
 
     return (
+        <TooltipProvider delayDuration={120}>
         <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
             <Dialog.Portal>
                 {/* Backdrop */}
@@ -261,7 +295,7 @@ export function CartDrawer() {
                     </div>
 
                     {/* Content area */}
-                    <div className="flex-1 overflow-y-auto w-full px-4 py-5 sm:p-6">
+                    <div className="cart-drawer-scroll flex-1 overflow-y-auto overscroll-contain w-full px-4 pt-5 pb-8 sm:px-6 sm:pt-6 sm:pb-10">
                         {items.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-70">
                                 <ShoppingCart className="w-16 h-16 text-forest/20" />
@@ -479,34 +513,39 @@ export function CartDrawer() {
                                     </div>
                                 </div>
 
-                                {hasWeightBasedItems && (
-                                    <div className="rounded-[24px] border border-forest/10 bg-sage/20 p-4 shadow-[0_10px_24px_rgba(27,67,50,0.05)]">
-                                        <div className="flex items-start gap-3">
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-forest text-cream">
-                                                <Scale className="h-4 w-4" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-xs font-bold uppercase tracking-wider text-soil">{"Aviso de Pesagem"}</p>
-                                                <p className="mt-1 text-sm font-semibold leading-6 text-soil">
-                                                    {"Itens por peso podem sofrer pequena varia\u00E7\u00E3o."}
-                                                </p>
-                                                <p className="mt-2 text-sm leading-6 text-bark">
-                                                    {"O seu cart\u00E3o ir\u00E1 pr\u00E9-autorizar uma margem de 10% a mais, mas voc\u00EA s\u00F3 pagar\u00E1 pelo peso exato que for separado pelo produtor."}
-                                                </p>
-                                                <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark">
-                                                    <span className="rounded-full border border-forest/10 bg-white px-3 py-1.5">
-                                                        {`Estimativa atual: ${formatCurrency(estimatedTotal)}`}
-                                                    </span>
-                                                    <span className="rounded-full border border-forest/10 bg-white px-3 py-1.5">
-                                                        {`Pr\u00E9-autoriza\u00E7\u00E3o m\u00E1xima: ${formatCurrency(estimatedPreAuthorizationTotal)}`}
-                                                    </span>
+                                <div className="rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_10px_24px_rgba(27,67,50,0.05)]">
+                                    {hasWeightBasedItems && (
+                                        <div className="mb-4 rounded-[20px] border border-forest/10 bg-sage/20 p-3.5">
+                                            <div className="flex items-start gap-3">
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-forest text-cream">
+                                                    <Scale className="h-4 w-4" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <p className="text-sm font-semibold text-soil">
+                                                            Compra por peso com transparencia
+                                                        </p>
+                                                        <CartInfoTooltip
+                                                            content="Produtos vendidos por peso podem variar um pouco na separacao. O checkout reserva ate 10% acima da estimativa, mas a cobranca final considera apenas o peso exato separado pelo produtor."
+                                                            label="Entenda como funciona a compra por peso"
+                                                        />
+                                                    </div>
+                                                    <p className="mt-1 text-xs leading-5 text-bark/80">
+                                                        O total abaixo continua estimado ate a pesagem final.
+                                                    </p>
+                                                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark">
+                                                        <span className="rounded-full border border-forest/10 bg-white px-3 py-1.5">
+                                                            {`Estimativa atual: ${formatCurrency(estimatedTotal)}`}
+                                                        </span>
+                                                        <span className="rounded-full border border-forest/10 bg-white px-3 py-1.5">
+                                                            {`Limite maximo reservado: ${formatCurrency(estimatedPreAuthorizationTotal)}`}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                <div className="rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_10px_24px_rgba(27,67,50,0.05)]">
                                     <div className="space-y-3">
                                         {savings > 0 && (
                                             <div className="flex items-center justify-between text-sm font-medium text-ember">
@@ -515,7 +554,15 @@ export function CartDrawer() {
                                             </div>
                                         )}
                                         <div className="flex items-center justify-between gap-3 text-sm text-bark">
-                                            <span>{hasWeightBasedItems ? 'Subtotal estimado dos itens' : 'Subtotal dos itens'}</span>
+                                            <span className="flex items-center gap-2">
+                                                {hasWeightBasedItems ? 'Subtotal estimado dos itens' : 'Subtotal dos itens'}
+                                                {hasWeightBasedItems && (
+                                                    <CartInfoTooltip
+                                                        content="Para itens por peso, este subtotal usa a quantidade informada no carrinho como estimativa inicial. O valor pode subir ou descer um pouco depois da pesagem exata."
+                                                        label="Entenda o subtotal estimado dos itens por peso"
+                                                    />
+                                                )}
+                                            </span>
                                             <span className="font-medium text-soil">{formatCurrency(subtotal)}</span>
                                         </div>
                                         <div className="flex items-center justify-between gap-3 text-sm text-bark">
@@ -524,7 +571,13 @@ export function CartDrawer() {
                                         </div>
                                         {hasWeightBasedItems && (
                                             <div className="flex items-center justify-between gap-3 text-sm text-bark">
-                                                <span>{"Margem de pr\u00E9-autoriza\u00E7\u00E3o (10%)"}</span>
+                                                <span className="flex items-center gap-2">
+                                                    Margem de pre-autorizacao (10%)
+                                                    <CartInfoTooltip
+                                                        content="Essa margem serve apenas para garantir a aprovacao do pagamento caso o peso real fique um pouco acima da estimativa. Se ela nao for usada, nao entra na cobranca final."
+                                                        label="Entenda a margem de pre-autorizacao de dez por cento"
+                                                    />
+                                                </span>
                                                 <span className="font-medium text-soil">{formatCurrency(authorizationBuffer)}</span>
                                             </div>
                                         )}
@@ -538,7 +591,7 @@ export function CartDrawer() {
                                                 </p>
                                                 {hasWeightBasedItems && (
                                                     <p className="mt-1 text-[11px] leading-5 text-bark/70">
-                                                        {"O valor final ser\u00E1 confirmado ap\u00F3s a pesagem exata dos itens."}
+                                                        O valor final sera confirmado apos a pesagem exata dos itens.
                                                     </p>
                                                 )}
                                             </div>
@@ -707,7 +760,14 @@ export function CartDrawer() {
                                     className="relative flex-1 rounded-xl bg-forest px-4 py-3 font-bold text-cream shadow-md transition-colors hover:-translate-y-[1px] hover:bg-forest/90 hover:shadow-lg active:translate-y-0 disabled:pointer-events-none disabled:opacity-50"
                                 >
                                     <span className="flex items-center justify-center gap-2">
-                                        {createCheckout.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Ir para Pagamento"}
+                                        {createCheckout.isPending ? (
+                                            <>
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                                Validando endereco...
+                                            </>
+                                        ) : (
+                                            "Ir para Pagamento"
+                                        )}
                                     </span>
                                 </button>
                             </div>
@@ -716,5 +776,6 @@ export function CartDrawer() {
                 </Dialog.Content>
             </Dialog.Portal>
         </Dialog.Root>
+        </TooltipProvider>
     );
 }
