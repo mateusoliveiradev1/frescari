@@ -191,6 +191,13 @@ export const checkoutOrderSchema = z.object({
     deliveryGeo: z.tuple([z.number(), z.number()]).optional(),
 });
 
+export const calculateFreightSchema = z
+    .object({
+        farmId: z.string().uuid(),
+        addressId: z.string().uuid(),
+    })
+    .strict();
+
 export const loginSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
