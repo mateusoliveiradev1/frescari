@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { Button } from "@frescari/ui";
+import { Button, Skeleton, SkeletonText } from "@frescari/ui";
 import type { FarmAddress } from "@frescari/db";
 import { LoaderCircle, MapPin, Route, Save, Search, Tractor } from "lucide-react";
 import Link from "next/link";
@@ -192,6 +192,80 @@ function SummaryItem({
     );
 }
 
+function FarmPageSkeleton() {
+    return (
+        <div className="space-y-8">
+            <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                <div className="space-y-3">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-12 w-64" />
+                    <SkeletonText className="max-w-3xl" lines={2} />
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                    <Skeleton className="h-11 w-40" />
+                    <Skeleton className="h-11 w-44" />
+                </div>
+            </header>
+
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_360px]">
+                <div className="space-y-6">
+                    <section className="rounded-[28px_18px_24px_18px] border border-soil/8 bg-cream p-6 shadow-card">
+                        <SkeletonText className="max-w-sm" lines={2} />
+                        <div className="mt-6 grid gap-5 md:grid-cols-2">
+                            <Skeleton className="h-11 md:col-span-2" />
+                        </div>
+                    </section>
+
+                    <section className="rounded-[24px_16px_22px_20px] border border-soil/8 bg-cream p-6 shadow-card">
+                        <SkeletonText className="max-w-md" lines={2} />
+                        <div className="mt-6 grid gap-5 md:grid-cols-6">
+                            <Skeleton className="h-11 md:col-span-4" />
+                            <Skeleton className="h-11 md:col-span-2" />
+                            <Skeleton className="h-11 md:col-span-3" />
+                            <Skeleton className="h-11 md:col-span-3" />
+                            <Skeleton className="h-11 md:col-span-2" />
+                            <Skeleton className="h-11 md:col-span-2" />
+                            <Skeleton className="h-11 md:col-span-2" />
+                            <Skeleton className="h-11 md:col-span-6" />
+                        </div>
+                    </section>
+
+                    <section className="rounded-[24px_18px_22px_18px] border border-soil/8 bg-cream p-6 shadow-card">
+                        <SkeletonText className="max-w-lg" lines={2} />
+                        <div className="mt-6 space-y-4">
+                            <div className="rounded-[20px] border border-soil/10 bg-cream-dark/35 p-4">
+                                <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+                                    <div className="flex-1 space-y-2">
+                                        <Skeleton className="h-3 w-40" />
+                                        <Skeleton className="h-11 w-full" />
+                                    </div>
+                                    <Skeleton className="h-11 w-48" />
+                                </div>
+                            </div>
+                            <Skeleton className="h-[440px] rounded-[24px]" />
+                            <div className="grid gap-4 rounded-[18px] border border-soil/10 bg-cream-dark/35 p-4 md:grid-cols-2">
+                                <Skeleton className="h-20" />
+                                <Skeleton className="h-20" />
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <aside className="space-y-6">
+                    <section className="rounded-[18px_24px_18px_22px] border border-soil/8 bg-cream p-6 shadow-card">
+                        <SkeletonText className="max-w-xs" lines={2} />
+                        <div className="mt-6 space-y-3">
+                            <Skeleton className="h-20" />
+                            <Skeleton className="h-20" />
+                        </div>
+                    </section>
+                </aside>
+            </div>
+        </div>
+    );
+}
+
 export function FarmPageClient() {
     const utils = trpc.useUtils();
     const reverseLookupSequenceRef = useRef(0);
@@ -203,6 +277,7 @@ export function FarmPageClient() {
     const currentFarmQuery = trpc.farm.getCurrent.useQuery(undefined, {
         refetchOnWindowFocus: false,
     });
+    const isInitialLoading = currentFarmQuery.isLoading && !currentFarmQuery.data;
 
     const saveMutation = trpc.farm.saveLocation.useMutation({
         onSuccess(data) {
@@ -441,6 +516,15 @@ export function FarmPageClient() {
           ? "Cadastro encontrado"
           : "Primeiro cadastro";
 
+    if (isInitialLoading) {
+        return (
+            <>
+                <Toaster position="bottom-right" richColors />
+                <FarmPageSkeleton />
+            </>
+        );
+    }
+
     return (
         <>
             <Toaster position="bottom-right" richColors />
@@ -468,21 +552,12 @@ export function FarmPageClient() {
                         </Button>
                         <Button
                             className="justify-center"
-                            disabled={saveMutation.isPending}
                             form="farm-form"
+                            isPending={saveMutation.isPending}
                             type="submit"
                         >
-                            {saveMutation.isPending ? (
-                                <>
-                                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                                    Salvando
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="h-4 w-4" />
-                                    Salvar fazenda
-                                </>
-                            )}
+                            <Save className="h-4 w-4" />
+                            Salvar fazenda
                         </Button>
                     </div>
                 </header>
@@ -818,25 +893,14 @@ export function FarmPageClient() {
 
                                         <Button
                                             className="justify-center"
-                                            disabled={
-                                                searchLocationMutation.isPending
-                                            }
+                                            isPending={searchLocationMutation.isPending}
                                             onClick={() => {
                                                 void handleMapSearchSubmit();
                                             }}
                                             type="button"
                                         >
-                                            {searchLocationMutation.isPending ? (
-                                                <>
-                                                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                                                    Buscando
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Search className="h-4 w-4" />
-                                                    Encontrar no mapa
-                                                </>
-                                            )}
+                                            <Search className="h-4 w-4" />
+                                            Encontrar no mapa
                                         </Button>
                                     </div>
 

@@ -5,6 +5,7 @@ export * from './components/Badge';
 export * from './components/Carousel';
 export * from './components/ProductCard';
 export * from './components/ProductCardSkeleton';
+export * from './components/Skeleton';
 export * from './components/Table';
 export * from './components/Dialog';
 export * from './components/DropdownMenu';

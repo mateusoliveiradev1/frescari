@@ -1,83 +1,72 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { trpc } from "@/trpc/react";
+import { useState } from "react";
+import Image from "next/image";
+
 import { Button } from "@frescari/ui";
-import { useRouter } from "next/navigation";
-import { Toaster, toast } from "sonner";
-import { UploadButton, UploadDropzone } from "@/lib/uploadthing";
+import { toast } from "sonner";
+
+import { UploadButton } from "@/lib/uploadthing";
+import { trpc } from "@/trpc/react";
+
+type InventoryLotSeed = {
+    id?: string;
+    productId?: string | null;
+    productName?: string | null;
+    availableQty?: number | string | null;
+    priceOverride?: number | string | null;
+    expiryDate?: string | Date | null;
+    harvestDate?: string | Date | null;
+    unit?: string | null;
+    imageUrl?: string | null;
+};
+
+type InventorySubmission = {
+    availableQty: number;
+    priceOverride: number;
+    harvestDate: string;
+    expiryDate: string;
+    productId: string;
+};
+
+const formatForDateInput = (value: string | Date | null | undefined) => {
+    if (!value) {
+        return "";
+    }
+
+    const date = new Date(value);
+    return date.toISOString().split("T")[0] ?? "";
+};
 
 export function InventoryForm({
     onSuccess,
-    initialData
+    initialData,
 }: {
-    onSuccess?: () => void,
-    initialData?: any
+    onSuccess?: () => void;
+    initialData?: InventoryLotSeed;
 }) {
-    // Form state
-    const [productId, setProductId] = useState("");
-    const [qty, setQty] = useState("");
-    const [price, setPrice] = useState("");
-    const [expiryDate, setExpiryDate] = useState("");
-    const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split("T")[0]);
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
-    const [unit, setUnit] = useState("un");
-    const [isUploading, setIsUploading] = useState(false);
-
-    // Sync initialData
-    useEffect(() => {
-        if (initialData) {
-            setProductId(initialData.productName || "");
-            setSelectedMasterId(initialData.productId || "");
-            setQty(initialData.availableQty?.toString() || "");
-            setPrice(initialData.priceOverride?.toString() || "");
-            // Handle date conversion to YYYY-MM-DD for input[type="date"], forcing UTC to avoid timezone shift
-            const formatForInput = (d: any) => {
-                if (!d) return "";
-                const date = new Date(d);
-                return date.toISOString().split("T")[0];
-            };
-            setExpiryDate(formatForInput(initialData.expiryDate));
-            setHarvestDate(formatForInput(initialData.harvestDate));
-            setUnit(initialData.unit || "un");
-            setImageUrl(initialData.imageUrl || null);
-        }
-    }, [initialData]);
-
-    // Queries & Mutations
-    const { data: masterProducts, isLoading: loadingMaster } = trpc.product.searchMasterProducts.useQuery(
-        { query: productId },
-        { enabled: productId.length > 1 }
+    const [productId, setProductId] = useState(() => initialData?.productName ?? "");
+    const [qty, setQty] = useState(() => String(initialData?.availableQty ?? ""));
+    const [price, setPrice] = useState(() => String(initialData?.priceOverride ?? ""));
+    const [expiryDate, setExpiryDate] = useState(() => formatForDateInput(initialData?.expiryDate));
+    const [harvestDate, setHarvestDate] = useState(
+        () => formatForDateInput(initialData?.harvestDate)
+            || new Date().toISOString().split("T")[0]
+            || "",
     );
+    const [imageUrl, setImageUrl] = useState<string | null>(() => initialData?.imageUrl ?? null);
+    const [unit, setUnit] = useState(() => initialData?.unit ?? "un");
+    const [isUploading, setIsUploading] = useState(false);
     const [isComboboxOpen, setIsComboboxOpen] = useState(false);
-    const [selectedMasterId, setSelectedMasterId] = useState("");
+    const [selectedMasterId, setSelectedMasterId] = useState(() => initialData?.productId ?? "");
 
+    const { data: masterProducts, isLoading: loadingMaster } =
+        trpc.product.searchMasterProducts.useQuery(
+            { query: productId },
+            { enabled: productId.length > 1 },
+        );
 
     const utils = trpc.useUtils();
-
-    // @ts-ignore
-    const createLot = trpc.lot.create.useMutation({
-        onSuccess: () => {
-            toast.success("Lote registrado com sucesso! 🌿", {
-                description: "O novo lote já está disponível no catálogo.",
-            });
-            handlePostSuccess();
-        },
-        onError: (err: any) => {
-            toast.error(err.message || "Erro ao registrar o lote.");
-        }
-    });
-
-    // @ts-ignore
-    const updateLot = trpc.lot.update.useMutation({
-        onSuccess: () => {
-            toast.success("Lote atualizado com sucesso! 🌿");
-            handlePostSuccess();
-        },
-        onError: (err: any) => {
-            toast.error(err.message || "Erro ao atualizar o lote.");
-        }
-    });
 
     const handlePostSuccess = () => {
         setQty("");
@@ -87,19 +76,39 @@ export function InventoryForm({
         setImageUrl(null);
         setSelectedMasterId("");
 
-        // CRITICAL: Invalidate dashboard queries so metrics update instantly
-        utils.lot.getDashboardMetrics.invalidate();
-        utils.lot.getRecentLots.invalidate();
-        utils.lot.getByProducer.invalidate();
-        utils.lot.invalidate();
+        void utils.lot.getDashboardMetrics.invalidate();
+        void utils.lot.getRecentLots.invalidate();
+        void utils.lot.getByProducer.invalidate();
+        void utils.lot.invalidate();
 
-        if (onSuccess) {
-            onSuccess();
-        }
+        onSuccess?.();
     };
 
-    const handleCreate = (formData: any) => {
+    const createLot = trpc.lot.create.useMutation({
+        onSuccess: () => {
+            toast.success("Lote registrado com sucesso!", {
+                description: "O novo lote ja esta disponivel no catalogo.",
+            });
+            handlePostSuccess();
+        },
+        onError: (error) => {
+            toast.error(error.message || "Erro ao registrar o lote.");
+        },
+    });
+
+    const updateLot = trpc.lot.update.useMutation({
+        onSuccess: () => {
+            toast.success("Lote atualizado com sucesso!");
+            handlePostSuccess();
+        },
+        onError: (error) => {
+            toast.error(error.message || "Erro ao atualizar o lote.");
+        },
+    });
+
+    const handleCreate = (formData: InventorySubmission) => {
         const lotCode = `LOT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
         createLot.mutate({
             productId: formData.productId,
             lotCode,
@@ -112,13 +121,15 @@ export function InventoryForm({
         });
     };
 
-    const handleUpdate = (formData: any) => {
-        if (!initialData?.id) return;
+    const handleUpdate = (formData: InventorySubmission) => {
+        if (!initialData?.id) {
+            return;
+        }
 
         updateLot.mutate({
             id: initialData.id,
-            availableQty: Number(formData.availableQty),
-            priceOverride: Number(formData.priceOverride),
+            availableQty: formData.availableQty,
+            priceOverride: formData.priceOverride,
             harvestDate: formData.harvestDate,
             expiryDate: formData.expiryDate,
             unit,
@@ -126,16 +137,16 @@ export function InventoryForm({
         });
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
 
         if (!productId || !qty || !expiryDate || !harvestDate || !price) {
-            toast.error("Preencha todos os campos obrigatórios.");
+            toast.error("Preencha todos os campos obrigatorios.");
             return;
         }
 
         if (!selectedMasterId) {
-            toast.error("Selecione um produto do Catálogo Mestre.");
+            toast.error("Selecione um produto do Catalogo Mestre.");
             return;
         }
 
@@ -144,13 +155,13 @@ export function InventoryForm({
             return;
         }
 
-        const parsedPrice = parseFloat(price.replace(",", "."));
-        if (isNaN(parsedPrice) || parsedPrice < 0) {
-            toast.error("Por favor, insira um preço válido.");
+        const parsedPrice = Number(price.replace(",", "."));
+        if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
+            toast.error("Por favor, insira um preco valido.");
             return;
         }
 
-        const formData = {
+        const formData: InventorySubmission = {
             availableQty: Number(qty),
             priceOverride: parsedPrice,
             harvestDate,
@@ -160,33 +171,43 @@ export function InventoryForm({
 
         if (initialData?.id) {
             handleUpdate(formData);
-        } else {
-            handleCreate(formData);
+            return;
         }
+
+        handleCreate(formData);
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
-            {/* ── Image Upload ── */}
+        <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-1.5">
                 <label className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
                     Foto do Lote
                 </label>
                 {imageUrl ? (
-                    <div className="relative group">
-                        <img
+                    <div className="relative group h-48">
+                        <Image
                             src={imageUrl}
                             alt="Foto do lote"
-                            className="w-full h-48 object-cover rounded-sm border border-forest/20"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 672px"
+                            className="rounded-sm border border-forest/20 object-cover"
+                            unoptimized
                         />
                         <button
-                            type="button"
-                            onClick={() => setImageUrl(null)}
-                            className="absolute inset-0 flex items-center justify-center bg-black/50 text-white rounded-sm opacity-0 group-hover:opacity-100 transition-opacity font-sans text-sm font-bold uppercase tracking-wider backdrop-blur-sm border-2 border-transparent hover:border-white/50"
                             aria-label="Trocar imagem"
+                            className="absolute inset-0 flex items-center justify-center rounded-sm border-2 border-transparent bg-black/50 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 hover:border-white/50"
+                            onClick={() => setImageUrl(null)}
+                            type="button"
                         >
-                            <span className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 font-sans text-sm font-bold uppercase tracking-wider">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                >
                                     <path d="M21 2v6h-6" />
                                     <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
                                     <path d="M3 22v-6h6" />
@@ -195,28 +216,25 @@ export function InventoryForm({
                                 Trocar Imagem
                             </span>
                         </button>
-                        <div className="absolute bottom-2 left-2 px-2 py-1 bg-forest/90 text-cream text-[10px] font-bold uppercase tracking-wider rounded-sm">
-                            ✓ Foto de Catálogo ou Carregada
+                        <div className="absolute bottom-2 left-2 rounded-sm bg-forest/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-cream">
+                            Foto de catalogo ou carregada
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-soil/15 bg-cream hover:bg-sage/5 rounded-sm transition-colors">
+                    <div className="flex flex-col items-center justify-center rounded-sm border-2 border-dashed border-soil/15 bg-cream p-8 transition-colors hover:bg-sage/5">
                         <UploadButton
                             endpoint="lotImage"
                             onUploadBegin={() => {
-                                console.log('[UPLOADTHING] Upload iniciado');
                                 setIsUploading(true);
                             }}
-                            onClientUploadComplete={(res) => {
-                                console.log('[UPLOADTHING] Upload finalizado:', res);
-                                if (res?.[0]) {
-                                    setImageUrl(res[0].url);
-                                    toast.success('Imagem carregada com sucesso! 📸');
+                            onClientUploadComplete={(result) => {
+                                if (result?.[0]) {
+                                    setImageUrl(result[0].url);
+                                    toast.success("Imagem carregada com sucesso!");
                                 }
                                 setIsUploading(false);
                             }}
                             onUploadError={(error: Error) => {
-                                console.error('[UPLOADTHING_ERROR]', error);
                                 alert(`Erro no upload: ${error.message}`);
                                 toast.error(`Erro no upload: ${error.message}`);
                                 setIsUploading(false);
@@ -227,108 +245,124 @@ export function InventoryForm({
                             }}
                             content={{
                                 button: "Selecionar Foto",
-                                allowedContent: "Imagens até 8MB (JPG, PNG, WebP)",
+                                allowedContent: "Imagens ate 8MB (JPG, PNG, WebP)",
                             }}
                         />
-                        <p className="text-[10px] text-bark/40 mt-4 text-center font-sans">
-                            Dica: Use fotos bem iluminadas do produto real.
+                        <p className="mt-4 text-center font-sans text-[10px] text-bark/40">
+                            Dica: use fotos bem iluminadas do produto real.
                         </p>
                     </div>
                 )}
             </div>
 
-            {/* ── Product Combobox ── */}
-            <div className="space-y-1.5 relative">
-                <label htmlFor="product" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
-                    Produto (Catálogo Mestre)
+            <div className="relative space-y-1.5">
+                <label
+                    htmlFor="product"
+                    className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                >
+                    Produto (Catalogo Mestre)
                 </label>
                 <input
-                    type="text"
+                    autoComplete="off"
+                    className="w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
+                    disabled={createLot.isPending || updateLot.isPending || Boolean(initialData)}
                     id="product"
-                    value={productId}
-                    onChange={(e) => {
-                        setProductId(e.target.value);
+                    onBlur={() => setTimeout(() => setIsComboboxOpen(false), 200)}
+                    onChange={(event) => {
+                        setProductId(event.target.value);
                         setIsComboboxOpen(true);
-                        if (selectedMasterId) setSelectedMasterId("");
+
+                        if (selectedMasterId) {
+                            setSelectedMasterId("");
+                        }
                     }}
                     onFocus={() => setIsComboboxOpen(true)}
-                    onBlur={() => setTimeout(() => setIsComboboxOpen(false), 200)} // Delay for click
                     placeholder="Busque por Tomate, Banana, Cebola..."
-                    className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                    disabled={createLot.isPending || updateLot.isPending || !!initialData}
                     required
-                    autoComplete="off"
+                    type="text"
+                    value={productId}
                 />
 
                 {isComboboxOpen && (masterProducts?.length || loadingMaster) ? (
-                    <div className="absolute z-10 w-full mt-1 bg-cream border border-soil/15 rounded-sm shadow-card max-h-60 overflow-y-auto">
+                    <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-soil/15 bg-cream shadow-card">
                         {loadingMaster ? (
-                            <div className="p-3 text-xs text-bark/60">Buscando no catálogo...</div>
+                            <div className="p-3 text-xs text-bark/60">Buscando no catalogo...</div>
                         ) : masterProducts?.length ? (
                             <ul>
-                                {masterProducts.map((p: any) => (
+                                {masterProducts.map((product) => (
                                     <li
-                                        key={p.id}
+                                        className="flex cursor-pointer items-center justify-between px-4 py-2 font-sans text-sm hover:bg-sage/40"
+                                        key={product.id}
                                         onClick={() => {
-                                            setProductId(p.name);
-                                            setSelectedMasterId(p.id);
-                                            if (p.defaultImageUrl && !imageUrl) {
-                                                setImageUrl(p.defaultImageUrl);
+                                            setProductId(product.name);
+                                            setSelectedMasterId(product.id);
+
+                                            if (product.defaultImageUrl && !imageUrl) {
+                                                setImageUrl(product.defaultImageUrl);
                                             }
+
                                             setIsComboboxOpen(false);
                                         }}
-                                        className="px-4 py-2 hover:bg-sage/40 cursor-pointer font-sans text-sm flex items-center justify-between"
                                     >
-                                        <span className="font-bold text-soil">{p.name}</span>
-                                        <span className="text-xs text-bark/60 bg-soil/5 px-2 py-0.5 rounded-full">{p.category}</span>
+                                        <span className="font-bold text-soil">{product.name}</span>
+                                        <span className="rounded-full bg-soil/5 px-2 py-0.5 text-xs text-bark/60">
+                                            {product.category}
+                                        </span>
                                     </li>
                                 ))}
                             </ul>
                         ) : (
-                            <div className="p-3 text-xs text-bark/60">Nenhum produto encontrado no catálogo mestre.</div>
+                            <div className="p-3 text-xs text-bark/60">
+                                Nenhum produto encontrado no catalogo mestre.
+                            </div>
                         )}
                     </div>
                 ) : null}
             </div>
 
-            {/* ── Quantity and Unit ── */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                    <label htmlFor="qty" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
-                        Quantidade Disponível
+                    <label
+                        htmlFor="qty"
+                        className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                    >
+                        Quantidade Disponivel
                     </label>
                     <input
-                        id="qty"
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={qty}
-                        onChange={(e) => setQty(e.target.value)}
-                        placeholder="Ex: 50.5"
-                        className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
+                        className="w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
                         disabled={createLot.isPending || updateLot.isPending}
+                        id="qty"
+                        min="0.01"
+                        onChange={(event) => setQty(event.target.value)}
+                        placeholder="Ex: 50.5"
                         required
+                        step="0.01"
+                        type="number"
+                        value={qty}
                     />
                 </div>
                 <div className="space-y-1.5">
-                    <label htmlFor="unit" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
+                    <label
+                        htmlFor="unit"
+                        className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                    >
                         Unidade
                     </label>
                     <div className="relative">
                         <select
-                            id="unit"
-                            value={unit}
-                            onChange={(e) => setUnit(e.target.value)}
-                            className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15 appearance-none cursor-pointer"
+                            className="w-full appearance-none cursor-pointer rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
                             disabled={createLot.isPending || updateLot.isPending}
+                            id="unit"
+                            onChange={(event) => setUnit(event.target.value)}
                             required
+                            value={unit}
                         >
                             <option value="kg">Quilogramas (kg)</option>
                             <option value="un">Unidades (un)</option>
                             <option value="cx">Caixas (cx)</option>
-                            <option value="maço">Maços (maço)</option>
+                            <option value="maco">Macos (maco)</option>
                         </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-bark/40">
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-bark/40">
                             <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
                                 <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                             </svg>
@@ -337,79 +371,72 @@ export function InventoryForm({
                 </div>
             </div>
 
-            {/* ── Price ── */}
             <div className="space-y-1.5">
-                <label htmlFor="price" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
-                    Preço (R$)
+                <label
+                    htmlFor="price"
+                    className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                >
+                    Preco (R$)
                 </label>
                 <input
-                    id="price"
-                    type="text"
-                    placeholder="Ex: 15,90"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
+                    className="w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
                     disabled={createLot.isPending || updateLot.isPending}
+                    id="price"
+                    onChange={(event) => setPrice(event.target.value)}
+                    placeholder="Ex: 15,90"
                     required
+                    type="text"
+                    value={price}
                 />
             </div>
+
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                    <label htmlFor="harvestDate" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
+                    <label
+                        htmlFor="harvestDate"
+                        className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                    >
                         Data de Colheita
                     </label>
                     <input
+                        className="w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
+                        disabled={createLot.isPending || updateLot.isPending}
                         id="harvestDate"
+                        onChange={(event) => setHarvestDate(event.target.value)}
+                        required
                         type="date"
                         value={harvestDate}
-                        onChange={(e) => setHarvestDate(e.target.value)}
-                        className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                        disabled={createLot.isPending || updateLot.isPending}
-                        required
                     />
                 </div>
 
                 <div className="space-y-1.5">
-                    <label htmlFor="expiryDate" className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark">
+                    <label
+                        htmlFor="expiryDate"
+                        className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                    >
                         Data de Validade
                     </label>
                     <input
+                        className="w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
+                        disabled={createLot.isPending || updateLot.isPending}
                         id="expiryDate"
+                        onChange={(event) => setExpiryDate(event.target.value)}
+                        required
                         type="date"
                         value={expiryDate}
-                        onChange={(e) => setExpiryDate(e.target.value)}
-                        className="w-full px-4 py-3 rounded-sm bg-cream border border-soil/15 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                        disabled={createLot.isPending || updateLot.isPending}
-                        required
                     />
                 </div>
             </div>
 
             <Button
+                className="w-full"
+                disabled={!selectedMasterId || !imageUrl || isUploading || !price}
+                isPending={createLot.isPending || updateLot.isPending}
                 type="submit"
                 variant="primary"
-                className="w-full"
-                disabled={createLot.isPending || updateLot.isPending || !selectedMasterId || !imageUrl || isUploading || !price}
             >
-                {createLot.isPending || updateLot.isPending ? (
-                    <span className="flex items-center justify-center gap-2">
-                        <svg
-                            className="animate-spin h-4 w-4 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                        >
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                        </svg>
-                        Salvando...
-                    </span>
-                ) : (
-                    initialData?.id ? "Salvar Alterações" : "Registrar Lote"
-                )}
+                {initialData?.id ? "Salvar Alteracoes" : "Registrar Lote"}
             </Button>
         </form>
     );
 }
-

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatCurrencyBRL } from "@frescari/ui";
 
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
 import { getCategoryPageData, getCategoryStaticParams } from "@/lib/catalog-public";
@@ -13,13 +14,6 @@ type CategoryPageProps = {
     categoria: string;
   }>;
 };
-
-function formatPrice(value: number): string {
-  return value.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
 
 export async function generateStaticParams(): Promise<Array<{ categoria: string }>> {
   return getCategoryStaticParams();
@@ -118,7 +112,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                   Melhor preço
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-forest">
-                  {formatPrice(
+                  {formatCurrencyBRL(
                     Math.min(...data.products.map((product) => product.lowestPrice)),
                   )}
                 </p>
@@ -164,7 +158,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                       A partir de
                     </p>
                     <p className="mt-1 text-xl font-semibold text-forest">
-                      {formatPrice(product.lowestPrice)}/{product.saleUnit}
+                      {formatCurrencyBRL(product.lowestPrice)}/{product.saleUnit}
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-soil">

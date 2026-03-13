@@ -69,7 +69,6 @@ export function ProductCard({
     priceOverride,
     availableQty,
     status = 'fresco',
-    isLastChance: propsLastChance,
     saleUnit = "unit",
     unit,
     farmName,
@@ -199,7 +198,7 @@ export function ProductCard({
                 </p>
 
                 <button
-                    className="text-left group/title"
+                    className="min-h-[44px] min-w-[44px] text-left group/title"
                     onClick={onOpenDetails}
                     type="button"
                 >

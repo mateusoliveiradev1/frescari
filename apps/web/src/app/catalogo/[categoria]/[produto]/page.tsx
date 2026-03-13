@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatCurrencyBRL } from "@frescari/ui";
 
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
 import {
@@ -18,13 +19,6 @@ type ProductPageProps = {
     produto: string;
   }>;
 };
-
-function formatPrice(value: number): string {
-  return value.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
 
 export async function generateStaticParams(): Promise<
   Array<{ categoria: string; produto: string }>
@@ -187,10 +181,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 Faixa de preço
               </p>
               <p className="mt-2 font-display text-4xl font-black text-soil">
-                {formatPrice(data.product.lowestPrice)}
+                {formatCurrencyBRL(data.product.lowestPrice)}
               </p>
               <p className="mt-1 text-sm text-bark/70">
-                até {formatPrice(data.product.highestPrice)}/{data.product.saleUnit}
+                até {formatCurrencyBRL(data.product.highestPrice)}/{data.product.saleUnit}
               </p>
             </div>
 

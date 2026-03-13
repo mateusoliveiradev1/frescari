@@ -11,8 +11,8 @@ function Skeleton({ className }: { className?: string }) {
     return <div className={`animate-pulse bg-soil/10 rounded-sm ${className}`} />;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default function DashboardClient({ user }: { user: any }) {
+export default function DashboardClient({ user }: { user: unknown }) {
+    void user;
 
     const { data: metrics, isLoading: isMetricsLoading } = trpc.lot.getDashboardMetrics.useQuery();
     const { data: recentLots, isLoading: isLotsLoading } = trpc.lot.getRecentLots.useQuery();

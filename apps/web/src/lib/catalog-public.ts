@@ -7,6 +7,7 @@ import {
   productLots,
   products,
 } from "@frescari/db";
+import { formatCurrencyBRL } from "@frescari/ui";
 
 import {
   buildCategoryPath,
@@ -343,10 +344,7 @@ export function buildProductDescription(
   const unit = lots[0]?.unit || lots[0]?.saleUnit || "un";
 
   return sanitizeText(
-    `${productName} na categoria ${categoryName} com ${lots.length} oferta${lots.length === 1 ? "" : "s"} ativa${lots.length === 1 ? "" : "s"} a partir de ${lowestPrice.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    })}/${unit} em ${farmsCount} produtor${farmsCount === 1 ? "" : "es"} da Frescari.`,
+    `${productName} na categoria ${categoryName} com ${lots.length} oferta${lots.length === 1 ? "" : "s"} ativa${lots.length === 1 ? "" : "s"} a partir de ${formatCurrencyBRL(lowestPrice)}/${unit} em ${farmsCount} produtor${farmsCount === 1 ? "" : "es"} da Frescari.`,
     160,
   );
 }

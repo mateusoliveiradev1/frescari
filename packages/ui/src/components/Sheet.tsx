@@ -65,7 +65,10 @@ const SheetContent = React.forwardRef<
             {...props}
         >
             {children}
-            <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-cream transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-cream/50">
+            <DialogPrimitive.Close
+                aria-label="Close sheet"
+                className="absolute right-4 top-4 inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-sm opacity-70 ring-offset-cream transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-forest focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-cream/50"
+            >
                 <X className="h-5 w-5 text-soil" />
                 <span className="sr-only">Close</span>
             </DialogPrimitive.Close>

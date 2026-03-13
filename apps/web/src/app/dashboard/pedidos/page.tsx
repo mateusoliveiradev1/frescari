@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button, Badge } from "@frescari/ui";
+import { Button, formatCurrencyBRL } from "@frescari/ui";
 import { Calendar, Store, RotateCw, X, ShoppingBag, PackageOpen, LayoutGrid, ChevronRight } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Toaster, toast } from "sonner";
@@ -86,17 +86,16 @@ export default function PedidosPage() {
 
     const utils = trpc.useUtils();
 
-    // Casting as any because the trpc package hasn't been built yet in the monorepo to expose types to this app
-    const { data: fetchOrders, isLoading } = (trpc.order as any).listMyOrders.useQuery({ status: filterStatus });
+    const { data: fetchOrders, isLoading } = trpc.order.listMyOrders.useQuery({ status: filterStatus });
 
-    const { mutate: cancelOrder, isPending: isCancelling } = (trpc.order as any).cancelOrder.useMutation({
+    const { mutate: cancelOrder, isPending: isCancelling } = trpc.order.cancelOrder.useMutation({
         onSuccess: () => {
             toast.success('Pedido cancelado com sucesso e estoque estornado!');
             setIsConfirmingCancel(false);
             setIsDialogOpen(false);
-            (utils.order as any).listMyOrders.invalidate();
+            void utils.order.listMyOrders.invalidate();
         },
-        onError: (error: any) => {
+        onError: (error) => {
             toast.error(error.message || 'Erro ao cancelar o pedido');
         }
     });
@@ -124,13 +123,6 @@ export default function PedidosPage() {
             month: 'long',
             year: 'numeric'
         }).format(new Date(date));
-    };
-
-    const formatCurrency = (amount: string | number) => {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(Number(amount));
     };
 
     return (
@@ -223,7 +215,7 @@ export default function PedidosPage() {
                                             <div className="flex flex-col items-end gap-0.5 shrink-0">
                                                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total</span>
                                                 <span className="font-display font-black text-xl text-soil">
-                                                    {formatCurrency(order.totalAmount)}
+                                                    {formatCurrencyBRL(order.totalAmount)}
                                                 </span>
                                             </div>
                                         </div>
@@ -309,11 +301,11 @@ export default function PedidosPage() {
                                                 </div>
                                                 <div className="flex flex-col gap-1">
                                                     <span className="font-bold text-[14px] text-soil group-hover:text-forest transition-colors">{item.productName}</span>
-                                                    <span className="text-[12px] font-medium text-muted-foreground">{item.qty} {item.saleUnit === 'unit' ? 'unidades' : item.saleUnit} x {formatCurrency(item.unitPrice)}</span>
+                                                    <span className="text-[12px] font-medium text-muted-foreground">{item.qty} {item.saleUnit === 'unit' ? 'unidades' : item.saleUnit} x {formatCurrencyBRL(item.unitPrice)}</span>
                                                 </div>
                                             </div>
                                             <span className="font-display font-bold text-[16px] text-soil ml-4 shrink-0">
-                                                {formatCurrency(Number(item.unitPrice) * Number(item.qty))}
+                                                {formatCurrencyBRL(Number(item.unitPrice) * Number(item.qty))}
                                             </span>
                                         </div>
                                     ))}
@@ -324,7 +316,7 @@ export default function PedidosPage() {
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Valor Total</span>
                                         <span className="text-3xl font-display font-black text-forest">
-                                            {formatCurrency(selectedOrder.totalAmount)}
+                                            {formatCurrencyBRL(selectedOrder.totalAmount)}
                                         </span>
                                     </div>
 
@@ -351,13 +343,14 @@ export default function PedidosPage() {
                                                         >
                                                             Voltar
                                                         </button>
-                                                        <button
-                                                            className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex justify-center items-center gap-2"
+                                                        <Button
+                                                            className="flex-1"
+                                                            variant="danger"
+                                                            isPending={isCancelling}
                                                             onClick={() => cancelOrder({ orderId: selectedOrder.id })}
-                                                            disabled={isCancelling}
                                                         >
-                                                            {isCancelling ? 'Aguarde...' : 'Confirmar Cancelamento'}
-                                                        </button>
+                                                            Confirmar Cancelamento
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             )}

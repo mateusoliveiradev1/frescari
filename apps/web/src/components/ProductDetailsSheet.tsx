@@ -9,7 +9,9 @@ import {
     SheetTitle,
     SheetDescription,
     Badge,
-    Button
+    Button,
+    formatCurrencyBRL,
+    formatQuantity,
 } from '@frescari/ui';
 import { Minus, Plus, ShoppingCart, Leaf, Calendar, Info } from 'lucide-react';
 import { toast } from 'sonner';
@@ -121,13 +123,6 @@ export function ProductDetailsSheet({ lot, isOpen, onClose }: ProductDetailsShee
         onClose();
     };
 
-    const formatPrice = (price: number) => {
-        return price.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-        });
-    };
-
     const formatDate = (dateStr: string) => {
         try {
             const d = new Date(dateStr);
@@ -213,14 +208,14 @@ export function ProductDetailsSheet({ lot, isOpen, onClose }: ProductDetailsShee
                             <div className="space-y-1">
                                 <span className="text-[10px] uppercase tracking-wider text-bark/50 font-bold">Preço Unitário</span>
                                 <div className="text-3xl font-display font-black text-soil leading-none">
-                                    {formatPrice(lot.finalPrice)}
+                                    {formatCurrencyBRL(lot.finalPrice)}
                                     <span className="text-sm font-normal text-bark/60 ml-1">/{lot.unit || lot.saleUnit}</span>
                                 </div>
                             </div>
                             <div className="text-right space-y-1">
                                 <span className="text-[10px] uppercase tracking-wider text-bark/50 font-bold">Disponível</span>
                                 <div className="text-bark font-bold">
-                                    {lot.availableQty} {lot.unit || lot.saleUnit}
+                                    {formatQuantity(lot.availableQty)} {lot.unit || lot.saleUnit}
                                 </div>
                             </div>
                         </div>
@@ -279,7 +274,7 @@ export function ProductDetailsSheet({ lot, isOpen, onClose }: ProductDetailsShee
                             <div className="flex items-center justify-between pt-4 border-t border-soil/10">
                                 <span className="text-bark text-sm font-medium">Total Estimado</span>
                                 <span className="text-2xl font-display font-black text-forest">
-                                    {formatPrice(totalPrice)}
+                                    {formatCurrencyBRL(totalPrice)}
                                 </span>
                             </div>
                         </div>

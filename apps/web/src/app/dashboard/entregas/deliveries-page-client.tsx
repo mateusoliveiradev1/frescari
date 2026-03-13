@@ -2,7 +2,21 @@
 
 import { useMemo, useState } from "react";
 
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from "@frescari/ui";
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    Skeleton,
+    SkeletonCard,
+    SkeletonText,
+    formatCurrencyBRL,
+    formatDistanceKm,
+    formatMass,
+    formatQuantity,
+} from "@frescari/ui";
 import {
     ArrowLeft,
     CheckCircle2,
@@ -23,45 +37,17 @@ const statusStyles: Record<string, string> = {
     payment_authorized: "bg-emerald-100 text-emerald-800 border-emerald-200",
     confirmed: "bg-amber-100 text-amber-800 border-amber-200",
     picking: "bg-blue-100 text-blue-800 border-blue-200",
-    in_transit: "bg-sky-100 text-sky-800 border-sky-200",
+    in_transit: "bg-sky-100 text-blue-800 border-sky-200",
     delivered: "bg-green-100 text-green-800 border-green-200",
 };
 
 const statusLabels: Record<string, string> = {
     payment_authorized: "Pagamento autorizado",
     confirmed: "Confirmado",
-    picking: "Em separação",
-    in_transit: "Em trânsito",
+    picking: "Em separacao",
+    in_transit: "Em transito",
     delivered: "Entregue",
 };
-
-function formatCurrency(value: string) {
-    return new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-    }).format(Number(value));
-}
-
-function formatDistance(distanceKm: number | null) {
-    if (distanceKm === null) {
-        return "distância indisponível";
-    }
-
-    return `${distanceKm.toFixed(2)} km`;
-}
-
-function formatQuantity(value: string) {
-    const numericValue = Number(value);
-
-    if (Number.isNaN(numericValue)) {
-        return value;
-    }
-
-    return new Intl.NumberFormat("pt-BR", {
-        minimumFractionDigits: numericValue % 1 === 0 ? 0 : 3,
-        maximumFractionDigits: 3,
-    }).format(numericValue);
-}
 
 function buildVisualId(index: number, length: number) {
     return (length - index).toString().padStart(4, "0");
@@ -76,7 +62,7 @@ function getEstimatedWeight(delivery: PendingDelivery) {
         return null;
     }
 
-    return `${totalEstimatedWeight.toFixed(2)} kg`;
+    return formatMass(totalEstimatedWeight, "kg");
 }
 
 function formatMappedPointsLabel(total: number) {
@@ -85,6 +71,24 @@ function formatMappedPointsLabel(total: number) {
     }
 
     return `${total} pontos uteis`;
+}
+
+function DeliveriesMetricSkeleton() {
+    return (
+        <div className="rounded-[24px_16px_20px_16px] border border-soil/8 bg-white/85 px-5 py-4 shadow-card">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="mt-3 h-10 w-20" />
+        </div>
+    );
+}
+
+function DeliveriesMapSkeleton() {
+    return (
+        <div className="space-y-4">
+            <SkeletonText className="max-w-xs" lines={2} />
+            <Skeleton className="h-[560px] rounded-[28px_18px_24px_18px]" />
+        </div>
+    );
 }
 
 function DeliveryCard({
@@ -103,7 +107,8 @@ function DeliveryCard({
     onUpdateStatus: (status: "in_transit" | "delivered") => void;
 }) {
     const totalEstimatedWeight = getEstimatedWeight(delivery);
-    const hasRouteCoordinates = delivery.origin?.latitude !== null
+    const hasRouteCoordinates =
+        delivery.origin?.latitude !== null
         && delivery.origin?.longitude !== null
         && delivery.destination?.latitude !== null
         && delivery.destination?.longitude !== null;
@@ -138,7 +143,9 @@ function DeliveryCard({
                             </CardTitle>
                         </div>
                         <Badge
-                            className={`rounded-full border px-3 py-1 text-[10px] font-bold tracking-[0.14em] ${statusStyles[delivery.status] ?? "bg-sage text-forest border-forest/20"}`}
+                            className={`rounded-full border px-3 py-1 text-[10px] font-bold tracking-[0.14em] ${
+                                statusStyles[delivery.status] ?? "bg-sage text-forest border-forest/20"
+                            }`}
                             variant="secondary"
                         >
                             {statusLabels[delivery.status] ?? delivery.status}
@@ -148,10 +155,10 @@ function DeliveryCard({
                     <div className="grid gap-3 sm:grid-cols-3">
                         <div className="rounded-sm border border-soil/10 bg-white/70 px-4 py-3">
                             <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-bark/60">
-                                Distância
+                                Distancia
                             </p>
                             <p className="mt-2 font-display text-xl font-black text-soil">
-                                {formatDistance(delivery.distanceKm)}
+                                {formatDistanceKm(delivery.distanceKm)}
                             </p>
                             {!hasRouteCoordinates ? (
                                 <p className="mt-2 text-xs leading-5 text-bark/60">
@@ -172,7 +179,7 @@ function DeliveryCard({
                                 Total
                             </p>
                             <p className="mt-2 font-display text-xl font-black text-soil">
-                                {formatCurrency(delivery.totalAmount)}
+                                {formatCurrencyBRL(delivery.totalAmount)}
                             </p>
                         </div>
                     </div>
@@ -199,7 +206,7 @@ function DeliveryCard({
                                 Origem
                             </p>
                             <p className="mt-2 leading-6 text-soil">
-                                {delivery.origin?.farmName ?? "Fazenda sem geolocalização"}
+                                {delivery.origin?.farmName ?? "Fazenda sem geolocalizacao"}
                             </p>
                         </div>
                     </div>
@@ -230,7 +237,7 @@ function DeliveryCard({
                                     </div>
                                     {item.estimatedWeightKg !== null && item.saleUnit !== "kg" && item.saleUnit !== "g" ? (
                                         <span className="text-xs font-semibold text-bark/60">
-                                            ~{item.estimatedWeightKg.toFixed(2)} kg
+                                            ~{formatMass(item.estimatedWeightKg, "kg")}
                                         </span>
                                     ) : null}
                                 </div>
@@ -241,7 +248,7 @@ function DeliveryCard({
                     <div className="flex flex-col gap-3 border-t border-soil/8 pt-5 sm:flex-row">
                         <Button
                             className="flex-1 justify-center gap-2"
-                            disabled={isMutating}
+                            isPending={isMutating}
                             onClick={(event) => {
                                 event.stopPropagation();
                                 onUpdateStatus("in_transit");
@@ -254,7 +261,7 @@ function DeliveryCard({
                         </Button>
                         <Button
                             className="flex-1 justify-center gap-2"
-                            disabled={isMutating}
+                            isPending={isMutating}
                             onClick={(event) => {
                                 event.stopPropagation();
                                 onUpdateStatus("delivered");
@@ -282,6 +289,7 @@ export function DeliveriesPageClient() {
     });
 
     const deliveries = useMemo(() => pendingDeliveriesQuery.data ?? [], [pendingDeliveriesQuery.data]);
+    const isInitialLoading = pendingDeliveriesQuery.isLoading && !pendingDeliveriesQuery.data;
     const resolvedSelectedOrderId = useMemo(() => {
         if (deliveries.length === 0) {
             return null;
@@ -299,13 +307,13 @@ export function DeliveriesPageClient() {
             toast.success(
                 variables.status === "in_transit"
                     ? "Entrega despachada."
-                    : "Entrega marcada como concluída.",
+                    : "Entrega marcada como concluida.",
             );
             setActiveOrderId(null);
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
-            toast.error(error.message || "Não foi possível atualizar a entrega.");
+            toast.error(error.message || "Nao foi possivel atualizar a entrega.");
             setActiveOrderId(null);
         },
     });
@@ -321,10 +329,10 @@ export function DeliveriesPageClient() {
 
     const deliveriesWithMapCoordinates = deliveries.filter(
         (delivery) =>
-            delivery.origin?.latitude !== null &&
-            delivery.origin?.longitude !== null &&
-            delivery.destination?.latitude !== null &&
-            delivery.destination?.longitude !== null,
+            delivery.origin?.latitude !== null
+            && delivery.origin?.longitude !== null
+            && delivery.destination?.latitude !== null
+            && delivery.destination?.longitude !== null,
     );
 
     const averageDistanceKm = useMemo(() => {
@@ -360,7 +368,7 @@ export function DeliveriesPageClient() {
                             Entregas
                         </h1>
                         <p className="max-w-3xl text-sm leading-6 text-bark/80">
-                            Operação logística dos pedidos prontos para sair da fazenda, com distância em linha reta calculada no banco e mapa sincronizado com cada destino.
+                            Operacao logistica dos pedidos prontos para sair da fazenda, com distancia em linha reta calculada no banco e mapa sincronizado com cada destino.
                         </p>
                     </div>
 
@@ -373,39 +381,46 @@ export function DeliveriesPageClient() {
                 </header>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-[24px_16px_20px_16px] border border-soil/8 bg-white/85 px-5 py-4 shadow-card">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
-                            Pedidos pendentes
-                        </p>
-                        <p className="mt-2 font-display text-3xl font-black text-soil">
-                            {deliveries.length}
-                        </p>
-                    </div>
-                    <div className="rounded-[24px_16px_20px_16px] border border-soil/8 bg-white/85 px-5 py-4 shadow-card">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
-                            Destinos mapeados
-                        </p>
-                        <p className="mt-2 font-display text-3xl font-black text-soil">
-                            {deliveriesWithMapCoordinates.length}
-                        </p>
-                    </div>
-                    <div className="rounded-[24px_16px_20px_16px] border border-soil/8 bg-white/85 px-5 py-4 shadow-card">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
-                            Distância média
-                        </p>
-                        <p className="mt-2 font-display text-3xl font-black text-soil">
-                            {averageDistanceKm === null ? "--" : `${averageDistanceKm.toFixed(2)} km`}
-                        </p>
-                    </div>
+                    {isInitialLoading ? (
+                        Array.from({ length: 3 }).map((_, index) => <DeliveriesMetricSkeleton key={index} />)
+                    ) : (
+                        <>
+                            <div className="rounded-[24px_16px_20px_16px] border border-soil/8 bg-white/85 px-5 py-4 shadow-card">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
+                                    Pedidos pendentes
+                                </p>
+                                <p className="mt-2 font-display text-3xl font-black text-soil">
+                                    {deliveries.length}
+                                </p>
+                            </div>
+                            <div className="rounded-[24px_16px_20px_16px] border border-soil/8 bg-white/85 px-5 py-4 shadow-card">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
+                                    Destinos mapeados
+                                </p>
+                                <p className="mt-2 font-display text-3xl font-black text-soil">
+                                    {deliveriesWithMapCoordinates.length}
+                                </p>
+                            </div>
+                            <div className="rounded-[24px_16px_20px_16px] border border-soil/8 bg-white/85 px-5 py-4 shadow-card">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
+                                    Distancia media
+                                </p>
+                                <p className="mt-2 font-display text-3xl font-black text-soil">
+                                    {formatDistanceKm(averageDistanceKm, { fallback: "--" })}
+                                </p>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.92fr)]">
                     <section className="space-y-4">
-                        {pendingDeliveriesQuery.isLoading ? (
+                        {isInitialLoading ? (
                             Array.from({ length: 3 }).map((_, index) => (
-                                <div
-                                    className="h-[260px] animate-pulse rounded-[28px_18px_24px_18px] border border-soil/8 bg-white/65"
+                                <SkeletonCard
+                                    className="rounded-[28px_18px_24px_18px] border-soil/8 bg-white/80 p-6"
                                     key={index}
+                                    showAvatar={false}
                                 />
                             ))
                         ) : mappedDeliveries.length === 0 ? (
@@ -455,11 +470,15 @@ export function DeliveriesPageClient() {
                             </div>
                         </div>
 
-                        <DeliveryMap
-                            deliveries={deliveries}
-                            onSelect={(orderId) => setSelectedOrderId(orderId)}
-                            selectedOrderId={resolvedSelectedOrderId}
-                        />
+                        {isInitialLoading ? (
+                            <DeliveriesMapSkeleton />
+                        ) : (
+                            <DeliveryMap
+                                deliveries={deliveries}
+                                onSelect={(orderId) => setSelectedOrderId(orderId)}
+                                selectedOrderId={resolvedSelectedOrderId}
+                            />
+                        )}
                     </aside>
                 </div>
             </div>

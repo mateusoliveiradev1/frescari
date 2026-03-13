@@ -3,8 +3,8 @@
 import * as React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import Image from 'next/image';
-import { X, Plus, Minus, ShoppingCart, Trash2, Loader2, Scale, CircleHelp } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@frescari/ui';
+import { X, Plus, Minus, ShoppingCart, Trash2, Scale, CircleHelp } from 'lucide-react';
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, formatCurrencyBRL } from '@frescari/ui';
 import { useCartStore, useCartTotals, selectCartIsOpen, CartStore, CartItem } from '@/store/useCartStore';
 import { trpc } from '@/trpc/react';
 import { toast } from 'sonner';
@@ -21,8 +21,7 @@ import {
     roundQuantity,
 } from '@/lib/cart-quantity';
 
-const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+const formatCurrency = formatCurrencyBRL;
 
 const WEIGHT_AUTHORIZATION_BUFFER = 0.1;
 
@@ -857,29 +856,25 @@ export function CartDrawer() {
                             </div>
 
                             <div className="flex gap-3">
-                                <button
+                                <Button
+                                    className="rounded-xl normal-case tracking-normal"
+                                    disabled={items.length === 0 || createCheckout.isPending}
                                     onClick={clearCart}
-                                    disabled={createCheckout.isPending}
-                                    className="rounded-xl border border-forest/20 px-4 py-3 font-semibold text-bark transition-colors hover:bg-forest/5 disabled:opacity-50"
+                                    type="button"
+                                    variant="ghost"
                                 >
                                     Limpar
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                    className="flex-1 rounded-xl normal-case tracking-normal"
+                                    disabled={items.length === 0 || !isAddressComplete}
+                                    isPending={createCheckout.isPending}
                                     onClick={handleCheckout}
-                                    disabled={createCheckout.isPending || items.length === 0 || !isAddressComplete}
-                                    className="relative flex-1 rounded-xl bg-forest px-4 py-3 font-bold text-cream shadow-md transition-colors hover:-translate-y-[1px] hover:bg-forest/90 hover:shadow-lg active:translate-y-0 disabled:pointer-events-none disabled:opacity-50"
+                                    type="button"
+                                    variant="primary"
                                 >
-                                    <span className="flex items-center justify-center gap-2">
-                                        {createCheckout.isPending ? (
-                                            <>
-                                                <Loader2 className="h-5 w-5 animate-spin" />
-                                                Validando endereco...
-                                            </>
-                                        ) : (
-                                            "Ir para Pagamento"
-                                        )}
-                                    </span>
-                                </button>
+                                    Ir para Pagamento
+                                </Button>
                             </div>
                         </div>
                     )}

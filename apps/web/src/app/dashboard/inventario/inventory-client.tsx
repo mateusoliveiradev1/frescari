@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/trpc/react";
+import Image from "next/image";
+import { MoreHorizontal, Pencil, Plus, Trash, Leaf } from "lucide-react";
+import { toast } from "sonner";
 import {
+    Badge,
     Button,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
     Dialog,
     DialogContent,
     DialogHeader,
@@ -19,70 +20,65 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    Badge
+    Skeleton,
+    SkeletonText,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+    formatCurrencyBRL,
+    formatQuantity,
 } from "@frescari/ui";
+
+import { trpc } from "@/trpc/react";
+
 import { InventoryForm } from "./inventory-form";
-import { MoreHorizontal, Plus, Trash, Pencil, Leaf } from "lucide-react";
-import { toast } from "sonner";
 
 export function InventoryClient() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [editingLot, setEditingLot] = useState<any>(null);
-
-    const { data: lots, isLoading, refetch } = trpc.lot.getByProducer.useQuery();
     const utils = trpc.useUtils();
+    const { data: lots, isLoading } = trpc.lot.getByProducer.useQuery();
+    type ProducerLot = NonNullable<typeof lots>[number];
+    const [editingLot, setEditingLot] = useState<ProducerLot | null>(null);
 
     const deleteLot = trpc.lot.delete.useMutation({
         onSuccess: () => {
             toast.success("Lote removido com sucesso.");
-            utils.lot.getByProducer.invalidate();
+            void utils.lot.getByProducer.invalidate();
         },
-        onError: (err: any) => {
-            toast.error(err.message || "Erro ao remover lote.");
-        }
+        onError: (error) => {
+            toast.error(error.message || "Erro ao remover lote.");
+        },
     });
 
-    const handleDelete = async (id: string) => {
-        if (confirm("Tem certeza que deseja excluir este lote? Esta ação não pode ser desfeita.")) {
+    const handleDelete = (id: string) => {
+        if (confirm("Tem certeza que deseja excluir este lote? Esta acao nao pode ser desfeita.")) {
             deleteLot.mutate({ id });
         }
     };
 
-    const handleEdit = (lot: any) => {
+    const handleEdit = (lot: ProducerLot) => {
         setEditingLot(lot);
         setIsCreateOpen(true);
     };
 
     const handleOpenChange = (open: boolean) => {
         setIsCreateOpen(open);
+
         if (!open) {
             setEditingLot(null);
         }
     };
 
-    const formatCurrency = (val: string) => {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(val));
-    };
-
     const formatDate = (dateStr: string) => {
-        return new Intl.DateTimeFormat('pt-BR', {
-            timeZone: 'UTC',
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
+        return new Intl.DateTimeFormat("pt-BR", {
+            timeZone: "UTC",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
         }).format(new Date(dateStr));
-    };
-
-    const formatQuantity = (qty: string, unit: string) => {
-        const num = parseFloat(qty);
-        return `${new Intl.NumberFormat('pt-BR', {
-            maximumFractionDigits: 2,
-            minimumFractionDigits: 0
-        }).format(num)} ${unit || 'un'}`;
     };
 
     return (
@@ -90,7 +86,7 @@ export function InventoryClient() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="font-display text-4xl font-bold text-soil tracking-tight">
-                        Meu Inventário
+                        Meu Inventario
                     </h1>
                     <p className="text-bark/70 font-sans mt-1">
                         Gerencie seus lotes ativos e acompanhe a validade dos seus produtos.
@@ -99,7 +95,10 @@ export function InventoryClient() {
 
                 <Dialog open={isCreateOpen} onOpenChange={handleOpenChange}>
                     <DialogTrigger asChild>
-                        <Button variant="primary" className="h-12 px-6 gap-2 rounded-full shadow-lg shadow-forest/10">
+                        <Button
+                            variant="primary"
+                            className="h-12 px-6 gap-2 rounded-full shadow-lg shadow-forest/10"
+                        >
                             <Plus className="h-5 w-5" />
                             Novo Lote
                         </Button>
@@ -112,7 +111,8 @@ export function InventoryClient() {
                         </DialogHeader>
                         <div className="py-4">
                             <InventoryForm
-                                initialData={editingLot}
+                                key={editingLot?.id ?? "new"}
+                                initialData={editingLot ?? undefined}
                                 onSuccess={() => handleOpenChange(false)}
                             />
                         </div>
@@ -129,18 +129,33 @@ export function InventoryClient() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {isLoading ? (
-                        <div className="py-20 text-center space-y-4">
-                            <div className="animate-spin h-8 w-8 border-4 border-forest border-t-transparent rounded-full mx-auto" />
-                            <p className="text-bark/60 font-sans animate-pulse">Carregando seus produtos...</p>
+                        <div className="space-y-3 px-6 py-6">
+                            {Array.from({ length: 4 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="grid grid-cols-[64px_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4 rounded-lg border border-forest/5 px-4 py-4"
+                                >
+                                    <Skeleton className="h-12 w-12 rounded-lg" />
+                                    <SkeletonText className="pt-1" lines={2} />
+                                    <SkeletonText className="pt-1" lines={2} />
+                                    <SkeletonText className="pt-1" lines={2} />
+                                </div>
+                            ))}
                         </div>
                     ) : lots?.length === 0 ? (
                         <div className="py-20 text-center px-6">
                             <div className="bg-sage/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <Leaf className="h-8 w-8 text-forest/40" />
                             </div>
-                            <h3 className="text-xl font-display text-soil font-bold">Nenhum lote encontrado</h3>
+                            <h3 className="text-xl font-display text-soil font-bold">
+                                Nenhum lote encontrado
+                            </h3>
                             <p className="text-bark/60 font-sans mt-2 max-w-sm mx-auto">
-                                Você ainda não registrou nenhum lote. Clique em "Novo Lote" para começar a vender.
+                                Voce ainda nao registrou nenhum lote. Clique em
+                                {" "}
+                                &quot;Novo Lote&quot;
+                                {" "}
+                                para comecar a vender.
                             </p>
                             <Button
                                 variant="primary"
@@ -158,38 +173,58 @@ export function InventoryClient() {
                                         <TableHead className="w-[80px] pl-8">Foto</TableHead>
                                         <TableHead>Produto</TableHead>
                                         <TableHead>Quantidade</TableHead>
-                                        <TableHead>Preço</TableHead>
+                                        <TableHead>Preco</TableHead>
                                         <TableHead className="hidden md:table-cell">Colheita</TableHead>
                                         <TableHead className="hidden md:table-cell">Validade</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead className="text-right pr-8">Ações</TableHead>
+                                        <TableHead className="text-right pr-8">Acoes</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {lots?.map((lot: any) => {
-                                        const isExpired = lot.status === 'vencido';
-                                        const isLastChance = lot.status === 'last_chance';
+                                    {lots?.map((lot) => {
+                                        const isExpired = lot.status === "vencido";
+                                        const isLastChance = lot.status === "last_chance";
 
                                         return (
-                                            <TableRow key={lot.id} className="group border-forest/5 hover:bg-forest/[0.02] transition-colors">
+                                            <TableRow
+                                                key={lot.id}
+                                                className="group border-forest/5 hover:bg-forest/[0.02] transition-colors"
+                                            >
                                                 <TableCell className="pl-8 py-4">
-                                                    <div className="h-12 w-12 rounded-lg overflow-hidden border border-forest/10 shadow-sm">
-                                                        <img
-                                                            src={lot.imageUrl}
-                                                            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                                            alt={lot.productName}
-                                                        />
+                                                    <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-forest/10 shadow-sm">
+                                                        {lot.imageUrl ? (
+                                                            <Image
+                                                                src={lot.imageUrl}
+                                                                fill
+                                                                sizes="48px"
+                                                                className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                                alt={lot.productName}
+                                                                unoptimized
+                                                            />
+                                                        ) : (
+                                                            <div className="h-full w-full bg-sage/20 flex items-center justify-center">
+                                                                <Leaf className="h-5 w-5 text-forest/35" />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <span className="font-bold text-soil font-sans">{lot.productName}</span>
-                                                    <div className="text-[10px] text-bark/50 uppercase tracking-widest mt-0.5">{lot.lotCode}</div>
+                                                    <span className="font-bold text-soil font-sans">
+                                                        {lot.productName}
+                                                    </span>
+                                                    <div className="text-[10px] text-bark/50 uppercase tracking-widest mt-0.5">
+                                                        {lot.lotCode}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="font-sans text-bark/80">
-                                                    {formatQuantity(lot.availableQty, lot.unit)}
+                                                    {formatQuantity(lot.availableQty, {
+                                                        maximumFractionDigits: 2,
+                                                    })}
+                                                    {" "}
+                                                    {lot.unit || "un"}
                                                 </TableCell>
                                                 <TableCell className="font-bold text-forest font-sans">
-                                                    {formatCurrency(lot.priceOverride)}
+                                                    {formatCurrencyBRL(lot.priceOverride)}
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell font-sans text-bark/60">
                                                     {formatDate(lot.harvestDate)}
@@ -199,21 +234,36 @@ export function InventoryClient() {
                                                 </TableCell>
                                                 <TableCell>
                                                     {isExpired ? (
-                                                        <Badge variant="destructive" className="bg-red-50 text-red-600 border-red-100 rounded-full font-sans weight-bold">Vencido ⚠️</Badge>
+                                                        <Badge
+                                                            variant="destructive"
+                                                            className="bg-red-50 text-red-600 border-red-100 rounded-full font-sans weight-bold"
+                                                        >
+                                                            Vencido
+                                                        </Badge>
                                                     ) : isLastChance ? (
-                                                        <Badge className="bg-orange-50 text-orange-600 border-orange-100 rounded-full font-sans weight-bold">Última Colheita 🔥</Badge>
+                                                        <Badge className="bg-orange-50 text-orange-600 border-orange-100 rounded-full font-sans weight-bold">
+                                                            Ultima Colheita
+                                                        </Badge>
                                                     ) : (
-                                                        <Badge className="bg-forest/10 text-forest border-forest/20 rounded-full font-sans weight-bold">Fresco</Badge>
+                                                        <Badge className="bg-forest/10 text-forest border-forest/20 rounded-full font-sans weight-bold">
+                                                            Fresco
+                                                        </Badge>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right pr-8">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-forest/10 rounded-full">
+                                                            <Button
+                                                                variant="ghost"
+                                                                className="h-8 w-8 p-0 hover:bg-forest/10 rounded-full"
+                                                            >
                                                                 <MoreHorizontal className="h-4 w-4 text-forest" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-[160px] p-1 border-forest/10 font-sans shadow-xl">
+                                                        <DropdownMenuContent
+                                                            align="end"
+                                                            className="w-[160px] p-1 border-forest/10 font-sans shadow-xl"
+                                                        >
                                                             <DropdownMenuItem
                                                                 onClick={() => handleEdit(lot)}
                                                                 className="gap-2 cursor-pointer focus:bg-forest/5 focus:text-forest"

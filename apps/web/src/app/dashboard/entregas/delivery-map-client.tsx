@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 
-import { cn } from "@frescari/ui";
+import { cn, formatDistanceKm } from "@frescari/ui";
 import { divIcon, latLngBounds } from "leaflet";
 import { MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 
@@ -59,11 +59,7 @@ function createDestinationPinIcon(isSelected: boolean) {
 }
 
 function formatDistance(distanceKm: number | null) {
-    if (distanceKm === null) {
-        return "distância indisponível";
-    }
-
-    return `${distanceKm.toFixed(2)} km`;
+    return formatDistanceKm(distanceKm);
 }
 
 function isValidCoordinate(value: number | null | undefined): value is number {
@@ -77,9 +73,9 @@ function extractUniqueOrigins(deliveries: PendingDelivery[]) {
         const origin = delivery.origin;
 
         if (
-            !origin?.farmId ||
-            !isValidCoordinate(origin.latitude) ||
-            !isValidCoordinate(origin.longitude)
+            !origin?.farmId
+            || !isValidCoordinate(origin.latitude)
+            || !isValidCoordinate(origin.longitude)
         ) {
             continue;
         }
@@ -186,9 +182,9 @@ export function DeliveryMapClient({
             deliveries.filter(
                 (delivery): delivery is DeliveryWithValidDestination =>
                     Boolean(
-                        delivery.destination &&
-                        isValidCoordinate(delivery.destination.latitude) &&
-                        isValidCoordinate(delivery.destination.longitude),
+                        delivery.destination
+                        && isValidCoordinate(delivery.destination.latitude)
+                        && isValidCoordinate(delivery.destination.longitude),
                     ),
             ),
         [deliveries],

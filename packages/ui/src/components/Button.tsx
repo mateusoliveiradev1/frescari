@@ -1,17 +1,18 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2 } from "lucide-react"
 import { cn } from "../lib/utils"
 
 const buttonVariants = cva(
     // ── Base: editorial, precise, non-generic
     [
-        "inline-flex items-center justify-center whitespace-nowrap",
+        "relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center whitespace-nowrap",
         "font-sans font-semibold text-sm tracking-wide uppercase",
         "transition-all duration-200 ease-out",
         "cursor-pointer select-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2",
-        "disabled:pointer-events-none disabled:opacity-40",
+        "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
         "active:scale-[0.98]",
     ].join(" "),
     {
@@ -45,13 +46,13 @@ const buttonVariants = cva(
                     "border border-forest/25",
                     "hover:bg-sage hover:border-forest/50",
                 ].join(" "),
-                link: "text-forest underline-offset-4 hover:underline bg-transparent border-none p-0 normal-case tracking-normal",
+                link: "h-auto min-h-0 min-w-0 w-auto text-forest underline-offset-4 hover:underline bg-transparent border-none p-0 normal-case tracking-normal",
             },
             size: {
                 default: "h-11 px-6 py-3 rounded-sm",
-                sm: "h-9 px-4 py-2 text-xs rounded-sm",
+                sm: "h-11 px-4 py-2 text-xs rounded-sm",
                 lg: "h-13 px-8 py-4 text-base rounded-sm",
-                icon: "h-10 w-10 rounded-sm",
+                icon: "h-11 w-11 rounded-sm p-0",
             },
         },
         defaultVariants: {
@@ -65,17 +66,92 @@ export interface ButtonProps
     extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
     asChild?: boolean
+    isLoading?: boolean
+    isPending?: boolean
+    loadingIndicator?: React.ReactNode
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-    ({ className, variant, size, asChild = false, ...props }, ref) => {
-        const Comp = asChild ? Slot : "button"
+    (
+        {
+            className,
+            variant,
+            size,
+            asChild = false,
+            isLoading = false,
+            isPending = false,
+            loadingIndicator,
+            disabled,
+            children,
+            onClick,
+            tabIndex,
+            ...props
+        },
+        ref
+    ) => {
+        const isBusy = isLoading || isPending
+        const isDisabled = disabled || isBusy
+        const classes = cn(
+            buttonVariants({ variant, size, className }),
+            asChild && disabled && "pointer-events-none opacity-40",
+            asChild && isBusy && "pointer-events-none opacity-80"
+        )
+
+        if (asChild) {
+            const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+                if (isDisabled) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    return
+                }
+
+                onClick?.(event)
+            }
+
+            return (
+                <Slot
+                    className={classes}
+                    ref={ref as React.Ref<HTMLElement>}
+                    aria-busy={isBusy || undefined}
+                    aria-disabled={isDisabled || undefined}
+                    data-loading={isBusy ? "true" : undefined}
+                    onClick={handleClick}
+                    tabIndex={isDisabled ? -1 : tabIndex}
+                    {...props}
+                >
+                    {children}
+                </Slot>
+            )
+        }
+
         return (
-            <Comp
-                className={cn(buttonVariants({ variant, size, className }))}
+            <button
+                className={classes}
                 ref={ref}
+                disabled={isDisabled}
+                aria-busy={isBusy || undefined}
+                data-loading={isBusy ? "true" : undefined}
+                onClick={onClick}
+                tabIndex={tabIndex}
                 {...props}
-            />
+            >
+                <span
+                    className={cn(
+                        "inline-flex items-center justify-center gap-2",
+                        isBusy && "opacity-0"
+                    )}
+                >
+                    {children}
+                </span>
+                {isBusy ? (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                        {loadingIndicator ?? (
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        )}
+                        <span className="sr-only">Loading</span>
+                    </span>
+                ) : null}
+            </button>
         )
     }
 )
