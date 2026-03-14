@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 import { Button } from "@frescari/ui";
 import Link from "next/link";
 import { trpc } from "@/trpc/react";
@@ -11,13 +9,20 @@ function Skeleton({ className }: { className?: string }) {
     return <div className={`animate-pulse bg-soil/10 rounded-sm ${className}`} />;
 }
 
+function formatDate(dateInput: string) {
+    return new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "UTC",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    }).format(new Date(dateInput));
+}
+
 export default function DashboardClient({ user }: { user: unknown }) {
     void user;
 
     const { data: metrics, isLoading: isMetricsLoading } = trpc.lot.getDashboardMetrics.useQuery();
     const { data: recentLots, isLoading: isLotsLoading } = trpc.lot.getRecentLots.useQuery();
-
-    const [now] = useState(() => Date.now());
 
     return (
         <div className="min-h-screen bg-cream">
@@ -118,9 +123,9 @@ export default function DashboardClient({ user }: { user: unknown }) {
                                     ) : recentLots && recentLots.length > 0 ? (
                                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         recentLots.map((lot: any) => {
-                                            const isLastChance = (lot.freshnessScore !== null && lot.freshnessScore < 30) || new Date(lot.expiryDate) <= new Date(now + 24 * 60 * 60 * 1000);
-                                            const statusText = lot.isExpired ? "Expirado" : isLastChance ? "Last Chance" : "Ativo";
-                                            const isExpired = lot.isExpired;
+                                            const isLastChance = lot.status === "last_chance";
+                                            const isExpired = lot.status === "vencido";
+                                            const statusText = isExpired ? "Expirado" : isLastChance ? "Last Chance" : "Ativo";
 
                                             return (
                                                 <tr key={lot.id} className="border-b border-soil/5 hover:bg-cream-dark/20 transition-colors">
@@ -128,13 +133,13 @@ export default function DashboardClient({ user }: { user: unknown }) {
                                                         {lot.lotCode}
                                                     </td>
                                                     <td className="py-4 px-6 font-sans text-sm font-medium text-soil">
-                                                        {lot.product?.name || "Produto Desconhecido"}
+                                                        {lot.productName || "Produto Desconhecido"}
                                                     </td>
                                                     <td className="py-4 px-6 font-sans text-sm font-semibold text-soil text-right">
                                                         {Number(lot.availableQty)}
                                                     </td>
                                                     <td className="py-4 px-6 font-sans text-xs text-bark">
-                                                        {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(lot.expiryDate))}
+                                                        {formatDate(lot.expiryDate)}
                                                     </td>
                                                     <td className="py-4 px-6 text-center">
                                                         <span className={`inline-flex items-center px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider ${isExpired ? "bg-red-100 text-red-700" :

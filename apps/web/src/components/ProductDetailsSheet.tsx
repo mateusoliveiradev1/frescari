@@ -125,8 +125,12 @@ export function ProductDetailsSheet({ lot, isOpen, onClose }: ProductDetailsShee
 
     const formatDate = (dateStr: string) => {
         try {
-            const d = new Date(dateStr);
-            return d.toLocaleDateString('pt-BR');
+            return new Intl.DateTimeFormat('pt-BR', {
+                timeZone: 'UTC',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+            }).format(new Date(dateStr));
         } catch {
             return dateStr;
         }

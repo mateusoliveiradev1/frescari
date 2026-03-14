@@ -1,13 +1,7 @@
 import { cache } from "react";
-import { and, eq, sql } from "drizzle-orm";
-import {
-  db,
-  farms,
-  productCategories,
-  productLots,
-  products,
-} from "@frescari/db";
 import { formatCurrencyBRL } from "@frescari/ui";
+
+import { getServerTrpc } from "@/trpc/server";
 
 import {
   buildCategoryPath,
@@ -34,6 +28,7 @@ export interface PublicCatalogLot {
   farmName: string;
   originalPrice: number;
   finalPrice: number;
+  calculatedPrice: number;
   isLastChance: boolean;
   pricingType: "UNIT" | "WEIGHT" | "BOX";
   estimatedWeight: number | null;
@@ -83,92 +78,42 @@ export interface ProductPageData {
   lots: PublicCatalogLot[];
 }
 
-function calculateLotStatus(expiryDate: string): CatalogLotStatus {
-  const now = new Date();
-  const expiry = new Date(expiryDate);
-
-  if (expiry < now) {
-    return "vencido";
-  }
-
-  const hoursUntilExpiry = expiry.getTime() - now.getTime();
-
-  if (hoursUntilExpiry <= 48 * 60 * 60 * 1000) {
-    return "last_chance";
-  }
-
-  return "fresco";
-}
-
 const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> => {
-  const rows = await db
-    .select({
-      lotId: productLots.id,
-      lotCode: productLots.lotCode,
-      harvestDate: productLots.harvestDate,
-      expiryDate: productLots.expiryDate,
-      availableQty: productLots.availableQty,
-      freshnessScore: productLots.freshnessScore,
-      priceOverride: productLots.priceOverride,
-      pricingType: productLots.pricingType,
-      estimatedWeight: productLots.estimatedWeight,
-      unit: productLots.unit,
-      lotImageUrl: productLots.imageUrl,
-      productName: products.name,
-      farmId: products.farmId,
-      saleUnit: products.saleUnit,
-      pricePerUnit: products.pricePerUnit,
-      productImages: products.images,
-      categorySlug: productCategories.slug,
-      categoryName: productCategories.name,
-      categoryDescription: productCategories.seoDescription,
-      farmName: farms.name,
-    })
-    .from(productLots)
-    .innerJoin(products, eq(productLots.productId, products.id))
-    .innerJoin(productCategories, eq(products.categoryId, productCategories.id))
-    .leftJoin(farms, eq(products.farmId, farms.id))
-    .where(
-      and(
-        eq(products.isActive, true),
-        sql`${productLots.availableQty}::numeric > 0`,
-        sql`${productLots.expiryDate} >= CURRENT_DATE`,
-      ),
-    );
+  const trpc = await getServerTrpc();
+  const rows = await trpc.lot.getAvailableLots({});
 
   return rows
     .map((row) => {
-      const expiryDate = String(row.expiryDate);
-      const harvestDate = String(row.harvestDate);
-      const status = calculateLotStatus(expiryDate);
-      const originalPrice = Number(row.priceOverride ?? row.pricePerUnit ?? 0);
-      const finalPrice = status === "last_chance" ? originalPrice * 0.6 : originalPrice;
+      const categorySlug = row.categorySlug ?? "sem-categoria";
+      const categoryName = row.categoryName ?? "Sem categoria";
+      const categoryDescription = row.categoryDescription ?? null;
       const productSlug = slugifySegment(row.productName);
-      const categoryPath = buildCategoryPath(row.categorySlug);
-      const productPath = buildProductPath(row.categorySlug, productSlug);
+      const categoryPath = buildCategoryPath(categorySlug);
+      const productPath = buildProductPath(categorySlug, productSlug);
 
       return {
-        id: row.lotId,
+        id: row.id,
         lotCode: row.lotCode,
         farmId: row.farmId,
-        harvestDate,
-        expiryDate,
-        availableQty: Number(row.availableQty),
+        harvestDate: row.harvestDate,
+        expiryDate: row.expiryDate,
+        availableQty: row.availableQty,
         freshnessScore: row.freshnessScore,
         productName: row.productName,
         saleUnit: row.saleUnit,
-        imageUrl: row.lotImageUrl ?? row.productImages?.[0] ?? null,
-        farmName: row.farmName ?? "Produtor Local",
-        originalPrice,
-        finalPrice,
-        isLastChance: status === "last_chance",
+        imageUrl: row.imageUrl,
+        farmName: row.farmName,
+        originalPrice: row.originalPrice,
+        finalPrice: row.finalPrice,
+        calculatedPrice: row.calculatedPrice,
+        isLastChance: row.isLastChance,
         pricingType: row.pricingType,
-        estimatedWeight: row.estimatedWeight ? Number(row.estimatedWeight) : null,
+        estimatedWeight: row.estimatedWeight,
         unit: row.unit,
-        status,
-        categorySlug: row.categorySlug,
-        categoryName: row.categoryName,
-        categoryDescription: row.categoryDescription,
+        status: row.status,
+        categorySlug,
+        categoryName,
+        categoryDescription,
         productSlug,
         categoryPath,
         productPath,
@@ -363,7 +308,7 @@ export function getSchemaUnitCode(saleUnit: string): string {
     dozen: "DZN",
     dz: "DZN",
     bunch: "BH",
-    mç: "BH",
+    maco: "BH",
   };
 
   return unitMap[saleUnit] ?? "EA";

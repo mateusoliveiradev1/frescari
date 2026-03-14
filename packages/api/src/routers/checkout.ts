@@ -2,8 +2,17 @@ import { z } from 'zod';
 import Stripe from 'stripe';
 import { createTRPCRouter, buyerProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
-import { db, farms, tenants, productLots, products, masterProducts } from '@frescari/db';
+import {
+    db,
+    farms,
+    masterProducts,
+    productLots,
+    products,
+    tenants,
+} from '@frescari/db';
 import { eq, inArray } from 'drizzle-orm';
+
+import { calculateLotPriceAndStatus } from '../utils/lot-status';
 import { isWeighableSaleUnit } from '../sale-units';
 import {
     buildDeliveryAddressLine,
@@ -13,7 +22,6 @@ import {
     type GeocodedPoint,
 } from '../geocoding';
 
-// ── Stripe SDK initialisation ────────────────────────────────────────
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
 if (!stripeSecretKey) {
@@ -23,50 +31,45 @@ if (!stripeSecretKey) {
 }
 
 const stripe = new Stripe(stripeSecretKey ?? '');
-
-// ── Constants ────────────────────────────────────────────────────────
-const WEIGHT_SAFETY_MARGIN = 1.10; // +10 % buffer for scale variance
+const WEIGHT_SAFETY_MARGIN = 1.10;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const PLATFORM_FEE_RATE = 0.1;
 
-// ── Zod schemas ──────────────────────────────────────────────────────
 const pricingTypeSchema = z.enum(['UNIT', 'WEIGHT', 'BOX']);
 
 const checkoutItemSchema = z.object({
     lotId: z.string().uuid(),
     quantity: z.number().positive(),
-    pricingType: pricingTypeSchema,
-    productName: z.string().min(1),
-    unitPrice: z.number().positive(),
-    imageUrl: z.string().url().nullish(),
 });
 
 const deliveryAddressSchema = z.object({
-    street: z.string().min(3, 'Rua é obrigatória.'),
-    number: z.string().min(1, 'Número é obrigatório.'),
-    cep: z.string().regex(/^\d{5}-?\d{3}$/, 'CEP inválido.'),
-    city: z.string().min(2, 'Cidade é obrigatória.'),
+    street: z.string().min(3, 'Rua e obrigatoria.'),
+    number: z.string().min(1, 'Numero e obrigatorio.'),
+    cep: z.string().regex(/^\d{5}-?\d{3}$/, 'CEP invalido.'),
+    city: z.string().min(2, 'Cidade e obrigatoria.'),
     state: z.string().length(2, 'Estado deve ter 2 letras (UF).'),
 });
 
 export type CheckoutItem = z.infer<typeof checkoutItemSchema>;
 export type DeliveryAddress = z.infer<typeof deliveryAddressSchema>;
 
-// ── Helpers ──────────────────────────────────────────────────────────
+type SafeCheckoutItem = {
+    lotId: string;
+    quantity: number;
+    pricingType: z.infer<typeof pricingTypeSchema>;
+    productName: string;
+    unitPrice: number;
+    imageUrl: string | null;
+    productSaleUnit: string | null;
+};
 
-/**
- * Converts a BRL float price to Stripe-compatible integer cents.
- * Applies the 10 % weight safety margin only for products sold by kg or g.
- */
-function toStripeCents(
-    brlPrice: number,
-    isWeighable: boolean,
-): number {
+function toStripeCents(brlPrice: number, isWeighable: boolean): number {
     const adjusted = isWeighable ? brlPrice * WEIGHT_SAFETY_MARGIN : brlPrice;
     return Math.round(adjusted * 100);
 }
 
 function buildLineItems(
-    items: Array<CheckoutItem & { masterPricingType?: 'UNIT' | 'WEIGHT' | 'BOX' | null; productSaleUnit?: string | null; dbPricingType?: 'UNIT' | 'WEIGHT' | 'BOX' | null; dBPx?: number | null; }>,
+    items: SafeCheckoutItem[],
     deliveryFee: number,
 ): Stripe.Checkout.SessionCreateParams.LineItem[] {
     const productLines: Stripe.Checkout.SessionCreateParams.LineItem[] =
@@ -86,7 +89,6 @@ function buildLineItems(
             };
         });
 
-    // Delivery fee as a standalone line-item
     const deliveryLine: Stripe.Checkout.SessionCreateParams.LineItem = {
         price_data: {
             currency: 'brl',
@@ -128,7 +130,6 @@ function formatCurrencyMessage(value: number) {
     return `R$ ${value.toFixed(2).replace('.', ',')}`;
 }
 
-// ── Router ───────────────────────────────────────────────────────────
 export const checkoutRouter = createTRPCRouter({
     createCheckoutSession: buyerProcedure
         .input(
@@ -142,8 +143,7 @@ export const checkoutRouter = createTRPCRouter({
             if (!stripeSecretKey) {
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
-                    message:
-                        'Stripe não está configurado. Contate o administrador.',
+                    message: 'Stripe nao esta configurado. Contate o administrador.',
                 });
             }
 
@@ -151,28 +151,27 @@ export const checkoutRouter = createTRPCRouter({
             if (!buyerTenantId) {
                 throw new TRPCError({
                     code: 'FORBIDDEN',
-                    message: 'Comprador sem organização vinculada.',
+                    message: 'Comprador sem organizacao vinculada.',
                 });
             }
 
-            // Get product Lot and obtain the sellerTenantId -> stripeAccountId
-            const firstLotId = input.items[0]?.lotId;
-            if (!firstLotId) {
-                throw new TRPCError({
-                    code: 'BAD_REQUEST',
-                    message: 'Carrinho inválido.',
-                });
-            }
-
-            const lotIdsToFetch = input.items.map((i) => i.lotId);
+            const lotIdsToFetch = input.items.map((item) => item.lotId);
 
             const lotDataForStripe = await db
                 .select({
                     lotId: productLots.id,
-                    stripeAccountId: tenants.stripeAccountId,
-                    masterPricingType: masterProducts.pricingType,
-                    productSaleUnit: products.saleUnit,
+                    sellerTenantId: productLots.tenantId,
+                    availableQty: productLots.availableQty,
+                    expiryDate: productLots.expiryDate,
+                    priceOverride: productLots.priceOverride,
                     dbPricingType: productLots.pricingType,
+                    lotImageUrl: productLots.imageUrl,
+                    stripeAccountId: tenants.stripeAccountId,
+                    productName: products.name,
+                    productSaleUnit: products.saleUnit,
+                    pricePerUnit: products.pricePerUnit,
+                    productImages: products.images,
+                    masterPricingType: masterProducts.pricingType,
                     minOrderValue: farms.minOrderValue,
                     freeShippingThreshold: farms.freeShippingThreshold,
                 })
@@ -183,28 +182,84 @@ export const checkoutRouter = createTRPCRouter({
                 .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
                 .where(inArray(productLots.id, lotIdsToFetch));
 
-            const producerStripeAccountId = lotDataForStripe[0]?.stripeAccountId;
-
-            if (!producerStripeAccountId) {
+            if (lotDataForStripe.length !== lotIdsToFetch.length) {
                 throw new TRPCError({
-                    code: 'PRECONDITION_FAILED',
-                    message: 'Produtor não possui conta Stripe configurada para receber pagamentos.',
+                    code: 'BAD_REQUEST',
+                    message: 'Um ou mais lotes do carrinho nao foram encontrados.',
                 });
             }
 
-            // Merge original items with accurate pricing types from db
-            const safeItems = input.items.map((item) => {
-                const mergedLot = lotDataForStripe.find(ld => ld.lotId === item.lotId);
+            const producerStripeAccountId = lotDataForStripe[0]?.stripeAccountId;
+            if (!producerStripeAccountId) {
+                throw new TRPCError({
+                    code: 'PRECONDITION_FAILED',
+                    message: 'Produtor nao possui conta Stripe configurada para receber pagamentos.',
+                });
+            }
+
+            const producerTenantId = lotDataForStripe[0]?.sellerTenantId;
+            const mixedSellers = lotDataForStripe.some(
+                (lot) => lot.sellerTenantId !== producerTenantId,
+            );
+            if (mixedSellers) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Todos os itens do checkout devem pertencer a mesma fazenda.',
+                });
+            }
+
+            const safeItems: SafeCheckoutItem[] = input.items.map((item) => {
+                const lotData = lotDataForStripe.find((lot) => lot.lotId === item.lotId);
+                if (!lotData) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: `Lote ${item.lotId} nao encontrado.`,
+                    });
+                }
+
+                if (Number(lotData.availableQty) < item.quantity) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: `Quantidade indisponivel para o lote ${item.lotId}.`,
+                    });
+                }
+
+                const isWeightBased = isWeighableSaleUnit(lotData.productSaleUnit);
+                if (!isWeightBased && !Number.isInteger(item.quantity)) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: `A quantidade para ${lotData.productName} deve ser um numero inteiro.`,
+                    });
+                }
+
+                const pricing = calculateLotPriceAndStatus(
+                    {
+                        expiryDate: lotData.expiryDate,
+                        priceOverride: lotData.priceOverride,
+                    },
+                    lotData.pricePerUnit,
+                );
+
+                if (pricing.isExpired) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message: `O lote ${item.lotId} esta vencido e nao pode ser vendido.`,
+                    });
+                }
+
                 return {
-                    ...item,
-                    masterPricingType: mergedLot?.masterPricingType,
-                    productSaleUnit: mergedLot?.productSaleUnit,
-                    dbPricingType: mergedLot?.dbPricingType,
+                    lotId: item.lotId,
+                    quantity: item.quantity,
+                    pricingType: lotData.dbPricingType,
+                    productName: lotData.productName,
+                    unitPrice: pricing.finalPrice,
+                    imageUrl: lotData.lotImageUrl ?? lotData.productImages?.[0] ?? null,
+                    productSaleUnit: lotData.productSaleUnit,
                 };
             });
 
-            const itemsTotalBRL = input.items.reduce(
-                (sum, item) => sum + (item.unitPrice * item.quantity),
+            const itemsTotalBRL = safeItems.reduce(
+                (sum, item) => sum + item.unitPrice * item.quantity,
                 0,
             );
             const minOrderValue = normalizeCurrencyValue(
@@ -230,7 +285,6 @@ export const checkoutRouter = createTRPCRouter({
             const lineItems = buildLineItems(safeItems, effectiveDeliveryFee);
 
             let geocodedDeliveryPoint: GeocodedPoint | null = null;
-
             try {
                 geocodedDeliveryPoint = await geocodeDeliveryAddress(
                     input.address as GeocodingDeliveryAddress,
@@ -257,34 +311,27 @@ export const checkoutRouter = createTRPCRouter({
                 input.address as GeocodingDeliveryAddress,
             );
 
-            // Serialize items for webhook reconstruction (Stripe metadata max 500 chars per value)
             const itemsJson = JSON.stringify(
-                input.items.map((i) => ({
-                    lotId: i.lotId,
-                    qty: i.quantity,
-                    pt: i.pricingType,
-                    name: i.productName,
-                    price: i.unitPrice,
+                safeItems.map((item) => ({
+                    lotId: item.lotId,
+                    qty: item.quantity,
+                    pt: item.pricingType,
+                    name: item.productName,
+                    price: item.unitPrice,
                 })),
             );
-
-            // Structured address JSON for webhook
             const addressJson = JSON.stringify(input.address);
             const deliveryPointJson = serializeDeliveryPointMetadata(geocodedDeliveryPoint);
 
-            const hasWeightProducts = safeItems.some((item) => isWeighableSaleUnit(item.productSaleUnit));
-
+            const hasWeightProducts = safeItems.some((item) =>
+                isWeighableSaleUnit(item.productSaleUnit),
+            );
             const captureMethod = hasWeightProducts ? 'manual' : 'automatic';
             const isAllUnitOrder = !hasWeightProducts;
 
-            // Calculate total cart value in order to get dynamic application_fee_amount (e.g. 10%)
             const totalAmountBrl = itemsTotalBRL + effectiveDeliveryFee;
-            // Converting back to generalized integer cents for math (ignoring weight safety logic gap on this fee calculation to follow direct BRL total requested unless specific rule is needed).
-            // Using standard representation conversion
             const totalAmountCents = Math.round(totalAmountBrl * 100);
-
-            // Fixed temporary platform fee of 10%
-            const calculatedFeeCents = Math.round(totalAmountCents * 0.1);
+            const calculatedFeeCents = Math.round(totalAmountCents * PLATFORM_FEE_RATE);
 
             try {
                 const session = await stripe.checkout.sessions.create({
@@ -321,24 +368,22 @@ export const checkoutRouter = createTRPCRouter({
                 if (!session.url) {
                     throw new TRPCError({
                         code: 'INTERNAL_SERVER_ERROR',
-                        message:
-                            'Stripe não retornou a URL de checkout. Tente novamente.',
+                        message: 'Stripe nao retornou a URL de checkout. Tente novamente.',
                     });
                 }
 
                 return { url: session.url };
             } catch (error) {
-                // Re-throw known tRPC errors
-                if (error instanceof TRPCError) throw error;
+                if (error instanceof TRPCError) {
+                    throw error;
+                }
 
                 console.error('[STRIPE_ERROR]:', error);
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
-                    message:
-                        'Falha ao criar sessão de pagamento. Verifique os logs.',
+                    message: 'Falha ao criar sessao de pagamento. Verifique os logs.',
                     cause: error,
                 });
             }
         }),
 });
-

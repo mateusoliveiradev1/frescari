@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+    createLotInputSchema,
     coercedPositiveNumber,
     insertProductLotSchema,
     insertProductSchema,
     moneyFromLocale,
     trimmedString,
+    updateLotInputSchema,
     updateLotInventorySchema,
 } from './index';
 
@@ -100,4 +102,35 @@ test('updateLotInventorySchema keeps positive coercion at the API boundary', () 
     if (result.success) {
         assert.equal(result.data.newAvailableQty, 10.5);
     }
+});
+
+test('createLotInputSchema coerces local date strings into Date objects', () => {
+    const result = createLotInputSchema.safeParse({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+        lotCode: 'LOT-123',
+        harvestDate: '2026-03-10',
+        expiryDate: '2026-03-12',
+        availableQty: '4',
+        pricingType: 'UNIT',
+        unit: 'un',
+    });
+
+    assert.equal(result.success, true);
+
+    if (result.success) {
+        assert.equal(result.data.harvestDate instanceof Date, true);
+        assert.equal(result.data.expiryDate instanceof Date, true);
+        assert.equal(result.data.harvestDate.getFullYear(), 2026);
+        assert.equal(result.data.expiryDate.getDate(), 12);
+    }
+});
+
+test('updateLotInputSchema rejects expiry dates earlier than harvest dates', () => {
+    const result = updateLotInputSchema.safeParse({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        harvestDate: '2026-03-12',
+        expiryDate: '2026-03-10',
+    });
+
+    assert.equal(result.success, false);
 });

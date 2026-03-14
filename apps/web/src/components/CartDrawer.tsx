@@ -393,10 +393,6 @@ function FarmCheckoutSection({
             items: group.items.map((item) => ({
                 lotId: item.id,
                 quantity: item.cartQty,
-                pricingType: item.pricingType,
-                productName: item.productName,
-                unitPrice: item.finalPrice,
-                imageUrl: item.imageUrl,
             })),
             address: {
                 street: defaultAddress.street,

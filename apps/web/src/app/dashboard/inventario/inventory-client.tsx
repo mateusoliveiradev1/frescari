@@ -224,7 +224,7 @@ export function InventoryClient() {
                                                     {lot.unit || "un"}
                                                 </TableCell>
                                                 <TableCell className="font-bold text-forest font-sans">
-                                                    {formatCurrencyBRL(lot.priceOverride)}
+                                                    {formatCurrencyBRL(lot.calculatedPrice ?? lot.priceOverride ?? 0)}
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell font-sans text-bark/60">
                                                     {formatDate(lot.harvestDate)}

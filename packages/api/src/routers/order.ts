@@ -12,6 +12,7 @@ import {
     toDeliveryPointGeoJson,
     type GeocodedPoint,
 } from '../geocoding';
+import { calculateLotPriceAndStatus } from '../utils/lot-status';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeSecretKey ?? '');
@@ -146,17 +147,22 @@ export const orderRouter = createTRPCRouter({
                             });
                         }
 
-                        // Value calc logic
-                        const basePrice = Number(lotData.priceOverride || lotData.pricePerUnit);
+                        const pricing = calculateLotPriceAndStatus(
+                            {
+                                expiryDate: lotData.expiryDate,
+                                priceOverride: lotData.priceOverride,
+                            },
+                            lotData.pricePerUnit,
+                        );
 
-                        // "Last Chance" - 40%
-                        const now = new Date();
-                        const expiry = new Date(lotData.expiryDate);
-                        const diffTime = Math.abs(expiry.getTime() - now.getTime());
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        const isLastChance = diffDays <= 1;
+                        if (pricing.isExpired) {
+                            throw new TRPCError({
+                                code: 'BAD_REQUEST',
+                                message: `O lote ${reqItem.lotId} esta vencido e nao pode ser vendido.`,
+                            });
+                        }
 
-                        const finalUnitPrice = isLastChance ? basePrice * 0.6 : basePrice;
+                        const finalUnitPrice = pricing.finalPrice;
 
                         return {
                             ...reqItem,
