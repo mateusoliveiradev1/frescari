@@ -225,6 +225,15 @@ export function GlobalNav() {
                                                 <p className="font-sans text-xs text-bark">{user.email}</p>
                                             </div>
                                         </div>
+                                        {role === "buyer" && (
+                                            <Link
+                                                href="/dashboard/perfil"
+                                                onClick={() => setIsMenuOpen(false)}
+                                                className="mb-3 block w-full rounded-sm border border-forest/15 bg-sage/40 px-4 py-3 font-sans text-sm font-bold uppercase tracking-widest text-forest text-center"
+                                            >
+                                                Meus Enderecos
+                                            </Link>
+                                        )}
                                         <button
                                             onClick={handleSignOut}
                                             className="w-full py-3 px-4 rounded-sm bg-red-50 text-red-600 font-sans text-sm font-bold uppercase tracking-widest text-center"
@@ -260,6 +269,15 @@ export function GlobalNav() {
                                         <p className="font-sans text-xs font-semibold text-soil truncate">{user.name}</p>
                                         <p className="font-sans text-[10px] text-bark truncate mt-0.5">{user.email}</p>
                                     </div>
+                                    {role === "buyer" && (
+                                        <Link
+                                            href="/dashboard/perfil"
+                                            onClick={() => setIsProfileOpen(false)}
+                                            className="px-4 py-2 font-sans text-xs font-bold text-forest hover:bg-sage/30 transition-colors"
+                                        >
+                                            Meus Enderecos
+                                        </Link>
+                                    )}
                                     <button
                                         onClick={handleSignOut}
                                         className="w-full text-left px-4 py-2 font-sans text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"

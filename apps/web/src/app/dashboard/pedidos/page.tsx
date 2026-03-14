@@ -7,6 +7,7 @@ import { Calendar, Store, RotateCw, X, ShoppingBag, PackageOpen, LayoutGrid, Che
 import * as Dialog from "@radix-ui/react-dialog";
 import { Toaster, toast } from "sonner";
 import { trpc } from "@/trpc/react";
+import { getSaleUnitLabel } from "@/lib/sale-units";
 
 const statusStyles = {
     draft: "bg-gray-100 text-gray-700 border-gray-200",
@@ -299,11 +300,13 @@ export default function PedidosPage() {
                                                 <div className="h-12 w-12 bg-sage/30 rounded-md border border-border/50 flex-shrink-0 flex items-center justify-center text-forest/20">
                                                     <PackageOpen className="w-5 h-5" />
                                                 </div>
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="font-bold text-[14px] text-soil group-hover:text-forest transition-colors">{item.productName}</span>
-                                                    <span className="text-[12px] font-medium text-muted-foreground">{item.qty} {item.saleUnit === 'unit' ? 'unidades' : item.saleUnit} x {formatCurrencyBRL(item.unitPrice)}</span>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-bold text-[14px] text-soil group-hover:text-forest transition-colors">{item.productName}</span>
+                                                        <span className="text-[12px] font-medium text-muted-foreground">
+                                                            {item.qty} {getSaleUnitLabel(item.saleUnit)} x {formatCurrencyBRL(item.unitPrice)}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                            </div>
                                             <span className="font-display font-bold text-[16px] text-soil ml-4 shrink-0">
                                                 {formatCurrencyBRL(Number(item.unitPrice) * Number(item.qty))}
                                             </span>

@@ -7,6 +7,10 @@ type FarmRecord = {
     name: string;
     address: Record<string, unknown> | null;
     location: [number, number] | null;
+    pricePerKm?: string | number | null;
+    maxDeliveryRadiusKm?: string | number | null;
+    minOrderValue?: string | number | null;
+    freeShippingThreshold?: string | number | null;
     createdAt: Date;
 };
 
@@ -40,6 +44,13 @@ function createMockDb(existingFarm: FarmRecord | null = null) {
                         name: String(value.name),
                         address: (value.address as Record<string, unknown> | null) ?? null,
                         location: (value.location as [number, number] | null) ?? null,
+                        pricePerKm: (value.pricePerKm as string | number | null) ?? null,
+                        maxDeliveryRadiusKm:
+                            (value.maxDeliveryRadiusKm as string | number | null) ?? null,
+                        minOrderValue:
+                            (value.minOrderValue as string | number | null) ?? null,
+                        freeShippingThreshold:
+                            (value.freeShippingThreshold as string | number | null) ?? null,
                         createdAt: new Date('2026-03-12T00:00:00.000Z'),
                     };
                     return [state.farm];
@@ -102,6 +113,10 @@ test('farm router returns the current tenant farm with normalized latitude/longi
             postalCode: '18170-000',
         },
         location: [-47.4251, -23.7112],
+        pricePerKm: '3.50',
+        maxDeliveryRadiusKm: '18',
+        minOrderValue: '45.00',
+        freeShippingThreshold: '120.00',
         createdAt: new Date('2026-03-12T00:00:00.000Z'),
     });
 
@@ -118,6 +133,10 @@ test('farm router returns the current tenant farm with normalized latitude/longi
         latitude: -23.7112,
         longitude: -47.4251,
     });
+    assert.equal(result?.pricePerKm, 3.5);
+    assert.equal(result?.deliveryRadiusKm, 18);
+    assert.equal(result?.minOrderValue, 45);
+    assert.equal(result?.freeShippingThreshold, 120);
 });
 
 test('farm router saveLocation upserts coordinates for the logged tenant', async () => {
@@ -143,6 +162,10 @@ test('farm router saveLocation upserts coordinates for the logged tenant', async
             latitude: -23.7144,
             longitude: -47.4258,
         },
+        deliveryRadiusKm: 25,
+        pricePerKm: 3.75,
+        minOrderValue: 60,
+        freeShippingThreshold: 150,
     });
 
     assert.equal(state.inserted, 1);
@@ -152,4 +175,12 @@ test('farm router saveLocation upserts coordinates for the logged tenant', async
         latitude: -23.7144,
         longitude: -47.4258,
     });
+    assert.equal(result.deliveryRadiusKm, 25);
+    assert.equal(result.pricePerKm, 3.75);
+    assert.equal(result.minOrderValue, 60);
+    assert.equal(result.freeShippingThreshold, 150);
+    assert.equal(state.farm?.maxDeliveryRadiusKm, '25');
+    assert.equal(state.farm?.pricePerKm, '3.75');
+    assert.equal(state.farm?.minOrderValue, '60.00');
+    assert.equal(state.farm?.freeShippingThreshold, '150.00');
 });

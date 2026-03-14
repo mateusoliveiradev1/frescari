@@ -29,6 +29,7 @@ import Link from "next/link";
 import { Toaster, toast } from "sonner";
 
 import { trpc } from "@/trpc/react";
+import { getSaleUnitLabel, isWeighableSaleUnit } from "@/lib/sale-units";
 
 import { DeliveryMap } from "./delivery-map";
 import type { PendingDelivery } from "./delivery-map.types";
@@ -232,10 +233,10 @@ function DeliveryCard({
                                     <div>
                                         <p className="font-semibold text-soil">{item.productName}</p>
                                         <p className="mt-1 text-xs text-bark/65">
-                                            {formatQuantity(item.qty)} {item.saleUnit}
+                                            {formatQuantity(item.qty)} {getSaleUnitLabel(item.saleUnit)}
                                         </p>
                                     </div>
-                                    {item.estimatedWeightKg !== null && item.saleUnit !== "kg" && item.saleUnit !== "g" ? (
+                                    {item.estimatedWeightKg !== null && !isWeighableSaleUnit(item.saleUnit) ? (
                                         <span className="text-xs font-semibold text-bark/60">
                                             ~{formatMass(item.estimatedWeightKg, "kg")}
                                         </span>

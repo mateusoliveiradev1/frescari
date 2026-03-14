@@ -1,7 +1,9 @@
 export { createTRPCContext, type Context } from './trpc';
 export { appRouter, type AppRouter } from './root';
 export * from './geocoding';
+export * from './sale-units';
 export * from './routers/product';
 export * from './routers/lot';
 export * from './routers/onboarding';
+export * from './routers/addresses';
 export * from './routers/logistics';

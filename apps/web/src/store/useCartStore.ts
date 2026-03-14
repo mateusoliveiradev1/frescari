@@ -9,6 +9,7 @@ import {
 export interface CatalogLot {
     id: string;
     lotCode: string;
+    farmId: string;
     harvestDate: string;
     expiryDate: string;
     availableQty: number;
@@ -47,6 +48,10 @@ export interface CartActions {
 export type CartStore = CartState & CartActions;
 
 const sanitizePersistedCartItem = (item: CartItem) => {
+    if (typeof item.farmId !== 'string' || item.farmId.trim().length === 0) {
+        return null;
+    }
+
     const safeQty = normalizeQuantity(item, item.cartQty);
 
     if (safeQty <= 0) {

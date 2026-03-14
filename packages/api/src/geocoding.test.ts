@@ -1,104 +1,119 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 
-import {
-    buildDeliveryAddressLine,
-    geocodeDeliveryAddress,
-    parseDeliveryPointMetadata,
-    serializeDeliveryPointMetadata,
-    toDeliveryPointGeoJson,
-} from './geocoding';
+import { geocodeDeliveryAddress } from './geocoding';
 
-test('delivery point metadata round-trips into GeoJSON', () => {
-    const metadataValue = serializeDeliveryPointMetadata({
-        latitude: -21.1767,
-        longitude: -47.8103,
-    });
-
-    assert.equal(
-        buildDeliveryAddressLine({
-            street: 'Rua Marechal Deodoro da Fonseca',
-            number: '923',
-            cep: '15820-031',
-            city: 'Pirangi',
-            state: 'sp',
-        }),
-        'Rua Marechal Deodoro da Fonseca, 923 - Pirangi/SP - CEP: 15820-031',
-    );
-
-    assert.deepEqual(parseDeliveryPointMetadata(metadataValue), {
-        latitude: -21.1767,
-        longitude: -47.8103,
-    });
-    assert.equal(parseDeliveryPointMetadata('{"latitude":"x"}'), null);
-    assert.deepEqual(
-        toDeliveryPointGeoJson({
-            latitude: -21.1767,
-            longitude: -47.8103,
-        }),
-        {
-            type: 'Point',
-            coordinates: [-47.8103, -21.1767],
-        },
-    );
-});
-
-test('geocodeDeliveryAddress requests Nominatim and returns the first valid point', async () => {
+test('geocodeDeliveryAddress falls back to textual search when structured search has no result', async () => {
     const originalFetch = globalThis.fetch;
-    let requestedUrl = '';
-    let requestedHeaders: HeadersInit | undefined;
+    const requestedUrls: string[] = [];
+    let attempt = 0;
 
-    globalThis.fetch = (async (input, init) => {
-        requestedUrl = String(input);
-        requestedHeaders = init?.headers;
+    globalThis.fetch = (async (input: string | URL | Request) => {
+        const url =
+            typeof input === 'string'
+                ? input
+                : input instanceof URL
+                  ? input.toString()
+                  : input.url;
 
-        return {
-            ok: true,
-            json: async () => [{ lat: '-21.1767', lon: '-47.8103' }],
-        } as Response;
+        requestedUrls.push(url);
+
+        const body =
+            attempt++ === 0
+                ? []
+                : [
+                      {
+                          lat: '-23.561684',
+                          lon: '-46.656139',
+                      },
+                  ];
+
+        return new Response(JSON.stringify(body), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
     }) as typeof fetch;
 
     try {
-        const result = await geocodeDeliveryAddress({
-            street: 'Rua Marechal Deodoro da Fonseca',
-            number: '923',
-            cep: '15820-031',
-            city: 'Pirangi',
-            state: 'sp',
+        const point = await geocodeDeliveryAddress({
+            street: 'Avenida Paulista',
+            number: '1000',
+            cep: '01310-100',
+            city: 'Sao Paulo',
+            state: 'SP',
         });
 
-        assert.deepEqual(result, {
-            latitude: -21.1767,
-            longitude: -47.8103,
+        assert.deepEqual(point, {
+            latitude: -23.561684,
+            longitude: -46.656139,
         });
-        assert.match(requestedUrl, /countrycodes=br/);
-        assert.match(requestedUrl, /postalcode=15820031/);
-        assert.match(requestedUrl, /street=923\+Rua\+Marechal\+Deodoro\+da\+Fonseca/);
-        assert.ok(requestedHeaders);
+        assert.equal(requestedUrls.length, 2);
+
+        const firstRequest = new URL(requestedUrls[0] ?? '');
+        const secondRequest = new URL(requestedUrls[1] ?? '');
+
+        assert.equal(firstRequest.searchParams.get('street'), 'Avenida Paulista, 1000');
+        assert.match(secondRequest.searchParams.get('q') ?? '', /Avenida Paulista, 1000/);
     } finally {
         globalThis.fetch = originalFetch;
     }
 });
 
-test('geocodeDeliveryAddress returns null when Nominatim has no match', async () => {
+test('geocodeDeliveryAddress falls back to zipcode and then city center when street lookups fail', async () => {
     const originalFetch = globalThis.fetch;
+    const requestedUrls: string[] = [];
+    let attempt = 0;
 
-    globalThis.fetch = (async () =>
-        ({
-            ok: true,
-            json: async () => [],
-        }) as Response) as typeof fetch;
+    globalThis.fetch = (async (input: string | URL | Request) => {
+        const url =
+            typeof input === 'string'
+                ? input
+                : input instanceof URL
+                  ? input.toString()
+                  : input.url;
+
+        requestedUrls.push(url);
+
+        const body =
+            attempt++ < 4
+                ? []
+                : [
+                      {
+                          lat: '-21.091234',
+                          lon: '-48.660321',
+                      },
+                  ];
+
+        return new Response(JSON.stringify(body), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+    }) as typeof fetch;
 
     try {
-        const result = await geocodeDeliveryAddress({
-            street: 'Endereco inexistente',
-            number: '0',
-            cep: '00000-000',
-            city: 'Cidade Fantasma',
+        const point = await geocodeDeliveryAddress({
+            street: 'Rua Projetada 7',
+            number: '45',
+            cep: '15820-000',
+            city: 'Pirangi',
             state: 'SP',
         });
 
-        assert.equal(result, null);
+        assert.deepEqual(point, {
+            latitude: -21.091234,
+            longitude: -48.660321,
+        });
+        assert.equal(requestedUrls.length, 5);
+
+        const zipcodeRequest = new URL(requestedUrls[3] ?? '');
+        const cityFallbackRequest = new URL(requestedUrls[4] ?? '');
+
+        assert.equal(zipcodeRequest.searchParams.get('postalcode'), '15820000');
+        assert.equal(cityFallbackRequest.searchParams.get('q'), 'Pirangi/SP, Brasil');
     } finally {
         globalThis.fetch = originalFetch;
     }

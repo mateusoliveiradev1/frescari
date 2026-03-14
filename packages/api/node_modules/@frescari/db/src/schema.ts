@@ -151,6 +151,8 @@ export const farms = pgTable('farms', {
     baseDeliveryFee: numeric('base_delivery_fee', { precision: 10, scale: 2 }).default('0').notNull(),
     pricePerKm: numeric('price_per_km', { precision: 10, scale: 2 }).default('0').notNull(),
     maxDeliveryRadiusKm: numeric('max_delivery_radius_km', { precision: 10, scale: 2 }).default('0').notNull(),
+    minOrderValue: numeric('min_order_value', { precision: 10, scale: 2 }).default('0').notNull(),
+    freeShippingThreshold: numeric('free_shipping_threshold', { precision: 10, scale: 2 }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

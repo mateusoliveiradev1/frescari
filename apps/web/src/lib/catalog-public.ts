@@ -23,6 +23,7 @@ export type CatalogLotStatus = "fresco" | "last_chance" | "vencido";
 export interface PublicCatalogLot {
   id: string;
   lotCode: string;
+  farmId: string;
   harvestDate: string;
   expiryDate: string;
   availableQty: number;
@@ -114,6 +115,7 @@ const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> =
       unit: productLots.unit,
       lotImageUrl: productLots.imageUrl,
       productName: products.name,
+      farmId: products.farmId,
       saleUnit: products.saleUnit,
       pricePerUnit: products.pricePerUnit,
       productImages: products.images,
@@ -148,6 +150,7 @@ const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> =
       return {
         id: row.lotId,
         lotCode: row.lotCode,
+        farmId: row.farmId,
         harvestDate,
         expiryDate,
         availableQty: Number(row.availableQty),

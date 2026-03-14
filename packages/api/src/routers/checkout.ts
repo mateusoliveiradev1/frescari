@@ -2,8 +2,9 @@ import { z } from 'zod';
 import Stripe from 'stripe';
 import { createTRPCRouter, buyerProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
-import { db, tenants, productLots, products, masterProducts } from '@frescari/db';
+import { db, farms, tenants, productLots, products, masterProducts } from '@frescari/db';
 import { eq, inArray } from 'drizzle-orm';
+import { isWeighableSaleUnit } from '../sale-units';
 import {
     buildDeliveryAddressLine,
     geocodeDeliveryAddress,
@@ -54,14 +55,13 @@ export type DeliveryAddress = z.infer<typeof deliveryAddressSchema>;
 
 /**
  * Converts a BRL float price to Stripe-compatible integer cents.
- * Applies the 10 % weight safety margin when the item is priced by weight.
+ * Applies the 10 % weight safety margin only for products sold by kg or g.
  */
 function toStripeCents(
     brlPrice: number,
-    pricingType: CheckoutItem['pricingType'],
+    isWeighable: boolean,
 ): number {
-    const adjusted =
-        pricingType === 'WEIGHT' ? brlPrice * WEIGHT_SAFETY_MARGIN : brlPrice;
+    const adjusted = isWeighable ? brlPrice * WEIGHT_SAFETY_MARGIN : brlPrice;
     return Math.round(adjusted * 100);
 }
 
@@ -71,7 +71,7 @@ function buildLineItems(
 ): Stripe.Checkout.SessionCreateParams.LineItem[] {
     const productLines: Stripe.Checkout.SessionCreateParams.LineItem[] =
         items.map((item) => {
-            const isWeight = item.pricingType === 'WEIGHT' || item.masterPricingType === 'WEIGHT' || item.productSaleUnit === 'kg' || item.productSaleUnit === 'g' || item.dbPricingType === 'WEIGHT';
+            const isWeighable = isWeighableSaleUnit(item.productSaleUnit);
 
             return {
                 price_data: {
@@ -80,7 +80,7 @@ function buildLineItems(
                         name: item.productName,
                         ...(item.imageUrl ? { images: [item.imageUrl] } : {}),
                     },
-                    unit_amount: toStripeCents(item.unitPrice, isWeight ? 'WEIGHT' : 'UNIT'),
+                    unit_amount: toStripeCents(item.unitPrice, isWeighable),
                 },
                 quantity: item.quantity,
             };
@@ -97,6 +97,35 @@ function buildLineItems(
     };
 
     return [...productLines, deliveryLine];
+}
+
+function normalizeCurrencyValue(rawValue: string | number | null | undefined) {
+    const parsedValue =
+        typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
+
+    if (!Number.isFinite(parsedValue)) {
+        return 0;
+    }
+
+    return Math.max(0, Number(parsedValue.toFixed(2)));
+}
+
+function normalizeNullableCurrencyValue(rawValue: string | number | null | undefined) {
+    if (rawValue === null || rawValue === undefined) {
+        return null;
+    }
+
+    const parsedValue = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+
+    if (!Number.isFinite(parsedValue)) {
+        return null;
+    }
+
+    return Math.max(0, Number(parsedValue.toFixed(2)));
+}
+
+function formatCurrencyMessage(value: number) {
+    return `R$ ${value.toFixed(2).replace('.', ',')}`;
 }
 
 // ── Router ───────────────────────────────────────────────────────────
@@ -143,11 +172,14 @@ export const checkoutRouter = createTRPCRouter({
                     stripeAccountId: tenants.stripeAccountId,
                     masterPricingType: masterProducts.pricingType,
                     productSaleUnit: products.saleUnit,
-                    dbPricingType: productLots.pricingType
+                    dbPricingType: productLots.pricingType,
+                    minOrderValue: farms.minOrderValue,
+                    freeShippingThreshold: farms.freeShippingThreshold,
                 })
                 .from(productLots)
                 .innerJoin(tenants, eq(tenants.id, productLots.tenantId))
                 .innerJoin(products, eq(productLots.productId, products.id))
+                .innerJoin(farms, eq(products.farmId, farms.id))
                 .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
                 .where(inArray(productLots.id, lotIdsToFetch));
 
@@ -167,11 +199,35 @@ export const checkoutRouter = createTRPCRouter({
                     ...item,
                     masterPricingType: mergedLot?.masterPricingType,
                     productSaleUnit: mergedLot?.productSaleUnit,
-                    dbPricingType: mergedLot?.dbPricingType
+                    dbPricingType: mergedLot?.dbPricingType,
                 };
             });
 
-            const lineItems = buildLineItems(safeItems, input.deliveryFee);
+            const itemsTotalBRL = input.items.reduce(
+                (sum, item) => sum + (item.unitPrice * item.quantity),
+                0,
+            );
+            const minOrderValue = normalizeCurrencyValue(
+                lotDataForStripe[0]?.minOrderValue,
+            );
+            const freeShippingThreshold = normalizeNullableCurrencyValue(
+                lotDataForStripe[0]?.freeShippingThreshold,
+            );
+
+            if (itemsTotalBRL < minOrderValue) {
+                throw new TRPCError({
+                    code: 'PRECONDITION_FAILED',
+                    message:
+                        `Este pedido nao atingiu o valor minimo de ${formatCurrencyMessage(minOrderValue)} para esta fazenda.`,
+                });
+            }
+
+            const effectiveDeliveryFee =
+                freeShippingThreshold !== null && itemsTotalBRL >= freeShippingThreshold
+                    ? 0
+                    : input.deliveryFee;
+
+            const lineItems = buildLineItems(safeItems, effectiveDeliveryFee);
 
             let geocodedDeliveryPoint: GeocodedPoint | null = null;
 
@@ -216,20 +272,13 @@ export const checkoutRouter = createTRPCRouter({
             const addressJson = JSON.stringify(input.address);
             const deliveryPointJson = serializeDeliveryPointMetadata(geocodedDeliveryPoint);
 
-            const hasWeightProducts = safeItems.some(
-                (item) => item.pricingType === 'WEIGHT' || item.masterPricingType === 'WEIGHT' || item.productSaleUnit === 'kg' || item.productSaleUnit === 'g' || item.dbPricingType === 'WEIGHT'
-            );
+            const hasWeightProducts = safeItems.some((item) => isWeighableSaleUnit(item.productSaleUnit));
 
             const captureMethod = hasWeightProducts ? 'manual' : 'automatic';
             const isAllUnitOrder = !hasWeightProducts;
 
             // Calculate total cart value in order to get dynamic application_fee_amount (e.g. 10%)
-            const itemsTotalBRL = input.items.reduce(
-                (sum, item) => sum + (item.unitPrice * item.quantity),
-                0
-            );
-
-            const totalAmountBrl = itemsTotalBRL + input.deliveryFee;
+            const totalAmountBrl = itemsTotalBRL + effectiveDeliveryFee;
             // Converting back to generalized integer cents for math (ignoring weight safety logic gap on this fee calculation to follow direct BRL total requested unless specific rule is needed).
             // Using standard representation conversion
             const totalAmountCents = Math.round(totalAmountBrl * 100);
@@ -250,7 +299,7 @@ export const checkoutRouter = createTRPCRouter({
                             buyer_tenant_id: buyerTenantId,
                             delivery_address: addressLine,
                             address: addressJson,
-                            delivery_fee: input.deliveryFee.toString(),
+                            delivery_fee: effectiveDeliveryFee.toString(),
                             delivery_point: deliveryPointJson,
                             is_all_unit_order: isAllUnitOrder.toString(),
                         },
@@ -262,7 +311,7 @@ export const checkoutRouter = createTRPCRouter({
                         buyer_tenant_id: buyerTenantId,
                         items: itemsJson,
                         address: addressJson,
-                        delivery_fee: input.deliveryFee.toString(),
+                        delivery_fee: effectiveDeliveryFee.toString(),
                         delivery_address: addressLine,
                         delivery_point: deliveryPointJson,
                         is_all_unit_order: isAllUnitOrder.toString(),

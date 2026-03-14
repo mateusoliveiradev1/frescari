@@ -43,6 +43,59 @@ const stateCodeRegex = /^[A-Za-z]{2}$/;
 const requiredTrimmedString = (fieldLabel: string, minLength = 2) =>
     trimmedString(fieldLabel, minLength);
 
+const emptyStringToUndefined = (value: unknown) => {
+    if (typeof value !== 'string') {
+        return value;
+    }
+
+    return value.trim().length === 0 ? undefined : value;
+};
+
+const optionalTrimmedString = (fieldLabel: string, minLength = 1) =>
+    z.preprocess(
+        emptyStringToUndefined,
+        z.string().trim().min(minLength, `${fieldLabel} invalido.`).optional(),
+    );
+
+const nullableOptionalTrimmedString = (fieldLabel: string, minLength = 1) =>
+    z.preprocess(
+        (value) => {
+            if (typeof value !== 'string') {
+                return value;
+            }
+
+            return value.trim().length === 0 ? null : value;
+        },
+        z.string().trim().min(minLength, `${fieldLabel} invalido.`).nullable().optional(),
+    );
+
+const normalizeBrazilianPostalCode = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+
+    if (digits.length !== 8) {
+        return value.trim();
+    }
+
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+};
+
+const normalizedZipcodeSchema = z.preprocess(
+    (value) => (typeof value === 'string' ? normalizeBrazilianPostalCode(value) : value),
+    z.string().trim().regex(brazilianPostalCodeRegex, 'CEP invalido (ex: 01234-567).'),
+);
+
+const nonNegativeNumberSchema = (fieldLabel: string) =>
+    z.preprocess(
+        (value) => (typeof value === 'string' ? Number(value) : value),
+        z.number().finite().min(0, `${fieldLabel} deve ser zero ou maior.`),
+    );
+
+const nonNegativeIntegerSchema = (fieldLabel: string) =>
+    z.preprocess(
+        (value) => (typeof value === 'string' ? Number(value) : value),
+        z.number().int().min(0, `${fieldLabel} deve ser zero ou maior.`),
+    );
+
 export const farmCoordinatesSchema = z.object({
     latitude: z
         .number()
@@ -92,6 +145,10 @@ export const insertFarmSchema = z.object({
     name: requiredTrimmedString('Nome da fazenda'),
     address: farmAddressSchema.nullable().optional(),
     location: farmPointSchema.nullable().optional(),
+    deliveryRadiusKm: nonNegativeIntegerSchema('Raio maximo de entrega').optional(),
+    pricePerKm: nonNegativeNumberSchema('Taxa de frete por km').optional(),
+    minOrderValue: nonNegativeNumberSchema('Valor minimo do pedido').optional(),
+    freeShippingThreshold: nonNegativeNumberSchema('Frete gratis a partir de').nullable().optional(),
     certifications: z.array(z.string().trim().min(1)).nullable().optional(),
     createdAt: z.date().optional(),
 });
@@ -102,6 +159,10 @@ export const selectFarmSchema = z.object({
     name: requiredTrimmedString('Nome da fazenda'),
     address: farmAddressSchema.nullable(),
     location: farmPointSchema.nullable(),
+    deliveryRadiusKm: nonNegativeIntegerSchema('Raio maximo de entrega'),
+    pricePerKm: nonNegativeNumberSchema('Taxa de frete por km'),
+    minOrderValue: nonNegativeNumberSchema('Valor minimo do pedido'),
+    freeShippingThreshold: nonNegativeNumberSchema('Frete gratis a partir de').nullable(),
     certifications: z.array(z.string()).nullable().optional(),
     createdAt: z.date(),
 });
@@ -111,6 +172,10 @@ export const upsertFarmInputSchema = z
         name: requiredTrimmedString('Nome da fazenda'),
         address: farmAddressSchema,
         location: farmCoordinatesSchema,
+        deliveryRadiusKm: nonNegativeIntegerSchema('Raio maximo de entrega'),
+        pricePerKm: nonNegativeNumberSchema('Taxa de frete por km'),
+        minOrderValue: nonNegativeNumberSchema('Valor minimo do pedido'),
+        freeShippingThreshold: nonNegativeNumberSchema('Frete gratis a partir de').nullable(),
     })
     .strict();
 
@@ -175,6 +240,71 @@ export const deliveryAddressSchema = z.object({
     state: z.string().length(2, 'Estado deve ter 2 letras (UF).'),
 });
 
+export const createAddressSchema = z
+    .object({
+        title: requiredTrimmedString('Titulo do endereco'),
+        zipcode: normalizedZipcodeSchema,
+        street: requiredTrimmedString('Rua'),
+        number: requiredTrimmedString('Numero', 1),
+        neighborhood: optionalTrimmedString('Bairro', 2),
+        city: requiredTrimmedString('Cidade'),
+        state: z
+            .string()
+            .trim()
+            .regex(stateCodeRegex, 'Estado deve ter 2 letras (UF).')
+            .transform((value) => value.toUpperCase()),
+        country: z
+            .string()
+            .trim()
+            .length(2, 'Pais deve ter 2 letras.')
+            .transform((value) => value.toUpperCase())
+            .optional()
+            .default('BR'),
+        complement: optionalTrimmedString('Complemento', 1),
+    })
+    .strict();
+
+export const updateAddressSchema = z
+    .object({
+        id: z.string().uuid(),
+        title: requiredTrimmedString('Titulo do endereco').optional(),
+        zipcode: normalizedZipcodeSchema.optional(),
+        street: requiredTrimmedString('Rua').optional(),
+        number: requiredTrimmedString('Numero', 1).optional(),
+        neighborhood: nullableOptionalTrimmedString('Bairro', 2),
+        city: requiredTrimmedString('Cidade').optional(),
+        state: z
+            .string()
+            .trim()
+            .regex(stateCodeRegex, 'Estado deve ter 2 letras (UF).')
+            .transform((value) => value.toUpperCase())
+            .optional(),
+        country: z
+            .string()
+            .trim()
+            .length(2, 'Pais deve ter 2 letras.')
+            .transform((value) => value.toUpperCase())
+            .optional(),
+        complement: nullableOptionalTrimmedString('Complemento', 1),
+    })
+    .strict()
+    .refine(
+        (input) =>
+            Object.entries(input).some(
+                ([key, value]) => key !== 'id' && value !== undefined,
+            ),
+        {
+            message: 'Informe ao menos um campo para atualizar o endereco.',
+            path: ['id'],
+        },
+    );
+
+export const deleteAddressSchema = z
+    .object({
+        id: z.string().uuid(),
+    })
+    .strict();
+
 export const checkoutOrderSchema = z.object({
     buyerTenantId: z.string().uuid(),
     sellerTenantId: z.string().uuid(),
@@ -195,6 +325,7 @@ export const calculateFreightSchema = z
     .object({
         farmId: z.string().uuid(),
         addressId: z.string().uuid(),
+        subtotal: nonNegativeNumberSchema('Subtotal do carrinho'),
     })
     .strict();
 

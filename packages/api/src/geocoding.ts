@@ -86,6 +86,26 @@ function normalizeCep(cep: string) {
     return cep.replace(/\D/g, '');
 }
 
+function extractGeocodedPoint(
+    result: NominatimSearchResult | null | undefined,
+): GeocodedPoint | null {
+    if (!result) {
+        return null;
+    }
+
+    const latitude = Number(result.lat);
+    const longitude = Number(result.lon);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return null;
+    }
+
+    return {
+        latitude,
+        longitude,
+    };
+}
+
 function formatPostalCode(postalCode: string | undefined) {
     const digits = normalizeCep(postalCode ?? '');
 
@@ -228,39 +248,56 @@ export function toDeliveryPointGeoJson(point: GeocodedPoint): DeliveryPointGeoJs
 export async function geocodeDeliveryAddress(
     address: DeliveryAddress,
 ): Promise<GeocodedPoint | null> {
-    const params = new URLSearchParams({
-        street: `${address.number} ${address.street}`,
-        city: address.city,
-        state: address.state.toUpperCase(),
-        postalcode: normalizeCep(address.cep),
-        country: 'Brasil',
+    const normalizedState = address.state.toUpperCase();
+    const formattedPostalCode = formatPostalCode(address.cep) ?? address.cep;
+    const baseSearchParams = {
         countrycodes: 'br',
         format: 'jsonv2',
         addressdetails: '1',
         limit: '1',
         email: NOMINATIM_CONTACT_EMAIL,
-    });
+    } satisfies Record<string, string>;
 
-    const results = await requestNominatim<NominatimSearchResult[]>(
-        `${NOMINATIM_SEARCH_URL}?${params.toString()}`,
-    );
-    const firstResult = results?.[0];
+    const searchStrategies = [
+        new URLSearchParams({
+            ...baseSearchParams,
+            street: `${address.street}, ${address.number}`,
+            city: address.city,
+            state: normalizedState,
+            postalcode: normalizeCep(address.cep),
+            country: 'Brasil',
+        }),
+        new URLSearchParams({
+            ...baseSearchParams,
+            q: `${address.street}, ${address.number} - ${address.city}/${normalizedState} - CEP ${formattedPostalCode}, Brasil`,
+        }),
+        new URLSearchParams({
+            ...baseSearchParams,
+            q: `${address.street}, ${address.city}/${normalizedState}, Brasil`,
+        }),
+        new URLSearchParams({
+            ...baseSearchParams,
+            postalcode: normalizeCep(address.cep),
+            country: 'Brasil',
+        }),
+        new URLSearchParams({
+            ...baseSearchParams,
+            q: `${address.city}/${normalizedState}, Brasil`,
+        }),
+    ];
 
-    if (!firstResult) {
-        return null;
+    for (const params of searchStrategies) {
+        const results = await requestNominatim<NominatimSearchResult[]>(
+            `${NOMINATIM_SEARCH_URL}?${params.toString()}`,
+        );
+        const point = extractGeocodedPoint(results?.[0]);
+
+        if (point) {
+            return point;
+        }
     }
 
-    const latitude = Number(firstResult.lat);
-    const longitude = Number(firstResult.lon);
-
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        return null;
-    }
-
-    return {
-        latitude,
-        longitude,
-    };
+    return null;
 }
 
 export async function geocodeFarmLocationQuery(

@@ -48,6 +48,9 @@ export default function BuyerDashboard({ user }: BuyerDashboardProps) {
                             <span className="italic text-forest">{firstName}</span>.
                         </h1>
                     </div>
+                    <Button variant="secondary" asChild>
+                        <Link href="/dashboard/perfil">Gerenciar Enderecos</Link>
+                    </Button>
                 </div>
 
                 {isLoading ? (

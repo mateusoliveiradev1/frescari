@@ -36,6 +36,10 @@ type FarmFormValues = {
         complement: string;
     };
     location: FarmCoordinates;
+    deliveryRadiusKm: number;
+    pricePerKm: number;
+    minOrderValue: number;
+    freeShippingThreshold: number | null;
 };
 
 type FarmSeed =
@@ -43,6 +47,11 @@ type FarmSeed =
           name?: string | null;
           address?: Partial<FarmAddress> | null;
           location?: FarmCoordinates | null;
+          deliveryRadiusKm?: number | string | null;
+          maxDeliveryRadiusKm?: number | string | null;
+          pricePerKm?: number | string | null;
+          minOrderValue?: number | string | null;
+          freeShippingThreshold?: number | string | null;
       }
     | null
     | undefined;
@@ -85,6 +94,10 @@ function getDefaultFormValues(): FarmFormValues {
             complement: "",
         },
         location: DEFAULT_FARM_COORDINATES,
+        deliveryRadiusKm: 0,
+        pricePerKm: 0,
+        minOrderValue: 0,
+        freeShippingThreshold: null,
     };
 }
 
@@ -107,6 +120,21 @@ function parseFarmToFormValues(farm: FarmSeed): FarmFormValues {
                 farm?.address?.complement ?? defaults.address.complement,
         },
         location: farm?.location ?? defaults.location,
+        deliveryRadiusKm: coerceNonNegativeInteger(
+            farm?.deliveryRadiusKm ?? farm?.maxDeliveryRadiusKm,
+            defaults.deliveryRadiusKm,
+        ),
+        pricePerKm: coerceNonNegativeNumber(
+            farm?.pricePerKm,
+            defaults.pricePerKm,
+        ),
+        minOrderValue: coerceNonNegativeNumber(
+            farm?.minOrderValue,
+            defaults.minOrderValue,
+        ),
+        freeShippingThreshold: coerceNullableNonNegativeNumber(
+            farm?.freeShippingThreshold,
+        ),
     };
 }
 
@@ -124,6 +152,43 @@ function roundCoordinates(coordinates: FarmCoordinates): FarmCoordinates {
 
 function hasText(value: string | null | undefined): value is string {
     return typeof value === "string" && value.trim().length > 0;
+}
+
+function coerceNonNegativeNumber(
+    value: number | string | null | undefined,
+    fallback = 0,
+) {
+    const parsedValue =
+        typeof value === "number" ? value : Number(value ?? fallback);
+
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+        return fallback;
+    }
+
+    return parsedValue;
+}
+
+function coerceNonNegativeInteger(
+    value: number | string | null | undefined,
+    fallback = 0,
+) {
+    return Math.max(0, Math.round(coerceNonNegativeNumber(value, fallback)));
+}
+
+function coerceNullableNonNegativeNumber(
+    value: number | string | null | undefined,
+) {
+    if (value === null || value === undefined || value === "") {
+        return null;
+    }
+
+    const parsedValue = typeof value === "number" ? value : Number(value);
+
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+        return null;
+    }
+
+    return parsedValue;
 }
 
 function buildMapFeedbackClassName(tone: MapFeedbackTone) {
@@ -506,6 +571,10 @@ export function FarmPageClient() {
                 complement: optionalTrimmedValue(values.address.complement),
             },
             location: roundCoordinates(values.location),
+            deliveryRadiusKm: values.deliveryRadiusKm,
+            pricePerKm: values.pricePerKm,
+            minOrderValue: values.minOrderValue,
+            freeShippingThreshold: values.freeShippingThreshold,
         });
     });
 
@@ -950,6 +1019,131 @@ export function FarmPageClient() {
                                         label="Longitude"
                                         value={coordinates.longitude.toFixed(6)}
                                     />
+                                </div>
+
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <FieldShell
+                                        error={errors.deliveryRadiusKm?.message}
+                                        htmlFor="farm-delivery-radius-km"
+                                        label="Raio Maximo de Entrega (Km)"
+                                    >
+                                        <input
+                                            className={buildInputClassName(
+                                                errors.deliveryRadiusKm,
+                                            )}
+                                            id="farm-delivery-radius-km"
+                                            inputMode="numeric"
+                                            min={0}
+                                            placeholder="Ex: 30"
+                                            step={1}
+                                            type="number"
+                                            {...register("deliveryRadiusKm", {
+                                                setValueAs: (value) =>
+                                                    coerceNonNegativeInteger(
+                                                        value,
+                                                    ),
+                                                validate: (value) =>
+                                                    Number.isInteger(value) ||
+                                                    "Informe um raio inteiro igual ou maior que zero.",
+                                            })}
+                                        />
+                                    </FieldShell>
+
+                                    <FieldShell
+                                        error={errors.pricePerKm?.message}
+                                        htmlFor="farm-price-per-km"
+                                        label="Taxa de Frete (R$ por Km)"
+                                    >
+                                        <input
+                                            className={buildInputClassName(
+                                                errors.pricePerKm,
+                                            )}
+                                            id="farm-price-per-km"
+                                            inputMode="decimal"
+                                            min={0}
+                                            placeholder="Ex: 4,50"
+                                            step="0.01"
+                                            type="number"
+                                            {...register("pricePerKm", {
+                                                setValueAs: (value) =>
+                                                    coerceNonNegativeNumber(
+                                                    value,
+                                                    ),
+                                                validate: (value) =>
+                                                    Number.isFinite(value) &&
+                                                    value >= 0
+                                                        ? true
+                                                        : "Informe uma taxa igual ou maior que zero.",
+                                            })}
+                                        />
+                                    </FieldShell>
+
+                                    <FieldShell
+                                        error={errors.minOrderValue?.message}
+                                        htmlFor="farm-min-order-value"
+                                        label="Valor Minimo do Pedido"
+                                    >
+                                        <input
+                                            className={buildInputClassName(
+                                                errors.minOrderValue,
+                                            )}
+                                            id="farm-min-order-value"
+                                            inputMode="decimal"
+                                            min={0}
+                                            placeholder="Ex: 50,00"
+                                            step="0.01"
+                                            type="number"
+                                            {...register("minOrderValue", {
+                                                setValueAs: (value) =>
+                                                    coerceNonNegativeNumber(
+                                                        value,
+                                                    ),
+                                                validate: (value) =>
+                                                    Number.isFinite(value) &&
+                                                    value >= 0
+                                                        ? true
+                                                        : "Informe um valor igual ou maior que zero.",
+                                            })}
+                                        />
+                                    </FieldShell>
+
+                                    <FieldShell
+                                        error={
+                                            errors.freeShippingThreshold
+                                                ?.message
+                                        }
+                                        hint="Opcional. Deixe em branco para nao oferecer frete gratis."
+                                        htmlFor="farm-free-shipping-threshold"
+                                        label="Frete Gratis a partir de"
+                                    >
+                                        <Controller
+                                            control={control}
+                                            name="freeShippingThreshold"
+                                            render={({ field }) => (
+                                                <input
+                                                    className={buildInputClassName(
+                                                        errors.freeShippingThreshold,
+                                                    )}
+                                                    id="farm-free-shipping-threshold"
+                                                    inputMode="decimal"
+                                                    min={0}
+                                                    onBlur={field.onBlur}
+                                                    onChange={(event) => {
+                                                        field.onChange(
+                                                            coerceNullableNonNegativeNumber(
+                                                                event.target.value,
+                                                            ),
+                                                        );
+                                                    }}
+                                                    placeholder="Ex: 120,00"
+                                                    ref={field.ref}
+                                                    step="0.01"
+                                                    type="number"
+                                                    value={field.value ?? ""}
+                                                />
+                                            )}
+                                        />
+                                    </FieldShell>
                                 </div>
                             </div>
                         </section>

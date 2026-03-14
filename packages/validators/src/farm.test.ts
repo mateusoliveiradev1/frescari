@@ -19,6 +19,10 @@ const validFarmPayload = {
         latitude: -23.6567,
         longitude: -47.2223,
     },
+    deliveryRadiusKm: 35,
+    pricePerKm: 4.5,
+    minOrderValue: 50,
+    freeShippingThreshold: 120,
 };
 
 test('upsertFarmInputSchema accepts a valid structured farm payload', () => {
@@ -32,6 +36,13 @@ test('upsertFarmInputSchema accepts a valid structured farm payload', () => {
     if (result.success) {
         assert.equal(result.data.location.latitude, validFarmPayload.location.latitude);
         assert.equal(result.data.address.city, validFarmPayload.address.city);
+        assert.equal(result.data.deliveryRadiusKm, validFarmPayload.deliveryRadiusKm);
+        assert.equal(result.data.pricePerKm, validFarmPayload.pricePerKm);
+        assert.equal(result.data.minOrderValue, validFarmPayload.minOrderValue);
+        assert.equal(
+            result.data.freeShippingThreshold,
+            validFarmPayload.freeShippingThreshold,
+        );
     }
 });
 
@@ -53,6 +64,10 @@ test('saveFarmLocationInputSchema rejects invalid coordinates and malformed addr
             latitude: -120,
             longitude: 240,
         },
+        deliveryRadiusKm: -1,
+        pricePerKm: -5,
+        minOrderValue: -10,
+        freeShippingThreshold: -20,
     });
 
     assert.equal(result.success, false);
@@ -64,5 +79,9 @@ test('saveFarmLocationInputSchema rejects invalid coordinates and malformed addr
         assert.ok(issuePaths.includes('address.city'));
         assert.ok(issuePaths.includes('location.latitude'));
         assert.ok(issuePaths.includes('location.longitude'));
+        assert.ok(issuePaths.includes('deliveryRadiusKm'));
+        assert.ok(issuePaths.includes('pricePerKm'));
+        assert.ok(issuePaths.includes('minOrderValue'));
+        assert.ok(issuePaths.includes('freeShippingThreshold'));
     }
 });

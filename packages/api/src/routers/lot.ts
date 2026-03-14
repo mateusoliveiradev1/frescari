@@ -141,6 +141,7 @@ export const lotRouter = createTRPCRouter({
                         return {
                             id: lot.id,
                             lotCode: lot.lotCode,
+                            farmId: product?.farmId ?? '',
                             harvestDate: lot.harvestDate,
                             expiryDate: lot.expiryDate,
                             availableQty: Number(lot.availableQty),
@@ -159,7 +160,7 @@ export const lotRouter = createTRPCRouter({
                         };
                     })
                     // Filter out expired (SSOT) or out-of-stock lots for the public catalog
-                    .filter((lot) => lot.status !== 'vencido' && lot.availableQty > 0)
+                    .filter((lot) => lot.status !== 'vencido' && lot.availableQty > 0 && lot.farmId.length > 0)
                     .sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
             } catch (error: any) {
                 console.error('[DB_CATALOG_ERROR]:', error);

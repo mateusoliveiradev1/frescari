@@ -5,6 +5,7 @@ import { createTRPCRouter, protectedProcedure, buyerProcedure, producerProcedure
 import { productLots, products, orders, orderItems, tenants, masterProducts } from '@frescari/db';
 import { eq, inArray, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
+import { isWeighableSaleUnit, normalizeSaleUnit } from '../sale-units';
 import {
     buildDeliveryAddressLine,
     geocodeDeliveryAddress,
@@ -17,22 +18,10 @@ const stripe = new Stripe(stripeSecretKey ?? '');
 const WEIGHT_SAFETY_MARGIN = 1.1;
 const PLATFORM_FEE_RATE = 0.1;
 
-const isWeightSaleUnit = (saleUnit?: string | null) => {
-    const normalizedSaleUnit = saleUnit?.toLowerCase();
-    return normalizedSaleUnit === 'kg'
-        || normalizedSaleUnit === 'g'
-        || normalizedSaleUnit === 'peso'
-        || normalizedSaleUnit === 'weight';
-};
-
 const isWeightBasedItem = (item: {
     saleUnit?: string | null;
-    pricingType?: string | null;
-    masterPricingType?: string | null;
 }) => {
-    return item.pricingType?.toUpperCase() === 'WEIGHT'
-        || item.masterPricingType?.toUpperCase() === 'WEIGHT'
-        || isWeightSaleUnit(item.saleUnit);
+    return isWeighableSaleUnit(item.saleUnit);
 };
 
 export const orderRouter = createTRPCRouter({
@@ -149,7 +138,7 @@ export const orderRouter = createTRPCRouter({
                         }
 
                         // Strict integer validation for UNIT and BOX pricing types
-                        const isWeight = lotData.pricingType === 'WEIGHT' || lotData.masterPricingType === 'WEIGHT' || lotData.saleUnit === 'kg' || lotData.saleUnit === 'g';
+                        const isWeight = isWeighableSaleUnit(lotData.saleUnit);
                         if (!isWeight && !Number.isInteger(reqItem.quantity)) {
                             throw new TRPCError({
                                 code: 'BAD_REQUEST',
@@ -175,7 +164,7 @@ export const orderRouter = createTRPCRouter({
                             sellerTenantId: lotData.sellerTenantId,
                             unitPrice: finalUnitPrice,
                             totalPrice: finalUnitPrice * reqItem.quantity,
-                            saleUnit: (lotData.pricingType === 'WEIGHT' || lotData.masterPricingType === 'WEIGHT' || lotData.saleUnit === 'kg' || lotData.saleUnit === 'g') ? 'kg' : 'unit'
+                            saleUnit: normalizeSaleUnit(lotData.saleUnit) || 'unit',
                         };
                     });
 

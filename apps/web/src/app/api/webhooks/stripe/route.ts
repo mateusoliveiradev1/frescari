@@ -6,6 +6,7 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import {
     buildDeliveryAddressLine,
     geocodeDeliveryAddress,
+    isWeighableSaleUnit,
     parseDeliveryPointMetadata,
     toDeliveryPointGeoJson,
 } from '@frescari/api';
@@ -161,7 +162,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     console.log(`[WEBHOOK] Metadados extraídos: buyer=${buyerTenantId}, deliveryFee=${deliveryFeeStr}`);
 
-    const isAllUnitOrder = metadata.is_all_unit_order === 'true';
 
     // ── 2. Parse JSON safely ─────────────────────────────────────────
     let parsedItems: MetadataItem[];
@@ -285,10 +285,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             );
             const orderTotal = itemsTotal + deliveryFee;
 
-            const hasWeightItems = sellerItems.some(
-                (i) => i.saleUnit === 'kg' || i.saleUnit === 'g' || i.pricingType === 'WEIGHT' || i.masterPricingType === 'WEIGHT' || i.pt === 'WEIGHT'
-            );
-            const initialStatus = hasWeightItems ? 'awaiting_weight' : (isAllUnitOrder ? 'confirmed' : 'confirmed');
+            const hasWeightItems = sellerItems.some((item) => isWeighableSaleUnit(item.saleUnit));
+            const initialStatus = hasWeightItems ? 'awaiting_weight' : 'confirmed';
 
             const paymentIntentId = typeof session.payment_intent === 'string'
                 ? session.payment_intent
@@ -323,17 +321,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
             // ── Insert Order Items ───────────────────────────────────
             await tx.insert(orderItems).values(
-                sellerItems.map((i) => {
-                    const isWeight = i.saleUnit === 'kg' || i.saleUnit === 'g' || i.pricingType === 'WEIGHT' || i.masterPricingType === 'WEIGHT' || i.pt === 'WEIGHT';
-                    return {
-                        orderId: newOrder.id,
-                        lotId: i.lotId,
-                        productId: i.productId,
-                        qty: i.qty.toString(),
-                        unitPrice: i.price.toFixed(4),
-                        saleUnit: isWeight ? 'kg' : 'unit',
-                    };
-                }),
+                sellerItems.map((item) => ({
+                    orderId: newOrder.id,
+                    lotId: item.lotId,
+                    productId: item.productId,
+                    qty: item.qty.toString(),
+                    unitPrice: item.price.toFixed(4),
+                    saleUnit: item.saleUnit ?? 'unit',
+                })),
             );
 
             console.log(`[WEBHOOK] ✅ ${sellerItems.length} item(ns) inserido(s) para pedido ${newOrder.id}`);

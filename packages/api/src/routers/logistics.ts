@@ -9,6 +9,7 @@ import { buyerProcedure, createTRPCRouter, producerProcedure } from '../trpc';
 
 const pendingDeliveryStatuses = ['payment_authorized', 'confirmed', 'picking'] as const;
 const deliveryMutationStatuses = ['in_transit', 'delivered'] as const;
+const GENEROUS_MVP_DELIVERY_RADIUS_KM = 5000;
 
 type DeliveryMutationStatus = (typeof deliveryMutationStatuses)[number];
 
@@ -91,6 +92,42 @@ type PendingDelivery = {
     } | null;
     items: PendingDeliveryItem[];
 };
+
+export function resolveEffectiveDeliveryRadiusKm(rawRadiusKm: string | number | null | undefined) {
+    const parsedRadiusKm =
+        typeof rawRadiusKm === 'number' ? rawRadiusKm : Number(rawRadiusKm);
+
+    if (!Number.isFinite(parsedRadiusKm) || parsedRadiusKm <= 0) {
+        return GENEROUS_MVP_DELIVERY_RADIUS_KM;
+    }
+
+    return parsedRadiusKm;
+}
+
+function normalizeCurrencyValue(rawValue: string | number | null | undefined) {
+    const parsedValue =
+        typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
+
+    if (!Number.isFinite(parsedValue)) {
+        return 0;
+    }
+
+    return Math.max(0, Number(parsedValue.toFixed(2)));
+}
+
+function normalizeNullableCurrencyValue(rawValue: string | number | null | undefined) {
+    if (rawValue === null || rawValue === undefined) {
+        return null;
+    }
+
+    const parsedValue = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+
+    if (!Number.isFinite(parsedValue)) {
+        return null;
+    }
+
+    return Math.max(0, Number(parsedValue.toFixed(2)));
+}
 
 function assertDeliveryTransition(currentStatus: string, nextStatus: DeliveryMutationStatus) {
     const allowedTransitions: Record<string, DeliveryMutationStatus[]> = {
@@ -206,6 +243,8 @@ export const logisticsRouter = createTRPCRouter({
                     baseDeliveryFee: farms.baseDeliveryFee,
                     pricePerKm: farms.pricePerKm,
                     maxDeliveryRadiusKm: farms.maxDeliveryRadiusKm,
+                    minOrderValue: farms.minOrderValue,
+                    freeShippingThreshold: farms.freeShippingThreshold,
                 })
                 .from(farms)
                 .where(eq(farms.id, input.farmId))
@@ -225,7 +264,9 @@ export const logisticsRouter = createTRPCRouter({
                 });
             }
 
-            const maxDeliveryRadiusKm = Number(farmRecord.maxDeliveryRadiusKm);
+            const maxDeliveryRadiusKm = resolveEffectiveDeliveryRadiusKm(
+                farmRecord.maxDeliveryRadiusKm,
+            );
 
             if (!Number.isFinite(maxDeliveryRadiusKm) || maxDeliveryRadiusKm <= 0) {
                 throw new TRPCError({
@@ -265,11 +306,36 @@ export const logisticsRouter = createTRPCRouter({
 
             const baseDeliveryFee = Number(farmRecord.baseDeliveryFee);
             const pricePerKm = Number(farmRecord.pricePerKm);
-            const freightCost = Number((baseDeliveryFee + (distanceKm * pricePerKm)).toFixed(2));
+            const subtotal = normalizeCurrencyValue(input.subtotal);
+            const minOrderValue = normalizeCurrencyValue(farmRecord.minOrderValue);
+            const freeShippingThreshold = normalizeNullableCurrencyValue(
+                farmRecord.freeShippingThreshold,
+            );
+            const hasReachedMinimumOrder = subtotal >= minOrderValue;
+            const remainingForMinimumOrder = Number(
+                Math.max(0, minOrderValue - subtotal).toFixed(2),
+            );
+            const baseFreightCost = Number(
+                (baseDeliveryFee + (distanceKm * pricePerKm)).toFixed(2),
+            );
+            const hasReachedFreeShipping =
+                freeShippingThreshold !== null && subtotal >= freeShippingThreshold;
+            const remainingForFreeShipping =
+                freeShippingThreshold !== null
+                    ? Number(Math.max(0, freeShippingThreshold - subtotal).toFixed(2))
+                    : null;
+            const freightCost = hasReachedFreeShipping ? 0 : baseFreightCost;
 
             return {
                 freightCost,
+                baseFreightCost,
                 distanceKm,
+                minOrderValue,
+                freeShippingThreshold,
+                hasReachedMinimumOrder,
+                remainingForMinimumOrder,
+                hasReachedFreeShipping,
+                remainingForFreeShipping,
             };
         }),
 
