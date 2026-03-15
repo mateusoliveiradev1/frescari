@@ -4,6 +4,11 @@ import { formatCurrencyBRL } from "@frescari/ui";
 import { getServerTrpc } from "@/trpc/server";
 
 import {
+  buildSupplierRegionPath,
+  buildSupplierRegionSummaries as buildSupplierRegionSummariesFromLots,
+  type CatalogSupplierRegionSummary,
+} from "./catalog-pseo";
+import {
   buildCategoryPath,
   buildProductPath,
   sanitizeText,
@@ -19,6 +24,11 @@ export interface PublicCatalogLot {
   id: string;
   lotCode: string;
   farmId: string;
+  farmCity: string | null;
+  farmState: string | null;
+  farmLatitude: number | null;
+  farmLongitude: number | null;
+  deliveryRadiusKm: number | null;
   harvestDate: string;
   expiryDate: string;
   availableQty: number;
@@ -41,6 +51,7 @@ export interface PublicCatalogLot {
   productSlug: string;
   categoryPath: string;
   productPath: string;
+  supplierRegionPath: string | null;
 }
 
 export interface CatalogCategorySummary {
@@ -79,6 +90,13 @@ export interface ProductPageData {
   lots: PublicCatalogLot[];
 }
 
+export interface SupplierRegionPageData {
+  region: CatalogSupplierRegionSummary;
+  products: CatalogProductSummary[];
+  categories: CatalogCategorySummary[];
+  lots: PublicCatalogLot[];
+}
+
 const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> => {
   const trpc = await getServerTrpc();
   const rows = await trpc.lot.getAvailableLots({});
@@ -89,13 +107,33 @@ const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> =
       const categoryName = row.categoryName ?? "Sem categoria";
       const categoryDescription = row.categoryDescription ?? null;
       const productSlug = slugifySegment(row.productName);
+      const farmCity = sanitizeText(row.farmCity ?? "");
+      const farmState = sanitizeText(row.farmState ?? "").toUpperCase();
       const categoryPath = buildCategoryPath(categorySlug);
       const productPath = buildProductPath(categorySlug, productSlug);
+      const supplierRegionPath =
+        farmCity && farmState
+          ? buildSupplierRegionPath(slugifySegment(farmState), slugifySegment(farmCity))
+          : null;
 
       return {
         id: row.id,
         lotCode: row.lotCode,
         farmId: row.farmId,
+        farmCity: farmCity || null,
+        farmState: farmState || null,
+        farmLatitude:
+          typeof row.farmLatitude === "number" && Number.isFinite(row.farmLatitude)
+            ? row.farmLatitude
+            : null,
+        farmLongitude:
+          typeof row.farmLongitude === "number" && Number.isFinite(row.farmLongitude)
+            ? row.farmLongitude
+            : null,
+        deliveryRadiusKm:
+          typeof row.deliveryRadiusKm === "number" && Number.isFinite(row.deliveryRadiusKm)
+            ? row.deliveryRadiusKm
+            : null,
         harvestDate: row.harvestDate,
         expiryDate: row.expiryDate,
         availableQty: row.availableQty,
@@ -118,6 +156,7 @@ const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> =
         productSlug,
         categoryPath,
         productPath,
+        supplierRegionPath,
       } satisfies PublicCatalogLot;
     })
     .sort((left, right) => {
@@ -147,6 +186,17 @@ export async function getProductStaticParams(): Promise<Array<{ categoria: strin
   return products.map((product) => ({
     categoria: product.categorySlug,
     produto: product.slug,
+  }));
+}
+
+export async function getSupplierRegionStaticParams(): Promise<
+  Array<{ estado: string; cidade: string }>
+> {
+  const regions = buildSupplierRegionSummaries(await getAllAvailableCatalogLots());
+
+  return regions.map((region) => ({
+    estado: region.stateSlug,
+    cidade: region.citySlug,
   }));
 }
 
@@ -195,6 +245,39 @@ export async function getProductPageData(
   return {
     category,
     product,
+    lots: filteredLots,
+  };
+}
+
+export async function getSupplierRegionPageData(
+  stateSlug: string,
+  citySlug: string,
+): Promise<SupplierRegionPageData | null> {
+  const filteredLots = (await getAllAvailableCatalogLots()).filter((lot) => {
+    if (!lot.farmCity || !lot.farmState) {
+      return false;
+    }
+
+    return (
+      slugifySegment(lot.farmState) === stateSlug &&
+      slugifySegment(lot.farmCity) === citySlug
+    );
+  });
+
+  if (filteredLots.length === 0) {
+    return null;
+  }
+
+  const region = buildSupplierRegionSummaries(filteredLots)[0];
+
+  if (!region) {
+    return null;
+  }
+
+  return {
+    region,
+    products: buildProductSummaries(filteredLots),
+    categories: buildCategorySummaries(filteredLots),
     lots: filteredLots,
   };
 }
@@ -262,6 +345,12 @@ export function buildProductSummaries(lots: PublicCatalogLot[]): CatalogProductS
       } satisfies CatalogProductSummary;
     })
     .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
+}
+
+export function buildSupplierRegionSummaries(
+  lots: PublicCatalogLot[],
+): CatalogSupplierRegionSummary[] {
+  return buildSupplierRegionSummariesFromLots(lots);
 }
 
 export function buildCategoryDescription(

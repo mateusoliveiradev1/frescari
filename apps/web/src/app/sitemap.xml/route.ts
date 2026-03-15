@@ -2,7 +2,9 @@ import {
   CATALOG_REVALIDATE_SECONDS,
   getCategoryStaticParams,
   getProductStaticParams,
+  getSupplierRegionStaticParams,
 } from "@/lib/catalog-public";
+import { buildSupplierRegionPath } from "@/lib/catalog-pseo";
 import { buildCategoryPath, buildProductPath, getSiteUrl } from "@/lib/catalog-seo";
 
 export const revalidate = 3600;
@@ -21,6 +23,7 @@ export async function GET(): Promise<Response> {
   const now = new Date().toISOString();
   const categories = await getCategoryStaticParams();
   const products = await getProductStaticParams();
+  const supplierRegions = await getSupplierRegionStaticParams();
 
   const urls = new Set<string>([
     `${siteUrl}/`,
@@ -29,6 +32,10 @@ export async function GET(): Promise<Response> {
     ...products.map(
       ({ categoria, produto }) =>
         `${siteUrl}${buildProductPath(categoria, produto)}`,
+    ),
+    ...supplierRegions.map(
+      ({ estado, cidade }) =>
+        `${siteUrl}${buildSupplierRegionPath(estado, cidade)}`,
     ),
   ]);
 

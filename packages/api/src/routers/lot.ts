@@ -3,6 +3,7 @@ import {
     producerProcedure,
     publicProcedure,
 } from '../trpc';
+import { revalidatePath } from 'next/cache';
 import {
     createLotInputSchema,
     updateLotInputSchema,
@@ -40,11 +41,18 @@ const formatDateOnly = (value: string | Date) => {
     return `${year}-${month}-${day}`;
 };
 
+const revalidateCatalogPages = () => {
+    revalidatePath('/catalogo', 'layout');
+};
+
 const buildCatalogLot = (
     row: {
         lot: typeof productLots.$inferSelect;
         product: typeof products.$inferSelect | null;
         farmName?: string | null;
+        farmAddress?: typeof farms.$inferSelect['address'] | null;
+        farmLocation?: typeof farms.$inferSelect['location'] | null;
+        deliveryRadiusKm?: typeof farms.$inferSelect['maxDeliveryRadiusKm'] | null;
         categorySlug?: string | null;
         categoryName?: string | null;
         categoryDescription?: string | null;
@@ -81,6 +89,14 @@ const buildCatalogLot = (
         estimatedWeight: row.lot.estimatedWeight ? Number(row.lot.estimatedWeight) : null,
         unit: row.lot.unit || 'un',
         status: pricing.status,
+        farmCity: row.farmAddress?.city ?? null,
+        farmState: row.farmAddress?.state ?? null,
+        farmLatitude: row.farmLocation ? row.farmLocation[1] : null,
+        farmLongitude: row.farmLocation ? row.farmLocation[0] : null,
+        deliveryRadiusKm:
+            row.deliveryRadiusKm === null || row.deliveryRadiusKm === undefined
+                ? null
+                : Number(row.deliveryRadiusKm),
         categorySlug: row.categorySlug ?? null,
         categoryName: row.categoryName ?? null,
         categoryDescription: row.categoryDescription ?? null,
@@ -186,6 +202,8 @@ export const lotRouter = createTRPCRouter({
                 .values(valuesToInsert)
                 .returning();
 
+            revalidateCatalogPages();
+
             return newLot;
         }),
 
@@ -203,6 +221,10 @@ export const lotRouter = createTRPCRouter({
                 )
                 .returning();
 
+            if (updatedLot) {
+                revalidateCatalogPages();
+            }
+
             return updatedLot;
         }),
 
@@ -215,6 +237,9 @@ export const lotRouter = createTRPCRouter({
                         lot: productLots,
                         product: products,
                         farmName: farms.name,
+                        farmAddress: farms.address,
+                        farmLocation: farms.location,
+                        deliveryRadiusKm: farms.maxDeliveryRadiusKm,
                         categorySlug: productCategories.slug,
                         categoryName: productCategories.name,
                         categoryDescription: productCategories.seoDescription,
@@ -414,6 +439,8 @@ export const lotRouter = createTRPCRouter({
                 });
             }
 
+            revalidateCatalogPages();
+
             return { success: true };
         }),
 
@@ -490,6 +517,8 @@ export const lotRouter = createTRPCRouter({
                     message: 'Lote nao encontrado ou permissao negada.',
                 });
             }
+
+            revalidateCatalogPages();
 
             return updated;
         }),

@@ -9,6 +9,7 @@ import {
   getProductStaticParams,
   getSchemaUnitCode,
 } from "@/lib/catalog-public";
+import { buildOfferAreaServed } from "@/lib/catalog-pseo";
 import { getSiteUrl, sanitizeText, serializeJsonLd } from "@/lib/catalog-seo";
 
 export const revalidate = 3600;
@@ -74,6 +75,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
   }
 
   const canonical = `${getSiteUrl()}${data.product.path}`;
+  const uniqueAreasServed = Array.from(
+    new Map(
+      data.lots
+        .map((lot) => buildOfferAreaServed(lot))
+        .filter((value) => value !== undefined)
+        .map((value) => [JSON.stringify(value), value]),
+    ).values(),
+  );
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -95,6 +104,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
             unitCode: getSchemaUnitCode(data.product.saleUnit),
             availability: "https://schema.org/InStock",
             priceValidUntil: data.lots[0]?.expiryDate,
+            areaServed:
+              uniqueAreasServed.length <= 1
+                ? uniqueAreasServed[0]
+                : uniqueAreasServed,
             seller: {
               "@type": "Organization",
               name: sanitizeText(data.lots[0]?.farmName),
@@ -108,12 +121,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
             offerCount: data.product.offerCount,
             priceCurrency: "BRL",
             availability: "https://schema.org/InStock",
+            areaServed: uniqueAreasServed.length > 0 ? uniqueAreasServed : undefined,
             offers: data.lots.slice(0, 10).map((lot) => ({
               "@type": "Offer",
               priceCurrency: "BRL",
               price: lot.finalPrice.toFixed(2),
               unitCode: getSchemaUnitCode(lot.unit || lot.saleUnit),
               availability: "https://schema.org/InStock",
+              areaServed: buildOfferAreaServed(lot),
               seller: {
                 "@type": "Organization",
                 name: sanitizeText(lot.farmName),
@@ -122,12 +137,40 @@ export default async function ProductPage({ params }: ProductPageProps) {
             })),
           },
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Catalogo",
+        item: `${getSiteUrl()}/catalogo`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: sanitizeText(data.category.name),
+        item: `${getSiteUrl()}${data.category.path}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: sanitizeText(data.product.name),
+        item: canonical,
+      },
+    ],
+  };
 
   return (
     <main className="min-h-screen bg-cream">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }}
       />
 
       <div className="mx-auto flex max-w-[1400px] flex-col gap-12 px-6 py-16 lg:px-12">

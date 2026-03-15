@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { and, eq } from 'drizzle-orm';
 import { farms } from '@frescari/db';
+import { revalidatePath } from 'next/cache';
 import {
     farmLocationSearchInputSchema,
     reverseGeocodeFarmInputSchema,
@@ -78,6 +79,10 @@ function toPointTuple(input: { latitude: number; longitude: number }): [number, 
     return [input.longitude, input.latitude];
 }
 
+function revalidateCatalogPages() {
+    revalidatePath('/catalogo', 'layout');
+}
+
 export const farmRouter = createTRPCRouter({
     getCurrent: producerProcedure.query(async ({ ctx }) => {
         const currentFarm = await ctx.db.query.farms.findFirst({
@@ -152,6 +157,8 @@ export const farmRouter = createTRPCRouter({
                     });
                 }
 
+                revalidateCatalogPages();
+
                 return mapFarmResponse(updatedFarm);
             }
 
@@ -169,6 +176,8 @@ export const farmRouter = createTRPCRouter({
                     message: 'Nao foi possivel criar a fazenda do tenant.',
                 });
             }
+
+            revalidateCatalogPages();
 
             return mapFarmResponse(createdFarm);
         }),

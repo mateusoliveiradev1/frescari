@@ -1,8 +1,10 @@
+export type SupportedSaleUnit = "kg" | "g" | "unit" | "box" | "dozen" | "bunch";
+
 export function normalizeSaleUnit(saleUnit?: string | null) {
     return saleUnit?.trim().toLowerCase() ?? "";
 }
 
-const LOT_UNIT_TO_SALE_UNIT: Record<string, string> = {
+const LOT_UNIT_TO_SALE_UNIT: Record<string, SupportedSaleUnit> = {
     kg: "kg",
     g: "g",
     unit: "unit",
@@ -16,14 +18,30 @@ const LOT_UNIT_TO_SALE_UNIT: Record<string, string> = {
     "ma\u00E7o": "bunch",
 };
 
+function toSupportedSaleUnit(value: string): SupportedSaleUnit | null {
+    if (
+        value === "kg" ||
+        value === "g" ||
+        value === "unit" ||
+        value === "box" ||
+        value === "dozen" ||
+        value === "bunch"
+    ) {
+        return value;
+    }
+
+    return null;
+}
+
 export function resolveEffectiveSaleUnit(
     saleUnit?: string | null,
     unit?: string | null,
-) {
+): SupportedSaleUnit {
     const normalizedSaleUnit = normalizeSaleUnit(saleUnit);
+    const supportedSaleUnit = toSupportedSaleUnit(normalizedSaleUnit);
 
-    if (normalizedSaleUnit && normalizedSaleUnit !== "unit" && normalizedSaleUnit !== "un") {
-        return normalizedSaleUnit;
+    if (supportedSaleUnit && supportedSaleUnit !== "unit") {
+        return supportedSaleUnit;
     }
 
     const normalizedUnit = normalizeSaleUnit(unit);
@@ -33,7 +51,7 @@ export function resolveEffectiveSaleUnit(
         return derivedSaleUnit;
     }
 
-    return normalizedSaleUnit || "unit";
+    return supportedSaleUnit ?? "unit";
 }
 
 export function isWeighableSaleUnit(saleUnit?: string | null) {
