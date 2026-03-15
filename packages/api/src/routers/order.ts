@@ -28,12 +28,38 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeSecretKey ?? '');
 const WEIGHT_SAFETY_MARGIN = 1.1;
 const PLATFORM_FEE_RATE = 0.1;
+const legacyDirectOrderMutationEnabled = process.env.ENABLE_LEGACY_DIRECT_ORDER_MUTATION === 'true';
 
 const isWeightBasedItem = (item: {
     saleUnit?: string | null;
 }) => {
     return isWeighableSaleUnit(item.saleUnit);
 };
+
+const allowedProducerStatusTransitions: Record<string, ReadonlyArray<string>> = {
+    awaiting_weight: ['confirmed', 'cancelled'],
+    payment_authorized: ['confirmed', 'cancelled'],
+    confirmed: ['picking', 'in_transit', 'delivered', 'cancelled'],
+    picking: ['in_transit', 'delivered', 'cancelled'],
+    in_transit: ['delivered'],
+    delivered: [],
+    cancelled: [],
+};
+
+function assertOrderStatusTransition(currentStatus: string, nextStatus: string) {
+    if (currentStatus === nextStatus) {
+        return;
+    }
+
+    const allowedNextStatuses = allowedProducerStatusTransitions[currentStatus] ?? [];
+
+    if (!allowedNextStatuses.includes(nextStatus)) {
+        throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Nao e possivel alterar o pedido de "${currentStatus}" para "${nextStatus}".`,
+        });
+    }
+}
 
 export const orderRouter = createTRPCRouter({
     createOrder: buyerProcedure
@@ -55,6 +81,13 @@ export const orderRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
+            if (!legacyDirectOrderMutationEnabled) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'Fluxo legado desabilitado. Use checkout.createCheckoutSession para iniciar o pagamento antes de criar pedidos.',
+                });
+            }
+
             console.log("[MUTATION_START]: Payload recebido", input);
             const { db, session, user } = ctx;
 
@@ -483,6 +516,8 @@ export const orderRouter = createTRPCRouter({
                     message: 'Pedido não encontrado.',
                 });
             }
+
+            assertOrderStatusTransition(targetOrder.status, input.status);
 
             await db.update(orders)
                 .set({ status: input.status })
