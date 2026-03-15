@@ -10,6 +10,9 @@ import {
     updateLotInventorySchema,
 } from '@frescari/validators';
 import {
+    activeProductLotWhere,
+    enableProductLotPublicReadContext,
+    enableProductLotTenantContext,
     farms,
     masterProducts,
     productCategories,
@@ -197,10 +200,14 @@ export const lotRouter = createTRPCRouter({
                 isExpired: false,
             };
 
-            const [newLot] = await ctx.db
-                .insert(productLots)
-                .values(valuesToInsert)
-                .returning();
+            const [newLot] = await ctx.db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx
+                    .insert(productLots)
+                    .values(valuesToInsert)
+                    .returning();
+            });
 
             revalidateCatalogPages();
 
@@ -210,16 +217,20 @@ export const lotRouter = createTRPCRouter({
     updateInventory: producerProcedure
         .input(updateLotInventorySchema)
         .mutation(async ({ ctx, input }) => {
-            const [updatedLot] = await ctx.db
-                .update(productLots)
-                .set({ availableQty: input.newAvailableQty.toString() })
-                .where(
-                    and(
-                        eq(productLots.id, input.lotId),
-                        eq(productLots.tenantId, ctx.tenantId),
-                    ),
-                )
-                .returning();
+            const [updatedLot] = await ctx.db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, ctx.tenantId);
+
+                return tx
+                    .update(productLots)
+                    .set({ availableQty: input.newAvailableQty.toString() })
+                    .where(
+                        activeProductLotWhere(
+                            eq(productLots.id, input.lotId),
+                            eq(productLots.tenantId, ctx.tenantId),
+                        ),
+                    )
+                    .returning();
+            });
 
             if (updatedLot) {
                 revalidateCatalogPages();
@@ -232,26 +243,30 @@ export const lotRouter = createTRPCRouter({
         .input(z.object({ productId: z.string().uuid().optional() }))
         .query(async ({ ctx, input }) => {
             try {
-                const baseQuery = ctx.db
-                    .select({
-                        lot: productLots,
-                        product: products,
-                        farmName: farms.name,
-                        farmAddress: farms.address,
-                        farmLocation: farms.location,
-                        deliveryRadiusKm: farms.maxDeliveryRadiusKm,
-                        categorySlug: productCategories.slug,
-                        categoryName: productCategories.name,
-                        categoryDescription: productCategories.seoDescription,
-                    })
-                    .from(productLots)
-                    .leftJoin(products, eq(productLots.productId, products.id))
-                    .leftJoin(farms, eq(products.farmId, farms.id))
-                    .leftJoin(productCategories, eq(products.categoryId, productCategories.id));
+                const results = await ctx.db.transaction(async (tx) => {
+                    await enableProductLotPublicReadContext(tx);
 
-                const results = input.productId
-                    ? await baseQuery.where(eq(products.id, input.productId))
-                    : await baseQuery;
+                    const baseQuery = tx
+                        .select({
+                            lot: productLots,
+                            product: products,
+                            farmName: farms.name,
+                            farmAddress: farms.address,
+                            farmLocation: farms.location,
+                            deliveryRadiusKm: farms.maxDeliveryRadiusKm,
+                            categorySlug: productCategories.slug,
+                            categoryName: productCategories.name,
+                            categoryDescription: productCategories.seoDescription,
+                        })
+                        .from(productLots)
+                        .leftJoin(products, eq(productLots.productId, products.id))
+                        .leftJoin(farms, eq(products.farmId, farms.id))
+                        .leftJoin(productCategories, eq(products.categoryId, productCategories.id));
+
+                    return input.productId
+                        ? baseQuery.where(activeProductLotWhere(eq(products.id, input.productId)))
+                        : baseQuery.where(activeProductLotWhere());
+                });
 
                 return results
                     .filter((row) => row.product?.isActive !== false)
@@ -276,9 +291,13 @@ export const lotRouter = createTRPCRouter({
         try {
             const tenantId = ctx.tenantId;
 
-            const allLots = await ctx.db.query.productLots.findMany({
-                where: eq(productLots.tenantId, tenantId),
-                with: { product: true },
+            const allLots = await ctx.db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx.query.productLots.findMany({
+                    where: activeProductLotWhere(eq(productLots.tenantId, tenantId)),
+                    with: { product: true },
+                });
             });
 
             let activeLots = 0;
@@ -333,13 +352,17 @@ export const lotRouter = createTRPCRouter({
         try {
             const tenantId = ctx.tenantId;
 
-            const recentLots = await ctx.db.query.productLots.findMany({
-                where: eq(productLots.tenantId, tenantId),
-                with: {
-                    product: true,
-                },
-                orderBy: (lots, { desc: orderByDesc }) => [orderByDesc(lots.createdAt)],
-                limit: 5,
+            const recentLots = await ctx.db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx.query.productLots.findMany({
+                    where: activeProductLotWhere(eq(productLots.tenantId, tenantId)),
+                    with: {
+                        product: true,
+                    },
+                    orderBy: (lots, { desc: orderByDesc }) => [orderByDesc(lots.createdAt)],
+                    limit: 5,
+                });
             });
 
             return recentLots.map((lot) => {
@@ -379,15 +402,19 @@ export const lotRouter = createTRPCRouter({
     getByProducer: producerProcedure.query(async ({ ctx }) => {
         const tenantId = ctx.tenantId;
 
-        const results = await ctx.db
-            .select({
-                lot: productLots,
-                product: products,
-            })
-            .from(productLots)
-            .innerJoin(products, eq(productLots.productId, products.id))
-            .where(eq(productLots.tenantId, tenantId))
-            .orderBy(desc(productLots.createdAt));
+        const results = await ctx.db.transaction(async (tx) => {
+            await enableProductLotTenantContext(tx, tenantId);
+
+            return tx
+                .select({
+                    lot: productLots,
+                    product: products,
+                })
+                .from(productLots)
+                .innerJoin(products, eq(productLots.productId, products.id))
+                .where(activeProductLotWhere(eq(productLots.tenantId, tenantId)))
+                .orderBy(desc(productLots.createdAt));
+        });
 
         return results.map((row) => {
             const pricing = calculateLotPriceAndStatus(
@@ -422,15 +449,20 @@ export const lotRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             const tenantId = ctx.tenantId;
 
-            const [deleted] = await ctx.db
-                .delete(productLots)
-                .where(
-                    and(
-                        eq(productLots.id, input.id),
-                        eq(productLots.tenantId, tenantId),
-                    ),
-                )
-                .returning();
+            const [deleted] = await ctx.db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx
+                    .update(productLots)
+                    .set({ deletedAt: new Date() })
+                    .where(
+                        activeProductLotWhere(
+                            eq(productLots.id, input.id),
+                            eq(productLots.tenantId, tenantId),
+                        ),
+                    )
+                    .returning();
+            });
 
             if (!deleted) {
                 throw new TRPCError({
@@ -450,8 +482,15 @@ export const lotRouter = createTRPCRouter({
             const tenantId = ctx.tenantId;
             const { id, ...data } = input;
 
-            const existingLot = await ctx.db.query.productLots.findFirst({
-                where: and(eq(productLots.id, id), eq(productLots.tenantId, tenantId)),
+            const existingLot = await ctx.db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx.query.productLots.findFirst({
+                    where: activeProductLotWhere(
+                        eq(productLots.id, id),
+                        eq(productLots.tenantId, tenantId),
+                    ),
+                });
             });
 
             if (!existingLot) {
@@ -500,16 +539,20 @@ export const lotRouter = createTRPCRouter({
                 updateValues.imageUrl = data.imageUrl;
             }
 
-            const [updated] = await ctx.db
-                .update(productLots)
-                .set(updateValues)
-                .where(
-                    and(
-                        eq(productLots.id, id),
-                        eq(productLots.tenantId, tenantId),
-                    ),
-                )
-                .returning();
+            const [updated] = await ctx.db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx
+                    .update(productLots)
+                    .set(updateValues)
+                    .where(
+                        activeProductLotWhere(
+                            eq(productLots.id, id),
+                            eq(productLots.tenantId, tenantId),
+                        ),
+                    )
+                    .returning();
+            });
 
             if (!updated) {
                 throw new TRPCError({

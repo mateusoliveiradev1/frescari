@@ -3,7 +3,9 @@ import Stripe from 'stripe';
 import { createTRPCRouter, buyerProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import {
+    activeProductLotWhere,
     db,
+    enableProductLotPublicReadContext,
     farms,
     masterProducts,
     productLots,
@@ -157,31 +159,35 @@ export const checkoutRouter = createTRPCRouter({
 
             const lotIdsToFetch = input.items.map((item) => item.lotId);
 
-            const lotDataForStripe = await db
-                .select({
-                    lotId: productLots.id,
-                    sellerTenantId: productLots.tenantId,
-                    availableQty: productLots.availableQty,
-                    expiryDate: productLots.expiryDate,
-                    priceOverride: productLots.priceOverride,
-                    dbPricingType: productLots.pricingType,
-                    lotImageUrl: productLots.imageUrl,
-                    lotUnit: productLots.unit,
-                    stripeAccountId: tenants.stripeAccountId,
-                    productName: products.name,
-                    productSaleUnit: products.saleUnit,
-                    pricePerUnit: products.pricePerUnit,
-                    productImages: products.images,
-                    masterPricingType: masterProducts.pricingType,
-                    minOrderValue: farms.minOrderValue,
-                    freeShippingThreshold: farms.freeShippingThreshold,
-                })
-                .from(productLots)
-                .innerJoin(tenants, eq(tenants.id, productLots.tenantId))
-                .innerJoin(products, eq(productLots.productId, products.id))
-                .innerJoin(farms, eq(products.farmId, farms.id))
-                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                .where(inArray(productLots.id, lotIdsToFetch));
+            const lotDataForStripe = await db.transaction(async (tx) => {
+                await enableProductLotPublicReadContext(tx);
+
+                return tx
+                    .select({
+                        lotId: productLots.id,
+                        sellerTenantId: productLots.tenantId,
+                        availableQty: productLots.availableQty,
+                        expiryDate: productLots.expiryDate,
+                        priceOverride: productLots.priceOverride,
+                        dbPricingType: productLots.pricingType,
+                        lotImageUrl: productLots.imageUrl,
+                        lotUnit: productLots.unit,
+                        stripeAccountId: tenants.stripeAccountId,
+                        productName: products.name,
+                        productSaleUnit: products.saleUnit,
+                        pricePerUnit: products.pricePerUnit,
+                        productImages: products.images,
+                        masterPricingType: masterProducts.pricingType,
+                        minOrderValue: farms.minOrderValue,
+                        freeShippingThreshold: farms.freeShippingThreshold,
+                    })
+                    .from(productLots)
+                    .innerJoin(tenants, eq(tenants.id, productLots.tenantId))
+                    .innerJoin(products, eq(productLots.productId, products.id))
+                    .innerJoin(farms, eq(products.farmId, farms.id))
+                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                    .where(activeProductLotWhere(inArray(productLots.id, lotIdsToFetch)));
+            });
 
             if (lotDataForStripe.length !== lotIdsToFetch.length) {
                 throw new TRPCError({

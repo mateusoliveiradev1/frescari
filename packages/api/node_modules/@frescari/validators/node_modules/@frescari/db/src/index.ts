@@ -13,3 +13,4 @@ export const client = new Pool({ connectionString: connectionUrl });
 export const db = drizzle(client, { schema });
 
 export * from './schema';
+export * from './product-lot-scope';

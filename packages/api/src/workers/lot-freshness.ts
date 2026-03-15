@@ -5,7 +5,12 @@ import {
     type ConnectionOptions,
     type JobsOptions,
 } from 'bullmq';
-import { db, productLots } from '@frescari/db';
+import {
+    activeProductLotWhere,
+    db,
+    enableProductLotBypassContext,
+    productLots,
+} from '@frescari/db';
 import { eq } from 'drizzle-orm';
 
 type LotDateInput = string | Date;
@@ -239,28 +244,36 @@ export function createDbLotFreshnessRepository(
 ): LotFreshnessRepository {
     return {
         async findActiveLots() {
-            return database.query.productLots.findMany({
-                where: eq(productLots.isExpired, false),
-                columns: {
-                    id: true,
-                    tenantId: true,
-                    productId: true,
-                    lotCode: true,
-                    harvestDate: true,
-                    expiryDate: true,
-                    freshnessScore: true,
-                    isExpired: true,
-                },
+            return database.transaction(async (tx) => {
+                await enableProductLotBypassContext(tx);
+
+                return tx.query.productLots.findMany({
+                    where: activeProductLotWhere(eq(productLots.isExpired, false)),
+                    columns: {
+                        id: true,
+                        tenantId: true,
+                        productId: true,
+                        lotCode: true,
+                        harvestDate: true,
+                        expiryDate: true,
+                        freshnessScore: true,
+                        isExpired: true,
+                    },
+                });
             });
         },
         async updateFreshness(update) {
-            await database
-                .update(productLots)
-                .set({
-                    freshnessScore: update.freshnessScore,
-                    isExpired: update.isExpired,
-                })
-                .where(eq(productLots.id, update.lotId));
+            await database.transaction(async (tx) => {
+                await enableProductLotBypassContext(tx);
+
+                await tx
+                    .update(productLots)
+                    .set({
+                        freshnessScore: update.freshnessScore,
+                        isExpired: update.isExpired,
+                    })
+                    .where(eq(productLots.id, update.lotId));
+            });
         },
     };
 }

@@ -232,8 +232,13 @@ export const productLots = pgTable('product_lots', {
     unit: text('unit').default('un').notNull(),
     imageUrl: text('image_url'),
     isExpired: boolean('is_expired').default(false).notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+    index('product_lots_tenant_idx').on(table.tenantId),
+    index('product_lots_product_idx').on(table.productId),
+    index('product_lots_deleted_idx').on(table.deletedAt),
+]);
 
 export const orders = pgTable('orders', {
     id: uuid('id').primaryKey().defaultRandom(),

@@ -3,7 +3,13 @@ import { revalidatePath } from 'next/cache';
 import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { masterProducts, productCategories, productLots, products } from '@frescari/db';
+import {
+    enableProductLotBypassContext,
+    masterProducts,
+    productCategories,
+    productLots,
+    products,
+} from '@frescari/db';
 
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 
@@ -212,6 +218,8 @@ export const adminRouter = createTRPCRouter({
         )
         .mutation(async ({ ctx, input }) => {
             const updatedProduct = await ctx.db.transaction(async (tx) => {
+                await enableProductLotBypassContext(tx);
+
                 const [currentProduct] = await tx
                     .select({
                         id: masterProducts.id,

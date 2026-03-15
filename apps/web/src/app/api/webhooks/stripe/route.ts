@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { db } from '@frescari/db';
-import { orders, orderItems, productLots, products, masterProducts } from '@frescari/db';
+import {
+    enableProductLotBypassContext,
+    orders,
+    orderItems,
+    productLots,
+    products,
+    masterProducts,
+} from '@frescari/db';
 import { eq, inArray, sql } from 'drizzle-orm';
 import {
     buildDeliveryAddressLine,
@@ -221,21 +228,25 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const lotIds = parsedItems.map((i) => i.lotId);
     console.log(`[WEBHOOK] Buscando lotes no banco: ${lotIds.join(', ')}`);
 
-    const fetchedLots = await db
-        .select({
-            lotId: productLots.id,
-            productId: productLots.productId,
-            sellerTenantId: productLots.tenantId,
-            availableQty: productLots.availableQty,
-            lotUnit: productLots.unit,
-            saleUnit: products.saleUnit,
-            pricingType: productLots.pricingType,
-            masterPricingType: masterProducts.pricingType,
-        })
-        .from(productLots)
-        .innerJoin(products, eq(productLots.productId, products.id))
-        .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-        .where(inArray(productLots.id, lotIds));
+    const fetchedLots = await db.transaction(async (tx) => {
+        await enableProductLotBypassContext(tx);
+
+        return tx
+            .select({
+                lotId: productLots.id,
+                productId: productLots.productId,
+                sellerTenantId: productLots.tenantId,
+                availableQty: productLots.availableQty,
+                lotUnit: productLots.unit,
+                saleUnit: products.saleUnit,
+                pricingType: productLots.pricingType,
+                masterPricingType: masterProducts.pricingType,
+            })
+            .from(productLots)
+            .innerJoin(products, eq(productLots.productId, products.id))
+            .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+            .where(inArray(productLots.id, lotIds));
+    });
 
     if (fetchedLots.length === 0) {
         throw new Error(`[WEBHOOK] Nenhum lote encontrado no banco para IDs: ${lotIds.join(', ')}`);
@@ -279,6 +290,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     console.log('[WEBHOOK] Iniciando transação no banco...');
 
     await db.transaction(async (tx) => {
+        await enableProductLotBypassContext(tx);
+
         for (const sellerId of Object.keys(ordersBySeller)) {
             const sellerItems = ordersBySeller[sellerId]!;
             const itemsTotal = sellerItems.reduce(

@@ -2,7 +2,17 @@ import { z } from 'zod';
 import { createHash } from 'crypto';
 import Stripe from 'stripe';
 import { createTRPCRouter, protectedProcedure, buyerProcedure, producerProcedure, tenantProcedure } from '../trpc';
-import { productLots, products, orders, orderItems, tenants, masterProducts } from '@frescari/db';
+import {
+    activeProductLotWhere,
+    enableProductLotBypassContext,
+    enableProductLotTenantContext,
+    productLots,
+    products,
+    orders,
+    orderItems,
+    tenants,
+    masterProducts,
+} from '@frescari/db';
 import { eq, inArray, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { isWeighableSaleUnit, normalizeSaleUnit, resolveEffectiveSaleUnit } from '../sale-units';
@@ -100,6 +110,8 @@ export const orderRouter = createTRPCRouter({
             try {
                 // Begin Transaction
                 return await db.transaction(async (tx) => {
+                    await enableProductLotBypassContext(tx);
+
                     // Fetch the real lots to prevent client spoofing
                     const fetchedLots = await tx
                         .select({
@@ -118,7 +130,7 @@ export const orderRouter = createTRPCRouter({
                         .from(productLots)
                         .innerJoin(products, eq(productLots.productId, products.id))
                         .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                        .where(inArray(productLots.id, lotIds));
+                        .where(activeProductLotWhere(inArray(productLots.id, lotIds)));
 
                     if (fetchedLots.length !== lotIds.length) {
                         throw new TRPCError({
@@ -283,24 +295,28 @@ export const orderRouter = createTRPCRouter({
 
             if (orderIds.length === 0) return [];
 
-            const items = await db
-                .select({
-                    orderId: orderItems.orderId,
-                    qty: orderItems.qty,
-                    unitPrice: orderItems.unitPrice,
-                    productName: products.name,
-                    saleUnit: orderItems.saleUnit,
-                    farmName: tenants.name,
-                    images: products.images,
-                    pricingType: productLots.pricingType,
-                    masterPricingType: masterProducts.pricingType,
-                })
-                .from(orderItems)
-                .innerJoin(products, eq(orderItems.productId, products.id))
-                .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
-                .innerJoin(tenants, eq(productLots.tenantId, tenants.id))
-                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                .where(inArray(orderItems.orderId, orderIds));
+            const items = await db.transaction(async (tx) => {
+                await enableProductLotBypassContext(tx);
+
+                return tx
+                    .select({
+                        orderId: orderItems.orderId,
+                        qty: orderItems.qty,
+                        unitPrice: orderItems.unitPrice,
+                        productName: products.name,
+                        saleUnit: orderItems.saleUnit,
+                        farmName: tenants.name,
+                        images: products.images,
+                        pricingType: productLots.pricingType,
+                        masterPricingType: masterProducts.pricingType,
+                    })
+                    .from(orderItems)
+                    .innerJoin(products, eq(orderItems.productId, products.id))
+                    .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                    .innerJoin(tenants, eq(productLots.tenantId, tenants.id))
+                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                    .where(inArray(orderItems.orderId, orderIds));
+            });
 
             // Group items into their respective orders
             return allOrders.map(order => ({
@@ -323,6 +339,8 @@ export const orderRouter = createTRPCRouter({
 
             try {
                 return await db.transaction(async (tx) => {
+                    await enableProductLotBypassContext(tx);
+
                     // Check if order exists, belongs to the buyer, and is in allowed state
                     const targetOrder = await tx.query.orders.findFirst({
                         where: and(
@@ -412,22 +430,26 @@ export const orderRouter = createTRPCRouter({
 
             if (orderIds.length === 0) return [];
 
-            const items = await db
-                .select({
-                    id: orderItems.id,
-                    orderId: orderItems.orderId,
-                    qty: orderItems.qty,
-                    unitPrice: orderItems.unitPrice,
-                    productName: products.name,
-                    saleUnit: orderItems.saleUnit,
-                    pricingType: productLots.pricingType,
-                    masterPricingType: masterProducts.pricingType,
-                })
-                .from(orderItems)
-                .innerJoin(products, eq(orderItems.productId, products.id))
-                .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
-                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                .where(inArray(orderItems.orderId, orderIds));
+            const items = await db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx
+                    .select({
+                        id: orderItems.id,
+                        orderId: orderItems.orderId,
+                        qty: orderItems.qty,
+                        unitPrice: orderItems.unitPrice,
+                        productName: products.name,
+                        saleUnit: orderItems.saleUnit,
+                        pricingType: productLots.pricingType,
+                        masterPricingType: masterProducts.pricingType,
+                    })
+                    .from(orderItems)
+                    .innerJoin(products, eq(orderItems.productId, products.id))
+                    .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                    .where(inArray(orderItems.orderId, orderIds));
+            });
 
             return allOrders.map((order, index, arr) => ({
                 ...order,
@@ -521,21 +543,25 @@ export const orderRouter = createTRPCRouter({
                 });
             }
 
-            const items = await db
-                .select({
-                    id: orderItems.id,
-                    qty: orderItems.qty,
-                    unitPrice: orderItems.unitPrice,
-                    saleUnit: orderItems.saleUnit,
-                    productName: products.name,
-                    pricingType: productLots.pricingType,
-                    masterPricingType: masterProducts.pricingType,
-                })
-                .from(orderItems)
-                .innerJoin(products, eq(orderItems.productId, products.id))
-                .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
-                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                .where(eq(orderItems.orderId, targetOrder.id));
+            const items = await db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx
+                    .select({
+                        id: orderItems.id,
+                        qty: orderItems.qty,
+                        unitPrice: orderItems.unitPrice,
+                        saleUnit: orderItems.saleUnit,
+                        productName: products.name,
+                        pricingType: productLots.pricingType,
+                        masterPricingType: masterProducts.pricingType,
+                    })
+                    .from(orderItems)
+                    .innerJoin(products, eq(orderItems.productId, products.id))
+                    .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                    .where(eq(orderItems.orderId, targetOrder.id));
+            });
 
             if (items.length === 0) {
                 throw new TRPCError({

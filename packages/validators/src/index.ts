@@ -274,6 +274,7 @@ export const createLotInputSchema = insertProductLotSchema
     .omit({
         id: true,
         createdAt: true,
+        deletedAt: true,
         isExpired: true,
         reservedQty: true,
         freshnessScore: true,
