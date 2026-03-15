@@ -145,6 +145,9 @@ importers:
       tailwindcss:
         specifier: ^4
         version: 4.2.1
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       typescript:
         specifier: ^5
         version: 5.9.3
@@ -178,6 +181,9 @@ importers:
       ioredis:
         specifier: ^5.10.0
         version: 5.10.0
+      next:
+        specifier: 16.1.6
+        version: 16.1.6(@babel/core@7.29.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       stripe:
         specifier: 17.5.0
         version: 17.5.0
@@ -188,6 +194,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       typescript:
         specifier: ^5.4.5
         version: 5.9.3
@@ -283,6 +292,9 @@ importers:
       tailwindcss:
         specifier: ^4
         version: 4.2.1
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       typescript:
         specifier: ^5.4.5
         version: 5.9.3
@@ -305,6 +317,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       typescript:
         specifier: ^5.4.5
         version: 5.9.3

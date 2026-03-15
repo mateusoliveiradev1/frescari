@@ -4,7 +4,9 @@
     "private": true,
     "main": "src/index.ts",
     "scripts": {
+        "test": "tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\"",
         "test:worker": "tsx --test src/workers/lot-freshness.test.ts",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
         "worker:lot-freshness": "tsx src/workers/lot-freshness-cli.ts",
         "worker:lot-freshness:run-once": "tsx src/workers/lot-freshness-cli.ts --run-once"
     },
@@ -18,11 +20,13 @@
         "drizzle-kit": "^0.31.9",
         "drizzle-orm": "0.45.1",
         "ioredis": "^5.10.0",
+        "next": "16.1.6",
         "stripe": "17.5.0",
         "superjson": "^2.2.1",
         "zod": "^3.23.8"
     },
     "devDependencies": {
+        "tsx": "^4.21.0",
         "typescript": "^5.4.5"
     }
 }
