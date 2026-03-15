@@ -7,7 +7,8 @@
         "db:seed": "tsx src/seed.ts",
         "db:generate": "drizzle-kit generate",
         "db:migrate": "tsx migrate.ts",
-        "db:push": "drizzle-kit push"
+        "db:push": "drizzle-kit push",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
     },
     "dependencies": {
         "@better-auth/drizzle-adapter": "1.5.3",

@@ -3,6 +3,10 @@
     "version": "1.0.0",
     "private": true,
     "main": "src/index.ts",
+    "scripts": {
+        "test": "tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\"",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
     "dependencies": {
         "@frescari/db": "workspace:*",
         "drizzle-kit": "^0.31.9",
@@ -11,6 +15,7 @@
         "zod": "^3.23.8"
     },
     "devDependencies": {
+        "tsx": "^4.21.0",
         "typescript": "^5.4.5"
     }
 }

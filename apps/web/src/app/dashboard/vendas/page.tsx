@@ -16,8 +16,9 @@ import {
     ArrowLeft,
     Scale
 } from "lucide-react";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { trpc } from "@/trpc/react";
+import { getSaleUnitLabel, isWeighableSaleUnit } from "@/lib/sale-units";
 
 const statusStyles: Record<string, string> = {
     draft: "bg-gray-100 text-gray-700 border-gray-200",
@@ -83,14 +84,6 @@ interface WeighingPreview {
     maxByItemId: Record<string, number>;
 }
 
-function isWeightBasedSaleUnit(saleUnit?: string | null) {
-    const normalizedSaleUnit = saleUnit?.toLowerCase();
-    return normalizedSaleUnit === "kg"
-        || normalizedSaleUnit === "g"
-        || normalizedSaleUnit === "peso"
-        || normalizedSaleUnit === "weight";
-}
-
 function roundToThreeDecimals(value: number) {
     return Math.round(value * 1000) / 1000;
 }
@@ -100,7 +93,7 @@ function calculateWeighingPreview(order: ReceivedOrder, weights: Record<string, 
 
     const itemSubtotalCents = order.items.reduce((sum, item) => {
         const requestedQty = Number(item.qty);
-        const isWeightBasedItem = isWeightBasedSaleUnit(item.saleUnit);
+        const isWeightBasedItem = isWeighableSaleUnit(item.saleUnit);
         const effectiveQty = isWeightBasedItem
             ? (weights[item.id] ?? requestedQty)
             : requestedQty;
@@ -216,7 +209,7 @@ export default function VendasPage() {
     const isPreviewStale = Boolean(weighingOrder) && deferredWeighingWeights !== weighingWeights;
     const hasInvalidWeighing = weighingOrder
         ? weighingOrder.items.some((item) => {
-            if (!isWeightBasedSaleUnit(item.saleUnit)) {
+            if (!isWeighableSaleUnit(item.saleUnit)) {
                 return false;
             }
 
@@ -364,7 +357,7 @@ export default function VendasPage() {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 const initialWeights = order.items.reduce((weights, item) => {
-                                                                    if (isWeightBasedSaleUnit(item.saleUnit)) {
+                                                                    if (isWeighableSaleUnit(item.saleUnit)) {
                                                                         weights[item.id] = Number(item.qty);
                                                                     }
                                                                     return weights;
@@ -485,7 +478,8 @@ export default function VendasPage() {
                                 </div>
                             )}
                             {weighingOrder.items.map(item => {
-                                const isWeight = isWeightBasedSaleUnit(item.saleUnit);
+                                const isWeight = isWeighableSaleUnit(item.saleUnit);
+                                const saleUnitLabel = getSaleUnitLabel(item.saleUnit);
                                 const maxAllowedWeight = roundToThreeDecimals(Number(item.qty) * WEIGHT_SAFETY_MARGIN);
                                 const currentWeight = weighingWeights[item.id];
                                 const isOverLimit = isWeight && typeof currentWeight === "number" && currentWeight > maxAllowedWeight;
@@ -497,7 +491,7 @@ export default function VendasPage() {
                                                     {item.productName}
                                                 </label>
                                                 <p className="mt-1 text-[11px] text-bark/70">
-                                                    Solicitado: {Number(item.qty).toFixed(isWeight ? 3 : 0)} {item.saleUnit}
+                                                    Solicitado: {Number(item.qty).toFixed(isWeight ? 3 : 0)} {saleUnitLabel}
                                                 </p>
                                             </div>
                                             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${isWeight ? "bg-purple-100 text-purple-800" : "bg-sage/40 text-bark/70"}`}>
@@ -526,8 +520,8 @@ export default function VendasPage() {
                                                 />
                                                 {isWeight ? (
                                                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-bark/70">
-                                                        <span>{`Limite m\u00E1ximo: ${maxAllowedWeight.toFixed(3)} ${item.saleUnit}`}</span>
-                                                        <span>{`Unit\u00E1rio: ${formatCurrency(item.unitPrice)}/${item.saleUnit}`}</span>
+                                                        <span>{`Limite m\u00E1ximo: ${maxAllowedWeight.toFixed(3)} ${saleUnitLabel}`}</span>
+                                                        <span>{`Unit\u00E1rio: ${formatCurrency(item.unitPrice)}/${saleUnitLabel}`}</span>
                                                     </div>
                                                 ) : (
                                                     <p className="text-[11px] text-bark/60">
@@ -536,7 +530,7 @@ export default function VendasPage() {
                                                 )}
                                             </div>
                                             <div className="text-xs font-bold text-bark uppercase w-14 text-right">
-                                                {item.saleUnit}
+                                                {saleUnitLabel}
                                             </div>
                                         </div>
                                         {isOverLimit && (
@@ -564,7 +558,7 @@ export default function VendasPage() {
                                     className="bg-purple-600 hover:bg-purple-700 text-white"
                                     onClick={() => {
                                         const weighedItems = weighingOrder.items
-                                            .filter((item) => isWeightBasedSaleUnit(item.saleUnit))
+                                            .filter((item) => isWeighableSaleUnit(item.saleUnit))
                                             .map((item) => ({
                                                 orderItemId: item.id,
                                                 finalWeight: weighingWeights[item.id],
@@ -586,7 +580,6 @@ export default function VendasPage() {
                 </div>
             )}
 
-            <Toaster richColors position="bottom-right" />
-        </div>
-    );
+         </div>
+     );
 }

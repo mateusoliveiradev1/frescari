@@ -1,0 +1,360 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import Module from 'node:module';
+import { withRlsMockDb } from './test-db';
+
+process.env.STRIPE_SECRET_KEY ??= 'sk_test_mocked';
+
+const stripeState = {
+    retrievedPaymentIntentIds: [] as string[],
+    captureCalls: 0,
+};
+
+class StripeMock {
+    checkout = {
+        sessions: {
+            retrieve: async () => ({
+                payment_intent: 'pi_mock_123',
+            }),
+        },
+    };
+
+    paymentIntents = {
+        retrieve: async (paymentIntentId: string) => {
+            stripeState.retrievedPaymentIntentIds.push(paymentIntentId);
+
+            return {
+                id: paymentIntentId,
+                status: 'succeeded',
+                amount_received: 1400,
+                amount_capturable: 0,
+            };
+        },
+        capture: async () => {
+            stripeState.captureCalls += 1;
+            throw new Error('capture should not be called for already captured payments');
+        },
+    };
+}
+
+const originalModuleLoad = (Module as typeof Module & {
+    _load: (request: string, parent: unknown, isMain: boolean) => unknown;
+})._load;
+
+(Module as typeof Module & {
+    _load: (request: string, parent: unknown, isMain: boolean) => unknown;
+})._load = function patchedModuleLoad(request: string, parent: unknown, isMain: boolean) {
+    if (request === 'stripe') {
+        return { __esModule: true, default: StripeMock };
+    }
+
+    return originalModuleLoad.call(this, request, parent, isMain);
+};
+
+type FlowState = {
+    order: {
+        id: string;
+        buyerTenantId: string;
+        sellerTenantId: string;
+        status: string;
+        totalAmount: string;
+        deliveryFee: string;
+        paymentIntentId: string;
+        stripeSessionId: string | null;
+        createdAt: Date;
+        deliveryStreet: string;
+        deliveryNumber: string;
+        deliveryCep: string;
+        deliveryCity: string;
+        deliveryState: string;
+        deliveryAddress: string;
+        deliveryNotes: string | null;
+        deliveryWindowStart: Date | null;
+        deliveryWindowEnd: Date | null;
+    };
+    items: Array<{
+        id: string;
+        qty: string;
+        unitPrice: string;
+        saleUnit: string;
+        productId: string;
+        productName: string;
+        pricingType: string;
+        masterPricingType: string | null;
+        productSaleUnit: string;
+        unitWeightG: number | null;
+    }>;
+};
+
+function createProducerContext(db: unknown): any {
+    return {
+        db,
+        req: undefined,
+        session: { user: { id: 'user-1' } },
+        user: {
+            id: 'user-1',
+            tenantId: 'tenant-1',
+            role: 'producer',
+            name: 'Joao Produtor',
+        },
+    };
+}
+
+function createTenantSelectChain() {
+    return {
+        from() {
+            return this;
+        },
+        where() {
+            return this;
+        },
+        limit: async () => [{ id: 'tenant-1', type: 'PRODUCER' }],
+    };
+}
+
+function createCaptureItemsSelectChain(state: FlowState) {
+    return {
+        from() {
+            return this;
+        },
+        innerJoin() {
+            return this;
+        },
+        leftJoin() {
+            return this;
+        },
+        where: async () => state.items.map((item) => ({
+            id: item.id,
+            qty: item.qty,
+            unitPrice: item.unitPrice,
+            saleUnit: item.saleUnit,
+            productName: item.productName,
+            pricingType: item.pricingType,
+            masterPricingType: item.masterPricingType,
+        })),
+    };
+}
+
+function createDeliveriesSelectChain(state: FlowState) {
+    return {
+        from() {
+            return this;
+        },
+        innerJoin() {
+            return this;
+        },
+        leftJoin() {
+            return this;
+        },
+        where() {
+            return this;
+        },
+        orderBy: async () => {
+            if (!['payment_authorized', 'confirmed', 'picking'].includes(state.order.status)) {
+                return [];
+            }
+
+            return state.items.map((item) => ({
+                orderId: state.order.id,
+                status: state.order.status,
+                totalAmount: state.order.totalAmount,
+                deliveryFee: state.order.deliveryFee,
+                createdAt: state.order.createdAt,
+                buyerTenantId: state.order.buyerTenantId,
+                buyerName: 'Restaurante Central',
+                deliveryStreet: state.order.deliveryStreet,
+                deliveryNumber: state.order.deliveryNumber,
+                deliveryCep: state.order.deliveryCep,
+                deliveryCity: state.order.deliveryCity,
+                deliveryState: state.order.deliveryState,
+                deliveryAddress: state.order.deliveryAddress,
+                deliveryNotes: state.order.deliveryNotes,
+                deliveryWindowStart: state.order.deliveryWindowStart,
+                deliveryWindowEnd: state.order.deliveryWindowEnd,
+                farmId: 'farm-1',
+                farmName: 'Sitio Horizonte',
+                farmLatitude: -23.55,
+                farmLongitude: -46.63,
+                deliveryLatitude: -23.57,
+                deliveryLongitude: -46.65,
+                distanceKm: 4.82,
+                orderItemId: item.id,
+                productId: item.productId,
+                productName: item.productName,
+                itemQty: item.qty,
+                itemSaleUnit: item.saleUnit,
+                productSaleUnit: item.productSaleUnit,
+                unitWeightG: item.unitWeightG,
+                estimatedWeightKg: Number(item.qty),
+            }));
+        },
+    };
+}
+
+async function createFlowCaller(state: FlowState) {
+    const [{ orderItems, orders }, { createTRPCRouter }, { orderRouter }, { logisticsRouter }] = await Promise.all([
+        import('@frescari/db'),
+        import('./trpc'),
+        import('./routers/order'),
+        import('./routers/logistics'),
+    ]);
+
+    const db = withRlsMockDb({
+        select(selection: Record<string, unknown>) {
+            if ('type' in selection && 'id' in selection && Object.keys(selection).length === 2) {
+                return createTenantSelectChain();
+            }
+
+            if ('orderId' in selection && 'buyerName' in selection) {
+                return createDeliveriesSelectChain(state);
+            }
+
+            if ('productName' in selection && 'pricingType' in selection && 'qty' in selection) {
+                return createCaptureItemsSelectChain(state);
+            }
+
+            throw new Error(`Unexpected select shape: ${Object.keys(selection).join(', ')}`);
+        },
+        query: {
+            orders: {
+                findFirst: async () => state.order,
+            },
+        },
+        transaction: async (callback: (tx: any) => Promise<unknown>) => callback({
+            update(table: unknown) {
+                if (table === orderItems) {
+                    return {
+                        set(values: Record<string, unknown>) {
+                            return {
+                                where: async () => {
+                                    state.items[0] = {
+                                        ...state.items[0],
+                                        qty: String(values.qty),
+                                    };
+                                },
+                            };
+                        },
+                    };
+                }
+
+                if (table === orders) {
+                    return {
+                        set(values: Record<string, unknown>) {
+                            return {
+                                where: async () => {
+                                    state.order = {
+                                        ...state.order,
+                                        status: String(values.status ?? state.order.status),
+                                        totalAmount: String(values.totalAmount ?? state.order.totalAmount),
+                                        paymentIntentId: String(values.paymentIntentId ?? state.order.paymentIntentId),
+                                    };
+                                },
+                            };
+                        },
+                    };
+                }
+
+                throw new Error('Unexpected table update inside transaction');
+            },
+        }),
+    });
+
+    const testRouter = createTRPCRouter({
+        order: orderRouter,
+        logistics: logisticsRouter,
+    });
+
+    return testRouter.createCaller(createProducerContext(db as never));
+}
+
+test('awaiting_weight -> confirmed -> /dashboard/entregas stays visible after captureWeighedOrder', async () => {
+    stripeState.retrievedPaymentIntentIds.length = 0;
+    stripeState.captureCalls = 0;
+
+    const state: FlowState = {
+        order: {
+            id: '11111111-1111-4111-8111-111111111111',
+            buyerTenantId: 'buyer-1',
+            sellerTenantId: 'tenant-1',
+            status: 'awaiting_weight',
+            totalAmount: '13.0000',
+            deliveryFee: '3.00',
+            paymentIntentId: 'pi_mock_123',
+            stripeSessionId: null,
+            createdAt: new Date('2026-03-13T13:00:00.000Z'),
+            deliveryStreet: 'Rua das Flores',
+            deliveryNumber: '45',
+            deliveryCep: '01010-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua das Flores, 45 - Sao Paulo/SP',
+            deliveryNotes: 'Entregar na doca 2',
+            deliveryWindowStart: new Date('2026-03-13T15:00:00.000Z'),
+            deliveryWindowEnd: new Date('2026-03-13T18:00:00.000Z'),
+        },
+        items: [
+            {
+                id: '22222222-2222-4222-8222-222222222222',
+                qty: '1.000',
+                unitPrice: '10.0000',
+                saleUnit: 'kg',
+                productId: 'product-1',
+                productName: 'Tomate Italiano',
+                pricingType: 'WEIGHT',
+                masterPricingType: null,
+                productSaleUnit: 'kg',
+                unitWeightG: null,
+            },
+        ],
+    };
+
+    const caller = await createFlowCaller(state);
+    const app = caller as Record<string, any>;
+
+    const captureResult = await app.order.captureWeighedOrder({
+        orderId: state.order.id,
+        weighedItems: [
+            {
+                orderItemId: state.items[0].id,
+                finalWeight: 1.1,
+            },
+        ],
+    });
+
+    assert.equal(captureResult.success, true);
+    assert.equal(captureResult.alreadyCaptured, true);
+    assert.equal(captureResult.finalAmount, 14);
+    assert.equal(state.order.status, 'confirmed');
+    assert.equal(state.order.totalAmount, '14.0000');
+    assert.equal(state.items[0].qty, '1.1');
+    assert.deepEqual(stripeState.retrievedPaymentIntentIds, ['pi_mock_123']);
+    assert.equal(stripeState.captureCalls, 0);
+
+    const pendingDeliveries = await app.logistics.getPendingDeliveries();
+
+    assert.equal(pendingDeliveries.length, 1);
+    assert.equal(pendingDeliveries[0].orderId, state.order.id);
+    assert.equal(pendingDeliveries[0].status, 'confirmed');
+    assert.equal(pendingDeliveries[0].distanceKm, 4.82);
+    assert.deepEqual(pendingDeliveries[0].origin, {
+        farmId: 'farm-1',
+        farmName: 'Sitio Horizonte',
+        latitude: -23.55,
+        longitude: -46.63,
+    });
+    assert.deepEqual(pendingDeliveries[0].destination, {
+        latitude: -23.57,
+        longitude: -46.65,
+    });
+    assert.equal(pendingDeliveries[0].items.length, 1);
+    assert.deepEqual(pendingDeliveries[0].items[0], {
+        orderItemId: state.items[0].id,
+        productId: 'product-1',
+        productName: 'Tomate Italiano',
+        qty: '1.1',
+        saleUnit: 'kg',
+        productSaleUnit: 'kg',
+        unitWeightG: null,
+        estimatedWeightKg: 1.1,
+    });
+});

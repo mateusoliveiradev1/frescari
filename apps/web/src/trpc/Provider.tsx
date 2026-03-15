@@ -6,12 +6,25 @@ import { httpBatchLink } from '@trpc/client';
 import superjson from 'superjson';
 import { useState } from 'react';
 
+const withTrpcPath = (value: string) => {
+    const normalizedValue = value.replace(/\/+$/, '');
+
+    return normalizedValue.endsWith('/api/trpc')
+        ? normalizedValue
+        : `${normalizedValue}/api/trpc`;
+};
+
 const getTrpcUrl = () => {
     if (typeof window !== 'undefined') {
         return `${window.location.origin}/api/trpc`;
     }
 
-    return 'http://localhost:3000/api/trpc';
+    return withTrpcPath(
+        process.env.NEXT_PUBLIC_TRPC_URL ||
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
+        'http://localhost:3000',
+    );
 };
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {

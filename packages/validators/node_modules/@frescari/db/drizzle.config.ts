@@ -9,6 +9,6 @@ export default defineConfig({
     dialect: 'postgresql',
     tablesFilter: ["!spatial_ref_sys", "!geography_columns", "!geometry_columns"],
     dbCredentials: {
-        url: process.env.DATABASE_URL!,
+        url: process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL!,
     },
 });

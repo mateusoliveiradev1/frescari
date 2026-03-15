@@ -1,13 +1,14 @@
 "use client";
 
-import * as React from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import Image from 'next/image';
-import { X, Plus, Minus, ShoppingCart, Trash2, Loader2, Scale } from 'lucide-react';
-import { useCartStore, useCartTotals, selectCartIsOpen, CartStore, CartItem } from '@/store/useCartStore';
-import { trpc } from '@/trpc/react';
-import { toast } from 'sonner';
-import { authClient } from '@/lib/auth-client';
+import * as React from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import Image from "next/image";
+import Link from "next/link";
+import { CircleHelp, LoaderCircle, MapPin, Minus, Plus, Scale, ShoppingCart, Trash2, X } from "lucide-react";
+import { Button, Skeleton, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, formatCurrencyBRL } from "@frescari/ui";
+import { toast } from "sonner";
+
+import { authClient } from "@/lib/auth-client";
 import {
     formatQuantityInput,
     getMaximumQuantity,
@@ -18,703 +19,826 @@ import {
     isWeightBasedQuantityItem,
     normalizeQuantity,
     roundQuantity,
-} from '@/lib/cart-quantity';
+} from "@/lib/cart-quantity";
+import { getSaleUnitLabel, resolveEffectiveSaleUnit } from "@/lib/sale-units";
+import {
+    type CartItem,
+    type CartStore,
+    selectCartIsOpen,
+    useCartStore,
+} from "@/store/useCartStore";
+import { trpc } from "@/trpc/react";
 
-const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+type DefaultAddress = {
+    id: string;
+    title: string;
+    formattedAddress: string;
+    street: string;
+    number: string;
+    zipcode: string;
+    city: string;
+    state: string;
+} | null;
 
+type FarmGroup = {
+    farmId: string;
+    farmName: string;
+    items: CartItem[];
+};
+
+type SessionUser = {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+};
+
+const formatCurrency = formatCurrencyBRL;
 const WEIGHT_AUTHORIZATION_BUFFER = 0.1;
 
 const roundCurrency = (value: number) => Math.round(value * 100) / 100;
-const isWeightBasedCartItem = isWeightBasedQuantityItem;
-const getCartQtyStep = getQuantityStep;
-const getCartQtyMin = getQuantityMin;
-const formatCartQtyInput = formatQuantityInput;
 
-export function CartDrawer() {
-    const isOpen = useCartStore(selectCartIsOpen);
-    const setIsOpen = useCartStore((state: CartStore) => state.setIsOpen);
-    const items = useCartStore((state: CartStore) => state.items);
-    const updateItemQty = useCartStore((state: CartStore) => state.updateItemQty);
-    const removeItem = useCartStore((state: CartStore) => state.removeItem);
-    const clearCart = useCartStore((state: CartStore) => state.clearCart);
+type CartInfoTooltipProps = {
+    content: string;
+    label: string;
+};
 
-    // Calculate totals directly from the hook
-    const { totalItems, subtotal, savings } = useCartTotals();
-    const { data: session } = authClient.useSession();
-
-    const [deliveryStreet, setDeliveryStreet] = React.useState('');
-    const [deliveryNumber, setDeliveryNumber] = React.useState('');
-    const [deliveryCep, setDeliveryCep] = React.useState('');
-    const [deliveryCity, setDeliveryCity] = React.useState('');
-    const [deliveryState, setDeliveryState] = React.useState('');
-    const [deliveryNotes, setDeliveryNotes] = React.useState('');
-    const [qtyDrafts, setQtyDrafts] = React.useState<Record<string, string>>({});
+function CartInfoTooltip({ content, label }: CartInfoTooltipProps) {
+    const [open, setOpen] = React.useState(false);
+    const [prefersTapInteraction, setPrefersTapInteraction] = React.useState(false);
+    const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+    const contentRef = React.useRef<HTMLDivElement | null>(null);
 
     React.useEffect(() => {
-        setQtyDrafts((current) => {
-            const validItemIds = new Set(items.map((item) => item.id));
-            let changed = false;
-            const nextDrafts: Record<string, string> = {};
+        if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+            return;
+        }
 
-            for (const [itemId, draftValue] of Object.entries(current)) {
-                if (validItemIds.has(itemId)) {
-                    nextDrafts[itemId] = draftValue;
-                } else {
-                    changed = true;
+        const mediaQuery = window.matchMedia("(hover: none), (pointer: coarse)");
+        const updateInteractionMode = () => {
+            setPrefersTapInteraction(mediaQuery.matches);
+            if (!mediaQuery.matches) {
+                setOpen(false);
+            }
+        };
+
+        updateInteractionMode();
+
+        if (typeof mediaQuery.addEventListener === "function") {
+            mediaQuery.addEventListener("change", updateInteractionMode);
+            return () => mediaQuery.removeEventListener("change", updateInteractionMode);
+        }
+
+        mediaQuery.addListener(updateInteractionMode);
+        return () => mediaQuery.removeListener(updateInteractionMode);
+    }, []);
+
+    React.useEffect(() => {
+        if (!prefersTapInteraction || !open) {
+            return;
+        }
+
+        const handlePointerDown = (event: PointerEvent) => {
+            if (!(event.target instanceof Node)) {
+                return;
+            }
+
+            if (
+                triggerRef.current?.contains(event.target) ||
+                contentRef.current?.contains(event.target)
+            ) {
+                return;
+            }
+
+            setOpen(false);
+        };
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                setOpen(false);
+            }
+        };
+
+        const handleScroll = () => {
+            setOpen(false);
+        };
+
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        document.addEventListener("keydown", handleEscape);
+        window.addEventListener("scroll", handleScroll, true);
+
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown, true);
+            document.removeEventListener("keydown", handleEscape);
+            window.removeEventListener("scroll", handleScroll, true);
+        };
+    }, [open, prefersTapInteraction]);
+
+    const handleTouchLikePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+        if (!prefersTapInteraction || event.pointerType === "mouse") {
+            return;
+        }
+
+        event.preventDefault();
+        setOpen((current) => !current);
+    };
+
+    const handleTapClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        if (prefersTapInteraction) {
+            event.preventDefault();
+        }
+    };
+
+    const handleTapKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+        if (!prefersTapInteraction) {
+            return;
+        }
+
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen((current) => !current);
+        }
+    };
+
+    return (
+        <Tooltip onOpenChange={setOpen} open={open}>
+            <TooltipTrigger asChild>
+                <button
+                    aria-expanded={prefersTapInteraction ? open : undefined}
+                    aria-label={label}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-forest/15 bg-white text-bark/70 transition-colors hover:border-forest/30 hover:text-soil focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest/30"
+                    onClick={handleTapClick}
+                    onKeyDown={handleTapKeyDown}
+                    onPointerDown={handleTouchLikePointerDown}
+                    ref={triggerRef}
+                    type="button"
+                >
+                    <CircleHelp className="h-3.5 w-3.5" />
+                </button>
+            </TooltipTrigger>
+            <TooltipContent
+                align={prefersTapInteraction ? "center" : "start"}
+                className="max-w-[320px]"
+                collisionPadding={16}
+                ref={contentRef}
+                side="top"
+            >
+                <p>{content}</p>
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
+function buildFarmGroups(items: CartItem[]): FarmGroup[] {
+    const grouped = new Map<string, FarmGroup>();
+
+    for (const item of items) {
+        const current = grouped.get(item.farmId);
+        if (current) {
+            current.items.push(item);
+            continue;
+        }
+
+        grouped.set(item.farmId, {
+            farmId: item.farmId,
+            farmName: item.farmName,
+            items: [item],
+        });
+    }
+
+    return Array.from(grouped.values());
+}
+
+function FarmCheckoutSection({
+    group,
+    defaultAddress,
+    isAddressLoading,
+    isBuyerSignedIn,
+}: {
+    group: FarmGroup;
+    defaultAddress: DefaultAddress;
+    isAddressLoading: boolean;
+    isBuyerSignedIn: boolean;
+}) {
+    const removeItem = useCartStore((state: CartStore) => state.removeItem);
+    const updateItemQty = useCartStore((state: CartStore) => state.updateItemQty);
+    const setIsOpen = useCartStore((state: CartStore) => state.setIsOpen);
+    const [drafts, setDrafts] = React.useState<Record<string, string>>({});
+
+    React.useEffect(() => {
+        setDrafts((current) => {
+            const validIds = new Set(group.items.map((item) => item.id));
+            const next: Record<string, string> = {};
+
+            for (const [itemId, value] of Object.entries(current)) {
+                if (validIds.has(itemId)) {
+                    next[itemId] = value;
                 }
             }
 
-            return changed ? nextDrafts : current;
+            return next;
         });
-    }, [items]);
+    }, [group.items]);
 
-    const clearQtyDraft = (itemId: string) => {
-        setQtyDrafts((current) => {
-            if (!(itemId in current)) {
-                return current;
-            }
+    const commitDraft = (item: CartItem) => {
+        const raw = drafts[item.id];
 
-            const nextDrafts = { ...current };
-            delete nextDrafts[itemId];
-            return nextDrafts;
+        if (raw === undefined) {
+            return;
+        }
+
+        setDrafts((current) => {
+            const next = { ...current };
+            delete next[item.id];
+            return next;
         });
-    };
 
-    const setQtyDraft = (itemId: string, value: string) => {
-        setQtyDrafts((current) => ({
-            ...current,
-            [itemId]: value,
-        }));
-    };
-
-    const commitQtyDraft = (item: CartItem) => {
-        const rawDraft = qtyDrafts[item.id];
-
-        if (rawDraft === undefined) {
+        const normalized = raw.trim();
+        if (normalized === "" || normalized === "." || normalized === ",") {
             return;
         }
 
-        clearQtyDraft(item.id);
-
-        const normalizedDraft = rawDraft.trim();
-        if (normalizedDraft === '' || normalizedDraft === '.' || normalizedDraft === ',') {
+        const parsed = Number(normalized.replace(",", "."));
+        if (Number.isNaN(parsed)) {
             return;
         }
 
-        const parsedQty = Number(normalizedDraft.replace(',', '.'));
-        if (Number.isNaN(parsedQty)) {
+        const minimum = getQuantityMin(item);
+        const unclamped = normalizeQuantity(item, parsed, { clampMin: false });
+        if (unclamped < minimum) {
+            toast.error(`A quantidade minima e ${getQuantityMinLabel(item)}.`);
             return;
         }
 
-        const minQty = getCartQtyMin(item);
-        const normalizedQty = normalizeQuantity(item, parsedQty, { clampMin: false });
-
-        if (normalizedQty < minQty) {
-            toast.error(`A quantidade minima e ${getQuantityMinLabel(item)}. Use a lixeira para remover o item.`);
-            return;
-        }
-
-        const safeQty = normalizeQuantity(item, parsedQty);
-        if (parsedQty > getMaximumQuantity(item)) {
-            toast.error('Quantidade acima do disponivel. Ajustamos para o maximo em estoque.');
+        const safeQty = normalizeQuantity(item, parsed);
+        if (parsed > getMaximumQuantity(item)) {
+            toast.error("Quantidade acima do disponivel. Ajustamos para o maximo em estoque.");
         }
 
         updateItemQty(item.id, safeQty);
     };
 
-    const handleQtyDraftChange = (item: CartItem, value: string) => {
-        const pattern = getQuantityInputPattern(item);
+    const adjustQty = (item: CartItem, direction: "increase" | "decrease") => {
+        const step = getQuantityStep(item);
+        const nextQty = isWeightBasedQuantityItem(item)
+            ? roundQuantity(direction === "increase" ? item.cartQty + step : item.cartQty - step)
+            : Math.trunc(direction === "increase" ? item.cartQty + step : item.cartQty - step);
 
-        if (!pattern.test(value)) {
+        if (direction === "decrease" && nextQty < getQuantityMin(item)) {
             return;
         }
 
-        setQtyDraft(item.id, value);
-    };
-
-    const adjustItemQty = (item: CartItem, direction: 'increase' | 'decrease') => {
-        clearQtyDraft(item.id);
-
-        const step = getCartQtyStep(item);
-        const minQty = getCartQtyMin(item);
-        const nextQty = isWeightBasedCartItem(item)
-            ? roundQuantity(direction === 'increase' ? item.cartQty + step : item.cartQty - step)
-            : Math.trunc(direction === 'increase' ? item.cartQty + step : item.cartQty - step);
-
-        if (direction === 'decrease' && nextQty < minQty) {
-            return;
-        }
-
-        if (direction === 'increase' && nextQty > getMaximumQuantity(item)) {
+        if (direction === "increase" && nextQty > getMaximumQuantity(item)) {
             return;
         }
 
         updateItemQty(item.id, nextQty);
     };
 
-    // Delivery fee — MVP fixed value; future: recalculated via distance API
-    const DELIVERY_FEE = 8.00;
-    const hasWeightBasedItems = items.some((item) => isWeightBasedCartItem(item));
-    const weightBasedSubtotal = items.reduce(
-        (acc, item) => acc + (isWeightBasedCartItem(item) ? item.finalPrice * item.cartQty : 0),
-        0
+    const subtotal = group.items.reduce((sum, item) => sum + item.finalPrice * item.cartQty, 0);
+    const weightBasedItems = group.items.filter((item) => isWeightBasedQuantityItem(item));
+    const hasWeightBasedItems = weightBasedItems.length > 0;
+    const weightBasedSubtotal = weightBasedItems.reduce(
+        (sum, item) => sum + item.finalPrice * item.cartQty,
+        0,
     );
-    const estimatedTotal = roundCurrency(subtotal + DELIVERY_FEE);
-    const authorizationBuffer = hasWeightBasedItems
-        ? roundCurrency(weightBasedSubtotal * WEIGHT_AUTHORIZATION_BUFFER)
-        : 0;
-    const estimatedPreAuthorizationTotal = roundCurrency(estimatedTotal + authorizationBuffer);
 
-    const createCheckout = trpc.checkout.createCheckoutSession.useMutation({
-        onSuccess: (data: { url: string }) => {
-            // Close the cart drawer and clear items BEFORE redirecting to Stripe
-            // This ensures users don't see old cart items when returning to the success page
+    const freightQuery = trpc.logistics.calculateFreight.useQuery(
+        {
+            farmId: group.farmId,
+            addressId: defaultAddress?.id ?? "",
+            subtotal,
+        },
+        {
+            enabled: Boolean(isBuyerSignedIn && defaultAddress?.id),
+            retry: false,
+        },
+    );
+
+    const checkoutMutation = trpc.checkout.createCheckoutSession.useMutation({
+        onSuccess: (data) => {
+            for (const item of group.items) {
+                removeItem(item.id);
+            }
+
             setIsOpen(false);
-            clearCart();
-            // Redirect to Stripe Checkout
             window.location.href = data.url;
         },
-        onError: (err) => {
-            toast.error(err.message || 'Falha ao iniciar pagamento. Verifique sua conexão e tente novamente.');
+        onError: (error) => {
+            toast.error(error.message || "Falha ao iniciar o checkout desta fazenda.");
         },
     });
 
-    const isAddressComplete = deliveryStreet.trim().length >= 3 &&
-        deliveryNumber.trim().length >= 1 &&
-        /^\d{5}-?\d{3}$/.test(deliveryCep.trim()) &&
-        deliveryCity.trim().length >= 2 &&
-        deliveryState.trim().length === 2;
+    const isOutOfRange = freightQuery.error?.data?.code === "PRECONDITION_FAILED";
+    const minOrderValue = freightQuery.data?.minOrderValue ?? 0;
+    const hasReachedMinimumOrder =
+        freightQuery.data?.hasReachedMinimumOrder ?? minOrderValue <= 0;
+    const remainingForMinimumOrder =
+        freightQuery.data?.remainingForMinimumOrder ??
+        Math.max(0, roundCurrency(minOrderValue - subtotal));
+    const freeShippingThreshold =
+        freightQuery.data?.freeShippingThreshold ?? null;
+    const hasReachedFreeShipping =
+        freightQuery.data?.hasReachedFreeShipping ?? false;
+    const remainingForFreeShipping =
+        freightQuery.data?.remainingForFreeShipping ??
+        (freeShippingThreshold !== null
+            ? Math.max(0, roundCurrency(freeShippingThreshold - subtotal))
+            : null);
+    const freightCost = freightQuery.data?.freightCost ?? null;
+    const baseFreightCost = freightQuery.data?.baseFreightCost ?? freightCost;
+    const total = freightCost === null ? null : Math.round((subtotal + freightCost) * 100) / 100;
+    const authorizationBuffer = hasWeightBasedItems
+        ? roundCurrency(weightBasedSubtotal * WEIGHT_AUTHORIZATION_BUFFER)
+        : 0;
+    const estimatedPreAuthorizationTotal =
+        total !== null && hasWeightBasedItems
+            ? roundCurrency(total + authorizationBuffer)
+            : null;
+    const disableCheckout =
+        !isBuyerSignedIn ||
+        !defaultAddress ||
+        isAddressLoading ||
+        freightQuery.isPending ||
+        checkoutMutation.isPending ||
+        isOutOfRange ||
+        !hasReachedMinimumOrder ||
+        (freightQuery.isError && !isOutOfRange) ||
+        freightCost === null;
 
     const handleCheckout = () => {
-        if (items.length === 0) return;
-
-        // @ts-expect-error tenantId exists in custom schema
-        if (!session?.user?.tenantId) {
-            toast.error("Seu cadastro está incompleto. Empresa não identificada.");
+        if (!isBuyerSignedIn) {
+            toast.error("Faca login como comprador para continuar.");
             return;
         }
 
-        if (!isAddressComplete) {
-            toast.error("Por favor, preencha todos os campos do endereço de entrega.");
+        if (!defaultAddress) {
+            toast.error("Cadastre um endereco padrao antes de concluir o pedido.");
             return;
         }
 
-        createCheckout.mutate({
-            items: items.map(item => ({
+        if (!hasReachedMinimumOrder) {
+            toast.error(
+                `Faltam ${formatCurrency(remainingForMinimumOrder)} para atingir o pedido minimo desta fazenda.`,
+            );
+            return;
+        }
+
+        if (freightCost === null) {
+            toast.error("Aguarde o calculo do frete desta fazenda.");
+            return;
+        }
+
+        checkoutMutation.mutate({
+            items: group.items.map((item) => ({
                 lotId: item.id,
                 quantity: item.cartQty,
-                pricingType: item.pricingType,
-                productName: item.productName,
-                unitPrice: item.finalPrice,
-                imageUrl: item.imageUrl,
             })),
             address: {
-                street: deliveryStreet.trim(),
-                number: deliveryNumber.trim(),
-                cep: deliveryCep.trim(),
-                city: deliveryCity.trim(),
-                state: deliveryState.trim().toUpperCase(),
+                street: defaultAddress.street,
+                number: defaultAddress.number,
+                cep: defaultAddress.zipcode,
+                city: defaultAddress.city,
+                state: defaultAddress.state,
             },
-            deliveryFee: DELIVERY_FEE,
+            deliveryFee: freightCost,
         });
     };
 
-    // Prevent hydration mismatch for zustand persist (optional, but good practice)
+    return (
+        <section className="space-y-4 rounded-[28px] border border-forest/10 bg-white p-4 shadow-[0_12px_28px_rgba(27,67,50,0.06)]">
+            <div className="flex items-center justify-between gap-4">
+                <div>
+                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/60">
+                        Pedido por fazenda
+                    </p>
+                    <h3 className="font-display text-2xl font-black text-soil">{group.farmName}</h3>
+                </div>
+                <span className="rounded-full border border-forest/15 bg-sage px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-forest">
+                    {group.items.length} item{group.items.length > 1 ? "s" : ""}
+                </span>
+            </div>
+
+            <ul className="space-y-3">
+                {group.items.map((item) => {
+                    const isWeightBased = isWeightBasedQuantityItem(item);
+
+                    return (
+                        <li className="rounded-[22px] border border-forest/10 bg-cream p-4" key={item.id}>
+                            <div className="grid grid-cols-[84px_minmax(0,1fr)] gap-4">
+                                <div className="relative h-21 w-21 overflow-hidden rounded-[18px] border border-forest/10 bg-forest/5">
+                                    {item.imageUrl ? (
+                                        <Image alt={item.productName} className="object-cover" fill sizes="84px" src={item.imageUrl} />
+                                    ) : null}
+                                </div>
+
+                                <div className="min-w-0">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <h4 className="line-clamp-2 font-sans text-sm font-semibold text-soil">
+                                                {item.productName}
+                                            </h4>
+                                            <p className="mt-1 text-xs text-bark/75">
+                                                {formatCurrency(item.finalPrice)} / {getSaleUnitLabel(resolveEffectiveSaleUnit(item.saleUnit, item.unit))}
+                                            </p>
+                                        </div>
+                                        <button
+                                            aria-label="Remover item"
+                                            className="rounded-full p-1.5 text-bark/40 transition-[background-color,color,box-shadow] hover:bg-ember/10 hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                                            onClick={() => removeItem(item.id)}
+                                            type="button"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-3 flex items-center justify-end">
+                                        <div className="flex items-center rounded-full border border-forest/15 bg-white p-1 shadow-[0_14px_28px_-26px_rgba(13,51,33,0.5)]">
+                                            <button
+                                                aria-label="Diminuir quantidade"
+                                                className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-[background-color,color,box-shadow] hover:bg-forest/10 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
+                                                disabled={item.cartQty <= getQuantityMin(item)}
+                                                onClick={() => adjustQty(item, "decrease")}
+                                                type="button"
+                                            >
+                                                <Minus className="h-3.5 w-3.5" />
+                                            </button>
+
+                                            <input
+                                                aria-label={`Quantidade de ${item.productName}`}
+                                                className="w-16 border-none bg-transparent p-0 text-center font-sans text-sm font-semibold tabular-nums text-soil focus:outline-none focus:ring-0"
+                                                inputMode={isWeightBased ? "decimal" : "numeric"}
+                                                onBlur={() => commitDraft(item)}
+                                                onChange={(event) => {
+                                                    const value = event.target.value;
+                                                    if (getQuantityInputPattern(item).test(value)) {
+                                                        setDrafts((current) => ({ ...current, [item.id]: value }));
+                                                    }
+                                                }}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === "Enter" || event.key === "Escape") {
+                                                        event.currentTarget.blur();
+                                                    }
+                                                }}
+                                                type="text"
+                                                style={{ MozAppearance: "textfield" }}
+                                                value={drafts[item.id] ?? formatQuantityInput(item, item.cartQty)}
+                                            />
+
+                                            <button
+                                                aria-label="Aumentar quantidade"
+                                                className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-[background-color,color,box-shadow] hover:bg-forest/10 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
+                                                disabled={roundQuantity(item.cartQty + getQuantityStep(item)) > getMaximumQuantity(item)}
+                                                onClick={() => adjustQty(item, "increase")}
+                                                type="button"
+                                            >
+                                                <Plus className="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                    );
+                })}
+            </ul>
+
+            <div className="rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_18px_36px_-30px_rgba(13,51,33,0.42)]">
+                {hasWeightBasedItems && (
+                    <div className="mb-4 rounded-[20px] border border-forest/10 bg-sage/20 p-3.5">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-forest text-cream">
+                                <Scale className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-semibold text-soil">
+                                        Compra por peso com transparencia
+                                    </p>
+                                    <CartInfoTooltip
+                                        content="Itens vendidos por peso podem variar um pouco na separacao. O checkout reserva uma margem de 10 por cento para absorver a pesagem final, mas a cobranca considera apenas o peso real."
+                                        label="Entenda como funciona a compra por peso"
+                                    />
+                                </div>
+                                <p className="mt-1 text-xs leading-5 text-bark/80">
+                                    O total abaixo continua estimado ate a pesagem final desta fazenda.
+                                </p>
+                                {estimatedPreAuthorizationTotal !== null && (
+                                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark">
+                                        <span className="rounded-full border border-forest/10 bg-white px-3 py-1.5">
+                                            {`Estimativa atual: ${formatCurrency(total ?? 0)}`}
+                                        </span>
+                                        <span className="rounded-full border border-forest/10 bg-white px-3 py-1.5">
+                                            {`Limite maximo reservado: ${formatCurrency(estimatedPreAuthorizationTotal)}`}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-2 text-bark">
+                            {hasWeightBasedItems ? "Subtotal estimado desta fazenda" : "Subtotal desta fazenda"}
+                            {hasWeightBasedItems && (
+                                <CartInfoTooltip
+                                    content="Para itens por peso, este subtotal usa a quantidade informada no carrinho como estimativa inicial. O valor pode subir ou descer um pouco depois da pesagem exata."
+                                    label="Entenda o subtotal estimado dos itens por peso"
+                                />
+                            )}
+                        </span>
+                        <span className="font-semibold text-soil">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-bark">Frete</span>
+                        {isAddressLoading || freightQuery.isPending ? (
+                            <Skeleton className="h-5 w-20" />
+                        ) : freightCost !== null ? (
+                            hasReachedFreeShipping ? (
+                                <span className="flex items-center gap-2 font-semibold text-emerald-700">
+                                    {baseFreightCost !== null && baseFreightCost > 0 ? (
+                                        <span className="text-bark/45 line-through">
+                                            {formatCurrency(baseFreightCost)}
+                                        </span>
+                                    ) : null}
+                                    <span>Gratis</span>
+                                </span>
+                            ) : (
+                                <span className="font-semibold text-soil">{formatCurrency(freightCost)}</span>
+                            )
+                        ) : (
+                            <span className="font-semibold text-bark/65">Indisponivel</span>
+                        )}
+                    </div>
+                    {minOrderValue > 0 && !hasReachedMinimumOrder ? (
+                        <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                            {`Faltam ${formatCurrency(remainingForMinimumOrder)} para atingir o pedido minimo de ${formatCurrency(minOrderValue)}.`}
+                        </div>
+                    ) : null}
+                    {freeShippingThreshold !== null ? (
+                        <div className="rounded-[18px] border border-forest/10 bg-sage/20 px-4 py-3">
+                            <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-bark/70">
+                                <span>Frete Gratis</span>
+                                <span>
+                                    {hasReachedFreeShipping
+                                        ? "Liberado"
+                                        : `${Math.min(
+                                              100,
+                                              Math.round(
+                                                  (subtotal /
+                                                      freeShippingThreshold) *
+                                                      100,
+                                              ),
+                                          )}%`}
+                                </span>
+                            </div>
+                            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
+                                <div
+                                    className="h-full rounded-full bg-forest transition-[width]"
+                                    style={{
+                                        width: `${Math.min(
+                                            100,
+                                            Math.max(
+                                                0,
+                                                freeShippingThreshold > 0
+                                                    ? (subtotal /
+                                                          freeShippingThreshold) *
+                                                          100
+                                                    : 100,
+                                            ),
+                                        )}%`,
+                                    }}
+                                />
+                            </div>
+                            <p className="mt-2 text-sm text-bark/80">
+                                {hasReachedFreeShipping
+                                    ? "Frete gratis liberado para esta fazenda."
+                                    : `Faltam ${formatCurrency(remainingForFreeShipping ?? 0)} para frete gratis.`}
+                            </p>
+                        </div>
+                    ) : null}
+                    {hasWeightBasedItems && (
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="flex items-center gap-2 text-bark">
+                                Margem de pre-autorizacao (10%)
+                                <CartInfoTooltip
+                                    content="Essa margem serve apenas para garantir a aprovacao do pagamento caso o peso real fique um pouco acima da estimativa. Se ela nao for usada, nao entra na cobranca final."
+                                    label="Entenda a margem de pre-autorizacao"
+                                />
+                            </span>
+                            <span className="font-semibold text-soil">{formatCurrency(authorizationBuffer)}</span>
+                        </div>
+                    )}
+                    <div className="border-t border-forest/10 pt-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="font-semibold text-soil">
+                                {hasWeightBasedItems ? "Estimativa do total desta fazenda" : "Total desta fazenda"}
+                            </span>
+                            {isAddressLoading || freightQuery.isPending ? (
+                                <Skeleton className="h-6 w-24" />
+                            ) : total !== null ? (
+                                <span className="text-lg font-bold text-soil">{formatCurrency(total)}</span>
+                            ) : (
+                                <span className="font-semibold text-bark/65">Aguardando frete</span>
+                            )}
+                        </div>
+                        {hasWeightBasedItems && total !== null && (
+                            <p className="mt-2 text-[11px] leading-5 text-bark/70">
+                                O valor final sera confirmado apos a pesagem exata dos itens desta fazenda.
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {isOutOfRange ? (
+                    <p className="mt-4 rounded-[18px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                        Endereco fora da area de entrega
+                    </p>
+                ) : null}
+
+                {!isOutOfRange && freightQuery.isError ? (
+                    <p className="mt-4 rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-3 text-sm font-medium text-bark/80">
+                        Nao foi possivel calcular o frete desta fazenda agora.
+                    </p>
+                ) : null}
+
+                <Button className="mt-4 w-full" disabled={disableCheckout} onClick={handleCheckout} type="button">
+                    {checkoutMutation.isPending ? (
+                        <>
+                            <LoaderCircle className="h-4 w-4 animate-spin" />
+                            Redirecionando...
+                        </>
+                    ) : (
+                        "Fechar Pedido desta Fazenda"
+                    )}
+                </Button>
+            </div>
+        </section>
+    );
+}
+
+export function CartDrawer() {
+    const isOpen = useCartStore(selectCartIsOpen);
+    const setIsOpen = useCartStore((state: CartStore) => state.setIsOpen);
+    const clearCart = useCartStore((state: CartStore) => state.clearCart);
+    const items = useCartStore((state: CartStore) => state.items);
+    const { data: session } = authClient.useSession();
+    const sessionUser = session?.user as SessionUser | undefined;
     const [isMounted, setIsMounted] = React.useState(false);
+
     React.useEffect(() => {
         setIsMounted(true);
     }, []);
 
-    if (!isMounted) return null;
+    const totalItems = items.reduce((sum, item) => sum + item.cartQty, 0);
+    const farmGroups = buildFarmGroups(items);
+    const isBuyerSignedIn = sessionUser?.role === "buyer";
+    const defaultAddressQuery = trpc.addresses.getDefaultAddress.useQuery(undefined, {
+        enabled: isBuyerSignedIn,
+        retry: false,
+    });
+
+    if (!isMounted) {
+        return null;
+    }
 
     return (
-        <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-            <Dialog.Portal>
-                {/* Backdrop */}
-                <Dialog.Overlay className="fixed inset-0 z-50 bg-bark/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <TooltipProvider delayDuration={120}>
+            <Dialog.Root onOpenChange={setIsOpen} open={isOpen}>
+                <Dialog.Portal>
+                    <Dialog.Overlay className="fixed inset-0 z-[140] bg-bark/40 backdrop-blur-sm data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
 
-                {/* Drawer Panel */}
-                <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-full max-w-[34rem] bg-cream shadow-2xl border-l border-forest/10 flex flex-col data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] sm:max-w-[36rem]">
-                    <Dialog.Description className="sr-only">
-                        Resumo dos itens no seu carrinho de compras e formulário de endereço para finalização do pedido.
-                    </Dialog.Description>
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-5 border-b border-forest/10 bg-white">
-                        <Dialog.Title className="font-display text-xl font-bold text-soil flex items-center gap-2">
-                            <ShoppingCart className="w-5 h-5 text-forest" />
+                    <Dialog.Content className="fixed inset-y-0 right-0 z-[150] flex w-full max-w-[34rem] flex-col border-l border-forest/10 bg-cream shadow-[0_28px_70px_-26px_rgba(13,51,33,0.45)] transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-[36rem]">
+                        <Dialog.Description className="sr-only">
+                            Carrinho agrupado por fazenda com checkout independente por produtor.
+                        </Dialog.Description>
+
+                    <div className="flex items-center justify-between border-b border-forest/10 bg-white px-6 py-5">
+                        <Dialog.Title className="flex items-center gap-2 font-display text-xl font-black tracking-[-0.03em] text-soil">
+                            <ShoppingCart className="h-5 w-5 text-forest" />
                             Seu Carrinho
-                            {totalItems > 0 && (
-                                <span className="ml-2 inline-flex items-center justify-center bg-forest text-cream text-[11px] font-bold h-5 px-2 rounded-full">
+                            {totalItems > 0 ? (
+                                <span className="ml-2 inline-flex h-5 items-center justify-center rounded-full bg-forest px-2 text-[11px] font-bold text-cream">
                                     {totalItems}
                                 </span>
-                            )}
+                            ) : null}
                         </Dialog.Title>
                         <Dialog.Close asChild>
                             <button
-                                className="p-2 text-bark/60 hover:text-soil hover:bg-forest/5 rounded-full transition-colors"
                                 aria-label="Fechar"
+                                className="rounded-full p-2 text-bark/60 transition-[background-color,color,box-shadow] hover:bg-forest/5 hover:text-soil focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                                type="button"
                             >
-                                <X className="w-5 h-5" />
+                                <X className="h-5 w-5" />
                             </button>
                         </Dialog.Close>
                     </div>
 
-                    {/* Content area */}
-                    <div className="flex-1 overflow-y-auto w-full px-4 py-5 sm:p-6">
+                    <div className="cart-drawer-scroll flex-1 overflow-y-auto overscroll-contain px-4 pb-8 pt-5 sm:px-6 sm:pb-10 sm:pt-6">
                         {items.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-70">
-                                <ShoppingCart className="w-16 h-16 text-forest/20" />
-                                <div>
-                                    <p className="font-display text-lg font-bold text-soil">Carrinho vazio</p>
-                                    <p className="font-sans text-sm text-bark mt-1">
-                                        Adicione os melhores produtos frescos da região.
+                            <div className="flex h-full flex-col items-center justify-center">
+                                <div className="surface-panel flex max-w-md flex-col items-center rounded-[30px] px-7 py-10 text-center">
+                                    <div className="flex h-18 w-18 items-center justify-center rounded-full border border-forest/10 bg-sage/18 shadow-[0_18px_36px_-28px_rgba(13,51,33,0.42)]">
+                                        <ShoppingCart className="h-8 w-8 text-forest/44" />
+                                    </div>
+                                    <p className="mt-6 font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/58">
+                                        Nenhum item selecionado
                                     </p>
+                                    <p className="mt-3 font-display text-2xl font-black tracking-[-0.03em] text-soil">
+                                        Carrinho vazio
+                                    </p>
+                                    <p className="mt-3 font-sans text-sm leading-6 text-bark/72">
+                                        Explore o catalogo para montar pedidos por fazenda com frete e total calculados
+                                        de forma transparente.
+                                    </p>
+                                    <Button asChild className="mt-7 rounded-[18px] px-6" variant="primary">
+                                        <Link href="/catalogo" onClick={() => setIsOpen(false)}>
+                                            Ir para o catalogo
+                                        </Link>
+                                    </Button>
                                 </div>
-                                <Dialog.Close asChild>
-                                    <button className="mt-4 rounded-full bg-forest/10 px-6 py-2 font-semibold text-forest transition-colors hover:bg-forest/20">
-                                        Explorar Catálogo
-                                    </button>
-                                </Dialog.Close>
                             </div>
                         ) : (
                             <div className="space-y-5">
-                                <ul className="space-y-4 w-full sm:space-y-5">
-                                {items.map((item: CartItem) => {
-                                    const isWeightBased = isWeightBasedCartItem(item);
-
-                                    return (
-                                        <li key={item.id} className="rounded-[26px] border border-forest/10 bg-white p-4 shadow-[0_12px_28px_rgba(27,67,50,0.06)]">
-                                            <div className="grid grid-cols-[96px_minmax(0,1fr)] items-start gap-4">
-                                                <div className="relative h-24 w-24 overflow-hidden rounded-[22px] border border-forest/10 bg-forest/5">
-                                                    {item.imageUrl ? (
-                                                        <Image
-                                                            src={item.imageUrl}
-                                                            alt={item.productName}
-                                                            fill
-                                                            sizes="96px"
-                                                            className="object-cover object-center"
-                                                        />
-                                                    ) : (
-                                                        <div className="flex h-full w-full items-center justify-center">
-                                                            <span className="font-display text-sm font-medium text-forest/30">Sem foto</span>
-                                                        </div>
-                                                    )}
+                                <section className="rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_18px_36px_-30px_rgba(13,51,33,0.42)]">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-forest text-cream">
+                                            <MapPin className="h-5 w-5" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
+                                                Endereco base do frete
+                                            </p>
+                                            {defaultAddressQuery.isPending ? (
+                                                <div className="mt-3 space-y-2">
+                                                    <Skeleton className="h-4 w-36" />
+                                                    <Skeleton className="h-4 w-5/6" />
                                                 </div>
-
-                                                <div className="min-w-0">
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div className="min-w-0">
-                                                            <h3 className="font-sans text-[16px] font-semibold leading-snug text-soil line-clamp-2">
-                                                                {item.productName}
-                                                            </h3>
-                                                            <p className="mt-1 text-xs text-bark/80 line-clamp-1">
-                                                                {item.farmName}
-                                                            </p>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => removeItem(item.id)}
-                                                            className="mt-0.5 rounded-full p-1.5 text-bark/40 transition-colors hover:bg-ember/10 hover:text-ember"
-                                                            aria-label="Remove item"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-
-                                                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                        <span className="inline-flex items-center rounded-full bg-forest/10 px-2.5 py-1 text-[10px] font-semibold text-forest ring-1 ring-inset ring-forest/20 capitalize">
-                                                            {item.unit}
-                                                            {item.pricingType === 'BOX' && item.estimatedWeight ? ` (~${item.estimatedWeight}kg)` : ''}
-                                                        </span>
-                                                        {item.isLastChance && (
-                                                            <span className="inline-flex items-center rounded-full bg-ember/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-ember">
-                                                                Aproveite 🔥
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="mt-3 rounded-[20px] bg-cream px-3.5 py-3 ring-1 ring-forest/8">
-                                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                                            <div className="min-w-0">
-                                                                {item.originalPrice > item.finalPrice && (
-                                                                    <span className="block text-[10px] text-bark/60 line-through">
-                                                                        {formatCurrency(item.originalPrice)}
-                                                                    </span>
-                                                                )}
-                                                                    <span className="font-sans text-sm font-bold text-forest">
-                                                                        {formatCurrency(item.finalPrice)}
-                                                                        <span className="text-xs font-normal text-bark"> / {item.unit}</span>
-                                                                    </span>
-                                                                </div>
-
-                                                            <div className="flex justify-end">
-                                                                <div className="flex shrink-0 items-center rounded-full border border-forest/15 bg-white p-1 shadow-sm">
-                                                                    <button
-                                                                        onClick={() => adjustItemQty(item, 'decrease')}
-                                                                        className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-colors hover:bg-forest/10 hover:text-forest select-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-bark"
-                                                                        aria-label="Decrease quantity"
-                                                                        disabled={item.cartQty <= getCartQtyMin(item)}
-                                                                    >
-                                                                        <Minus className="w-3.5 h-3.5" />
-                                                                    </button>
-
-                                                                    <input
-                                                                        type="text"
-                                                                        inputMode={isWeightBased ? 'decimal' : 'numeric'}
-                                                                        value={qtyDrafts[item.id] ?? formatCartQtyInput(item, item.cartQty)}
-                                                                        onChange={(e) => handleQtyDraftChange(item, e.target.value)}
-                                                                        onBlur={() => commitQtyDraft(item)}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter') {
-                                                                                e.currentTarget.blur();
-                                                                            }
-
-                                                                            if (e.key === 'Escape') {
-                                                                                clearQtyDraft(item.id);
-                                                                                e.currentTarget.blur();
-                                                                            }
-                                                                        }}
-                                                                        className="w-16 border-none bg-transparent p-0 text-center font-sans text-sm font-semibold tabular-nums focus:ring-0"
-                                                                        style={{ MozAppearance: 'textfield' }}
-                                                                        aria-label={`Quantidade de ${item.productName}`}
-                                                                    />
-
-                                                                    <button
-                                                                        onClick={() => adjustItemQty(item, 'increase')}
-                                                                        className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-colors hover:bg-forest/10 hover:text-forest select-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-bark"
-                                                                        aria-label="Increase quantity"
-                                                                        disabled={roundQuantity(item.cartQty + getCartQtyStep(item)) > getMaximumQuantity(item)}
-                                                                    >
-                                                                        <Plus className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-
-                            <div className="space-y-4 border-t border-forest/10 pt-5">
-                                <div className="space-y-3 rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_10px_24px_rgba(27,67,50,0.05)]">
-                                    <p className="text-xs font-bold uppercase tracking-wider text-soil">
-                                        {"Endere\u00E7o de Entrega"}
-                                    </p>
-                                    <div className="grid grid-cols-3 gap-2.5">
-                                        <div className="col-span-2">
-                                            <label htmlFor="street" className="mb-1 block text-[10px] font-semibold text-bark">Rua *</label>
-                                            <input
-                                                id="street"
-                                                type="text"
-                                                placeholder="Rua das Flores"
-                                                value={deliveryStreet}
-                                                onChange={(e) => setDeliveryStreet(e.target.value)}
-                                                className="w-full rounded-xl border border-forest/20 bg-cream px-3 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="number" className="mb-1 block text-[10px] font-semibold text-bark">{"N\u00BA *"}</label>
-                                            <input
-                                                id="number"
-                                                type="text"
-                                                placeholder="123"
-                                                value={deliveryNumber}
-                                                onChange={(e) => setDeliveryNumber(e.target.value)}
-                                                className="w-full rounded-xl border border-forest/20 bg-cream px-3 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2.5">
-                                        <div>
-                                            <label htmlFor="cep" className="mb-1 block text-[10px] font-semibold text-bark">CEP *</label>
-                                            <input
-                                                id="cep"
-                                                type="text"
-                                                placeholder="01234-567"
-                                                value={deliveryCep}
-                                                onChange={(e) => setDeliveryCep(e.target.value)}
-                                                className="w-full rounded-xl border border-forest/20 bg-cream px-3 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                                maxLength={9}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="city" className="mb-1 block text-[10px] font-semibold text-bark">Cidade *</label>
-                                            <input
-                                                id="city"
-                                                type="text"
-                                                placeholder={"S\u00E3o Paulo"}
-                                                value={deliveryCity}
-                                                onChange={(e) => setDeliveryCity(e.target.value)}
-                                                className="w-full rounded-xl border border-forest/20 bg-cream px-3 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="state" className="mb-1 block text-[10px] font-semibold text-bark">UF *</label>
-                                            <input
-                                                id="state"
-                                                type="text"
-                                                placeholder="SP"
-                                                value={deliveryState}
-                                                onChange={(e) => setDeliveryState(e.target.value)}
-                                                className="w-full rounded-xl border border-forest/20 bg-cream px-3 py-2.5 text-sm uppercase transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                                maxLength={2}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="notes" className="mb-1 block text-[10px] font-semibold text-bark">
-                                            {"Observa\u00E7\u00F5es (Opcional)"}
-                                        </label>
-                                        <input
-                                            id="notes"
-                                            type="text"
-                                            placeholder="Ex: Deixar na portaria"
-                                            value={deliveryNotes}
-                                            onChange={(e) => setDeliveryNotes(e.target.value)}
-                                            className="w-full rounded-xl border border-forest/20 bg-cream px-3 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                        />
-                                    </div>
-                                </div>
-
-                                {hasWeightBasedItems && (
-                                    <div className="rounded-[24px] border border-forest/10 bg-sage/20 p-4 shadow-[0_10px_24px_rgba(27,67,50,0.05)]">
-                                        <div className="flex items-start gap-3">
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-forest text-cream">
-                                                <Scale className="h-4 w-4" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-xs font-bold uppercase tracking-wider text-soil">{"Aviso de Pesagem"}</p>
-                                                <p className="mt-1 text-sm font-semibold leading-6 text-soil">
-                                                    {"Itens por peso podem sofrer pequena varia\u00E7\u00E3o."}
-                                                </p>
-                                                <p className="mt-2 text-sm leading-6 text-bark">
-                                                    {"O seu cart\u00E3o ir\u00E1 pr\u00E9-autorizar uma margem de 10% a mais, mas voc\u00EA s\u00F3 pagar\u00E1 pelo peso exato que for separado pelo produtor."}
-                                                </p>
-                                                <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark">
-                                                    <span className="rounded-full border border-forest/10 bg-white px-3 py-1.5">
-                                                        {`Estimativa atual: ${formatCurrency(estimatedTotal)}`}
-                                                    </span>
-                                                    <span className="rounded-full border border-forest/10 bg-white px-3 py-1.5">
-                                                        {`Pr\u00E9-autoriza\u00E7\u00E3o m\u00E1xima: ${formatCurrency(estimatedPreAuthorizationTotal)}`}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_10px_24px_rgba(27,67,50,0.05)]">
-                                    <div className="space-y-3">
-                                        {savings > 0 && (
-                                            <div className="flex items-center justify-between text-sm font-medium text-ember">
-                                                <span>Economia em Last Chance</span>
-                                                <span>- {formatCurrency(savings)}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex items-center justify-between gap-3 text-sm text-bark">
-                                            <span>{hasWeightBasedItems ? 'Subtotal estimado dos itens' : 'Subtotal dos itens'}</span>
-                                            <span className="font-medium text-soil">{formatCurrency(subtotal)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between gap-3 text-sm text-bark">
-                                            <span>Taxa de entrega</span>
-                                            <span className="font-medium text-soil">{formatCurrency(DELIVERY_FEE)}</span>
-                                        </div>
-                                        {hasWeightBasedItems && (
-                                            <div className="flex items-center justify-between gap-3 text-sm text-bark">
-                                                <span>{"Margem de pr\u00E9-autoriza\u00E7\u00E3o (10%)"}</span>
-                                                <span className="font-medium text-soil">{formatCurrency(authorizationBuffer)}</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="mt-4 border-t border-forest/10 pt-4">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="min-w-0">
-                                                <p className="text-lg font-bold text-soil">
-                                                    {hasWeightBasedItems ? 'Estimativa do total' : 'Total'}
-                                                </p>
-                                                {hasWeightBasedItems && (
-                                                    <p className="mt-1 text-[11px] leading-5 text-bark/70">
-                                                        {"O valor final ser\u00E1 confirmado ap\u00F3s a pesagem exata dos itens."}
+                                            ) : defaultAddressQuery.data ? (
+                                                <>
+                                                    <p className="mt-2 font-sans text-sm font-semibold text-soil">
+                                                        {defaultAddressQuery.data.title}
                                                     </p>
-                                                )}
-                                            </div>
-                                            <span className="text-xl font-bold text-soil">
-                                                {formatCurrency(hasWeightBasedItems ? estimatedTotal : subtotal + DELIVERY_FEE)}
-                                            </span>
+                                                    <p className="mt-1 font-sans text-sm leading-6 text-bark/80">
+                                                        {defaultAddressQuery.data.formattedAddress}
+                                                    </p>
+                                                </>
+                                            ) : isBuyerSignedIn ? (
+                                                <div className="mt-3 space-y-3">
+                                                    <p className="font-sans text-sm leading-6 text-bark/80">
+                                                        Cadastre um endereco padrao para liberar o frete por fazenda.
+                                                    </p>
+                                                    <Button asChild size="sm">
+                                                        <Link href="/dashboard/perfil" onClick={() => setIsOpen(false)}>
+                                                            Cadastrar Endereco de Entrega
+                                                        </Link>
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <p className="mt-2 font-sans text-sm leading-6 text-bark/80">
+                                                    Faca login como comprador para calcular frete e fechar pedidos.
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
-                            </div>
+                                </section>
+
+                                {farmGroups.map((group) => (
+                                    <FarmCheckoutSection
+                                        defaultAddress={defaultAddressQuery.data ?? null}
+                                        group={group}
+                                        isAddressLoading={defaultAddressQuery.isPending}
+                                        isBuyerSignedIn={isBuyerSignedIn}
+                                        key={group.farmId}
+                                    />
+                                ))}
                             </div>
                         )}
                     </div>
 
-                    {/* Footer */}
-                    {items.length > 0 && (
+                    {items.length > 0 ? (
                         <div className="border-t border-forest/10 bg-white px-4 py-4 sm:px-6 sm:py-5">
-                            {false && (
-                                <div className="space-y-3 rounded-xl border border-forest/10 bg-forest/5 p-4">
-                                <p className="text-xs font-bold uppercase tracking-wider text-soil">Endereço de Entrega</p>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div className="col-span-2">
-                                        <label htmlFor="street" className="mb-0.5 block text-[10px] font-semibold text-bark">Rua *</label>
-                                        <input
-                                            id="street"
-                                            type="text"
-                                            placeholder="Rua das Flores"
-                                            value={deliveryStreet}
-                                            onChange={(e) => setDeliveryStreet(e.target.value)}
-                                            className="w-full rounded-lg border border-forest/20 bg-white px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="number" className="mb-0.5 block text-[10px] font-semibold text-bark">Nº *</label>
-                                        <input
-                                            id="number"
-                                            type="text"
-                                            placeholder="123"
-                                            value={deliveryNumber}
-                                            onChange={(e) => setDeliveryNumber(e.target.value)}
-                                            className="w-full rounded-lg border border-forest/20 bg-white px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div>
-                                        <label htmlFor="cep" className="mb-0.5 block text-[10px] font-semibold text-bark">CEP *</label>
-                                        <input
-                                            id="cep"
-                                            type="text"
-                                            placeholder="01234-567"
-                                            value={deliveryCep}
-                                            onChange={(e) => setDeliveryCep(e.target.value)}
-                                            className="w-full rounded-lg border border-forest/20 bg-white px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                            maxLength={9}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="city" className="mb-0.5 block text-[10px] font-semibold text-bark">Cidade *</label>
-                                        <input
-                                            id="city"
-                                            type="text"
-                                            placeholder="São Paulo"
-                                            value={deliveryCity}
-                                            onChange={(e) => setDeliveryCity(e.target.value)}
-                                            className="w-full rounded-lg border border-forest/20 bg-white px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="state" className="mb-0.5 block text-[10px] font-semibold text-bark">UF *</label>
-                                        <input
-                                            id="state"
-                                            type="text"
-                                            placeholder="SP"
-                                            value={deliveryState}
-                                            onChange={(e) => setDeliveryState(e.target.value)}
-                                            className="w-full rounded-lg border border-forest/20 bg-white px-3 py-2 text-sm uppercase transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                            maxLength={2}
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label htmlFor="notes" className="mb-0.5 block text-[10px] font-semibold text-bark">Observações (Opcional)</label>
-                                    <input
-                                        id="notes"
-                                        type="text"
-                                        placeholder="Ex: Deixar na portaria"
-                                        value={deliveryNotes}
-                                        onChange={(e) => setDeliveryNotes(e.target.value)}
-                                        className="w-full rounded-lg border border-forest/20 bg-white px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-forest/30"
-                                    />
-                                </div>
-                                </div>
-                            )}
-
-                            {hasWeightBasedItems && (
-                                <div className="hidden rounded-xl border border-forest/10 bg-sage/20 p-4">
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-forest text-cream">
-                                            <Scale className="h-4 w-4" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-bold uppercase tracking-wider text-soil">Aviso de Pesagem</p>
-                                            <p className="mt-1 text-sm font-semibold text-soil">
-                                                Itens por peso podem sofrer pequena variação.
-                                            </p>
-                                            <p className="mt-2 text-sm leading-6 text-bark">
-                                                O seu cartão irá pré-autorizar uma margem de 10% a mais, mas você só pagará pelo peso exato que for separado pelo produtor.
-                                            </p>
-                                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark">
-                                                <span className="rounded-full border border-forest/10 bg-white px-3 py-1">
-                                                    {`Estimativa atual: ${formatCurrency(estimatedTotal)}`}
-                                                </span>
-                                                <span className="rounded-full border border-forest/10 bg-white px-3 py-1">
-                                                    {`Pré-autorização máxima: ${formatCurrency(estimatedPreAuthorizationTotal)}`}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {savings > 0 && false && (
-                                <div className="flex items-center justify-between text-sm font-medium text-ember">
-                                    <span>Economia em Last Chance</span>
-                                    <span>- {formatCurrency(savings)}</span>
-                                </div>
-                            )}
-                            <div className="hidden items-center justify-between text-sm text-bark">
-                                <span>{hasWeightBasedItems ? 'Subtotal estimado dos itens' : 'Subtotal dos itens'}</span>
-                                <span>{formatCurrency(subtotal)}</span>
-                            </div>
-                            <div className="hidden items-center justify-between text-sm text-bark">
-                                <span>Taxa de entrega</span>
-                                <span>{formatCurrency(DELIVERY_FEE)}</span>
-                            </div>
-                            {hasWeightBasedItems && (
-                                <div className="hidden items-center justify-between text-sm text-bark">
-                                    <span>Margem de pré-autorização (10%)</span>
-                                    <span>{formatCurrency(authorizationBuffer)}</span>
-                                </div>
-                            )}
-                            <div className="hidden border-t border-forest/10 pt-3">
-                                <div className="flex items-center justify-between text-lg font-bold text-soil">
-                                    <span>{hasWeightBasedItems ? 'Estimativa do total' : 'Total'}</span>
-                                    <span>{formatCurrency(hasWeightBasedItems ? estimatedTotal : subtotal + DELIVERY_FEE)}</span>
-                                </div>
-                                {hasWeightBasedItems && (
-                                    <p className="mt-1 text-[11px] text-bark/70">
-                                        O valor final será confirmado após a pesagem exata dos itens.
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={clearCart}
-                                    disabled={createCheckout.isPending}
-                                    className="rounded-xl border border-forest/20 px-4 py-3 font-semibold text-bark transition-colors hover:bg-forest/5 disabled:opacity-50"
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="font-sans text-sm leading-6 text-bark/80">
+                                    {farmGroups.length} fazenda{farmGroups.length > 1 ? "s" : ""} no carrinho. Cada
+                                    pedido fecha separadamente para manter frete e operacao claros.
+                                </p>
+                                <Button
+                                    className="rounded-[16px]"
+                                    onClick={() => clearCart()}
+                                    type="button"
+                                    variant="secondary"
                                 >
-                                    Limpar
-                                </button>
-                                <button
-                                    onClick={handleCheckout}
-                                    disabled={createCheckout.isPending || items.length === 0 || !isAddressComplete}
-                                    className="relative flex-1 rounded-xl bg-forest px-4 py-3 font-bold text-cream shadow-md transition-colors hover:-translate-y-[1px] hover:bg-forest/90 hover:shadow-lg active:translate-y-0 disabled:pointer-events-none disabled:opacity-50"
-                                >
-                                    <span className="flex items-center justify-center gap-2">
-                                        {createCheckout.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Ir para Pagamento"}
-                                    </span>
-                                </button>
+                                    Limpar carrinho
+                                </Button>
                             </div>
                         </div>
-                    )}
-                </Dialog.Content>
-            </Dialog.Portal>
-        </Dialog.Root>
+                    ) : null}
+                    </Dialog.Content>
+                </Dialog.Portal>
+            </Dialog.Root>
+        </TooltipProvider>
     );
 }

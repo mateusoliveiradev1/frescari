@@ -5,7 +5,7 @@ import path from 'path';
 // Load directly from the root project dir
 config({ path: '../../.env' });
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon(process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL!);
 
 async function main() {
     console.log('Running raw SQL migration...');

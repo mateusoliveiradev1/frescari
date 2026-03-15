@@ -35,6 +35,13 @@ function matchesRemotePattern(pattern: RemotePattern, url: string): boolean {
   );
 }
 
+async function getGlobalHeaders() {
+  const headerRules = await nextConfig.headers?.();
+  const globalRule = headerRules?.find((rule) => rule.source === "/(.*)");
+
+  return new Map(globalRule?.headers.map((header) => [header.key, header.value]) ?? []);
+}
+
 test("allows UploadThing CDN hosts used by stored product images", () => {
   const remotePatterns = nextConfig.images?.remotePatterns ?? [];
   const uploadThingUrl = "https://nswecz312k.ufs.sh/f/UpQ5mQiOI7A96aZIvOeJEDL1XUMWKPiZ0cn74Ce8Nl9VuwYm";
@@ -53,4 +60,25 @@ test("allows Unsplash fallback images used in seed data", () => {
     remotePatterns.some((pattern) => matchesRemotePattern(pattern, unsplashUrl)),
     true,
   );
+});
+
+test("applies critical security headers globally", async () => {
+  const headers = await getGlobalHeaders();
+
+  assert.equal(headers.get("X-Content-Type-Options"), "nosniff");
+  assert.equal(headers.get("X-Frame-Options"), "DENY");
+  assert.equal(headers.get("Referrer-Policy"), "strict-origin-when-cross-origin");
+  assert.equal(headers.get("Permissions-Policy"), "camera=(), microphone=(), geolocation=()");
+  assert.match(headers.get("Strict-Transport-Security") ?? "", /max-age=63072000/);
+});
+
+test("content security policy allows the required Stripe and UploadThing surfaces", async () => {
+  const headers = await getGlobalHeaders();
+  const csp = headers.get("Content-Security-Policy") ?? "";
+
+  assert.match(csp, /default-src 'self'/);
+  assert.match(csp, /frame-ancestors 'none'/);
+  assert.match(csp, /object-src 'none'/);
+  assert.match(csp, /https:\/\/js\.stripe\.com/);
+  assert.match(csp, /connect-src 'self' https:/);
 });

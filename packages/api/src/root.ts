@@ -7,6 +7,8 @@ import { checkoutRouter } from './routers/checkout';
 import { stripeRouter } from './routers/stripe';
 import { adminRouter } from './routers/admin';
 import { farmRouter } from './routers/farm';
+import { addressesRouter } from './routers/addresses';
+import { logisticsRouter } from './routers/logistics';
 
 export const appRouter = createTRPCRouter({
     product: productRouter,
@@ -17,6 +19,8 @@ export const appRouter = createTRPCRouter({
     stripe: stripeRouter,
     admin: adminRouter,
     farm: farmRouter,
+    addresses: addressesRouter,
+    logistics: logisticsRouter,
 });
 
 export type AppRouter = typeof appRouter;

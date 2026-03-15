@@ -1,3 +1,5 @@
+import { isWeighableSaleUnit, resolveEffectiveSaleUnit } from "@/lib/sale-units";
+
 export type QuantityRuleItem = {
     pricingType: 'UNIT' | 'WEIGHT' | 'BOX';
     saleUnit?: string | null;
@@ -5,38 +7,12 @@ export type QuantityRuleItem = {
     availableQty?: number;
 };
 
-const WEIGHT_BASED_UNITS = new Set(['kg', 'g', 'peso', 'weight']);
-const UNIT_BASED_UNITS = new Set(['un', 'un.', 'unit', 'unidade', 'unid', 'cx', 'caixa', 'box']);
-
-const normalizeUnitLabel = (value?: string | null) => value?.trim().toLowerCase();
-
 export const roundQuantity = (value: number) => Math.round(value * 100) / 100;
 
 export const isWeightBasedQuantityItem = (
-    item: Pick<QuantityRuleItem, 'pricingType' | 'saleUnit' | 'unit'>
+    item: Pick<QuantityRuleItem, 'saleUnit' | 'unit'>
 ) => {
-    if (item.pricingType === 'BOX') {
-        return false;
-    }
-
-    const normalizedSaleUnit = normalizeUnitLabel(item.saleUnit);
-    const normalizedUnit = normalizeUnitLabel(item.unit);
-
-    if (
-        (normalizedSaleUnit && UNIT_BASED_UNITS.has(normalizedSaleUnit))
-        || (normalizedUnit && UNIT_BASED_UNITS.has(normalizedUnit))
-    ) {
-        return false;
-    }
-
-    if (
-        (normalizedSaleUnit && WEIGHT_BASED_UNITS.has(normalizedSaleUnit))
-        || (normalizedUnit && WEIGHT_BASED_UNITS.has(normalizedUnit))
-    ) {
-        return true;
-    }
-
-    return item.pricingType === 'WEIGHT';
+    return isWeighableSaleUnit(resolveEffectiveSaleUnit(item.saleUnit, item.unit));
 };
 
 export const getQuantityStep = (item: Pick<QuantityRuleItem, 'pricingType' | 'saleUnit' | 'unit'>) =>

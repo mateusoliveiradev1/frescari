@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 config({ path: '../../.env' });
 
 async function main() {
-    const sql = neon(process.env.DATABASE_URL!);
+    const sql = neon(process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL!);
     console.log('Creating tables via raw SQL...');
     try {
         // Enums
@@ -88,6 +88,8 @@ async function main() {
                 "location" geometry(Point, 4326),
                 "address" text,
                 "certifications" text[],
+                "min_order_value" numeric(10, 2) DEFAULT '0' NOT NULL,
+                "free_shipping_threshold" numeric(10, 2),
                 "created_at" timestamp with time zone DEFAULT now() NOT NULL
             );
         `;

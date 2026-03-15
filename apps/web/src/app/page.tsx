@@ -142,6 +142,8 @@ const objections = [
   },
 ];
 
+const currentYear = new Date().getFullYear();
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-cream selection:bg-forest/20 selection:text-forest">
@@ -338,7 +340,7 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {buyerSegments.map((segment, index) => (
               <ScrollReveal key={segment.title} delay={index * 120}>
-                <div className="h-full rounded-[26px_18px_24px_16px] border border-soil/8 bg-cream-dark/50 p-7 shadow-card transition-all duration-200 hover:-translate-y-1 hover:shadow-card-hover">
+                <div className="h-full rounded-[26px_18px_24px_16px] border border-soil/8 bg-cream-dark/50 p-7 shadow-card transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:shadow-card-hover">
                   <p className="font-sans text-[10px] font-bold uppercase tracking-[0.22em] text-ember">
                     {segment.eyebrow}
                   </p>
@@ -355,7 +357,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-cream-dark/35 py-24">
+      <section className="bg-cream-dark/35 py-24" id="como-funciona">
         <div className="mx-auto max-w-[1400px] space-y-14 px-6 md:px-8 lg:px-12">
           <ScrollReveal className="max-w-2xl space-y-4">
             <p className="font-sans text-[10px] font-bold uppercase tracking-[0.22em] text-bark/65">
@@ -369,9 +371,9 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {operatingSignals.map((signal, index) => (
               <ScrollReveal key={signal.title} delay={index * 120}>
-                <div className="group h-full rounded-[28px_18px_24px_20px] border border-soil/8 bg-cream p-7 shadow-card transition-all duration-200 hover:-translate-y-1 hover:shadow-card-hover">
+                <div className="group h-full rounded-[28px_18px_24px_20px] border border-soil/8 bg-cream p-7 shadow-card transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:shadow-card-hover">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px_12px_18px_10px] border border-forest/15 bg-gradient-to-br from-sage via-sage/75 to-cream shadow-[inset_0_1px_0_rgba(249,246,240,0.6),0_10px_20px_-18px_rgba(13,51,33,0.45)] transition-all duration-200 group-hover:-rotate-2">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[16px_12px_18px_10px] border border-forest/15 bg-gradient-to-br from-sage via-sage/75 to-cream shadow-[inset_0_1px_0_rgba(249,246,240,0.6),0_10px_20px_-18px_rgba(13,51,33,0.45)] transition-[transform,box-shadow] duration-200 group-hover:-rotate-2">
                       {signal.icon}
                     </div>
                     <div>
@@ -523,9 +525,9 @@ export default function Home() {
       <footer className="border-t border-soil/8 bg-cream py-10">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 px-6 md:px-8 sm:flex-row lg:px-12">
           <BrandLogo size="sm" />
-          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
-            © 2025 Frescari - Marketplace B2B de hortifruti.
-          </p>
+            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
+             © {currentYear} Frescari - Marketplace B2B de hortifruti.
+            </p>
         </div>
       </footer>
     </div>

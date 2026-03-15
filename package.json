@@ -3,9 +3,15 @@
   "private": true,
   "scripts": {
     "build": "turbo build",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "ci": "pnpm check",
     "dev": "turbo dev",
     "lint": "turbo lint",
-    "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe"
+    "test": "turbo test",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
+    "typecheck": "turbo typecheck",
+    "worker:lot-freshness": "powershell -ExecutionPolicy Bypass -File scripts/start-lot-freshness-worker.ps1",
+    "worker:lot-freshness:run-once": "powershell -ExecutionPolicy Bypass -File scripts/start-lot-freshness-worker.ps1 -RunOnce"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

@@ -1,12 +1,12 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
-import { db, tenants } from '@frescari/db';
+import { db, enableAuthenticatedRlsContext, tenants, type AppDb } from '@frescari/db';
 import { eq } from 'drizzle-orm';
 import { getTenantTypeMismatchMessage, isTenantTypeCompatibleWithRole } from './tenant-access';
 
 export const createTRPCContext = async (opts: { req?: Request, session?: any, user?: any }) => {
     return {
-        db,
+        db: db as AppDb,
         req: opts.req,
         session: opts.session,
         user: opts.user,
@@ -27,12 +27,20 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'You must be logged in.' });
     }
 
-    return next({
-        ctx: {
-            ...ctx,
-            session: ctx.session,
-            user: ctx.user,
-        },
+    return ctx.db.transaction(async (tx) => {
+        await enableAuthenticatedRlsContext(tx, {
+            userId: ctx.user.id,
+            tenantId: typeof ctx.user.tenantId === 'string' ? ctx.user.tenantId : null,
+        });
+
+        return next({
+            ctx: {
+                ...ctx,
+                db: tx as AppDb,
+                session: ctx.session,
+                user: ctx.user,
+            },
+        });
     });
 });
 

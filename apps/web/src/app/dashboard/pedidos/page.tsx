@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button, Badge } from "@frescari/ui";
+import { Button, formatCurrencyBRL } from "@frescari/ui";
 import { Calendar, Store, RotateCw, X, ShoppingBag, PackageOpen, LayoutGrid, ChevronRight } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { trpc } from "@/trpc/react";
+import { getSaleUnitLabel } from "@/lib/sale-units";
 
 const statusStyles = {
     draft: "bg-gray-100 text-gray-700 border-gray-200",
@@ -86,17 +87,16 @@ export default function PedidosPage() {
 
     const utils = trpc.useUtils();
 
-    // Casting as any because the trpc package hasn't been built yet in the monorepo to expose types to this app
-    const { data: fetchOrders, isLoading } = (trpc.order as any).listMyOrders.useQuery({ status: filterStatus });
+    const { data: fetchOrders, isLoading } = trpc.order.listMyOrders.useQuery({ status: filterStatus });
 
-    const { mutate: cancelOrder, isPending: isCancelling } = (trpc.order as any).cancelOrder.useMutation({
+    const { mutate: cancelOrder, isPending: isCancelling } = trpc.order.cancelOrder.useMutation({
         onSuccess: () => {
             toast.success('Pedido cancelado com sucesso e estoque estornado!');
             setIsConfirmingCancel(false);
             setIsDialogOpen(false);
-            (utils.order as any).listMyOrders.invalidate();
+            void utils.order.listMyOrders.invalidate();
         },
-        onError: (error: any) => {
+        onError: (error) => {
             toast.error(error.message || 'Erro ao cancelar o pedido');
         }
     });
@@ -124,13 +124,6 @@ export default function PedidosPage() {
             month: 'long',
             year: 'numeric'
         }).format(new Date(date));
-    };
-
-    const formatCurrency = (amount: string | number) => {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(Number(amount));
     };
 
     return (
@@ -223,7 +216,7 @@ export default function PedidosPage() {
                                             <div className="flex flex-col items-end gap-0.5 shrink-0">
                                                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total</span>
                                                 <span className="font-display font-black text-xl text-soil">
-                                                    {formatCurrency(order.totalAmount)}
+                                                    {formatCurrencyBRL(order.totalAmount)}
                                                 </span>
                                             </div>
                                         </div>
@@ -274,9 +267,7 @@ export default function PedidosPage() {
                 )}
             </main>
 
-            <Toaster richColors position="bottom-right" />
-
-            <Dialog.Root open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+             <Dialog.Root open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
                     <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-[520px] translate-x-[-50%] translate-y-[-50%] gap-0 border border-border bg-white p-8 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-xl">
@@ -307,13 +298,15 @@ export default function PedidosPage() {
                                                 <div className="h-12 w-12 bg-sage/30 rounded-md border border-border/50 flex-shrink-0 flex items-center justify-center text-forest/20">
                                                     <PackageOpen className="w-5 h-5" />
                                                 </div>
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="font-bold text-[14px] text-soil group-hover:text-forest transition-colors">{item.productName}</span>
-                                                    <span className="text-[12px] font-medium text-muted-foreground">{item.qty} {item.saleUnit === 'unit' ? 'unidades' : item.saleUnit} x {formatCurrency(item.unitPrice)}</span>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-bold text-[14px] text-soil group-hover:text-forest transition-colors">{item.productName}</span>
+                                                        <span className="text-[12px] font-medium text-muted-foreground">
+                                                            {item.qty} {getSaleUnitLabel(item.saleUnit)} x {formatCurrencyBRL(item.unitPrice)}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                            </div>
                                             <span className="font-display font-bold text-[16px] text-soil ml-4 shrink-0">
-                                                {formatCurrency(Number(item.unitPrice) * Number(item.qty))}
+                                                {formatCurrencyBRL(Number(item.unitPrice) * Number(item.qty))}
                                             </span>
                                         </div>
                                     ))}
@@ -324,7 +317,7 @@ export default function PedidosPage() {
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Valor Total</span>
                                         <span className="text-3xl font-display font-black text-forest">
-                                            {formatCurrency(selectedOrder.totalAmount)}
+                                            {formatCurrencyBRL(selectedOrder.totalAmount)}
                                         </span>
                                     </div>
 
@@ -351,13 +344,14 @@ export default function PedidosPage() {
                                                         >
                                                             Voltar
                                                         </button>
-                                                        <button
-                                                            className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex justify-center items-center gap-2"
+                                                        <Button
+                                                            className="flex-1"
+                                                            variant="danger"
+                                                            isPending={isCancelling}
                                                             onClick={() => cancelOrder({ orderId: selectedOrder.id })}
-                                                            disabled={isCancelling}
                                                         >
-                                                            {isCancelling ? 'Aguarde...' : 'Confirmar Cancelamento'}
-                                                        </button>
+                                                            Confirmar Cancelamento
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             )}

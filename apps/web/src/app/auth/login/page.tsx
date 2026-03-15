@@ -1,77 +1,63 @@
 "use client";
 
-import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
-import { Button } from "@frescari/ui";
+import { useState, type FormEvent, type InputHTMLAttributes } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
+import { authClient } from "@/lib/auth-client";
+import { Button } from "@frescari/ui";
 
-// ────────────────────────────────────────────
-// Reusable form input styled for Frescari DS
-// ────────────────────────────────────────────
-interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
-    label: string;
+type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
     id: string;
-}
+    label: string;
+    hint?: string;
+};
 
-function Field({ label, id, ...props }: FieldProps) {
+function AuthField({ id, label, hint, className, ...props }: FieldProps) {
     return (
-        <div className="space-y-1.5">
-            <label
-                htmlFor={id}
-                className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
-            >
+        <div className="space-y-2">
+            <label className="field-label" htmlFor={id}>
                 {label}
             </label>
             <input
-                id={id}
                 className={[
-                    "w-full px-4 py-3 rounded-sm",
-                    "bg-cream border border-soil/15",
-                    "font-sans text-sm text-soil",
-                    "outline-none transition-all duration-150",
-                    "placeholder:text-bark/40",
-                    "focus:border-forest focus:ring-2 focus:ring-forest/15",
-                    "hover:border-soil/30",
-                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    "input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil",
+                    "placeholder:text-bark/42",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
+                    className,
                 ].join(" ")}
+                id={id}
                 {...props}
             />
+            {hint ? (
+                <p className="font-sans text-xs leading-5 text-bark/68">{hint}</p>
+            ) : null}
         </div>
     );
 }
 
-// ────────────────────────────────────────────
-// Inline error alert
-// ────────────────────────────────────────────
 function ErrorAlert({ message }: { message: string }) {
     return (
         <div
-            role="alert"
             aria-live="assertive"
-            className="flex items-start gap-3 p-4 bg-ember/8 border border-ember/30 rounded-sm animate-[slide-up-fade_0.2s_ease-out]"
+            className="rounded-[20px] border border-red-200 bg-red-50 px-4 py-4"
+            role="alert"
         >
-            <div className="w-1 rounded-full bg-ember flex-shrink-0 self-stretch min-h-[1rem]" />
-            <div className="flex-1 min-w-0">
-                <p className="font-sans text-xs font-bold uppercase tracking-wide text-ember mb-0.5">
-                    Erro
-                </p>
-                <p className="font-sans text-sm text-soil/80">{message}</p>
-            </div>
+            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-red-700">
+                Falha no acesso
+            </p>
+            <p className="mt-2 font-sans text-sm leading-6 text-red-800">{message}</p>
         </div>
     );
 }
 
-// ────────────────────────────────────────────
-// Login Page
-// ────────────────────────────────────────────
 export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+
+    const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
         setError("");
         setLoading(true);
 
@@ -80,134 +66,168 @@ export default function LoginPage() {
                 { email, password },
                 {
                     onSuccess: () => {
-                        // Hard reload para forçar a remontagem de toda a árvore de componentes
                         window.location.href = "/dashboard";
                     },
-                    onError: (ctx) => {
-                        setError(ctx.error.message || "Credenciais inválidas. Verifique seu e-mail e senha.");
+                    onError: (context) => {
+                        setError(
+                            context.error.message ||
+                                "Nao foi possivel entrar. Revise email e senha e tente novamente.",
+                        );
                         setLoading(false);
                     },
-                }
+                },
             );
-        } catch (err: unknown) {
-            const message =
-                err instanceof Error
-                    ? err.message
-                    : "Erro inesperado ao conectar. Tente novamente.";
-            setError(message);
+        } catch (caughtError: unknown) {
+            setError(
+                caughtError instanceof Error
+                    ? caughtError.message
+                    : "Erro inesperado ao iniciar a sessao.",
+            );
             setLoading(false);
         }
     };
 
     return (
-        <div className="flex min-h-screen bg-cream">
-            {/* ── Left brand panel ── */}
-            <div className="hidden lg:flex lg:w-[45%] flex-col justify-between p-16 bg-forest relative overflow-hidden">
-                <div
-                    className="absolute inset-0 opacity-10"
-                    style={{ backgroundImage: "radial-gradient(#f9f6f0 1px, transparent 1px)", backgroundSize: "22px 22px" }}
-                />
-                <Link href="/" className="relative z-10">
-                    <BrandLogo variant="inverse" size="md" showDescriptor />
-                </Link>
+        <div className="min-h-screen bg-cream">
+            <div className="grid min-h-screen lg:grid-cols-[0.92fr_1.08fr]">
+                <aside className="relative hidden overflow-hidden border-r border-white/8 bg-forest lg:flex">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(249,246,240,0.14),transparent_34%),linear-gradient(145deg,rgba(13,51,33,1),rgba(9,37,24,0.94))]" />
+                    <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle,rgba(249,246,240,0.35)_1px,transparent_1px)] [background-size:26px_26px]" />
 
-                <div className="relative z-10 space-y-6">
-                    <blockquote className="font-display text-4xl font-black text-cream italic leading-tight">
-                        &ldquo;O frescor começa na raiz, não na gôndola.&rdquo;
-                    </blockquote>
-                    <p className="font-sans text-sm text-sage/80 leading-relaxed max-w-xs">
-                        Conectando produtores familiares ao comércio local com tecnologia que respeita a terra.
-                    </p>
-                </div>
+                    <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-16">
+                        <BrandLogo showDescriptor size="md" variant="inverse" />
 
-                <p className="font-sans text-[9px] font-bold uppercase tracking-[0.2em] text-sage/40 relative z-10">
-                    Plataforma B2B · Sustentabilidade
-                </p>
-            </div>
+                        <div className="space-y-8">
+                            <div className="space-y-4">
+                                <p className="font-sans text-[10px] font-bold uppercase tracking-[0.22em] text-sage/70">
+                                    Plataforma B2B de hortifruti
+                                </p>
+                                <h2 className="max-w-md font-display text-5xl font-black italic leading-[0.92] tracking-[-0.05em] text-cream">
+                                    O abastecimento local fica mais claro quando a interface nao atrapalha.
+                                </h2>
+                            </div>
 
-            {/* ── Right form panel ── */}
-            <div className="flex-1 flex items-center justify-center p-6 lg:p-16">
-                <div className="w-full max-w-sm space-y-8">
+                            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+                                {[
+                                    ["Compra por lote", "Oferta com leitura rapida de origem, frescor e disponibilidade."],
+                                    ["Checkout por fazenda", "Menos ruido logistico e mais previsibilidade no fechamento."],
+                                    ["Operacao premium", "Estados, formularios e feedback visual pensados para agilidade."],
+                                ].map(([title, copy]) => (
+                                    <div
+                                        className="rounded-[24px] border border-white/10 bg-white/6 px-5 py-5 backdrop-blur-sm"
+                                        key={title}
+                                    >
+                                        <p className="font-sans text-xs font-bold uppercase tracking-[0.18em] text-cream">
+                                            {title}
+                                        </p>
+                                        <p className="mt-3 font-sans text-sm leading-6 text-sage/78">{copy}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
 
-                    {/* Mobile logo */}
-                    <div className="flex lg:hidden">
-                        <BrandLogo size="sm" />
-                    </div>
-
-                    <div className="space-y-1">
-                        <h1 className="font-display text-3xl font-black text-soil">
-                            Bem-vindo de volta
-                        </h1>
-                        <p className="font-sans text-sm text-bark">
-                            Acesse sua conta para ver as ofertas de hoje.
+                        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-sage/44">
+                            Frescari marketplace
                         </p>
                     </div>
+                </aside>
 
-                    {/* Error feedback */}
-                    {error && <ErrorAlert message={error} />}
+                <main className="flex items-center justify-center px-6 py-10 lg:px-12">
+                    <div className="w-full max-w-[34rem]">
+                        <div className="mb-8 flex lg:hidden">
+                            <BrandLogo size="sm" />
+                        </div>
 
-                    <form onSubmit={handleLogin} className="space-y-5" noValidate>
-                        <Field
-                            label="Email"
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="seu@email.com"
-                            required
-                            autoComplete="email"
-                            disabled={loading}
-                        />
-                        <Field
-                            label="Senha"
-                            id="password"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            required
-                            autoComplete="current-password"
-                            disabled={loading}
-                        />
+                        <section className="surface-panel rounded-[32px] p-7 sm:p-9">
+                            <div className="space-y-3">
+                                <p className="field-label">Acesso</p>
+                                <h1 className="font-display text-4xl font-black tracking-[-0.05em] text-soil sm:text-5xl">
+                                    Entrar na Frescari
+                                </h1>
+                                <p className="max-w-xl font-sans text-sm leading-6 text-bark/76">
+                                    Entre para acompanhar pedidos, disponibilidade e relacionamento com produtores
+                                    sem perder tempo com fluxo confuso.
+                                </p>
+                            </div>
 
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            size="lg"
-                            className="w-full"
-                            disabled={loading}
-                            aria-disabled={loading}
-                        >
-                            {loading ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <svg
-                                        className="animate-spin h-4 w-4 text-white"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        aria-hidden="true"
+                            <div className="mt-6 grid gap-3 rounded-[24px] border border-forest/10 bg-white px-4 py-4 sm:grid-cols-3">
+                                {[
+                                    ["Sinal claro", "Campos e estados com contraste e foco real."],
+                                    ["Menos atrito", "Validacao e retorno visual mais legiveis."],
+                                    ["Fluxo rapido", "Acesso feito para voltar ao catalogo em poucos passos."],
+                                ].map(([title, copy]) => (
+                                    <div key={title}>
+                                        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
+                                            {title}
+                                        </p>
+                                        <p className="mt-2 font-sans text-sm leading-6 text-bark/72">{copy}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-8 space-y-5">
+                                {error ? <ErrorAlert message={error} /> : null}
+
+                                <form className="space-y-5" noValidate onSubmit={handleLogin}>
+                                    <AuthField
+                                        aria-invalid={Boolean(error)}
+                                        autoCapitalize="none"
+                                        autoComplete="email"
+                                        autoCorrect="off"
+                                        disabled={loading}
+                                        id="email"
+                                        label="Email"
+                                        name="email"
+                                        onChange={(event) => setEmail(event.target.value)}
+                                        placeholder="compras@empresa.com"
+                                        required
+                                        spellCheck={false}
+                                        type="email"
+                                        value={email}
+                                    />
+
+                                    <AuthField
+                                        aria-invalid={Boolean(error)}
+                                        autoComplete="current-password"
+                                        disabled={loading}
+                                        hint="Use a senha cadastrada para liberar catalogo, pedidos e checkout."
+                                        id="password"
+                                        label="Senha"
+                                        name="password"
+                                        onChange={(event) => setPassword(event.target.value)}
+                                        placeholder="Digite sua senha"
+                                        required
+                                        type="password"
+                                        value={password}
+                                    />
+
+                                    <Button
+                                        className="h-13 w-full rounded-[18px] text-sm shadow-[0_20px_42px_-24px_rgba(13,51,33,0.46)]"
+                                        data-loading={loading}
+                                        disabled={loading}
+                                        size="lg"
+                                        type="submit"
+                                        variant="primary"
                                     >
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                    </svg>
-                                    Entrando…
-                                </span>
-                            ) : (
-                                "Entrar"
-                            )}
-                        </Button>
-                    </form>
+                                        {loading ? "Entrando..." : "Entrar"}
+                                    </Button>
+                                </form>
+                            </div>
 
-                    <div className="pt-4 border-t border-soil/8 text-center">
-                        <span className="font-sans text-sm text-bark">Não possui uma conta? </span>
-                        <Link
-                            href="/auth/register"
-                            className="font-sans text-sm font-semibold text-forest hover:underline underline-offset-4"
-                        >
-                            Registre-se aqui
-                        </Link>
+                            <div className="mt-8 flex flex-col gap-3 border-t border-soil/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="font-sans text-sm leading-6 text-bark/74">
+                                    Ainda nao tem conta? Cadastre seu acesso e siga para o onboarding.
+                                </p>
+                                <Link
+                                    className="font-sans text-sm font-bold text-forest underline-offset-4 transition-[color] hover:text-soil hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                                    href="/auth/register"
+                                >
+                                    Criar conta
+                                </Link>
+                            </div>
+                        </section>
                     </div>
-                </div>
+                </main>
             </div>
         </div>
     );

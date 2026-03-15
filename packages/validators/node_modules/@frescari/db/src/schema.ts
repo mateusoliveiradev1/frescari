@@ -9,7 +9,9 @@ import {
     date,
     customType,
     jsonb,
-    pgEnum
+    pgEnum,
+    index,
+    uniqueIndex
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -146,8 +148,36 @@ export const farms = pgTable('farms', {
     address: jsonb('address').$type<FarmAddress | null>(),
     location: postgisPoint('location'),
     certifications: text('certifications').array(),
+    baseDeliveryFee: numeric('base_delivery_fee', { precision: 10, scale: 2 }).default('0').notNull(),
+    pricePerKm: numeric('price_per_km', { precision: 10, scale: 2 }).default('0').notNull(),
+    maxDeliveryRadiusKm: numeric('max_delivery_radius_km', { precision: 10, scale: 2 }).default('0').notNull(),
+    minOrderValue: numeric('min_order_value', { precision: 10, scale: 2 }).default('0').notNull(),
+    freeShippingThreshold: numeric('free_shipping_threshold', { precision: 10, scale: 2 }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const addresses = pgTable('addresses', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+    title: text('title').notNull(),
+    zipcode: text('zipcode').notNull(),
+    street: text('street').notNull(),
+    number: text('number').notNull(),
+    neighborhood: text('neighborhood'),
+    city: text('city').notNull(),
+    state: text('state').notNull(),
+    country: text('country').default('BR').notNull(),
+    complement: text('complement'),
+    formattedAddress: text('formatted_address').notNull(),
+    isDefault: boolean('is_default').default(false).notNull(),
+    location: postgisPoint('location').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+    index('addresses_tenant_idx').on(table.tenantId),
+    uniqueIndex('addresses_one_default_per_tenant').on(table.tenantId).where(sql`${table.isDefault} = true`),
+    index('addresses_location_gist').using('gist', table.location),
+]);
 
 export const productCategories = pgTable('product_categories', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -202,8 +232,13 @@ export const productLots = pgTable('product_lots', {
     unit: text('unit').default('un').notNull(),
     imageUrl: text('image_url'),
     isExpired: boolean('is_expired').default(false).notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+    index('product_lots_tenant_idx').on(table.tenantId),
+    index('product_lots_product_idx').on(table.productId),
+    index('product_lots_deleted_idx').on(table.deletedAt),
+]);
 
 export const orders = pgTable('orders', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -245,6 +280,7 @@ import { relations } from 'drizzle-orm';
 export const tenantsRelations = relations(tenants, ({ many }) => ({
     users: many(users),
     farms: many(farms),
+    addresses: many(addresses),
     products: many(products),
 }));
 
@@ -261,6 +297,13 @@ export const farmsRelations = relations(farms, ({ one, many }) => ({
         references: [tenants.id],
     }),
     products: many(products),
+}));
+
+export const addressesRelations = relations(addresses, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [addresses.tenantId],
+        references: [tenants.id],
+    }),
 }));
 
 export const productCategoriesRelations = relations(productCategories, ({ many }) => ({

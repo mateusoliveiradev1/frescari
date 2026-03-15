@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatCurrencyBRL } from "@frescari/ui";
 
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
 import { getCategoryPageData, getCategoryStaticParams } from "@/lib/catalog-public";
-import { getSiteUrl, sanitizeText } from "@/lib/catalog-seo";
+import { getSiteUrl, sanitizeText, serializeJsonLd } from "@/lib/catalog-seo";
 
 export const revalidate = 3600;
 
@@ -13,13 +14,6 @@ type CategoryPageProps = {
     categoria: string;
   }>;
 };
-
-function formatPrice(value: number): string {
-  return value.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
 
 export async function generateStaticParams(): Promise<Array<{ categoria: string }>> {
   return getCategoryStaticParams();
@@ -64,8 +58,54 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
+  const canonical = `${getSiteUrl()}${data.category.path}`;
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Catalogo",
+        item: `${getSiteUrl()}/catalogo`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: sanitizeText(data.category.name),
+        item: canonical,
+      },
+    ],
+  };
+  const collectionJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: sanitizeText(data.category.name),
+    description: sanitizeText(data.category.description, 200),
+    url: canonical,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: data.products.length,
+      itemListElement: data.products.slice(0, 12).map((product, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: sanitizeText(product.name),
+        url: `${getSiteUrl()}${product.path}`,
+      })),
+    },
+  };
+
   return (
     <main className="min-h-screen bg-cream">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(collectionJsonLd) }}
+      />
+
       <div className="mx-auto flex max-w-[1400px] flex-col gap-12 px-6 py-16 lg:px-12">
         <nav className="flex items-center gap-2 text-sm text-bark/70">
           <Link href="/catalogo" className="transition-colors hover:text-forest">
@@ -118,7 +158,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                   Melhor preço
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-forest">
-                  {formatPrice(
+                  {formatCurrencyBRL(
                     Math.min(...data.products.map((product) => product.lowestPrice)),
                   )}
                 </p>
@@ -164,7 +204,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                       A partir de
                     </p>
                     <p className="mt-1 text-xl font-semibold text-forest">
-                      {formatPrice(product.lowestPrice)}/{product.saleUnit}
+                      {formatCurrencyBRL(product.lowestPrice)}/{product.saleUnit}
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-soil">

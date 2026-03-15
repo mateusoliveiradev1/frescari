@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 import { TRPCProvider } from "@/trpc/Provider";
 import { GlobalNav } from "@/components/global-nav";
@@ -46,8 +47,14 @@ export default function RootLayout({
         className={`${playfairDisplay.variable} ${dmSans.variable} antialiased`}
       >
         <TRPCProvider>
+          <a className="skip-link" href="#conteudo-principal">
+            Pular para o conteudo principal
+          </a>
           <GlobalNav />
-          {children}
+          <div id="conteudo-principal" tabIndex={-1}>
+            {children}
+          </div>
+          <Toaster closeButton position="top-right" richColors />
         </TRPCProvider>
       </body>
     </html>

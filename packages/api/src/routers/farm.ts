@@ -1,8 +1,17 @@
 import { TRPCError } from '@trpc/server';
 import { and, eq } from 'drizzle-orm';
 import { farms } from '@frescari/db';
-import { saveFarmLocationInputSchema } from '@frescari/validators';
+import {
+    farmLocationSearchInputSchema,
+    reverseGeocodeFarmInputSchema,
+    saveFarmLocationInputSchema,
+} from '@frescari/validators';
 
+import {
+    geocodeFarmLocationQuery,
+    reverseGeocodeFarmLocation,
+} from '../geocoding';
+import { safeRevalidatePath } from '../cache';
 import { createTRPCRouter, producerProcedure } from '../trpc';
 
 type FarmRecord = typeof farms.$inferSelect;
@@ -18,16 +27,60 @@ function mapFarmLocation(location: FarmRecord['location']) {
     };
 }
 
+function normalizeNumericField(value: string | number | null | undefined) {
+    const parsedValue = typeof value === 'number' ? value : Number(value);
+
+    if (!Number.isFinite(parsedValue)) {
+        return 0;
+    }
+
+    return parsedValue;
+}
+
+function normalizeNullableNumericField(value: string | number | null | undefined) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    const parsedValue = typeof value === 'number' ? value : Number(value);
+
+    if (!Number.isFinite(parsedValue)) {
+        return null;
+    }
+
+    return parsedValue;
+}
+
 function mapFarmResponse(farm: FarmRecord) {
+    const deliveryRadiusKm = Math.max(
+        0,
+        Math.round(normalizeNumericField(farm.maxDeliveryRadiusKm)),
+    );
+    const pricePerKm = Math.max(0, normalizeNumericField(farm.pricePerKm));
+    const minOrderValue = Math.max(0, normalizeNumericField(farm.minOrderValue));
+    const freeShippingThreshold = normalizeNullableNumericField(
+        farm.freeShippingThreshold,
+    );
+
     return {
         ...farm,
         address: farm.address ?? null,
         location: mapFarmLocation(farm.location),
+        maxDeliveryRadiusKm: deliveryRadiusKm,
+        deliveryRadiusKm,
+        pricePerKm,
+        minOrderValue,
+        freeShippingThreshold:
+            freeShippingThreshold !== null ? Math.max(0, freeShippingThreshold) : null,
     };
 }
 
 function toPointTuple(input: { latitude: number; longitude: number }): [number, number] {
     return [input.longitude, input.latitude];
+}
+
+function revalidateCatalogPages() {
+    safeRevalidatePath('/catalogo', 'layout');
 }
 
 export const farmRouter = createTRPCRouter({
@@ -39,6 +92,28 @@ export const farmRouter = createTRPCRouter({
         return currentFarm ? mapFarmResponse(currentFarm) : null;
     }),
 
+    searchLocation: producerProcedure
+        .input(farmLocationSearchInputSchema)
+        .mutation(async ({ input }) => {
+            const result = await geocodeFarmLocationQuery(input.query);
+
+            if (!result) {
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message:
+                        'Nao encontramos um ponto para esse CEP ou cidade. Revise o termo e tente novamente.',
+                });
+            }
+
+            return result;
+        }),
+
+    reverseGeocodeLocation: producerProcedure
+        .input(reverseGeocodeFarmInputSchema)
+        .mutation(async ({ input }) => {
+            return reverseGeocodeFarmLocation(input);
+        }),
+
     saveLocation: producerProcedure
         .input(saveFarmLocationInputSchema)
         .mutation(async ({ ctx, input }) => {
@@ -46,11 +121,27 @@ export const farmRouter = createTRPCRouter({
                 where: eq(farms.tenantId, ctx.tenantId),
             });
 
-            const valuesToPersist = {
+            const valuesToPersist: Pick<
+                typeof farms.$inferInsert,
+                | 'name'
+                | 'address'
+                | 'location'
+                | 'pricePerKm'
+                | 'maxDeliveryRadiusKm'
+                | 'minOrderValue'
+                | 'freeShippingThreshold'
+            > = {
                 name: input.name,
                 address: input.address,
                 location: toPointTuple(input.location),
-            } as const;
+                pricePerKm: input.pricePerKm.toFixed(2),
+                maxDeliveryRadiusKm: input.deliveryRadiusKm.toString(),
+                minOrderValue: input.minOrderValue.toFixed(2),
+                freeShippingThreshold:
+                    input.freeShippingThreshold !== null
+                        ? input.freeShippingThreshold.toFixed(2)
+                        : null,
+            };
 
             if (currentFarm) {
                 const [updatedFarm] = await ctx.db
@@ -65,6 +156,8 @@ export const farmRouter = createTRPCRouter({
                         message: 'Nao foi possivel atualizar a fazenda do tenant.',
                     });
                 }
+
+                revalidateCatalogPages();
 
                 return mapFarmResponse(updatedFarm);
             }
@@ -83,6 +176,8 @@ export const farmRouter = createTRPCRouter({
                     message: 'Nao foi possivel criar a fazenda do tenant.',
                 });
             }
+
+            revalidateCatalogPages();
 
             return mapFarmResponse(createdFarm);
         }),

@@ -2,31 +2,37 @@ import { z } from 'zod';
 import { createHash } from 'crypto';
 import Stripe from 'stripe';
 import { createTRPCRouter, protectedProcedure, buyerProcedure, producerProcedure, tenantProcedure } from '../trpc';
-import { productLots, products, orders, orderItems, tenants, masterProducts } from '@frescari/db';
+import {
+    activeProductLotWhere,
+    enableProductLotBypassContext,
+    enableProductLotTenantContext,
+    productLots,
+    products,
+    orders,
+    orderItems,
+    tenants,
+    masterProducts,
+} from '@frescari/db';
 import { eq, inArray, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
+import { isWeighableSaleUnit, normalizeSaleUnit, resolveEffectiveSaleUnit } from '../sale-units';
+import {
+    buildDeliveryAddressLine,
+    geocodeDeliveryAddress,
+    toDeliveryPointGeoJson,
+    type GeocodedPoint,
+} from '../geocoding';
+import { calculateLotPriceAndStatus } from '../utils/lot-status';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeSecretKey ?? '');
 const WEIGHT_SAFETY_MARGIN = 1.1;
 const PLATFORM_FEE_RATE = 0.1;
 
-const isWeightSaleUnit = (saleUnit?: string | null) => {
-    const normalizedSaleUnit = saleUnit?.toLowerCase();
-    return normalizedSaleUnit === 'kg'
-        || normalizedSaleUnit === 'g'
-        || normalizedSaleUnit === 'peso'
-        || normalizedSaleUnit === 'weight';
-};
-
 const isWeightBasedItem = (item: {
     saleUnit?: string | null;
-    pricingType?: string | null;
-    masterPricingType?: string | null;
 }) => {
-    return item.pricingType?.toUpperCase() === 'WEIGHT'
-        || item.masterPricingType?.toUpperCase() === 'WEIGHT'
-        || isWeightSaleUnit(item.saleUnit);
+    return isWeighableSaleUnit(item.saleUnit);
 };
 
 export const orderRouter = createTRPCRouter({
@@ -70,11 +76,42 @@ export const orderRouter = createTRPCRouter({
             }
 
             // Compose a single-line address for legacy display
-            const composedAddress = `${input.deliveryStreet}, ${input.deliveryNumber} - ${input.deliveryCity}/${input.deliveryState} - CEP: ${input.deliveryCep}`;
+            const deliveryAddress = {
+                street: input.deliveryStreet,
+                number: input.deliveryNumber,
+                cep: input.deliveryCep,
+                city: input.deliveryCity,
+                state: input.deliveryState,
+            };
+            const composedAddress = buildDeliveryAddressLine(deliveryAddress);
+
+            let geocodedDeliveryPoint: GeocodedPoint | null = null;
+
+            try {
+                geocodedDeliveryPoint = await geocodeDeliveryAddress(deliveryAddress);
+            } catch (error) {
+                console.error('[GEOCODING_ERROR_CREATE_ORDER]:', error);
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Nao foi possivel validar o endereco de entrega. Revise os dados e tente novamente.',
+                    cause: error,
+                });
+            }
+
+            if (!geocodedDeliveryPoint) {
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'Nao foi possivel localizar o endereco de entrega informado. Revise os dados e tente novamente.',
+                });
+            }
+
+            const deliveryPoint = toDeliveryPointGeoJson(geocodedDeliveryPoint);
 
             try {
                 // Begin Transaction
                 return await db.transaction(async (tx) => {
+                    await enableProductLotBypassContext(tx);
+
                     // Fetch the real lots to prevent client spoofing
                     const fetchedLots = await tx
                         .select({
@@ -85,6 +122,7 @@ export const orderRouter = createTRPCRouter({
                             expiryDate: productLots.expiryDate,
                             priceOverride: productLots.priceOverride,
                             pricePerUnit: products.pricePerUnit,
+                            lotUnit: productLots.unit,
                             pricingType: productLots.pricingType,
                             masterPricingType: masterProducts.pricingType,
                             saleUnit: products.saleUnit
@@ -92,7 +130,7 @@ export const orderRouter = createTRPCRouter({
                         .from(productLots)
                         .innerJoin(products, eq(productLots.productId, products.id))
                         .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                        .where(inArray(productLots.id, lotIds));
+                        .where(activeProductLotWhere(inArray(productLots.id, lotIds)));
 
                     if (fetchedLots.length !== lotIds.length) {
                         throw new TRPCError({
@@ -114,7 +152,11 @@ export const orderRouter = createTRPCRouter({
                         }
 
                         // Strict integer validation for UNIT and BOX pricing types
-                        const isWeight = lotData.pricingType === 'WEIGHT' || lotData.masterPricingType === 'WEIGHT' || lotData.saleUnit === 'kg' || lotData.saleUnit === 'g';
+                        const effectiveSaleUnit = resolveEffectiveSaleUnit(
+                            lotData.saleUnit,
+                            lotData.lotUnit,
+                        );
+                        const isWeight = isWeighableSaleUnit(effectiveSaleUnit);
                         if (!isWeight && !Number.isInteger(reqItem.quantity)) {
                             throw new TRPCError({
                                 code: 'BAD_REQUEST',
@@ -122,17 +164,22 @@ export const orderRouter = createTRPCRouter({
                             });
                         }
 
-                        // Value calc logic
-                        const basePrice = Number(lotData.priceOverride || lotData.pricePerUnit);
+                        const pricing = calculateLotPriceAndStatus(
+                            {
+                                expiryDate: lotData.expiryDate,
+                                priceOverride: lotData.priceOverride,
+                            },
+                            lotData.pricePerUnit,
+                        );
 
-                        // "Last Chance" - 40%
-                        const now = new Date();
-                        const expiry = new Date(lotData.expiryDate);
-                        const diffTime = Math.abs(expiry.getTime() - now.getTime());
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        const isLastChance = diffDays <= 1;
+                        if (pricing.isExpired) {
+                            throw new TRPCError({
+                                code: 'BAD_REQUEST',
+                                message: `O lote ${reqItem.lotId} esta vencido e nao pode ser vendido.`,
+                            });
+                        }
 
-                        const finalUnitPrice = isLastChance ? basePrice * 0.6 : basePrice;
+                        const finalUnitPrice = pricing.finalPrice;
 
                         return {
                             ...reqItem,
@@ -140,7 +187,7 @@ export const orderRouter = createTRPCRouter({
                             sellerTenantId: lotData.sellerTenantId,
                             unitPrice: finalUnitPrice,
                             totalPrice: finalUnitPrice * reqItem.quantity,
-                            saleUnit: (lotData.pricingType === 'WEIGHT' || lotData.masterPricingType === 'WEIGHT' || lotData.saleUnit === 'kg' || lotData.saleUnit === 'g') ? 'kg' : 'unit'
+                            saleUnit: normalizeSaleUnit(effectiveSaleUnit) || 'unit',
                         };
                     });
 
@@ -171,6 +218,7 @@ export const orderRouter = createTRPCRouter({
                             deliveryCity: input.deliveryCity,
                             deliveryState: input.deliveryState,
                             deliveryAddress: composedAddress,
+                            deliveryPoint,
                             deliveryFee: input.deliveryFee.toFixed(2),
                             deliveryNotes: input.deliveryNotes,
                             totalAmount: orderTotal.toFixed(4),
@@ -247,24 +295,28 @@ export const orderRouter = createTRPCRouter({
 
             if (orderIds.length === 0) return [];
 
-            const items = await db
-                .select({
-                    orderId: orderItems.orderId,
-                    qty: orderItems.qty,
-                    unitPrice: orderItems.unitPrice,
-                    productName: products.name,
-                    saleUnit: orderItems.saleUnit,
-                    farmName: tenants.name,
-                    images: products.images,
-                    pricingType: productLots.pricingType,
-                    masterPricingType: masterProducts.pricingType,
-                })
-                .from(orderItems)
-                .innerJoin(products, eq(orderItems.productId, products.id))
-                .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
-                .innerJoin(tenants, eq(productLots.tenantId, tenants.id))
-                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                .where(inArray(orderItems.orderId, orderIds));
+            const items = await db.transaction(async (tx) => {
+                await enableProductLotBypassContext(tx);
+
+                return tx
+                    .select({
+                        orderId: orderItems.orderId,
+                        qty: orderItems.qty,
+                        unitPrice: orderItems.unitPrice,
+                        productName: products.name,
+                        saleUnit: orderItems.saleUnit,
+                        farmName: tenants.name,
+                        images: products.images,
+                        pricingType: productLots.pricingType,
+                        masterPricingType: masterProducts.pricingType,
+                    })
+                    .from(orderItems)
+                    .innerJoin(products, eq(orderItems.productId, products.id))
+                    .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                    .innerJoin(tenants, eq(productLots.tenantId, tenants.id))
+                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                    .where(inArray(orderItems.orderId, orderIds));
+            });
 
             // Group items into their respective orders
             return allOrders.map(order => ({
@@ -287,6 +339,8 @@ export const orderRouter = createTRPCRouter({
 
             try {
                 return await db.transaction(async (tx) => {
+                    await enableProductLotBypassContext(tx);
+
                     // Check if order exists, belongs to the buyer, and is in allowed state
                     const targetOrder = await tx.query.orders.findFirst({
                         where: and(
@@ -376,22 +430,26 @@ export const orderRouter = createTRPCRouter({
 
             if (orderIds.length === 0) return [];
 
-            const items = await db
-                .select({
-                    id: orderItems.id,
-                    orderId: orderItems.orderId,
-                    qty: orderItems.qty,
-                    unitPrice: orderItems.unitPrice,
-                    productName: products.name,
-                    saleUnit: orderItems.saleUnit,
-                    pricingType: productLots.pricingType,
-                    masterPricingType: masterProducts.pricingType,
-                })
-                .from(orderItems)
-                .innerJoin(products, eq(orderItems.productId, products.id))
-                .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
-                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                .where(inArray(orderItems.orderId, orderIds));
+            const items = await db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx
+                    .select({
+                        id: orderItems.id,
+                        orderId: orderItems.orderId,
+                        qty: orderItems.qty,
+                        unitPrice: orderItems.unitPrice,
+                        productName: products.name,
+                        saleUnit: orderItems.saleUnit,
+                        pricingType: productLots.pricingType,
+                        masterPricingType: masterProducts.pricingType,
+                    })
+                    .from(orderItems)
+                    .innerJoin(products, eq(orderItems.productId, products.id))
+                    .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                    .where(inArray(orderItems.orderId, orderIds));
+            });
 
             return allOrders.map((order, index, arr) => ({
                 ...order,
@@ -471,7 +529,7 @@ export const orderRouter = createTRPCRouter({
                 });
             }
 
-            if (!['awaiting_weight', 'confirmed'].includes(targetOrder.status)) {
+            if (!['awaiting_weight', 'payment_authorized', 'confirmed'].includes(targetOrder.status)) {
                 throw new TRPCError({
                     code: 'BAD_REQUEST',
                     message: 'Este pedido não está aguardando pesagem.',
@@ -485,21 +543,25 @@ export const orderRouter = createTRPCRouter({
                 });
             }
 
-            const items = await db
-                .select({
-                    id: orderItems.id,
-                    qty: orderItems.qty,
-                    unitPrice: orderItems.unitPrice,
-                    saleUnit: orderItems.saleUnit,
-                    productName: products.name,
-                    pricingType: productLots.pricingType,
-                    masterPricingType: masterProducts.pricingType,
-                })
-                .from(orderItems)
-                .innerJoin(products, eq(orderItems.productId, products.id))
-                .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
-                .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                .where(eq(orderItems.orderId, targetOrder.id));
+            const items = await db.transaction(async (tx) => {
+                await enableProductLotTenantContext(tx, tenantId);
+
+                return tx
+                    .select({
+                        id: orderItems.id,
+                        qty: orderItems.qty,
+                        unitPrice: orderItems.unitPrice,
+                        saleUnit: orderItems.saleUnit,
+                        productName: products.name,
+                        pricingType: productLots.pricingType,
+                        masterPricingType: masterProducts.pricingType,
+                    })
+                    .from(orderItems)
+                    .innerJoin(products, eq(orderItems.productId, products.id))
+                    .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                    .where(eq(orderItems.orderId, targetOrder.id));
+            });
 
             if (items.length === 0) {
                 throw new TRPCError({

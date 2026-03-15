@@ -4,7 +4,7 @@ import { config } from 'dotenv';
 config({ path: '../../.env' });
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+const sql = neon(process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL!);
 
 const masterProductsData = [
     { name: "Tomate Carmem", category: "Hortaliças", defaultImageUrl: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&q=80" },

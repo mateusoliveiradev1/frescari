@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@frescari/ui";
 import { trpc } from "@/trpc/react";
-import { Sprout, ShoppingBag, ArrowRight, Loader2 } from "lucide-react";
+import { Sprout, ShoppingBag, ArrowRight } from "lucide-react";
 
 type TenantType = "PRODUCER" | "BUYER";
 
@@ -195,27 +196,20 @@ export default function OnboardingPage() {
                     )}
 
                     {/* Submit Button */}
-                    <button
+                    <Button
+                        className="w-full normal-case tracking-normal"
                         type="submit"
                         disabled={
                             !selectedType ||
-                            companyName.trim().length < 2 ||
-                            setupAccount.isPending
+                            companyName.trim().length < 2
                         }
-                        className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-md bg-forest text-white font-sans text-sm font-semibold tracking-wide transition-all hover:bg-forest-hover disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        isPending={setupAccount.isPending}
                     >
-                        {setupAccount.isPending ? (
-                            <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Configurando...
-                            </>
-                        ) : (
-                            <>
-                                Continuar
-                                <ArrowRight className="w-4 h-4" />
-                            </>
-                        )}
-                    </button>
+                        <>
+                            Continuar
+                            <ArrowRight className="w-4 h-4" />
+                        </>
+                    </Button>
                 </form>
             </div>
         </main>

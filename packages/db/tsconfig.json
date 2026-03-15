@@ -1,0 +1,16 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "lib": ["esnext"],
+        "jsx": "preserve",
+        "paths": {
+            "@frescari/db": ["./src/index.ts"]
+        }
+    },
+    "include": [
+        "src/**/*.ts",
+        "migrate.ts",
+        "drizzle.config.ts"
+    ],
+    "exclude": ["node_modules", "drizzle"]
+}
