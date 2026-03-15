@@ -1,7 +1,12 @@
-import { Queue, QueueEvents, Worker, type JobsOptions } from 'bullmq';
+import {
+    Queue,
+    QueueEvents,
+    Worker,
+    type ConnectionOptions,
+    type JobsOptions,
+} from 'bullmq';
 import { db, productLots } from '@frescari/db';
 import { eq } from 'drizzle-orm';
-import IORedis from 'ioredis';
 
 type LotDateInput = string | Date;
 
@@ -57,6 +62,22 @@ export type LotFreshnessRunSummary = {
     expiringSoonEvents: number;
 };
 
+type LotFreshnessQueueName =
+    | typeof LOT_FRESHNESS_JOB_NAME
+    | typeof LOT_FRESHNESS_SCHEDULER_ID;
+
+type BullLotFreshnessQueue = Queue<
+    LotFreshnessJobData,
+    LotFreshnessRunSummary,
+    LotFreshnessQueueName
+>;
+
+type BullLotEventsQueue = Queue<
+    LotExpiringSoonEvent,
+    void,
+    typeof LOT_EXPIRING_SOON_EVENT_NAME
+>;
+
 export interface LotFreshnessRepository {
     findActiveLots(): Promise<ActiveLotRecord[]>;
     updateFreshness(update: LotFreshnessUpdate): Promise<void>;
@@ -68,20 +89,16 @@ export interface LotEventPublisher {
 
 type SchedulerQueue = {
     upsertJobScheduler(
-        jobSchedulerId: string,
-        repeatOpts: { every: number },
-        jobTemplate: {
-            name: string;
-            data: LotFreshnessJobData;
-            opts?: JobsOptions;
-        },
+        jobSchedulerId: Parameters<BullLotFreshnessQueue['upsertJobScheduler']>[0],
+        repeatOpts: Parameters<BullLotFreshnessQueue['upsertJobScheduler']>[1],
+        jobTemplate: Parameters<BullLotFreshnessQueue['upsertJobScheduler']>[2],
     ): Promise<unknown>;
 };
 
 type LotEventQueue = {
     add(
-        name: typeof LOT_EXPIRING_SOON_EVENT_NAME,
-        data: LotExpiringSoonEvent,
+        name: Parameters<BullLotEventsQueue['add']>[0],
+        data: Parameters<BullLotEventsQueue['add']>[1],
         opts?: JobsOptions,
     ): Promise<unknown>;
 };
@@ -96,8 +113,8 @@ type LotFreshnessTriggerJob = {
 
 type LotFreshnessTriggerQueue = {
     add(
-        name: typeof LOT_FRESHNESS_JOB_NAME,
-        data: LotFreshnessJobData,
+        name: Parameters<BullLotFreshnessQueue['add']>[0],
+        data: Parameters<BullLotFreshnessQueue['add']>[1],
         opts?: JobsOptions,
     ): Promise<LotFreshnessTriggerJob>;
 };
@@ -317,14 +334,15 @@ function getRedisUrl() {
     return redisUrl;
 }
 
-export function createRedisConnection(role: RedisConnectionRole) {
-    return new IORedis(getRedisUrl(), {
+export function createRedisConnection(role: RedisConnectionRole): ConnectionOptions {
+    return {
+        url: getRedisUrl(),
         maxRetriesPerRequest: role === 'scheduler' ? 1 : null,
-    });
+    };
 }
 
-export function createLotFreshnessQueue(connection: IORedis) {
-    return new Queue<LotFreshnessJobData, LotFreshnessRunSummary>(
+export function createLotFreshnessQueue(connection: ConnectionOptions): BullLotFreshnessQueue {
+    return new Queue<LotFreshnessJobData, LotFreshnessRunSummary, LotFreshnessQueueName>(
         LOT_FRESHNESS_QUEUE_NAME,
         {
             connection,
@@ -333,7 +351,7 @@ export function createLotFreshnessQueue(connection: IORedis) {
     );
 }
 
-export function createLotEventsQueue(connection: IORedis) {
+export function createLotEventsQueue(connection: ConnectionOptions): BullLotEventsQueue {
     return new Queue<LotExpiringSoonEvent, void, typeof LOT_EXPIRING_SOON_EVENT_NAME>(
         LOT_EVENTS_QUEUE_NAME,
         {
@@ -399,7 +417,11 @@ export async function startLotFreshnessWorker({
 
     await ensureLotFreshnessSchedule(freshnessQueue);
 
-    const worker = new Worker<LotFreshnessJobData, LotFreshnessRunSummary>(
+    const worker = new Worker<
+        LotFreshnessJobData,
+        LotFreshnessRunSummary,
+        LotFreshnessQueueName
+    >(
         LOT_FRESHNESS_QUEUE_NAME,
         async (job) => {
             if (job.name !== LOT_FRESHNESS_JOB_NAME) {
@@ -442,12 +464,6 @@ export async function startLotFreshnessWorker({
                 freshnessQueue.close(),
                 lotEventsQueue.close(),
             ]);
-
-            await Promise.allSettled([
-                schedulerConnection.quit(),
-                workerConnection.quit(),
-                publisherConnection.quit(),
-            ]);
         },
     };
 }
@@ -477,7 +493,6 @@ export async function runLotFreshnessOnce({
     finally {
         await Promise.allSettled([
             queueEvents.close(),
-            queueEventsConnection.quit(),
             runtime.close(),
         ]);
     }
