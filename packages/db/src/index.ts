@@ -20,12 +20,31 @@ const adminConnectionUrl =
         ? "postgres://mock:mock@ep-mock-123456.us-east-2.aws.neon.tech/neondb"
         : adminConnectionString;
 
-export const client = new Pool({ connectionString: connectionUrl });
-export const authClient = new Pool({ connectionString: adminConnectionUrl });
+function createPool(connectionString: string, label: 'app' | 'auth') {
+    const pool = new Pool({ connectionString });
+
+    // Pool errors can surface from idle connections after a network reset.
+    // Handle them explicitly so workers don't emit raw uncaught socket errors.
+    pool.on('error', (error: Error) => {
+        console.error(`[db:${label}] pool error:`, error);
+    });
+
+    return pool;
+}
+
+export const client = createPool(connectionUrl, 'app');
+export const authClient = createPool(adminConnectionUrl, 'auth');
 
 export const db = drizzle(client, { schema });
 export const authDb = drizzle(authClient, { schema });
 export type AppDb = Omit<typeof db, '$client'>;
+
+export async function closeDbPools() {
+    await Promise.allSettled([
+        client.end(),
+        authClient.end(),
+    ]);
+}
 
 export * from './schema';
 export * from './connection-string';
