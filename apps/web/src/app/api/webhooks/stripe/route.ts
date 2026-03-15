@@ -25,6 +25,7 @@ import { resolveAuthorizedOrderStatus } from './resolve-order-status';
 // ── Stripe SDK ───────────────────────────────────────────────────────
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '');
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const useLegacyCheckoutWebhookFlow = process.env.ENABLE_LEGACY_CHECKOUT_WEBHOOK_FLOW === 'true';
 
 // ── Types for parsed metadata ────────────────────────────────────────
 interface MetadataItem {
@@ -51,6 +52,16 @@ async function withWebhookBypass<T>(callback: (database: AppDb) => Promise<T>) {
 }
 
 // ── Webhook handler ──────────────────────────────────────────────────
+function isPgUniqueViolation(error: unknown) {
+    return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23505';
+}
+
+class DuplicateCheckoutSessionError extends Error {}
+
+async function acquireTransactionLock(database: AppDb, lockKey: string) {
+    await database.execute(sql`select pg_advisory_xact_lock(hashtext(${lockKey}))`);
+}
+
 export async function POST(req: NextRequest) {
     console.log('[WEBHOOK] ── Incoming request ──');
 
@@ -221,6 +232,167 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
 
     const deliveryPoint = toDeliveryPointGeoJson(resolvedDeliveryPoint);
+
+    if (!useLegacyCheckoutWebhookFlow) {
+        const lockedFlowLotIds = [...new Set(parsedItems.map((item) => item.lotId))].sort();
+        const lockedFlowAddressLine = buildDeliveryAddressLine(parsedAddress);
+        const paymentIntentId = typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : session.payment_intent?.id;
+
+        console.log(`[WEBHOOK] Buscando lotes no banco: ${lockedFlowLotIds.join(', ')}`);
+        console.log('[WEBHOOK] Iniciando transacao unica no banco...');
+
+        try {
+            await withWebhookBypass(async (database) => {
+                await acquireTransactionLock(database, `stripe-session:${session.id}`);
+
+                const existingOrder = await database
+                    .select({ id: orders.id })
+                    .from(orders)
+                    .where(eq(orders.stripeSessionId, session.id))
+                    .limit(1);
+
+                if (existingOrder.length > 0) {
+                    console.log(`[WEBHOOK] Sessao ${session.id} ja processada (order ${existingOrder[0]!.id}). Ignorando duplicata.`);
+                    return;
+                }
+
+                for (const lotId of lockedFlowLotIds) {
+                    await acquireTransactionLock(database, `product-lot:${lotId}`);
+                }
+
+                const fetchedLots = await database
+                    .select({
+                        lotId: productLots.id,
+                        productId: productLots.productId,
+                        sellerTenantId: productLots.tenantId,
+                        availableQty: productLots.availableQty,
+                        lotUnit: productLots.unit,
+                        saleUnit: products.saleUnit,
+                        pricingType: productLots.pricingType,
+                        masterPricingType: masterProducts.pricingType,
+                    })
+                    .from(productLots)
+                    .innerJoin(products, eq(productLots.productId, products.id))
+                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                    .where(inArray(productLots.id, lockedFlowLotIds));
+
+                if (fetchedLots.length !== lockedFlowLotIds.length) {
+                    throw new Error(`[WEBHOOK] Um ou mais lotes nao foram encontrados para IDs: ${lockedFlowLotIds.join(', ')}`);
+                }
+
+                const lotsById = new Map(fetchedLots.map((lot) => [lot.lotId, lot]));
+
+                const itemsWithLotData = parsedItems.map((item) => {
+                    const lotData = lotsById.get(item.lotId);
+
+                    if (!lotData) {
+                        throw new Error(`[WEBHOOK] Lote ${item.lotId} nao encontrado no banco.`);
+                    }
+
+                    if (Number(lotData.availableQty) < item.qty) {
+                        throw new Error(
+                            `[WEBHOOK] Estoque insuficiente para o lote ${item.lotId}. Disponivel=${lotData.availableQty}, solicitado=${item.qty}.`,
+                        );
+                    }
+
+                    return {
+                        ...item,
+                        productId: lotData.productId,
+                        sellerTenantId: lotData.sellerTenantId,
+                        saleUnit: resolveEffectiveSaleUnit(lotData.saleUnit, lotData.lotUnit),
+                        pricingType: lotData.pricingType,
+                        masterPricingType: lotData.masterPricingType,
+                    };
+                });
+
+                const ordersBySeller = itemsWithLotData.reduce(
+                    (acc, item) => {
+                        if (!acc[item.sellerTenantId]) acc[item.sellerTenantId] = [];
+                        acc[item.sellerTenantId]!.push(item);
+                        return acc;
+                    },
+                    {} as Record<string, typeof itemsWithLotData>,
+                );
+
+                for (const sellerId of Object.keys(ordersBySeller)) {
+                    const sellerItems = ordersBySeller[sellerId]!;
+                    const itemsTotal = sellerItems.reduce(
+                        (sum, item) => sum + item.price * item.qty,
+                        0,
+                    );
+                    const orderTotal = itemsTotal + deliveryFee;
+                    const hasWeightItems = sellerItems.some((item) => isWeighableSaleUnit(item.saleUnit));
+                    const initialStatus = hasWeightItems ? 'awaiting_weight' : 'confirmed';
+
+                    let newOrder: { id: string } | undefined;
+
+                    try {
+                        [newOrder] = await database
+                            .insert(orders)
+                            .values({
+                                buyerTenantId,
+                                sellerTenantId: sellerId,
+                                status: initialStatus,
+                                stripeSessionId: session.id,
+                                paymentIntentId: paymentIntentId ?? null,
+                                deliveryStreet: parsedAddress.street,
+                                deliveryNumber: parsedAddress.number,
+                                deliveryCep: parsedAddress.cep,
+                                deliveryCity: parsedAddress.city,
+                                deliveryState: parsedAddress.state.toUpperCase(),
+                                deliveryAddress: lockedFlowAddressLine,
+                                deliveryPoint,
+                                deliveryFee: deliveryFee.toFixed(2),
+                                totalAmount: orderTotal.toFixed(4),
+                            })
+                            .returning();
+                    } catch (error) {
+                        if (isPgUniqueViolation(error)) {
+                            throw new DuplicateCheckoutSessionError(`Sessao ${session.id} ja persistida para o vendedor ${sellerId}.`);
+                        }
+
+                        throw error;
+                    }
+
+                    if (!newOrder) {
+                        throw new Error(`[WEBHOOK] Falha ao inserir order para seller ${sellerId} - returning() vazio.`);
+                    }
+
+                    await database.insert(orderItems).values(
+                        sellerItems.map((item) => ({
+                            orderId: newOrder.id,
+                            lotId: item.lotId,
+                            productId: item.productId,
+                            qty: item.qty.toString(),
+                            unitPrice: item.price.toFixed(4),
+                            saleUnit: item.saleUnit ?? 'unit',
+                        })),
+                    );
+
+                    for (const item of sellerItems) {
+                        await database
+                            .update(productLots)
+                            .set({
+                                availableQty: sql`${productLots.availableQty} - ${item.qty.toString()}::numeric`,
+                            })
+                            .where(eq(productLots.id, item.lotId));
+                    }
+                }
+            });
+        } catch (error) {
+            if (error instanceof DuplicateCheckoutSessionError) {
+                console.warn(`[WEBHOOK] ${error.message} Ignorando retry duplicado.`);
+                return;
+            }
+
+            throw error;
+        }
+
+        console.log(`[WEBHOOK] Transacao completa para sessao ${session.id} | Comprador: ${buyerTenantId}`);
+        return;
+    }
 
     // ── 3. Idempotency guard ─────────────────────────────────────────
     const existingOrder = await withWebhookBypass(async (database) => database

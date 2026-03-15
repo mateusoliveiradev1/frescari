@@ -262,7 +262,13 @@ export const orders = pgTable('orders', {
     stripeSessionId: text('stripe_session_id'),
     paymentIntentId: text('payment_intent_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+    index('orders_buyer_idx').on(table.buyerTenantId),
+    index('orders_seller_idx').on(table.sellerTenantId),
+    uniqueIndex('orders_stripe_session_seller_unique')
+        .on(table.stripeSessionId, table.sellerTenantId)
+        .where(sql`${table.stripeSessionId} IS NOT NULL`),
+]);
 
 export const orderItems = pgTable('order_items', {
     id: uuid('id').primaryKey().defaultRandom(),
