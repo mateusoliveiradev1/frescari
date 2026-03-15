@@ -1,4 +1,7 @@
 import {
+    closeDbPools,
+} from '@frescari/db';
+import {
     LOT_FRESHNESS_RUN_ONCE_TIMEOUT_MS,
     runLotFreshnessOnce,
     startLotFreshnessWorker,
@@ -11,7 +14,10 @@ async function mainWorker() {
 
     const shutdown = async (signal: string) => {
         console.info(`[lot-freshness-worker] shutting down after ${signal}.`);
-        await runtime.close();
+        await Promise.allSettled([
+            runtime.close(),
+            closeDbPools(),
+        ]);
         process.exit(0);
     };
 
@@ -27,13 +33,18 @@ async function mainWorker() {
 async function mainRunOnce() {
     console.info('[lot-freshness-worker] starting one-shot execution.');
 
-    const { jobId, result } = await runLotFreshnessOnce({
-        timeoutMs: LOT_FRESHNESS_RUN_ONCE_TIMEOUT_MS,
-    });
+    try {
+        const { jobId, result } = await runLotFreshnessOnce({
+            timeoutMs: LOT_FRESHNESS_RUN_ONCE_TIMEOUT_MS,
+        });
 
-    console.info(
-        `[lot-freshness-worker] one-shot job ${jobId ?? 'unknown'} completed: ${JSON.stringify(result)}`,
-    );
+        console.info(
+            `[lot-freshness-worker] one-shot job ${jobId ?? 'unknown'} completed: ${JSON.stringify(result)}`,
+        );
+    }
+    finally {
+        await closeDbPools();
+    }
 }
 
 export async function runLotFreshnessCli(argv = process.argv.slice(2)) {
