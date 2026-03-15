@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { db } from '@frescari/db';
 import {
-    enableProductLotBypassContext,
+    authDb,
+    enableRlsBypassContext,
     orders,
     orderItems,
     productLots,
     products,
     masterProducts,
+    type AppDb,
 } from '@frescari/db';
 import { eq, inArray, sql } from 'drizzle-orm';
 import {
@@ -40,6 +41,13 @@ interface MetadataAddress {
     cep: string;
     city: string;
     state: string;
+}
+
+async function withWebhookBypass<T>(callback: (database: AppDb) => Promise<T>) {
+    return authDb.transaction(async (tx) => {
+        await enableRlsBypassContext(tx);
+        return callback(tx as AppDb);
+    });
 }
 
 // ── Webhook handler ──────────────────────────────────────────────────
@@ -87,35 +95,37 @@ export async function POST(req: NextRequest) {
 
         if (session.metadata?.orderId) {
             try {
-                const targetOrder = await db.query.orders.findFirst({
-                    where: eq(orders.id, session.metadata.orderId),
+                await withWebhookBypass(async (database) => {
+                    const targetOrder = await database.query.orders.findFirst({
+                        where: eq(orders.id, session.metadata!.orderId),
+                    });
+
+                    if (!targetOrder) {
+                        throw new Error(`Pedido ${session.metadata!.orderId} nao encontrado para atualizacao do webhook.`);
+                    }
+
+                    const paymentIntentId = typeof session.payment_intent === 'string'
+                        ? session.payment_intent
+                        : session.payment_intent?.id;
+                    const nextStatus = resolveAuthorizedOrderStatus(targetOrder.status);
+                    const parsedDeliveryPoint = parseDeliveryPointMetadata(
+                        session.metadata!.delivery_point ?? session.metadata!.deliveryPoint,
+                    );
+
+                    console.log(`[WEBHOOK] Atualizando pedido existente: ${session.metadata!.orderId}`);
+                    await database
+                        .update(orders)
+                        .set({
+                            status: nextStatus,
+                            stripeSessionId: targetOrder.stripeSessionId ?? session.id,
+                            paymentIntentId: paymentIntentId ?? targetOrder.paymentIntentId,
+                            ...(parsedDeliveryPoint && !targetOrder.deliveryPoint
+                                ? { deliveryPoint: toDeliveryPointGeoJson(parsedDeliveryPoint) }
+                                : {}),
+                        })
+                        .where(eq(orders.id, session.metadata!.orderId));
+                    console.log(`[WEBHOOK] Pedido ${session.metadata!.orderId} atualizado para ${nextStatus}`);
                 });
-
-                if (!targetOrder) {
-                    throw new Error(`Pedido ${session.metadata.orderId} nao encontrado para atualizacao do webhook.`);
-                }
-
-                const paymentIntentId = typeof session.payment_intent === 'string'
-                    ? session.payment_intent
-                    : session.payment_intent?.id;
-                const nextStatus = resolveAuthorizedOrderStatus(targetOrder.status);
-                const parsedDeliveryPoint = parseDeliveryPointMetadata(
-                    session.metadata.delivery_point ?? session.metadata.deliveryPoint,
-                );
-
-                console.log(`[WEBHOOK] Atualizando pedido existente: ${session.metadata.orderId}`);
-                await db
-                    .update(orders)
-                    .set({
-                        status: nextStatus,
-                        stripeSessionId: targetOrder.stripeSessionId ?? session.id,
-                        paymentIntentId: paymentIntentId ?? targetOrder.paymentIntentId,
-                        ...(parsedDeliveryPoint && !targetOrder.deliveryPoint
-                            ? { deliveryPoint: toDeliveryPointGeoJson(parsedDeliveryPoint) }
-                            : {}),
-                    })
-                    .where(eq(orders.id, session.metadata.orderId));
-                console.log(`[WEBHOOK] Pedido ${session.metadata.orderId} atualizado para ${nextStatus}`);
             } catch (error) {
                 console.error(`[WEBHOOK ERROR] Falha ao atualizar pedido ${session.metadata.orderId}:`, error);
                 // Policy: Return 200 so Stripe doesn't retry infinitely on DB failure for existing order
@@ -213,11 +223,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const deliveryPoint = toDeliveryPointGeoJson(resolvedDeliveryPoint);
 
     // ── 3. Idempotency guard ─────────────────────────────────────────
-    const existingOrder = await db
+    const existingOrder = await withWebhookBypass(async (database) => database
         .select({ id: orders.id })
         .from(orders)
         .where(eq(orders.stripeSessionId, session.id))
-        .limit(1);
+        .limit(1));
 
     if (existingOrder.length > 0) {
         console.log(`[WEBHOOK] ⚠️ Sessão ${session.id} já processada (order ${existingOrder[0]!.id}). Ignorando duplicata.`);
@@ -228,10 +238,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const lotIds = parsedItems.map((i) => i.lotId);
     console.log(`[WEBHOOK] Buscando lotes no banco: ${lotIds.join(', ')}`);
 
-    const fetchedLots = await db.transaction(async (tx) => {
-        await enableProductLotBypassContext(tx);
-
-        return tx
+    const fetchedLots = await withWebhookBypass(async (database) => database
             .select({
                 lotId: productLots.id,
                 productId: productLots.productId,
@@ -245,8 +252,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             .from(productLots)
             .innerJoin(products, eq(productLots.productId, products.id))
             .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-            .where(inArray(productLots.id, lotIds));
-    });
+            .where(inArray(productLots.id, lotIds)));
 
     if (fetchedLots.length === 0) {
         throw new Error(`[WEBHOOK] Nenhum lote encontrado no banco para IDs: ${lotIds.join(', ')}`);
@@ -289,9 +295,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     // ── 7. Create orders inside a DB transaction ─────────────────────
     console.log('[WEBHOOK] Iniciando transação no banco...');
 
-    await db.transaction(async (tx) => {
-        await enableProductLotBypassContext(tx);
-
+    await withWebhookBypass(async (database) => {
         for (const sellerId of Object.keys(ordersBySeller)) {
             const sellerItems = ordersBySeller[sellerId]!;
             const itemsTotal = sellerItems.reduce(
@@ -308,7 +312,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                 : session.payment_intent?.id;
 
             // ── Insert Order ─────────────────────────────────────────
-            const [newOrder] = await tx
+            const [newOrder] = await database
                 .insert(orders)
                 .values({
                     buyerTenantId,
@@ -335,7 +339,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             console.log(`[WEBHOOK] ✅ Pedido criado: ${newOrder.id} | Vendedor: ${sellerId} | Total: R$${orderTotal.toFixed(2)}`);
 
             // ── Insert Order Items ───────────────────────────────────
-            await tx.insert(orderItems).values(
+            await database.insert(orderItems).values(
                 sellerItems.map((item) => ({
                     orderId: newOrder.id,
                     lotId: item.lotId,
@@ -350,7 +354,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
             // ── Deduct stock atomically ──────────────────────────────
             for (const item of sellerItems) {
-                await tx
+                await database
                     .update(productLots)
                     .set({
                         availableQty: sql`GREATEST(0, ${productLots.availableQty} - ${item.qty.toString()}::numeric)`,
