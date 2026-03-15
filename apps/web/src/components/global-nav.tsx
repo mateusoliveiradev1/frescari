@@ -1,14 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Menu, ShoppingCart } from "lucide-react";
 import { Button } from "@frescari/ui";
-import { authClient } from "@/lib/auth-client";
-import { useState, useRef, useEffect, useSyncExternalStore } from "react";
-import { ShoppingCart, Menu } from "lucide-react";
-import { useCartStore, useCartTotals, CartStore } from "@/store/useCartStore";
+
 import { BrandLogo } from "@/components/brand-logo";
+import { authClient } from "@/lib/auth-client";
+import { CartStore, useCartStore, useCartTotals } from "@/store/useCartStore";
 import {
     Sheet,
     SheetContent,
@@ -20,7 +21,7 @@ import {
 
 const CartDrawer = dynamic(
     () => import("@/components/CartDrawer").then((mod) => mod.CartDrawer),
-    { ssr: false }
+    { ssr: false },
 );
 
 type SessionUser = {
@@ -28,6 +29,34 @@ type SessionUser = {
     email?: string | null;
     role?: string | null;
 };
+
+function getLinkState(pathname: string, href: string) {
+    return pathname === href || pathname.startsWith(href);
+}
+
+function getDesktopLinkClasses(active: boolean) {
+    return [
+        "relative font-sans text-[11px] font-bold uppercase tracking-[0.18em]",
+        "transition-[color] duration-200",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
+        "after:absolute after:left-0 after:-bottom-2 after:h-px after:w-full after:origin-left after:bg-forest after:transition-transform after:duration-200",
+        active
+            ? "text-forest after:scale-x-100"
+            : "text-bark hover:text-forest after:scale-x-0 hover:after:scale-x-100",
+    ].join(" ");
+}
+
+function getMobileLinkClasses(active: boolean) {
+    return [
+        "rounded-sm px-1 py-4 font-sans text-lg font-bold uppercase tracking-[0.18em]",
+        "transition-[color,background-color] duration-200",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
+        "border-b border-soil/5 last:border-0",
+        active
+            ? "bg-sage/35 text-forest"
+            : "text-bark hover:bg-forest/5 hover:text-forest",
+    ].join(" ");
+}
 
 export function GlobalNav() {
     const pathname = usePathname();
@@ -51,11 +80,10 @@ export function GlobalNav() {
 
                 setUser((response.data?.user as SessionUser | undefined) ?? null);
             } catch (error) {
+                void error;
                 if (cancelled) {
                     return;
                 }
-
-                console.error("Failed to load session", error);
                 setUser(null);
             }
         };
@@ -73,6 +101,7 @@ export function GlobalNav() {
                 setIsProfileOpen(false);
             }
         };
+
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
@@ -80,64 +109,103 @@ export function GlobalNav() {
     const handleSignOut = async () => {
         await authClient.signOut();
         useCartStore.getState().clearCart();
-        window.location.href = '/';
+        window.location.href = "/";
     };
 
     const navLinks = (isMobile = false) => {
-        const linkClass = isMobile
-            ? "font-sans text-lg font-bold uppercase tracking-widest text-bark hover:text-forest transition-colors py-4 border-b border-soil/5 last:border-0"
-            : "font-sans text-[11px] font-bold uppercase tracking-[0.18em] transition-colors";
-        const mobileLinkProps = isMobile
+        const baseProps = isMobile
             ? { onClick: () => setIsMenuOpen(false) }
             : undefined;
 
-        const getActiveStoreClass = (href: string) => {
-            if (isMobile) return pathname === href || pathname.startsWith(href) ? "text-forest" : "text-bark";
-            return pathname === href || pathname.startsWith(href) ? "text-forest" : "text-bark hover:text-forest";
+        const linkClasses = (href: string) => {
+            const active = getLinkState(pathname, href);
+            return isMobile ? getMobileLinkClasses(active) : getDesktopLinkClasses(active);
         };
 
         if (!user) {
             return (
                 <>
-                    {pathname === "/" && (
-                        <Link href="#como-funciona" className={`${linkClass} ${pathname === '/' ? 'text-forest' : 'text-bark hover:text-forest'}`} {...mobileLinkProps}>
+                    {pathname === "/" ? (
+                        <Link
+                            aria-current="page"
+                            className={isMobile ? getMobileLinkClasses(true) : getDesktopLinkClasses(true)}
+                            href="#como-funciona"
+                            {...baseProps}
+                        >
                             Como Funciona
                         </Link>
-                    )}
-                    <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`} {...mobileLinkProps}>
+                    ) : null}
+                    <Link
+                        aria-current={pathname === "/catalogo" ? "page" : undefined}
+                        className={linkClasses("/catalogo")}
+                        href="/catalogo"
+                        {...baseProps}
+                    >
                         Catálogo
                     </Link>
-                    {isMobile && (
-                        <Link href="/auth/login" className={`${linkClass} text-bark hover:text-forest`} {...mobileLinkProps}>
+                    {isMobile ? (
+                        <Link
+                            className={getMobileLinkClasses(false)}
+                            href="/auth/login"
+                            {...baseProps}
+                        >
                             Entrar
                         </Link>
-                    )}
+                    ) : null}
                 </>
             );
         }
 
-        if (role === 'producer') {
+        if (role === "producer") {
             return (
                 <>
-                    <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`} {...mobileLinkProps}>
+                    <Link
+                        aria-current={pathname === "/dashboard" ? "page" : undefined}
+                        className={pathname === "/dashboard"
+                            ? (isMobile ? getMobileLinkClasses(true) : getDesktopLinkClasses(true))
+                            : linkClasses("/dashboard")}
+                        href="/dashboard"
+                        {...baseProps}
+                    >
                         Dashboard
                     </Link>
-                    <Link href="/dashboard/fazenda" className={`${linkClass} ${getActiveStoreClass('/dashboard/fazenda')}`} {...mobileLinkProps}>
+                    <Link
+                        aria-current={pathname.startsWith("/dashboard/fazenda") ? "page" : undefined}
+                        className={linkClasses("/dashboard/fazenda")}
+                        href="/dashboard/fazenda"
+                        {...baseProps}
+                    >
                         Minha Fazenda
                     </Link>
-                    <Link href="/dashboard/inventario" className={`${linkClass} ${getActiveStoreClass('/dashboard/inventario')}`} {...mobileLinkProps}>
+                    <Link
+                        aria-current={pathname.startsWith("/dashboard/inventario") ? "page" : undefined}
+                        className={linkClasses("/dashboard/inventario")}
+                        href="/dashboard/inventario"
+                        {...baseProps}
+                    >
                         Estoque e Lotes
                     </Link>
-                    <Link href="/dashboard/vendas" className={`${linkClass} ${getActiveStoreClass('/dashboard/vendas')}`} {...mobileLinkProps}>
+                    <Link
+                        aria-current={pathname.startsWith("/dashboard/vendas") ? "page" : undefined}
+                        className={linkClasses("/dashboard/vendas")}
+                        href="/dashboard/vendas"
+                        {...baseProps}
+                    >
                         Vendas
                     </Link>
-                    <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`} {...mobileLinkProps}>
+                    <Link
+                        aria-current={pathname.startsWith("/catalogo") ? "page" : undefined}
+                        className={linkClasses("/catalogo")}
+                        href="/catalogo"
+                        {...baseProps}
+                    >
                         Vitrine
                     </Link>
                     <Link
+                        aria-current={pathname.startsWith("/dashboard/entregas") ? "page" : undefined}
+                        className={`${linkClasses("/dashboard/entregas")} inline-flex items-center gap-2`}
                         href="/dashboard/entregas"
-                        className={`${linkClass} ${getActiveStoreClass('/dashboard/entregas')} inline-flex items-center gap-2`}
-                        {...mobileLinkProps}
+                        {...baseProps}
                     >
                         <span>Entregas</span>
                     </Link>
@@ -145,27 +213,46 @@ export function GlobalNav() {
             );
         }
 
-        // buyer
         return (
             <>
-                <Link href="/dashboard" className={`${linkClass} ${pathname === '/dashboard' ? 'text-forest' : 'text-bark hover:text-forest'}`} {...mobileLinkProps}>
-                    {"Vis\u00e3o Geral"}
+                <Link
+                    aria-current={pathname === "/dashboard" ? "page" : undefined}
+                    className={pathname === "/dashboard"
+                        ? (isMobile ? getMobileLinkClasses(true) : getDesktopLinkClasses(true))
+                        : linkClasses("/dashboard")}
+                    href="/dashboard"
+                    {...baseProps}
+                >
+                    Visão Geral
                 </Link>
-                <Link href="/catalogo" className={`${linkClass} ${getActiveStoreClass('/catalogo')}`} {...mobileLinkProps}>
+                <Link
+                    aria-current={pathname.startsWith("/catalogo") ? "page" : undefined}
+                    className={linkClasses("/catalogo")}
+                    href="/catalogo"
+                    {...baseProps}
+                >
                     Mercado
                 </Link>
-                <Link href="/dashboard/pedidos" className={`${linkClass} ${getActiveStoreClass('/dashboard/pedidos')}`} {...mobileLinkProps}>
-                    {"Hist\u00f3rico e Faturas"}
+                <Link
+                    aria-current={pathname.startsWith("/dashboard/pedidos") ? "page" : undefined}
+                    className={linkClasses("/dashboard/pedidos")}
+                    href="/dashboard/pedidos"
+                    {...baseProps}
+                >
+                    Histórico e Faturas
                 </Link>
             </>
         );
     };
 
     return (
-        <nav className="sticky top-0 w-full z-50 bg-cream/90 backdrop-blur-md border-b border-soil/8">
+        <nav aria-label="Navegacao principal" className="sticky top-0 w-full z-50 bg-cream/90 backdrop-blur-md border-b border-soil/8">
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12 h-[72px] flex items-center justify-between">
-                {/* Logo */}
-                <Link href="/" className="flex items-center gap-3 group">
+                <Link
+                    aria-label="Frescari, voltar para a pagina inicial"
+                    className="flex items-center gap-3 group"
+                    href="/"
+                >
                     <BrandLogo
                         size="md"
                         className="transition-transform duration-200 group-hover:-translate-y-0.5"
@@ -173,35 +260,40 @@ export function GlobalNav() {
                 </Link>
 
                 <div className="flex items-center gap-3 sm:gap-8">
-                    {/* Desktop Links */}
                     <div className="hidden md:flex items-center gap-8">
                         {navLinks()}
                     </div>
 
-                    {/* Cart trigger button */}
-                    {canUseCart && <CartButton />}
+                    {canUseCart ? <CartButton /> : null}
 
-                    {/* Auth Actions (Desktop & Mobile header) */}
-                    {!user && (
+                    {!user ? (
                         <div className="flex items-center gap-3">
-                            <Link href="/auth/login" className="hidden sm:block font-sans text-[11px] font-bold uppercase tracking-[0.18em] text-bark hover:text-forest transition-colors">
+                            <Link
+                                className="hidden sm:block font-sans text-[11px] font-bold uppercase tracking-[0.18em] text-bark hover:text-forest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                                href="/auth/login"
+                            >
                                 Entrar
                             </Link>
                             <Link href="/auth/register">
-                                <Button variant="primary" size="sm" className="h-9 px-4 sm:h-10 sm:px-6">Começar</Button>
+                                <Button variant="primary" size="sm" className="h-9 px-4 sm:h-10 sm:px-6">
+                                    Começar
+                                </Button>
                             </Link>
                         </div>
-                    )}
+                    ) : null}
 
-                    {/* Mobile Hamburger Menu */}
                     <div className="md:hidden">
-                        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+                        <Sheet onOpenChange={setIsMenuOpen} open={isMenuOpen}>
                             <SheetTrigger asChild>
-                                <button className="p-2 text-bark hover:text-forest transition-colors outline-none">
+                                <button
+                                    aria-label="Abrir menu principal"
+                                    className="rounded-sm p-2 text-bark hover:bg-forest/5 hover:text-forest transition-[color,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                                    type="button"
+                                >
                                     <Menu className="w-6 h-6" />
                                 </button>
                             </SheetTrigger>
-                            <SheetContent side="right" className="w-[300px] flex flex-col pt-12">
+                            <SheetContent side="right" className="w-[320px] border-l border-forest/10 bg-cream/95 backdrop-blur-xl flex flex-col pt-12">
                                 <SheetHeader>
                                     <SheetTitle className="text-left font-display italic text-3xl mb-8">Menu</SheetTitle>
                                     <SheetDescription className="sr-only">
@@ -212,7 +304,7 @@ export function GlobalNav() {
                                     {navLinks(true)}
                                 </div>
 
-                                {user && (
+                                {user ? (
                                     <div className="mt-auto pt-6 border-t border-soil/10">
                                         <div className="flex items-center gap-3 mb-6">
                                             <div className="w-10 h-10 rounded-sm bg-forest flex items-center justify-center">
@@ -225,33 +317,36 @@ export function GlobalNav() {
                                                 <p className="font-sans text-xs text-bark">{user.email}</p>
                                             </div>
                                         </div>
-                                        {role === "buyer" && (
+                                        {role === "buyer" ? (
                                             <Link
+                                                className="mb-3 block w-full rounded-sm border border-forest/15 bg-sage/40 px-4 py-3 font-sans text-sm font-bold uppercase tracking-widest text-forest text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
                                                 href="/dashboard/perfil"
                                                 onClick={() => setIsMenuOpen(false)}
-                                                className="mb-3 block w-full rounded-sm border border-forest/15 bg-sage/40 px-4 py-3 font-sans text-sm font-bold uppercase tracking-widest text-forest text-center"
                                             >
                                                 Meus Enderecos
                                             </Link>
-                                        )}
+                                        ) : null}
                                         <button
+                                            className="w-full py-3 px-4 rounded-sm bg-red-50 text-red-600 font-sans text-sm font-bold uppercase tracking-widest text-center transition-[background-color,color] hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
                                             onClick={handleSignOut}
-                                            className="w-full py-3 px-4 rounded-sm bg-red-50 text-red-600 font-sans text-sm font-bold uppercase tracking-widest text-center"
+                                            type="button"
                                         >
                                             Sair da Conta
                                         </button>
                                     </div>
-                                )}
+                                ) : null}
                             </SheetContent>
                         </Sheet>
                     </div>
 
-                    {/* Profile Dropdown (Desktop Only) */}
-                    {user && (
+                    {user ? (
                         <div className="hidden md:block relative" ref={profileRef}>
                             <button
+                                aria-expanded={isProfileOpen}
+                                aria-haspopup="menu"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-sm bg-sage/60 border border-forest/15 hover:bg-sage transition-[background-color,border-color] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
                                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-sm bg-sage/60 border border-forest/15 hover:bg-sage transition-colors cursor-pointer"
+                                type="button"
                             >
                                 <div className="w-6 h-6 rounded-sm bg-forest flex items-center justify-center flex-shrink-0">
                                     <span className="font-display text-white text-xs font-black leading-none">
@@ -263,41 +358,42 @@ export function GlobalNav() {
                                 </span>
                             </button>
 
-                            {isProfileOpen && (
-                                <div className="absolute right-0 mt-2 w-48 bg-cream border border-soil/15 rounded-sm shadow-card py-1 flex flex-col z-50">
+                            {isProfileOpen ? (
+                                <div className="absolute right-0 mt-2 w-52 bg-cream border border-soil/15 rounded-sm shadow-card py-1 flex flex-col z-50" role="menu">
                                     <div className="px-4 py-3 border-b border-soil/8 mb-1">
                                         <p className="font-sans text-xs font-semibold text-soil truncate">{user.name}</p>
                                         <p className="font-sans text-[10px] text-bark truncate mt-0.5">{user.email}</p>
                                     </div>
-                                    {role === "buyer" && (
+                                    {role === "buyer" ? (
                                         <Link
+                                            className="px-4 py-2 font-sans text-xs font-bold text-forest hover:bg-sage/30 transition-colors focus-visible:outline-none focus-visible:bg-sage/30"
                                             href="/dashboard/perfil"
                                             onClick={() => setIsProfileOpen(false)}
-                                            className="px-4 py-2 font-sans text-xs font-bold text-forest hover:bg-sage/30 transition-colors"
+                                            role="menuitem"
                                         >
                                             Meus Enderecos
                                         </Link>
-                                    )}
+                                    ) : null}
                                     <button
+                                        className="w-full text-left px-4 py-2 font-sans text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:bg-red-50"
                                         onClick={handleSignOut}
-                                        className="w-full text-left px-4 py-2 font-sans text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                        role="menuitem"
+                                        type="button"
                                     >
                                         Sair
                                     </button>
                                 </div>
-                            )}
+                            ) : null}
                         </div>
-                    )}
+                    ) : null}
                 </div>
             </div>
 
-            {/* The cart panel itself */}
-            {canUseCart && <CartDrawer />}
+            {canUseCart ? <CartDrawer /> : null}
         </nav>
     );
 }
 
-// Client-only cart button to avoid hydration mismatch with local storage counts
 function CartButton() {
     const toggleCart = useCartStore((state: CartStore) => state.toggleCart);
     const { totalItems } = useCartTotals();
@@ -315,20 +411,23 @@ function CartButton() {
         () => false,
     );
 
-    if (!hasHydrated) return null;
+    if (!hasHydrated) {
+        return null;
+    }
 
     return (
         <button
-            onClick={toggleCart}
-            className="group relative flex items-center justify-center p-2 text-bark hover:text-forest transition-colors"
             aria-label="Abrir carrinho"
+            className="group relative flex items-center justify-center rounded-sm p-2 text-bark hover:bg-forest/5 hover:text-forest transition-[color,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+            onClick={toggleCart}
+            type="button"
         >
             <ShoppingCart className="w-5 h-5" />
-            {totalItems > 0 && (
+            {totalItems > 0 ? (
                 <span className="absolute top-0 right-0 -mr-1 -mt-1 flex h-4 w-4 items-center justify-center rounded-full bg-ember text-[9px] font-bold text-white shadow-sm ring-2 ring-cream">
                     {totalItems}
                 </span>
-            )}
+            ) : null}
         </button>
     );
 }

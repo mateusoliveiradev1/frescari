@@ -8,6 +8,7 @@ import {
     geocodeDeliveryAddress,
     isWeighableSaleUnit,
     parseDeliveryPointMetadata,
+    resolveEffectiveSaleUnit,
     toDeliveryPointGeoJson,
 } from '@frescari/api';
 
@@ -226,6 +227,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             productId: productLots.productId,
             sellerTenantId: productLots.tenantId,
             availableQty: productLots.availableQty,
+            lotUnit: productLots.unit,
             saleUnit: products.saleUnit,
             pricingType: productLots.pricingType,
             masterPricingType: masterProducts.pricingType,
@@ -253,7 +255,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             ...item,
             productId: lotData?.productId ?? '',
             sellerTenantId: lotData?.sellerTenantId ?? '',
-            saleUnit: lotData?.saleUnit,
+            saleUnit: resolveEffectiveSaleUnit(lotData?.saleUnit, lotData?.lotUnit),
             pricingType: lotData?.pricingType,
             masterPricingType: lotData?.masterPricingType,
         };

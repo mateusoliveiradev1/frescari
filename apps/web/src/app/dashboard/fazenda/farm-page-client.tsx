@@ -12,7 +12,7 @@ import {
     useWatch,
     type FieldError,
 } from "react-hook-form";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 
 import { trpc } from "@/trpc/react";
 
@@ -588,17 +588,14 @@ export function FarmPageClient() {
     if (isInitialLoading) {
         return (
             <>
-                <Toaster position="bottom-right" richColors />
-                <FarmPageSkeleton />
+                 <FarmPageSkeleton />
             </>
         );
     }
 
     return (
         <>
-            <Toaster position="bottom-right" richColors />
-
-            <div className="space-y-8">
+             <div className="space-y-8">
                 <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div className="space-y-2">
                         <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/70">

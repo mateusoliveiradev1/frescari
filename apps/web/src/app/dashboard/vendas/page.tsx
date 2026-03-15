@@ -16,7 +16,7 @@ import {
     ArrowLeft,
     Scale
 } from "lucide-react";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { trpc } from "@/trpc/react";
 import { getSaleUnitLabel, isWeighableSaleUnit } from "@/lib/sale-units";
 
@@ -580,7 +580,6 @@ export default function VendasPage() {
                 </div>
             )}
 
-            <Toaster richColors position="bottom-right" />
-        </div>
-    );
+         </div>
+     );
 }

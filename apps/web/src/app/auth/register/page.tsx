@@ -1,117 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent, type InputHTMLAttributes } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BrandLogo } from "@/components/brand-logo";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@frescari/ui";
-import Link from "next/link";
-import { BrandLogo } from "@/components/brand-logo";
 
-// ────────────────────────────────────────────
-// Reusable styled input
-// ────────────────────────────────────────────
-interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
-    label: string;
+type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
     id: string;
-}
+    label: string;
+    hint?: string;
+};
 
-function Field({ label, id, ...props }: FieldProps) {
+function AuthField({ id, label, hint, className, ...props }: FieldProps) {
     return (
-        <div className="space-y-1.5">
-            <label
-                htmlFor={id}
-                className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
-            >
+        <div className="space-y-2">
+            <label className="field-label" htmlFor={id}>
                 {label}
             </label>
             <input
-                id={id}
                 className={[
-                    "w-full px-4 py-3 rounded-sm",
-                    "bg-cream border border-soil/15",
-                    "font-sans text-sm text-soil",
-                    "outline-none transition-all duration-150",
-                    "placeholder:text-bark/40",
-                    "focus:border-forest focus:ring-2 focus:ring-forest/15",
-                    "hover:border-soil/30",
-                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    "input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil",
+                    "placeholder:text-bark/42",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
+                    className,
                 ].join(" ")}
+                id={id}
                 {...props}
             />
+            {hint ? (
+                <p className="font-sans text-xs leading-5 text-bark/68">{hint}</p>
+            ) : null}
         </div>
     );
 }
 
-// ────────────────────────────────────────────
-// Inline error alert
-// ────────────────────────────────────────────
-function ErrorAlert({ message }: { message: string }) {
+function StatusAlert({
+    message,
+    tone,
+}: {
+    message: string;
+    tone: "error" | "success";
+}) {
+    const classes =
+        tone === "error"
+            ? "border-red-200 bg-red-50 text-red-800"
+            : "border-emerald-200 bg-emerald-50 text-emerald-800";
+
+    const eyebrowTone = tone === "error" ? "text-red-700" : "text-emerald-700";
+
     return (
         <div
-            role="alert"
-            aria-live="assertive"
-            className="flex items-start gap-3 p-4 bg-ember/8 border border-ember/30 rounded-sm animate-[slide-up-fade_0.2s_ease-out]"
+            aria-live={tone === "error" ? "assertive" : "polite"}
+            className={`rounded-[20px] border px-4 py-4 ${classes}`}
+            role={tone === "error" ? "alert" : "status"}
         >
-            <div className="w-1 rounded-full bg-ember flex-shrink-0 self-stretch min-h-[1rem]" />
-            <div className="flex-1 min-w-0">
-                <p className="font-sans text-xs font-bold uppercase tracking-wide text-ember mb-0.5">
-                    Erro
-                </p>
-                <p className="font-sans text-sm text-soil/80">{message}</p>
-            </div>
+            <p className={`font-sans text-[10px] font-bold uppercase tracking-[0.18em] ${eyebrowTone}`}>
+                {tone === "error" ? "Nao foi possivel criar a conta" : "Conta criada"}
+            </p>
+            <p className="mt-2 font-sans text-sm leading-6">{message}</p>
         </div>
     );
 }
 
-// ────────────────────────────────────────────
-// Success banner
-// ────────────────────────────────────────────
-function SuccessAlert({ message }: { message: string }) {
-    return (
-        <div
-            role="status"
-            aria-live="polite"
-            className="flex items-start gap-3 p-4 bg-sage/60 border border-forest/25 rounded-sm animate-[slide-up-fade_0.2s_ease-out]"
-        >
-            <div className="w-1 rounded-full bg-forest flex-shrink-0 self-stretch min-h-[1rem]" />
-            <p className="font-sans text-sm text-forest">{message}</p>
-        </div>
-    );
-}
-
-
-// ────────────────────────────────────────────
-// Loading spinner
-// ────────────────────────────────────────────
-function Spinner() {
-    return (
-        <svg
-            className="animate-spin h-4 w-4 text-white"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-        >
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-        </svg>
-    );
-}
-
-// ────────────────────────────────────────────
-// Register Page
-// ────────────────────────────────────────────
 export default function RegisterPage() {
+    const router = useRouter();
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
-    const router = useRouter();
 
-    const handleRegister = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
         setError("");
         setSuccess("");
         setLoading(true);
@@ -120,158 +83,213 @@ export default function RegisterPage() {
             await authClient.signUp.email(
                 {
                     email,
-                    password,
                     name,
+                    password,
                 },
                 {
                     onSuccess: () => {
-                        setSuccess("Conta criada com sucesso! Redirecionando…");
-                        // Refresh to sync navbar server cache with new session
+                        setSuccess("Conta criada com sucesso. Estamos preparando seu onboarding.");
                         router.refresh();
-                        // Redirect to onboarding
-                        setTimeout(() => router.push("/onboarding"), 800);
+                        window.setTimeout(() => {
+                            router.push("/onboarding");
+                        }, 800);
                     },
-                    onError: (ctx) => {
-                        // Map common Better Auth error codes to user-friendly PT-BR messages
-                        const code = ctx.error.code ?? "";
-                        const msgMap: Record<string, string> = {
-                            USER_ALREADY_EXISTS: "Este e-mail já está cadastrado. Tente fazer login.",
-                            INVALID_EMAIL: "Formato de e-mail inválido.",
-                            PASSWORD_TOO_SHORT: "A senha deve ter pelo menos 6 caracteres.",
-                            WEAK_PASSWORD: "Senha muito fraca. Use letras, números e símbolos.",
+                    onError: (context) => {
+                        const code = context.error.code ?? "";
+                        const messageMap: Record<string, string> = {
+                            USER_ALREADY_EXISTS: "Este email ja esta cadastrado. Tente entrar com sua conta atual.",
+                            INVALID_EMAIL: "Use um email valido para continuar.",
+                            PASSWORD_TOO_SHORT: "A senha precisa ter pelo menos 6 caracteres.",
+                            WEAK_PASSWORD: "Use uma senha mais forte, combinando letras e numeros.",
                         };
-                        setError(msgMap[code] ?? ctx.error.message ?? "Erro ao criar conta. Tente novamente.");
+
+                        setError(
+                            messageMap[code] ||
+                                context.error.message ||
+                                "Nao foi possivel concluir o cadastro.",
+                        );
                     },
-                }
+                },
             );
-        } catch (err: unknown) {
-            const message =
-                err instanceof Error
-                    ? err.message
-                    : "Erro inesperado de rede. Verifique sua conexão e tente novamente.";
-            setError(message);
+        } catch (caughtError: unknown) {
+            setError(
+                caughtError instanceof Error
+                    ? caughtError.message
+                    : "Erro inesperado ao criar a conta.",
+            );
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="flex min-h-screen bg-cream">
-            {/* ── Left brand panel ── */}
-            <div className="hidden lg:flex lg:w-[40%] flex-col justify-between p-16 bg-forest relative overflow-hidden">
-                <div
-                    className="absolute inset-0 opacity-10"
-                    style={{ backgroundImage: "radial-gradient(#f9f6f0 1px, transparent 1px)", backgroundSize: "22px 22px" }}
-                />
-                <Link href="/" className="relative z-10">
-                    <BrandLogo variant="inverse" size="md" showDescriptor />
-                </Link>
+        <div className="min-h-screen bg-cream">
+            <div className="grid min-h-screen lg:grid-cols-[0.96fr_1.04fr]">
+                <aside className="relative hidden overflow-hidden border-r border-white/8 bg-forest lg:flex">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,246,240,0.12),transparent_36%),linear-gradient(145deg,rgba(13,51,33,1),rgba(9,37,24,0.95))]" />
+                    <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle,rgba(249,246,240,0.35)_1px,transparent_1px)] [background-size:26px_26px]" />
 
-                <div className="relative z-10 space-y-8">
-                    {[
-                        { value: "−40%", label: "Desperdício médio evitado" },
-                        { value: "50km", label: "Raio máximo de entrega" },
-                        { value: "100%", label: "Produtor familiar" },
-                    ].map((stat) => (
-                        <div key={stat.value} className="border-l-2 border-sage/30 pl-4">
-                            <p className="font-display text-3xl font-black text-cream italic">{stat.value}</p>
-                            <p className="font-sans text-xs text-sage/70 mt-0.5 uppercase tracking-widest">{stat.label}</p>
+                    <div className="relative z-10 flex w-full flex-col justify-between p-12 xl:p-16">
+                        <BrandLogo showDescriptor size="md" variant="inverse" />
+
+                        <div className="space-y-8">
+                            <div className="space-y-4">
+                                <p className="font-sans text-[10px] font-bold uppercase tracking-[0.22em] text-sage/70">
+                                    Entrada premium para um marketplace local
+                                </p>
+                                <h2 className="max-w-md font-display text-5xl font-black italic leading-[0.92] tracking-[-0.05em] text-cream">
+                                    O cadastro precisa inspirar confianca antes do primeiro pedido.
+                                </h2>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+                                {[
+                                    ["Fluxo limpo", "Menos poluicao visual, mais clareza na decisao de seguir."],
+                                    ["Sem ambiguidades", "Campos, estados e mensagens escritos para contexto B2B."],
+                                    ["Entrada pronta", "Depois do cadastro o usuario ja entra no onboarding certo."],
+                                ].map(([title, copy]) => (
+                                    <div
+                                        className="rounded-[24px] border border-white/10 bg-white/6 px-5 py-5 backdrop-blur-sm"
+                                        key={title}
+                                    >
+                                        <p className="font-sans text-xs font-bold uppercase tracking-[0.18em] text-cream">
+                                            {title}
+                                        </p>
+                                        <p className="mt-3 font-sans text-sm leading-6 text-sage/78">{copy}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    ))}
-                </div>
 
-                <p className="font-sans text-[9px] font-bold uppercase tracking-[0.2em] text-sage/40 relative z-10">
-                    Plataforma B2B · Hortifruti
-                </p>
-            </div>
-
-            {/* ── Right form panel ── */}
-            <div className="flex-1 flex items-center justify-center p-6 lg:p-16 overflow-y-auto">
-                <div className="w-full max-w-sm space-y-8 py-8">
-
-                    {/* Mobile logo */}
-                    <div className="flex lg:hidden">
-                        <BrandLogo size="sm" />
+                        <div className="grid grid-cols-3 gap-3">
+                            {[
+                                ["B2B", "operacao"],
+                                ["Local", "origem"],
+                                ["Premium", "interface"],
+                            ].map(([value, label]) => (
+                                <div
+                                    className="rounded-[22px] border border-white/10 bg-white/6 px-4 py-4 text-center backdrop-blur-sm"
+                                    key={value}
+                                >
+                                    <p className="font-display text-2xl font-black italic text-cream">{value}</p>
+                                    <p className="mt-1 font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-sage/60">
+                                        {label}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
+                </aside>
 
-                    <div className="space-y-1">
-                        <h1 className="font-display text-3xl font-black text-soil">Nova Conta</h1>
-                        <p className="font-sans text-sm text-bark">
-                            O marketplace focado em hortifruti B2B.
-                        </p>
+                <main className="flex items-center justify-center px-6 py-10 lg:px-12">
+                    <div className="w-full max-w-[35rem]">
+                        <div className="mb-8 flex lg:hidden">
+                            <BrandLogo size="sm" />
+                        </div>
+
+                        <section className="surface-panel rounded-[32px] p-7 sm:p-9">
+                            <div className="space-y-3">
+                                <p className="field-label">Cadastro</p>
+                                <h1 className="font-display text-4xl font-black tracking-[-0.05em] text-soil sm:text-5xl">
+                                    Criar conta
+                                </h1>
+                                <p className="max-w-xl font-sans text-sm leading-6 text-bark/76">
+                                    Abra seu acesso e siga direto para configurar perfil, enderecos e preferencia de
+                                    compra ou venda sem ruido desnecessario.
+                                </p>
+                            </div>
+
+                            <div className="mt-6 grid gap-3 rounded-[24px] border border-forest/10 bg-white px-4 py-4 sm:grid-cols-3">
+                                {[
+                                    ["Confianca", "Superficie limpa e mensagens objetivas."],
+                                    ["Clareza", "Campos com hierarquia e orientacao visual melhor."],
+                                    ["Conversao", "Menos atrito para chegar ao onboarding."],
+                                ].map(([title, copy]) => (
+                                    <div key={title}>
+                                        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
+                                            {title}
+                                        </p>
+                                        <p className="mt-2 font-sans text-sm leading-6 text-bark/72">{copy}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-8 space-y-5">
+                                {error ? <StatusAlert message={error} tone="error" /> : null}
+                                {success ? <StatusAlert message={success} tone="success" /> : null}
+
+                                <form className="space-y-5" noValidate onSubmit={handleRegister}>
+                                    <AuthField
+                                        autoComplete="name"
+                                        disabled={loading}
+                                        id="name"
+                                        label="Nome completo"
+                                        name="name"
+                                        onChange={(event) => setName(event.target.value)}
+                                        placeholder="Ex.: Maria Silva"
+                                        required
+                                        type="text"
+                                        value={name}
+                                    />
+
+                                    <AuthField
+                                        autoCapitalize="none"
+                                        autoComplete="email"
+                                        autoCorrect="off"
+                                        disabled={loading}
+                                        id="email"
+                                        label="Email corporativo"
+                                        name="email"
+                                        onChange={(event) => setEmail(event.target.value)}
+                                        placeholder="compras@empresa.com"
+                                        required
+                                        spellCheck={false}
+                                        type="email"
+                                        value={email}
+                                    />
+
+                                    <AuthField
+                                        autoComplete="new-password"
+                                        disabled={loading}
+                                        hint="Minimo de 6 caracteres. Prefira uma senha unica para sua operacao."
+                                        id="password"
+                                        label="Senha"
+                                        minLength={6}
+                                        name="password"
+                                        onChange={(event) => setPassword(event.target.value)}
+                                        placeholder="Crie uma senha segura"
+                                        required
+                                        type="password"
+                                        value={password}
+                                    />
+
+                                    <Button
+                                        className="h-13 w-full rounded-[18px] text-sm shadow-[0_20px_42px_-24px_rgba(13,51,33,0.46)]"
+                                        data-loading={loading}
+                                        disabled={loading}
+                                        size="lg"
+                                        type="submit"
+                                        variant="primary"
+                                    >
+                                        {loading ? "Criando conta..." : "Criar conta e continuar"}
+                                    </Button>
+                                </form>
+                            </div>
+
+                            <div className="mt-8 flex flex-col gap-3 border-t border-soil/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="font-sans text-sm leading-6 text-bark/74">
+                                    Ja tem acesso? Entre e volte ao catalogo ou ao painel da sua operacao.
+                                </p>
+                                <Link
+                                    className="font-sans text-sm font-bold text-forest underline-offset-4 transition-[color] hover:text-soil hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                                    href="/auth/login"
+                                >
+                                    Entrar agora
+                                </Link>
+                            </div>
+                        </section>
                     </div>
-
-                    {/* Alerts */}
-                    {error && <ErrorAlert message={error} />}
-                    {success && <SuccessAlert message={success} />}
-
-                    <form onSubmit={handleRegister} className="space-y-5" noValidate>
-                        <Field
-                            label="Nome Completo"
-                            id="name"
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Ex: Maria Silva"
-                            required
-                            autoComplete="name"
-                            disabled={loading}
-                        />
-
-                        <Field
-                            label="Email Corporativo"
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="seu@email.com"
-                            required
-                            autoComplete="email"
-                            disabled={loading}
-                        />
-
-                        <Field
-                            label="Senha Segura"
-                            id="password"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="mínimo 6 caracteres"
-                            required
-                            minLength={6}
-                            autoComplete="new-password"
-                            disabled={loading}
-                        />
-
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            size="lg"
-                            className="w-full"
-                            disabled={loading}
-                            aria-disabled={loading}
-                        >
-                            {loading ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <Spinner />
-                                    Criando conta…
-                                </span>
-                            ) : (
-                                "Criar Conta e Acessar"
-                            )}
-                        </Button>
-                    </form>
-
-                    <div className="pt-4 border-t border-soil/8 text-center">
-                        <span className="font-sans text-sm text-bark">Já possui uma conta? </span>
-                        <Link
-                            href="/auth/login"
-                            className="font-sans text-sm font-semibold text-forest hover:underline underline-offset-4"
-                        >
-                            Acesse agora
-                        </Link>
-                    </div>
-                </div>
+                </main>
             </div>
         </div>
     );

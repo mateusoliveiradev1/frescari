@@ -4,6 +4,7 @@ import {
     getDefaultAddQuantity,
     normalizeQuantity,
 } from '@/lib/cart-quantity';
+import { resolveEffectiveSaleUnit } from '@/lib/sale-units';
 
 // Reusing the same interface from the catalog (ensure it matches exactly what we need)
 export interface CatalogLot {
@@ -47,19 +48,25 @@ export interface CartActions {
 
 export type CartStore = CartState & CartActions;
 
+const normalizeCatalogLot = <T extends CatalogLot>(lot: T): T => ({
+    ...lot,
+    saleUnit: resolveEffectiveSaleUnit(lot.saleUnit, lot.unit),
+});
+
 const sanitizePersistedCartItem = (item: CartItem) => {
     if (typeof item.farmId !== 'string' || item.farmId.trim().length === 0) {
         return null;
     }
 
-    const safeQty = normalizeQuantity(item, item.cartQty);
+    const normalizedItem = normalizeCatalogLot(item);
+    const safeQty = normalizeQuantity(normalizedItem, item.cartQty);
 
     if (safeQty <= 0) {
         return null;
     }
 
     return {
-        ...item,
+        ...normalizedItem,
         cartQty: safeQty,
     };
 };
@@ -73,26 +80,27 @@ export const useCartStore = create<CartStore>()(
 
                 addItem: (lot: CatalogLot, qty) => {
                     const { items } = get();
-                    const existingItem = items.find((i: CartItem) => i.id === lot.id);
-                    const requestedQty = qty ?? getDefaultAddQuantity(lot);
-                    const finalQtyToAdd = normalizeQuantity(lot, requestedQty);
+                    const normalizedLot = normalizeCatalogLot(lot);
+                    const existingItem = items.find((i: CartItem) => i.id === normalizedLot.id);
+                    const requestedQty = qty ?? getDefaultAddQuantity(normalizedLot);
+                    const finalQtyToAdd = normalizeQuantity(normalizedLot, requestedQty);
 
                     if (finalQtyToAdd <= 0) {
                         return;
                     }
 
                     if (existingItem) {
-                        const safeQty = normalizeQuantity(lot, existingItem.cartQty + finalQtyToAdd);
+                        const safeQty = normalizeQuantity(normalizedLot, existingItem.cartQty + finalQtyToAdd);
 
                         set({
                             items: items.map((i: CartItem) =>
-                                i.id === lot.id ? { ...i, ...lot, cartQty: safeQty } : i
+                                i.id === normalizedLot.id ? { ...i, ...normalizedLot, cartQty: safeQty } : i
                             ),
                             isOpen: true, // open cart when adding
                         });
                     } else {
                         set({
-                            items: [...items, { ...lot, cartQty: finalQtyToAdd }],
+                            items: [...items, { ...normalizedLot, cartQty: finalQtyToAdd }],
                             isOpen: true, // open cart when adding
                         });
                     }

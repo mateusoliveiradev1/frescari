@@ -1,4 +1,4 @@
-import { isWeighableSaleUnit } from "@/lib/sale-units";
+import { isWeighableSaleUnit, resolveEffectiveSaleUnit } from "@/lib/sale-units";
 
 export type QuantityRuleItem = {
     pricingType: 'UNIT' | 'WEIGHT' | 'BOX';
@@ -10,9 +10,9 @@ export type QuantityRuleItem = {
 export const roundQuantity = (value: number) => Math.round(value * 100) / 100;
 
 export const isWeightBasedQuantityItem = (
-    item: Pick<QuantityRuleItem, 'saleUnit'>
+    item: Pick<QuantityRuleItem, 'saleUnit' | 'unit'>
 ) => {
-    return isWeighableSaleUnit(item.saleUnit);
+    return isWeighableSaleUnit(resolveEffectiveSaleUnit(item.saleUnit, item.unit));
 };
 
 export const getQuantityStep = (item: Pick<QuantityRuleItem, 'pricingType' | 'saleUnit' | 'unit'>) =>

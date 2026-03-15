@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button, formatCurrencyBRL } from "@frescari/ui";
 import { Calendar, Store, RotateCw, X, ShoppingBag, PackageOpen, LayoutGrid, ChevronRight } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { trpc } from "@/trpc/react";
 import { getSaleUnitLabel } from "@/lib/sale-units";
 
@@ -267,9 +267,7 @@ export default function PedidosPage() {
                 )}
             </main>
 
-            <Toaster richColors position="bottom-right" />
-
-            <Dialog.Root open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+             <Dialog.Root open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
                     <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-[520px] translate-x-[-50%] translate-y-[-50%] gap-0 border border-border bg-white p-8 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-xl">

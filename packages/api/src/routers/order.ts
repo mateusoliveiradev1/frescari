@@ -5,7 +5,7 @@ import { createTRPCRouter, protectedProcedure, buyerProcedure, producerProcedure
 import { productLots, products, orders, orderItems, tenants, masterProducts } from '@frescari/db';
 import { eq, inArray, sql, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
-import { isWeighableSaleUnit, normalizeSaleUnit } from '../sale-units';
+import { isWeighableSaleUnit, normalizeSaleUnit, resolveEffectiveSaleUnit } from '../sale-units';
 import {
     buildDeliveryAddressLine,
     geocodeDeliveryAddress,
@@ -110,6 +110,7 @@ export const orderRouter = createTRPCRouter({
                             expiryDate: productLots.expiryDate,
                             priceOverride: productLots.priceOverride,
                             pricePerUnit: products.pricePerUnit,
+                            lotUnit: productLots.unit,
                             pricingType: productLots.pricingType,
                             masterPricingType: masterProducts.pricingType,
                             saleUnit: products.saleUnit
@@ -139,7 +140,11 @@ export const orderRouter = createTRPCRouter({
                         }
 
                         // Strict integer validation for UNIT and BOX pricing types
-                        const isWeight = isWeighableSaleUnit(lotData.saleUnit);
+                        const effectiveSaleUnit = resolveEffectiveSaleUnit(
+                            lotData.saleUnit,
+                            lotData.lotUnit,
+                        );
+                        const isWeight = isWeighableSaleUnit(effectiveSaleUnit);
                         if (!isWeight && !Number.isInteger(reqItem.quantity)) {
                             throw new TRPCError({
                                 code: 'BAD_REQUEST',
@@ -170,7 +175,7 @@ export const orderRouter = createTRPCRouter({
                             sellerTenantId: lotData.sellerTenantId,
                             unitPrice: finalUnitPrice,
                             totalPrice: finalUnitPrice * reqItem.quantity,
-                            saleUnit: normalizeSaleUnit(lotData.saleUnit) || 'unit',
+                            saleUnit: normalizeSaleUnit(effectiveSaleUnit) || 'unit',
                         };
                     });
 

@@ -1,8 +1,6 @@
 "use client";
 
 import { Badge } from "@frescari/ui";
-import { Toaster } from "sonner";
-
 import { trpc } from "@/trpc/react";
 
 import { CategoryManager } from "./category-manager";
@@ -41,7 +39,6 @@ export function AdminClient({ userName }: { userName?: string | null }) {
                 <MasterProductManager />
             </div>
 
-            <Toaster richColors position="bottom-right" />
-        </div>
-    );
+         </div>
+     );
 }

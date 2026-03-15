@@ -20,7 +20,7 @@ import {
     normalizeQuantity,
     roundQuantity,
 } from "@/lib/cart-quantity";
-import { getSaleUnitLabel } from "@/lib/sale-units";
+import { getSaleUnitLabel, resolveEffectiveSaleUnit } from "@/lib/sale-units";
 import {
     type CartItem,
     type CartStore,
@@ -439,32 +439,34 @@ function FarmCheckoutSection({
                                                 {item.productName}
                                             </h4>
                                             <p className="mt-1 text-xs text-bark/75">
-                                                {formatCurrency(item.finalPrice)} / {getSaleUnitLabel(item.saleUnit)}
+                                                {formatCurrency(item.finalPrice)} / {getSaleUnitLabel(resolveEffectiveSaleUnit(item.saleUnit, item.unit))}
                                             </p>
                                         </div>
                                         <button
                                             aria-label="Remover item"
-                                            className="rounded-full p-1.5 text-bark/40 transition-colors hover:bg-ember/10 hover:text-ember"
+                                            className="rounded-full p-1.5 text-bark/40 transition-[background-color,color,box-shadow] hover:bg-ember/10 hover:text-ember focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ember focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
                                             onClick={() => removeItem(item.id)}
+                                            type="button"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
                                     </div>
 
                                     <div className="mt-3 flex items-center justify-end">
-                                        <div className="flex items-center rounded-full border border-forest/15 bg-white p-1 shadow-sm">
+                                        <div className="flex items-center rounded-full border border-forest/15 bg-white p-1 shadow-[0_14px_28px_-26px_rgba(13,51,33,0.5)]">
                                             <button
                                                 aria-label="Diminuir quantidade"
-                                                className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-colors hover:bg-forest/10 hover:text-forest disabled:opacity-40"
+                                                className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-[background-color,color,box-shadow] hover:bg-forest/10 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
                                                 disabled={item.cartQty <= getQuantityMin(item)}
                                                 onClick={() => adjustQty(item, "decrease")}
+                                                type="button"
                                             >
                                                 <Minus className="h-3.5 w-3.5" />
                                             </button>
 
                                             <input
                                                 aria-label={`Quantidade de ${item.productName}`}
-                                                className="w-16 border-none bg-transparent p-0 text-center font-sans text-sm font-semibold tabular-nums focus:ring-0"
+                                                className="w-16 border-none bg-transparent p-0 text-center font-sans text-sm font-semibold tabular-nums text-soil focus:outline-none focus:ring-0"
                                                 inputMode={isWeightBased ? "decimal" : "numeric"}
                                                 onBlur={() => commitDraft(item)}
                                                 onChange={(event) => {
@@ -478,16 +480,17 @@ function FarmCheckoutSection({
                                                         event.currentTarget.blur();
                                                     }
                                                 }}
-                                                style={{ MozAppearance: "textfield" }}
                                                 type="text"
+                                                style={{ MozAppearance: "textfield" }}
                                                 value={drafts[item.id] ?? formatQuantityInput(item, item.cartQty)}
                                             />
 
                                             <button
                                                 aria-label="Aumentar quantidade"
-                                                className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-colors hover:bg-forest/10 hover:text-forest disabled:opacity-40"
+                                                className="flex h-9 w-9 items-center justify-center rounded-full text-bark transition-[background-color,color,box-shadow] hover:bg-forest/10 hover:text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-40"
                                                 disabled={roundQuantity(item.cartQty + getQuantityStep(item)) > getMaximumQuantity(item)}
                                                 onClick={() => adjustQty(item, "increase")}
+                                                type="button"
                                             >
                                                 <Plus className="h-3.5 w-3.5" />
                                             </button>
@@ -500,7 +503,7 @@ function FarmCheckoutSection({
                 })}
             </ul>
 
-            <div className="rounded-[22px] border border-forest/10 bg-white p-4 shadow-[0_10px_24px_rgba(27,67,50,0.05)]">
+            <div className="rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_18px_36px_-30px_rgba(13,51,33,0.42)]">
                 {hasWeightBasedItems && (
                     <div className="mb-4 rounded-[20px] border border-forest/10 bg-sage/20 p-3.5">
                         <div className="flex items-start gap-3">
@@ -707,13 +710,13 @@ export function CartDrawer() {
                 <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 z-[140] bg-bark/40 backdrop-blur-sm data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
 
-                    <Dialog.Content className="fixed inset-y-0 right-0 z-[150] flex w-full max-w-[34rem] flex-col border-l border-forest/10 bg-cream shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-[36rem]">
+                    <Dialog.Content className="fixed inset-y-0 right-0 z-[150] flex w-full max-w-[34rem] flex-col border-l border-forest/10 bg-cream shadow-[0_28px_70px_-26px_rgba(13,51,33,0.45)] transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-[36rem]">
                         <Dialog.Description className="sr-only">
                             Carrinho agrupado por fazenda com checkout independente por produtor.
                         </Dialog.Description>
 
                     <div className="flex items-center justify-between border-b border-forest/10 bg-white px-6 py-5">
-                        <Dialog.Title className="flex items-center gap-2 font-display text-xl font-bold text-soil">
+                        <Dialog.Title className="flex items-center gap-2 font-display text-xl font-black tracking-[-0.03em] text-soil">
                             <ShoppingCart className="h-5 w-5 text-forest" />
                             Seu Carrinho
                             {totalItems > 0 ? (
@@ -723,7 +726,11 @@ export function CartDrawer() {
                             ) : null}
                         </Dialog.Title>
                         <Dialog.Close asChild>
-                            <button aria-label="Fechar" className="rounded-full p-2 text-bark/60 transition-colors hover:bg-forest/5 hover:text-soil">
+                            <button
+                                aria-label="Fechar"
+                                className="rounded-full p-2 text-bark/60 transition-[background-color,color,box-shadow] hover:bg-forest/5 hover:text-soil focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                                type="button"
+                            >
                                 <X className="h-5 w-5" />
                             </button>
                         </Dialog.Close>
@@ -731,23 +738,38 @@ export function CartDrawer() {
 
                     <div className="cart-drawer-scroll flex-1 overflow-y-auto overscroll-contain px-4 pb-8 pt-5 sm:px-6 sm:pb-10 sm:pt-6">
                         {items.length === 0 ? (
-                            <div className="flex h-full flex-col items-center justify-center space-y-4 text-center opacity-70">
-                                <ShoppingCart className="h-16 w-16 text-forest/20" />
-                                <div>
-                                    <p className="font-display text-lg font-bold text-soil">Carrinho vazio</p>
-                                    <p className="mt-1 font-sans text-sm text-bark">Adicione produtos frescos ao carrinho.</p>
+                            <div className="flex h-full flex-col items-center justify-center">
+                                <div className="surface-panel flex max-w-md flex-col items-center rounded-[30px] px-7 py-10 text-center">
+                                    <div className="flex h-18 w-18 items-center justify-center rounded-full border border-forest/10 bg-sage/18 shadow-[0_18px_36px_-28px_rgba(13,51,33,0.42)]">
+                                        <ShoppingCart className="h-8 w-8 text-forest/44" />
+                                    </div>
+                                    <p className="mt-6 font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/58">
+                                        Nenhum item selecionado
+                                    </p>
+                                    <p className="mt-3 font-display text-2xl font-black tracking-[-0.03em] text-soil">
+                                        Carrinho vazio
+                                    </p>
+                                    <p className="mt-3 font-sans text-sm leading-6 text-bark/72">
+                                        Explore o catalogo para montar pedidos por fazenda com frete e total calculados
+                                        de forma transparente.
+                                    </p>
+                                    <Button asChild className="mt-7 rounded-[18px] px-6" variant="primary">
+                                        <Link href="/catalogo" onClick={() => setIsOpen(false)}>
+                                            Ir para o catalogo
+                                        </Link>
+                                    </Button>
                                 </div>
                             </div>
                         ) : (
                             <div className="space-y-5">
-                                <section className="rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_10px_24px_rgba(27,67,50,0.05)]">
+                                <section className="rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_18px_36px_-30px_rgba(13,51,33,0.42)]">
                                     <div className="flex items-start gap-3">
                                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-forest text-cream">
                                             <MapPin className="h-5 w-5" />
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-                                                Endereco usado no frete
+                                                Endereco base do frete
                                             </p>
                                             {defaultAddressQuery.isPending ? (
                                                 <div className="mt-3 space-y-2">
@@ -799,10 +821,16 @@ export function CartDrawer() {
                     {items.length > 0 ? (
                         <div className="border-t border-forest/10 bg-white px-4 py-4 sm:px-6 sm:py-5">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="font-sans text-sm text-bark/80">
-                                    {farmGroups.length} fazenda{farmGroups.length > 1 ? "s" : ""} no carrinho. Finalize cada pedido separadamente.
+                                <p className="font-sans text-sm leading-6 text-bark/80">
+                                    {farmGroups.length} fazenda{farmGroups.length > 1 ? "s" : ""} no carrinho. Cada
+                                    pedido fecha separadamente para manter frete e operacao claros.
                                 </p>
-                                <Button onClick={() => clearCart()} type="button" variant="secondary">
+                                <Button
+                                    className="rounded-[16px]"
+                                    onClick={() => clearCart()}
+                                    type="button"
+                                    variant="secondary"
+                                >
                                     Limpar carrinho
                                 </Button>
                             </div>

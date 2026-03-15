@@ -9,6 +9,7 @@ import {
   sanitizeText,
   slugifySegment,
 } from "./catalog-seo";
+import { resolveEffectiveSaleUnit } from "./sale-units";
 
 export const CATALOG_REVALIDATE_SECONDS = 3600;
 
@@ -100,7 +101,7 @@ const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> =
         availableQty: row.availableQty,
         freshnessScore: row.freshnessScore,
         productName: row.productName,
-        saleUnit: row.saleUnit,
+        saleUnit: resolveEffectiveSaleUnit(row.saleUnit, row.unit),
         imageUrl: row.imageUrl,
         farmName: row.farmName,
         originalPrice: row.originalPrice,
@@ -253,7 +254,7 @@ export function buildProductSummaries(lots: PublicCatalogLot[]): CatalogProductS
         categorySlug: firstLot.categorySlug,
         categoryName: firstLot.categoryName,
         imageUrl: productLots.find((entry) => entry.imageUrl)?.imageUrl ?? null,
-        saleUnit: firstLot.unit || firstLot.saleUnit,
+        saleUnit: resolveEffectiveSaleUnit(firstLot.saleUnit, firstLot.unit),
         lowestPrice: Math.min(...productLots.map((entry) => entry.finalPrice)),
         highestPrice: Math.max(...productLots.map((entry) => entry.finalPrice)),
         offerCount: productLots.length,

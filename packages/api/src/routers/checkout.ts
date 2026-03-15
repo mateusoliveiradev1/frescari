@@ -13,7 +13,7 @@ import {
 import { eq, inArray } from 'drizzle-orm';
 
 import { calculateLotPriceAndStatus } from '../utils/lot-status';
-import { isWeighableSaleUnit } from '../sale-units';
+import { isWeighableSaleUnit, resolveEffectiveSaleUnit } from '../sale-units';
 import {
     buildDeliveryAddressLine,
     geocodeDeliveryAddress,
@@ -166,6 +166,7 @@ export const checkoutRouter = createTRPCRouter({
                     priceOverride: productLots.priceOverride,
                     dbPricingType: productLots.pricingType,
                     lotImageUrl: productLots.imageUrl,
+                    lotUnit: productLots.unit,
                     stripeAccountId: tenants.stripeAccountId,
                     productName: products.name,
                     productSaleUnit: products.saleUnit,
@@ -224,7 +225,11 @@ export const checkoutRouter = createTRPCRouter({
                     });
                 }
 
-                const isWeightBased = isWeighableSaleUnit(lotData.productSaleUnit);
+                const effectiveSaleUnit = resolveEffectiveSaleUnit(
+                    lotData.productSaleUnit,
+                    lotData.lotUnit,
+                );
+                const isWeightBased = isWeighableSaleUnit(effectiveSaleUnit);
                 if (!isWeightBased && !Number.isInteger(item.quantity)) {
                     throw new TRPCError({
                         code: 'BAD_REQUEST',
@@ -254,7 +259,7 @@ export const checkoutRouter = createTRPCRouter({
                     productName: lotData.productName,
                     unitPrice: pricing.finalPrice,
                     imageUrl: lotData.lotImageUrl ?? lotData.productImages?.[0] ?? null,
-                    productSaleUnit: lotData.productSaleUnit,
+                    productSaleUnit: effectiveSaleUnit,
                 };
             });
 

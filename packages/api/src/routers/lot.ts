@@ -20,6 +20,7 @@ import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
 import { calculateLotPriceAndStatus } from '../utils/lot-status';
+import { resolveEffectiveSaleUnit } from '../sale-units';
 
 const formatDateOnly = (value: string | Date) => {
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -68,7 +69,7 @@ const buildCatalogLot = (
         availableQty: Number(row.lot.availableQty),
         freshnessScore: row.lot.freshnessScore,
         productName: row.product?.name ?? 'Produto Desconhecido',
-        saleUnit: row.product?.saleUnit ?? 'unit',
+        saleUnit: resolveEffectiveSaleUnit(row.product?.saleUnit, row.lot.unit),
         imageUrl: row.lot.imageUrl || row.product?.images?.[0] || null,
         farmName: row.farmName ?? 'Produtor Local',
         originalPrice: pricing.originalPrice,
@@ -143,7 +144,7 @@ export const lotRouter = createTRPCRouter({
                             categoryId: category.id,
                             masterProductId: masterProduct.id,
                             name: masterProduct.name,
-                            saleUnit: 'unit',
+                            saleUnit: resolveEffectiveSaleUnit(undefined, input.unit),
                             pricePerUnit: '0',
                             minOrderQty: '1',
                             images: masterProduct.defaultImageUrl

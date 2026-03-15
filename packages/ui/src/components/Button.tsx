@@ -9,11 +9,12 @@ const buttonVariants = cva(
     [
         "relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center whitespace-nowrap",
         "font-sans font-semibold text-sm tracking-wide uppercase",
-        "transition-all duration-200 ease-out",
+        "transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out",
         "cursor-pointer select-none",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
         "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
-        "active:scale-[0.98]",
+        "data-[loading=true]:cursor-wait",
+        "active:scale-[0.99]",
     ].join(" "),
     {
         variants: {
@@ -22,12 +23,12 @@ const buttonVariants = cva(
                     "bg-forest text-white",
                     "border border-forest",
                     "hover:bg-forest-hover hover:border-forest-hover",
-                    "hover:shadow-[0_4px_20px_-4px_rgba(13,51,33,0.4)]",
+                    "hover:shadow-[0_18px_32px_-28px_rgba(13,51,33,0.65)]",
                 ].join(" "),
                 secondary: [
-                    "bg-sage text-forest",
-                    "border border-forest/20",
-                    "hover:bg-forest-light hover:border-forest/40",
+                    "bg-sage/60 text-forest",
+                    "border border-forest/15",
+                    "hover:bg-forest-light hover:border-forest/35",
                 ].join(" "),
                 lastChance: [
                     "bg-ember text-white",
@@ -43,8 +44,8 @@ const buttonVariants = cva(
                 ].join(" "),
                 ghost: [
                     "bg-transparent text-forest",
-                    "border border-forest/25",
-                    "hover:bg-sage hover:border-forest/50",
+                    "border border-forest/15",
+                    "hover:bg-sage/45 hover:border-forest/35",
                 ].join(" "),
                 link: "h-auto min-h-0 min-w-0 w-auto text-forest underline-offset-4 hover:underline bg-transparent border-none p-0 normal-case tracking-normal",
             },
@@ -148,7 +149,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                         {loadingIndicator ?? (
                             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                         )}
-                        <span className="sr-only">Loading</span>
+                        <span className="sr-only">Carregando</span>
                     </span>
                 ) : null}
             </button>

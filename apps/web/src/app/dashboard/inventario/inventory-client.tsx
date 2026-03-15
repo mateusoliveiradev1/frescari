@@ -96,8 +96,8 @@ export function InventoryClient() {
                 <Dialog open={isCreateOpen} onOpenChange={handleOpenChange}>
                     <DialogTrigger asChild>
                         <Button
+                            className="h-12 gap-2 rounded-[18px] px-6 shadow-[0_20px_42px_-26px_rgba(13,51,33,0.46)]"
                             variant="primary"
-                            className="h-12 px-6 gap-2 rounded-full shadow-lg shadow-forest/10"
                         >
                             <Plus className="h-5 w-5" />
                             Novo Lote
@@ -143,24 +143,38 @@ export function InventoryClient() {
                             ))}
                         </div>
                     ) : lots?.length === 0 ? (
-                        <div className="py-20 text-center px-6">
-                            <div className="bg-sage/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Leaf className="h-8 w-8 text-forest/40" />
+                        <div className="px-6 py-20 text-center">
+                            <div className="mx-auto mb-5 flex h-18 w-18 items-center justify-center rounded-full border border-forest/10 bg-sage/18 shadow-[0_18px_36px_-28px_rgba(13,51,33,0.42)]">
+                                <Leaf className="h-8 w-8 text-forest/48" />
                             </div>
-                            <h3 className="text-xl font-display text-soil font-bold">
-                                Nenhum lote encontrado
-                            </h3>
-                            <p className="text-bark/60 font-sans mt-2 max-w-sm mx-auto">
-                                Voce ainda nao registrou nenhum lote. Clique em
-                                {" "}
-                                &quot;Novo Lote&quot;
-                                {" "}
-                                para comecar a vender.
+                            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/60">
+                                Inventario inicial
                             </p>
+                            <h3 className="mt-3 text-xl font-display font-black tracking-[-0.03em] text-soil sm:text-2xl">
+                                Nenhum lote publicado ainda
+                            </h3>
+                            <p className="mx-auto mt-3 max-w-md font-sans text-sm leading-6 text-bark/68">
+                                Assim que voce cadastrar o primeiro lote, esta tela passa a concentrar quantidade,
+                                validade, preco e status comercial da sua producao em uma visao unica.
+                            </p>
+                            <div className="mx-auto mt-7 grid max-w-lg gap-3 rounded-[24px] border border-forest/10 bg-white px-4 py-4 text-left sm:grid-cols-3">
+                                {[
+                                    ["Validade", "Identifique lotes proximos da janela final."],
+                                    ["Estoque", "Atualize disponibilidade real sem retrabalho."],
+                                    ["Preco", "Mantenha a leitura comercial consistente."],
+                                ].map(([title, copy]) => (
+                                    <div key={title}>
+                                        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
+                                            {title}
+                                        </p>
+                                        <p className="mt-2 font-sans text-xs leading-5 text-bark/70">{copy}</p>
+                                    </div>
+                                ))}
+                            </div>
                             <Button
-                                variant="primary"
-                                className="mt-6 border-forest/20 text-forest hover:bg-forest/5 bg-transparent"
+                                className="mt-7 rounded-[18px] px-6 shadow-[0_20px_42px_-26px_rgba(13,51,33,0.46)]"
                                 onClick={() => setIsCreateOpen(true)}
+                                variant="primary"
                             >
                                 Registrar meu primeiro lote
                             </Button>
