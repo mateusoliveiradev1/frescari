@@ -1,46 +1,33 @@
-import { and, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, isNull, type SQL } from 'drizzle-orm';
 
 import { productLots } from './schema';
+import {
+    enableCatalogPublicReadContext,
+    enableRlsBypassContext,
+    enableTenantRlsContext,
+} from './rls-scope';
 
-type ProductLotContextExecutor = {
-    execute(query: ReturnType<typeof sql>): Promise<unknown>;
-};
-
-const PRODUCT_LOT_TENANT_SETTING = 'app.current_tenant';
-const PRODUCT_LOT_BYPASS_SETTING = 'app.bypass_rls';
-const PRODUCT_LOT_PUBLIC_READ_SETTING = 'app.allow_product_lot_public_read';
-
-async function setLocalConfig(
-    executor: ProductLotContextExecutor,
-    key: string,
-    value: string,
-) {
-    await executor.execute(sql`select set_config(${key}, ${value}, true)`);
-}
+type ProductLotContextExecutor = Parameters<
+    typeof enableCatalogPublicReadContext
+>[0];
 
 export async function enableProductLotTenantContext(
     executor: ProductLotContextExecutor,
     tenantId: string,
 ) {
-    await setLocalConfig(executor, PRODUCT_LOT_TENANT_SETTING, tenantId);
-    await setLocalConfig(executor, PRODUCT_LOT_BYPASS_SETTING, 'off');
-    await setLocalConfig(executor, PRODUCT_LOT_PUBLIC_READ_SETTING, 'off');
+    await enableTenantRlsContext(executor, tenantId);
 }
 
 export async function enableProductLotPublicReadContext(
     executor: ProductLotContextExecutor,
 ) {
-    await setLocalConfig(executor, PRODUCT_LOT_TENANT_SETTING, '');
-    await setLocalConfig(executor, PRODUCT_LOT_BYPASS_SETTING, 'off');
-    await setLocalConfig(executor, PRODUCT_LOT_PUBLIC_READ_SETTING, 'on');
+    await enableCatalogPublicReadContext(executor);
 }
 
 export async function enableProductLotBypassContext(
     executor: ProductLotContextExecutor,
 ) {
-    await setLocalConfig(executor, PRODUCT_LOT_TENANT_SETTING, '');
-    await setLocalConfig(executor, PRODUCT_LOT_BYPASS_SETTING, 'on');
-    await setLocalConfig(executor, PRODUCT_LOT_PUBLIC_READ_SETTING, 'off');
+    await enableRlsBypassContext(executor);
 }
 
 export function activeProductLotWhere(...conditions: Array<SQL | undefined>) {

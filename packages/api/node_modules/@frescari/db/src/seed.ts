@@ -16,7 +16,9 @@ import {
 
 config({ path: '../../.env' });
 
-const queryFn = neon(process.env.DATABASE_URL!);
+const seedConnectionString =
+    process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL!;
+const queryFn = neon(seedConnectionString);
 const db = drizzle(queryFn);
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

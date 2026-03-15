@@ -7,10 +7,11 @@ import path from 'path';
 
 config({ path: path.resolve(__dirname, '../../.env') });
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString =
+    process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL;
 
 if (!connectionString) {
-    throw new Error('DATABASE_URL is required to run database migrations.');
+    throw new Error('DATABASE_ADMIN_URL or DATABASE_URL is required to run database migrations.');
 }
 
 const migrationsFolder = path.resolve(__dirname, './drizzle');

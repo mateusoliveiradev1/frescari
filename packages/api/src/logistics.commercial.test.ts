@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { withRlsMockDb } from './test-db';
 
 function createBuyerContext(db: unknown): any {
     return {
@@ -95,7 +96,7 @@ function createDistanceSelectChain(distanceMeters: number) {
 test('logistics.calculateFreight returns free shipping when subtotal reaches threshold', async () => {
     let selectCallCount = 0;
 
-    const db = {
+    const db = withRlsMockDb({
         select() {
             selectCallCount += 1;
 
@@ -112,7 +113,7 @@ test('logistics.calculateFreight returns free shipping when subtotal reaches thr
                     throw new Error(`Unexpected select call #${selectCallCount}`);
             }
         },
-    };
+    });
 
     const caller = await createLogisticsCaller(db);
     const logisticsNamespace = (caller as Record<string, any>).logistics;
@@ -139,7 +140,7 @@ test('logistics.calculateFreight returns free shipping when subtotal reaches thr
 test('logistics.calculateFreight reports remaining amounts when order is below thresholds', async () => {
     let selectCallCount = 0;
 
-    const db = {
+    const db = withRlsMockDb({
         select() {
             selectCallCount += 1;
 
@@ -156,7 +157,7 @@ test('logistics.calculateFreight reports remaining amounts when order is below t
                     throw new Error(`Unexpected select call #${selectCallCount}`);
             }
         },
-    };
+    });
 
     const caller = await createLogisticsCaller(db);
     const logisticsNamespace = (caller as Record<string, any>).logistics;

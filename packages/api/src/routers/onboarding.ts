@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
-import { tenants, users } from '@frescari/db';
+import { enableRlsBypassContext, tenants, users } from '@frescari/db';
 import { eq } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 
@@ -33,20 +33,22 @@ export const onboardingRouter = createTRPCRouter({
                 + '-' + Date.now().toString(36);
 
             try {
-                // 1. Create the Tenant
-                const [newTenant] = await db.insert(tenants).values({
-                    name: input.companyName,
-                    slug,
-                    type: input.type,
-                }).returning();
+                return await db.transaction(async (tx) => {
+                    await enableRlsBypassContext(tx);
 
-                // 2. Update the User with the new tenantId and role
-                const newRole = input.type === 'PRODUCER' ? 'producer' : 'buyer';
-                await db.update(users)
-                    .set({ tenantId: newTenant.id, role: newRole })
-                    .where(eq(users.id, user.id));
+                    const [newTenant] = await tx.insert(tenants).values({
+                        name: input.companyName,
+                        slug,
+                        type: input.type,
+                    }).returning();
 
-                return { tenantId: newTenant.id, type: newTenant.type };
+                    const newRole = input.type === 'PRODUCER' ? 'producer' : 'buyer';
+                    await tx.update(users)
+                        .set({ tenantId: newTenant.id, role: newRole })
+                        .where(eq(users.id, user.id));
+
+                    return { tenantId: newTenant.id, type: newTenant.type };
+                });
             } catch (error) {
                 console.error("[ERRO_DB_ONBOARDING_DETALHADO]: ", error);
                 throw new TRPCError({

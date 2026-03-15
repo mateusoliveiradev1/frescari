@@ -2,7 +2,15 @@ import { TRPCError } from '@trpc/server';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { addresses, farms, orderItems, orders, products, tenants } from '@frescari/db';
+import {
+    addresses,
+    enableTenantCatalogReadContext,
+    farms,
+    orderItems,
+    orders,
+    products,
+    tenants,
+} from '@frescari/db';
 import { calculateFreightSchema } from '@frescari/validators';
 
 import { buyerProcedure, createTRPCRouter, producerProcedure } from '../trpc';
@@ -212,50 +220,82 @@ export const logisticsRouter = createTRPCRouter({
     calculateFreight: buyerProcedure
         .input(calculateFreightSchema)
         .query(async ({ ctx, input }) => {
-            const [addressRecord] = await ctx.db
-                .select({
-                    id: addresses.id,
-                    tenantId: addresses.tenantId,
-                    location: addresses.location,
-                })
-                .from(addresses)
-                .where(eq(addresses.id, input.addressId))
-                .limit(1);
-
-            if (!addressRecord) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Endereço não encontrado.',
+            const { addressRecord, distanceRow, farmRecord } = await ctx.db.transaction(async (tx) => {
+                await enableTenantCatalogReadContext(tx, {
+                    tenantId: ctx.tenantId,
+                    userId: ctx.user.id,
                 });
-            }
 
-            if (addressRecord.tenantId !== ctx.tenantId) {
-                throw new TRPCError({
-                    code: 'FORBIDDEN',
-                    message: 'Este endereço não pertence ao tenant autenticado.',
-                });
-            }
+                const [addressRecord] = await tx
+                    .select({
+                        id: addresses.id,
+                        tenantId: addresses.tenantId,
+                        location: addresses.location,
+                    })
+                    .from(addresses)
+                    .where(eq(addresses.id, input.addressId))
+                    .limit(1);
 
-            const [farmRecord] = await ctx.db
-                .select({
-                    id: farms.id,
-                    location: farms.location,
-                    baseDeliveryFee: farms.baseDeliveryFee,
-                    pricePerKm: farms.pricePerKm,
-                    maxDeliveryRadiusKm: farms.maxDeliveryRadiusKm,
-                    minOrderValue: farms.minOrderValue,
-                    freeShippingThreshold: farms.freeShippingThreshold,
-                })
-                .from(farms)
-                .where(eq(farms.id, input.farmId))
-                .limit(1);
+                if (!addressRecord) {
+                    throw new TRPCError({
+                        code: 'NOT_FOUND',
+                        message: 'Endereço não encontrado.',
+                    });
+                }
 
-            if (!farmRecord) {
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'Fazenda não encontrada.',
-                });
-            }
+                if (addressRecord.tenantId !== ctx.tenantId) {
+                    throw new TRPCError({
+                        code: 'FORBIDDEN',
+                        message: 'Este endereço não pertence ao tenant autenticado.',
+                    });
+                }
+
+                const [farmRecord] = await tx
+                    .select({
+                        id: farms.id,
+                        location: farms.location,
+                        baseDeliveryFee: farms.baseDeliveryFee,
+                        pricePerKm: farms.pricePerKm,
+                        maxDeliveryRadiusKm: farms.maxDeliveryRadiusKm,
+                        minOrderValue: farms.minOrderValue,
+                        freeShippingThreshold: farms.freeShippingThreshold,
+                    })
+                    .from(farms)
+                    .where(eq(farms.id, input.farmId))
+                    .limit(1);
+
+                if (!farmRecord) {
+                    throw new TRPCError({
+                        code: 'NOT_FOUND',
+                        message: 'Fazenda não encontrada.',
+                    });
+                }
+
+                const [distanceRow] = await tx
+                    .select({
+                        distanceMeters: sql<number>`
+                            CAST(
+                                ST_DistanceSphere(${farms.location}, ${addresses.location})
+                                AS double precision
+                            )
+                        `,
+                    })
+                    .from(farms)
+                    .innerJoin(addresses, eq(addresses.id, input.addressId))
+                    .where(
+                        and(
+                            eq(farms.id, input.farmId),
+                            eq(addresses.tenantId, ctx.tenantId),
+                        ),
+                    )
+                    .limit(1);
+
+                return {
+                    addressRecord,
+                    distanceRow,
+                    farmRecord,
+                };
+            });
 
             if (!farmRecord.location || !addressRecord.location) {
                 throw new TRPCError({
@@ -274,25 +314,6 @@ export const logisticsRouter = createTRPCRouter({
                     message: 'Esta fazenda ainda não possui cobertura de entrega configurada.',
                 });
             }
-
-            const [distanceRow] = await ctx.db
-                .select({
-                    distanceMeters: sql<number>`
-                        CAST(
-                            ST_DistanceSphere(${farms.location}, ${addresses.location})
-                            AS double precision
-                        )
-                    `,
-                })
-                .from(farms)
-                .innerJoin(addresses, eq(addresses.id, input.addressId))
-                .where(
-                    and(
-                        eq(farms.id, input.farmId),
-                        eq(addresses.tenantId, ctx.tenantId),
-                    ),
-                )
-                .limit(1);
 
             const rawDistanceKm = (distanceRow?.distanceMeters ?? 0) / 1000;
             const distanceKm = Number(rawDistanceKm.toFixed(2));

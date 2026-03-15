@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 config({ path: '../../.env' });
 
 async function main() {
-    const sql = neon(process.env.DATABASE_URL!);
+    const sql = neon(process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL!);
     console.log('Enabling PostGIS extension...');
     try {
         await sql`CREATE EXTENSION IF NOT EXISTS postgis;`;

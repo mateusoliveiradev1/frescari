@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Module from 'node:module';
+import { withRlsMockDb } from './test-db';
 
 process.env.STRIPE_SECRET_KEY ??= 'sk_test_mocked';
 
@@ -198,7 +199,7 @@ async function createFlowCaller(state: FlowState) {
         import('./routers/logistics'),
     ]);
 
-    const db = {
+    const db = withRlsMockDb({
         select(selection: Record<string, unknown>) {
             if ('type' in selection && 'id' in selection && Object.keys(selection).length === 2) {
                 return createTenantSelectChain();
@@ -256,7 +257,7 @@ async function createFlowCaller(state: FlowState) {
                 throw new Error('Unexpected table update inside transaction');
             },
         }),
-    };
+    });
 
     const testRouter = createTRPCRouter({
         order: orderRouter,

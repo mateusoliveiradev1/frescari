@@ -43,6 +43,13 @@
       "when": 1773575979365,
       "tag": "0005_dizzy_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773600000000,
+      "tag": "0006_tenant_lockdown",
+      "breakpoints": true
     }
   ]
 }

@@ -4,8 +4,7 @@ import { createTRPCRouter, buyerProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import {
     activeProductLotWhere,
-    db,
-    enableProductLotPublicReadContext,
+    enableRlsBypassContext,
     farms,
     masterProducts,
     productLots,
@@ -159,8 +158,8 @@ export const checkoutRouter = createTRPCRouter({
 
             const lotIdsToFetch = input.items.map((item) => item.lotId);
 
-            const lotDataForStripe = await db.transaction(async (tx) => {
-                await enableProductLotPublicReadContext(tx);
+            const lotDataForStripe = await ctx.db.transaction(async (tx) => {
+                await enableRlsBypassContext(tx);
 
                 return tx
                     .select({

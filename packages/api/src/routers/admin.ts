@@ -1,9 +1,10 @@
 import { TRPCError } from '@trpc/server';
-import { revalidatePath } from 'next/cache';
 import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import {
+    type AppDb,
+    enableRlsBypassContext,
     enableProductLotBypassContext,
     masterProducts,
     productCategories,
@@ -11,9 +12,10 @@ import {
     products,
 } from '@frescari/db';
 
+import { safeRevalidatePath } from '../cache';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
     if (ctx.user.role !== 'admin') {
         throw new TRPCError({
             code: 'FORBIDDEN',
@@ -21,7 +23,16 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
         });
     }
 
-    return next({ ctx });
+    return ctx.db.transaction(async (tx) => {
+        await enableRlsBypassContext(tx);
+
+        return next({
+            ctx: {
+                ...ctx,
+                db: tx as AppDb,
+            },
+        });
+    });
 });
 
 const categorySchema = z.object({
@@ -297,7 +308,7 @@ export const adminRouter = createTRPCRouter({
                 };
             });
 
-            revalidatePath('/catalogo', 'layout');
+            safeRevalidatePath('/catalogo', 'layout');
 
             return updatedProduct;
         }),

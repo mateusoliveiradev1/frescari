@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { withRlsMockDb } from './test-db';
 
 type FarmRecord = {
     id: string;
@@ -21,7 +22,7 @@ function createMockDb(existingFarm: FarmRecord | null = null) {
         updated: 0,
     };
 
-    const db = {
+    const db = withRlsMockDb({
         query: {
             farms: {
                 findFirst: async () => state.farm,
@@ -71,7 +72,7 @@ function createMockDb(existingFarm: FarmRecord | null = null) {
                 }),
             }),
         }),
-    };
+    });
 
     return { db, state };
 }

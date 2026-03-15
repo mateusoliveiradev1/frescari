@@ -1,6 +1,6 @@
 import { createTRPCRouter, publicProcedure, protectedProcedure, producerProcedure, tenantProcedure } from '../trpc';
 import { insertProductSchema } from '@frescari/validators';
-import { products, farms, masterProducts } from '@frescari/db';
+import { enableCatalogPublicReadContext, products, farms, masterProducts } from '@frescari/db';
 import { eq, sql, ilike } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -23,9 +23,14 @@ export const productRouter = createTRPCRouter({
     getById: publicProcedure
         .input(z.object({ id: z.string().uuid() }))
         .query(async ({ ctx, input }) => {
-            const product = await ctx.db.query.products.findFirst({
-                where: eq(products.id, input.id)
+            const product = await ctx.db.transaction(async (tx) => {
+                await enableCatalogPublicReadContext(tx);
+
+                return tx.query.products.findFirst({
+                    where: eq(products.id, input.id)
+                });
             });
+
             return product;
         }),
 

@@ -1,7 +1,6 @@
 import { TRPCError } from '@trpc/server';
 import { and, eq } from 'drizzle-orm';
 import { farms } from '@frescari/db';
-import { revalidatePath } from 'next/cache';
 import {
     farmLocationSearchInputSchema,
     reverseGeocodeFarmInputSchema,
@@ -12,6 +11,7 @@ import {
     geocodeFarmLocationQuery,
     reverseGeocodeFarmLocation,
 } from '../geocoding';
+import { safeRevalidatePath } from '../cache';
 import { createTRPCRouter, producerProcedure } from '../trpc';
 
 type FarmRecord = typeof farms.$inferSelect;
@@ -80,7 +80,7 @@ function toPointTuple(input: { latitude: number; longitude: number }): [number, 
 }
 
 function revalidateCatalogPages() {
-    revalidatePath('/catalogo', 'layout');
+    safeRevalidatePath('/catalogo', 'layout');
 }
 
 export const farmRouter = createTRPCRouter({

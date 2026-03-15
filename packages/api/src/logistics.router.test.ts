@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { withRlsMockDb } from './test-db';
 
 type DeliveryRow = {
     orderId: string;
@@ -161,14 +162,14 @@ test('logistics.getPendingDeliveries groups item rows per order and exposes safe
 
     let selectCallCount = 0;
 
-    const db = {
+    const db = withRlsMockDb({
         select() {
             selectCallCount += 1;
             return selectCallCount === 1
                 ? createTenantSelectChain()
                 : createDeliveriesSelectChain(deliveryRows);
         },
-    };
+    });
 
     const caller = await createLogisticsCaller(db);
     const logisticsNamespace = (caller as Record<string, any>).logistics;
@@ -252,14 +253,14 @@ test('logistics.getPendingDeliveries keeps payment_authorized orders even when m
 
     let selectCallCount = 0;
 
-    const db = {
+    const db = withRlsMockDb({
         select() {
             selectCallCount += 1;
             return selectCallCount === 1
                 ? createTenantSelectChain()
                 : createDeliveriesSelectChain(deliveryRows);
         },
-    };
+    });
 
     const [{ pendingDeliveryStatuses }, caller] = await Promise.all([
         import('./routers/logistics'),
@@ -299,7 +300,7 @@ test('logistics.updateDeliveryStatus only advances producer orders to allowed de
 
     let selectCallCount = 0;
 
-    const db = {
+    const db = withRlsMockDb({
         select() {
             selectCallCount += 1;
             return createTenantSelectChain();
@@ -324,7 +325,7 @@ test('logistics.updateDeliveryStatus only advances producer orders to allowed de
                 },
             };
         },
-    };
+    });
 
     const caller = await createLogisticsCaller(db);
     const logisticsNamespace = (caller as Record<string, any>).logistics;

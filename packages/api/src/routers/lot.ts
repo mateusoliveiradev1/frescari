@@ -3,7 +3,6 @@ import {
     producerProcedure,
     publicProcedure,
 } from '../trpc';
-import { revalidatePath } from 'next/cache';
 import {
     createLotInputSchema,
     updateLotInputSchema,
@@ -23,6 +22,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
+import { safeRevalidatePath } from '../cache';
 import { calculateLotPriceAndStatus } from '../utils/lot-status';
 import { resolveEffectiveSaleUnit } from '../sale-units';
 
@@ -45,7 +45,7 @@ const formatDateOnly = (value: string | Date) => {
 };
 
 const revalidateCatalogPages = () => {
-    revalidatePath('/catalogo', 'layout');
+    safeRevalidatePath('/catalogo', 'layout');
 };
 
 const buildCatalogLot = (
