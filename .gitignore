@@ -43,3 +43,7 @@ next-env.d.ts
 .claude/
 .turbo/
 
+# workspace generated files
+node_modules/
+.turbo/
+
