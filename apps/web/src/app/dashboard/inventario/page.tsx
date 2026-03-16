@@ -1,17 +1,20 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+import { getRequestAuthSession } from "@/lib/server-session";
+
 import { InventoryClient } from "./inventory-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
-    const session = await auth.api.getSession({
-        headers: await headers()
-    });
+    const session = await getRequestAuthSession();
 
     if (!session?.user) {
         return redirect("/auth/login");
+    }
+
+    if (!session.user.tenantId) {
+        return redirect("/onboarding");
     }
 
     if (session.user.role === "buyer") {

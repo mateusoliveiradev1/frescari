@@ -1,21 +1,22 @@
 import "leaflet/dist/leaflet.css";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/lib/auth";
+import { getRequestAuthSession } from "@/lib/server-session";
 
 import { DeliveriesPageClient } from "./deliveries-page-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function DeliveriesPage() {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    });
+    const session = await getRequestAuthSession();
 
     if (!session?.user) {
         return redirect("/auth/login");
+    }
+
+    if (!session.user.tenantId) {
+        return redirect("/onboarding");
     }
 
     if (session.user.role === "buyer") {

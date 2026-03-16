@@ -1,5 +1,7 @@
 "use client";
 
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@frescari/api";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -23,6 +25,9 @@ import {
 import { trpc } from "@/trpc/react";
 
 import { AdminTrendChart } from "./admin-trend-chart";
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type AdminDashboardOverview = RouterOutputs["admin"]["getDashboardOverview"];
 
 const periodOptions = [
     { label: "7 dias", value: 7 as const },
@@ -87,12 +92,17 @@ function LoadingState() {
     );
 }
 
-export function AdminOverview() {
+export function AdminOverview({
+    initialData,
+}: {
+    initialData?: AdminDashboardOverview;
+}) {
     const [periodDays, setPeriodDays] = useState<7 | 30 | 90>(30);
     const [trendMetric, setTrendMetric] = useState<"gmv" | "orders" | "producers">("orders");
     const dashboardQuery = trpc.admin.getDashboardOverview.useQuery(
         { periodDays },
         {
+            initialData: periodDays === 30 ? initialData : undefined,
             placeholderData: (previousData) => previousData,
             refetchOnWindowFocus: false,
         },
