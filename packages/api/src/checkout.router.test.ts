@@ -276,6 +276,41 @@ test('checkout.createFarmCheckoutSession recalculates freight on the server and 
     assert.equal(payload.payment_intent_data?.transfer_data?.destination, 'acct_producer_123');
 });
 
+test('checkout.createCheckoutSession rejects the legacy mixed checkout path', async () => {
+    const db = withRlsMockDb({
+        select() {
+            return createTenantSelectChain('BUYER');
+        },
+    });
+
+    const caller = await createCheckoutCaller(db);
+
+    await assert.rejects(
+        () =>
+            (caller as Record<string, any>).checkout.createCheckoutSession({
+                items: [
+                    {
+                        lotId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                        quantity: 1,
+                    },
+                ],
+                address: {
+                    street: 'Rua das Flores',
+                    number: '123',
+                    cep: '01010-000',
+                    city: 'Sao Paulo',
+                    state: 'SP',
+                },
+                deliveryFee: 10,
+            }),
+        (error: unknown) => {
+            assert.ok(error instanceof Error);
+            assert.match(error.message, /createFarmCheckoutSession/i);
+            return true;
+        },
+    );
+});
+
 test('checkout.createFarmCheckoutSession rejects lots that do not belong to the informed farm', async () => {
     let selectCallCount = 0;
 
