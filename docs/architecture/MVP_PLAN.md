@@ -383,6 +383,8 @@ MVP nao e "tudo que queremos construir". MVP e o menor pacote que permite vender
 
 Se colocarmos mobile, offline, push, busca geografica avancada, hardening completo e toda a migracao futura dentro do mesmo marco, deixamos de ter MVP e viramos um v1 grande demais.
 
+Status detalhado e checklist operacional: ver `docs/MVP_CLOSURE_PLAN.md`.
+
 ### 9.1 MVP de venda (release gate)
 
 Itens que devem existir para o Frescari validar operacao comercial no web:
@@ -394,8 +396,8 @@ Itens que devem existir para o Frescari validar operacao comercial no web:
 - [x] Livro de enderecos do comprador em `/dashboard/perfil`
 - [x] Calculo de frete por fazenda usando geoespacial no backend
 - [x] Stripe Connect, Stripe Checkout, webhook e captura por peso
-- [/] Checkout seguro por fazenda: o carrinho ja agrupa por `farmId`, mas ainda falta concluir a migracao para `checkout.createFarmCheckoutSession` e remover dependencia do contrato legado
-- [/] Pipeline de pedido de ponta a ponta: pedidos e captura existem, mas ainda faltam ajustes para eliminar endereco bruto e geocoding do caminho legado
+- [x] Checkout seguro por fazenda: o fluxo web principal ja usa `checkout.createFarmCheckoutSession`, recalculo server-side e remocao por grupo no carrinho
+- [/] Pipeline de pedido de ponta a ponta: o webhook novo ja reconstrui por `address_snapshot`, mas o caminho legado ainda aceita endereco bruto e geocoding em `createCheckoutSession`
 - [ ] IA operacional de entregas e rotas no dashboard web: analisar pedidos pendentes, destacar prioridades, apontar riscos operacionais e sugerir sequenciamento de saida para o operador
 - [ ] Sistema de notificacoes do MVP web: eventos criticos de pedido, entrega e lote precisam gerar notificacao operacional no painel e canal assinado para os atores corretos
 
@@ -435,11 +437,13 @@ O item 9.1 so fecha quando os pontos abaixo estiverem validados em conjunto:
 Itens obrigatorios antes do lancamento publico do MVP. Eles nao mudam o escopo central do produto, mas bloqueiam o go-live enquanto nao estiverem fechados:
 
 - [x] E2E web com Playwright
-- [ ] Finalizar o contrato novo de checkout por fazenda e desativar o fluxo misto legado
+- [/] Finalizar o contrato novo de checkout por fazenda e desativar o fluxo misto legado
 - [ ] Adicionar `noUncheckedIndexedAccess` ao TypeScript
 - [ ] Configurar Husky + lint-staged
 - [ ] Configurar Knip para dead code e dependencias nao usadas
 - [ ] Rodar auditoria completa de teclado e formularios nas rotas de dashboard
+- [ ] Executar varredura completa do web core rota por rota
+- [ ] Rodar verificacao final do MVP web (`test`, `typecheck`, `lint`, `build`, E2E core e checklist basico de seguranca)
 - [ ] Rodar pentest basico e checklist final de seguranca operacional
 
 #### Regra de lancamento
