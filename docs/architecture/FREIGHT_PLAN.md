@@ -1,21 +1,21 @@
 # Frescari - Freight and Checkout Plan
 
 > Documento: `docs/architecture/FREIGHT_PLAN.md`
-> Versao: 1.0
-> Data: 2026-03-13
-> Status: Draft - aguardando aprovacao para implementacao
+> Versao: 1.1
+> Data: 2026-03-16
+> Status: Parcialmente implementado - migracao final de checkout ainda aberta
 
 ---
 
 ## 1. Objetivo
 
-Definir a especificacao tecnica do novo fluxo de logistica e checkout do Frescari, cobrindo:
+Registrar o contrato tecnico do fluxo de logistica e checkout por fazenda e, principalmente, deixar claro o que ja esta entregue e o que ainda falta fechar no repositorio:
 
 - livro de enderecos B2B compartilhado por `tenant_id`
 - motor de frete geografico baseado em PostGIS
 - checkout visualmente agrupado por `farm_id`, com 1 sessao de pagamento e 1 pedido por fazenda
 
-O objetivo desta fase e somente especificar o desenho tecnico, sem alterar codigo-fonte `.ts` ou `.tsx`.
+Este documento nao e mais apenas uma especificacao futura. Ele passa a funcionar como mapa de migracao do estado atual ate o contrato final.
 
 ---
 
@@ -25,17 +25,18 @@ Hoje o repositorio ja possui alguns blocos importantes:
 
 - `packages/db/src/schema.ts` ja possui `farms.location` e `orders.deliveryPoint` com suporte a PostGIS.
 - `packages/api/src/geocoding.ts` ja tem geocoding para enderecos de entrega e para localizacao de fazenda.
-- `packages/api/src/routers/logistics.ts` ja usa geoespacial, mas apenas para fluxo do produtor apos o pagamento.
-- `packages/api/src/routers/checkout.ts` ainda cria uma unica sessao Stripe por carrinho e aceita endereco bruto vindo do frontend.
-- `apps/web/src/components/CartDrawer.tsx` ainda trabalha com carrinho unico, frete fixo (`DELIVERY_FEE = 8`) e formulario manual de endereco no drawer.
-- `apps/web/src/store/useCartStore.ts` guarda `farmName`, mas nao guarda `farmId`, o que inviabiliza agrupamento tecnico por fazenda.
+- `packages/api/src/routers/logistics.ts` ja calcula frete por `addressId + farmId` usando geoespacial.
+- `packages/api/src/routers/checkout.ts` ainda cria sessao pelo contrato legado e aceita endereco bruto vindo do frontend.
+- `apps/web/src/components/CartDrawer.tsx` ja agrupa itens por `farmId` e ja consulta `logistics.calculateFreight`, mas ainda fecha compra pelo mutation legado.
+- `apps/web/src/store/useCartStore.ts` ja guarda `farmId`.
+- `/dashboard/perfil` e o `addressesRouter` ja existem.
 
 Principais gaps frente a regra de negocio:
 
-1. Nao existe address book compartilhado por tenant comprador.
-2. O geocoding do comprador acontece em checkout/webhook, quando deveria acontecer somente na criacao do endereco.
-3. O checkout atual ainda permite misturar itens de multiplos produtores em uma mesma sessao Stripe.
-4. O contrato atual de checkout confia em `productName`, `unitPrice` e `imageUrl` enviados pelo cliente, o que nao atende o nivel de integridade esperado.
+1. Ainda nao existe `checkout.createFarmCheckoutSession` como contrato oficial do novo fluxo.
+2. O geocoding do comprador ainda aparece em caminhos legados de checkout/order, quando deveria acontecer somente na criacao do endereco.
+3. O checkout atual ainda aceita dados sensiveis calculados no frontend, como endereco e taxa de entrega final.
+4. O store ainda nao tem uma acao dedicada para remover apenas os itens de uma fazenda apos iniciar o checkout daquele grupo.
 
 ---
 
@@ -386,18 +387,14 @@ Observacao sobre `order.createOrder`:
 
 ### `lot.getAvailableLots`
 
-Hoje o retorno inclui `farmName`, mas nao inclui `farmId`.
+Status atual:
 
-Adicionar, de forma aditiva:
+- `farmId` ja foi adicionado ao retorno
+- `CatalogLot` e `CartItem` ja carregam `farmId`
 
-- `farmId`
+Conclusao:
 
-Isso impacta:
-
-- `packages/api/src/routers/lot.ts`
-- `apps/web/src/store/useCartStore.ts`
-- `apps/web/src/components/ProductCardWrapper.tsx`
-- qualquer tipagem local que consuma `CatalogLot`
+- este item ja saiu do backlog tecnico
 
 ### `useCartStore`
 
@@ -409,49 +406,42 @@ O carrinho continua unico no frontend, mas o agrupamento visual passa a ser:
 
 - `groupBy(items, item.farmId)`
 
+Status atual:
+
+- ja implementado
+- gap restante: falta uma acao dedicada do tipo `removeItemsByFarm(farmId)`
+
 ## 6.2 Nova pagina `/dashboard/perfil`
 
-Criar uma nova aba/pagina para comprador:
+Status atual:
 
-- `apps/web/src/app/dashboard/perfil/page.tsx`
-- cliente associado, por exemplo `buyer-profile-client.tsx`
+- a pagina `/dashboard/perfil` ja existe
+- o fluxo de CRUD de enderecos ja existe
+- o link para comprador ja esta exposto no dashboard
 
-Responsabilidades da tela:
+Responsabilidades que ja devem continuar preservadas:
 
 - listar enderecos do tenant
 - criar endereco novo
 - marcar endereco default
-- renomear `title`
-- excluir endereco
-
-Fluxo de UX:
-
-- se nao houver endereco salvo, mostrar CTA primario para criar o primeiro
-- se houver endereco default, destacar visualmente
-- toda criacao de endereco deve exibir sucesso somente apos geocoding e persistencia
-- falhas de geocoding devem aparecer como erro de formulario, nao como falha generica do checkout
-
-Tambem sera necessario adicionar link de navegacao para comprador em `global-nav.tsx`:
-
-- `Perfil e Enderecos` apontando para `/dashboard/perfil`
+- editar e excluir endereco
+- manter falhas de geocoding como erro de formulario, nao como erro generico de checkout
 
 ## 6.3 Alteracoes no `CartDrawer`
 
-O `CartDrawer` atual precisa ser dividido em dois blocos conceituais:
+Status atual:
+
+- o drawer ja foi migrado para agrupamento por `farmId`
+- o frete por grupo ja vem de `logistics.calculateFreight`
+- o principal gap restante e o CTA ainda usar `checkout.createCheckoutSession`
+
+Estrutura alvo mantida:
 
 ### Bloco A - seletor de endereco
 
-- remover os campos manuais:
-  - `deliveryStreet`
-  - `deliveryNumber`
-  - `deliveryCep`
-  - `deliveryCity`
-  - `deliveryState`
-- substituir por:
-  - query `address.list`
-  - selecao de `addressId`
-  - fallback automatico para `address.getDefault`
-  - link `Gerenciar enderecos` para `/dashboard/perfil`
+- manter selecao de `addressId`
+- manter link `Gerenciar enderecos` para `/dashboard/perfil`
+- nao reintroduzir formulario manual de endereco dentro do drawer
 
 ### Bloco B - grupos por fazenda
 
@@ -508,8 +498,9 @@ Ao clicar no CTA de um grupo:
 
 Observacao importante:
 
-- `clearCart()` global nao serve mais
-- o store precisa ganhar uma acao do tipo `removeItemsByFarm(farmId)` ou equivalente
+- `clearCart()` global nao serve como unica estrategia
+- o store ainda precisa ganhar uma acao do tipo `removeItemsByFarm(farmId)` ou equivalente
+- a mutation correta do CTA deve passar a ser `checkout.createFarmCheckoutSession`
 
 ## 6.6 Tela do produtor em `/dashboard/fazenda`
 
@@ -519,79 +510,71 @@ Como `farms` tera tres campos novos, a tela da fazenda tambem precisa receber:
 - `Preco por km`
 - `Raio maximo de entrega (km)`
 
-Esses campos nao precisam entrar no `saveLocation` existente.
-O mais seguro e introduzir uma secao propria de "Configuracao de Entrega" ligada a `farm.saveDeliveryConfig`.
+Status atual:
+
+- os campos ja existem na tela e hoje sao persistidos dentro de `farm.saveLocation`
+
+Decisao atual:
+
+- `farm.saveDeliveryConfig` continua opcional
+- so vale separar essa mutation se o acoplamento de configuracao de entrega passar a atrapalhar evolucao ou manutencao
 
 ---
 
-## 7. Plano de Execucao Fatiado
+## 7. Plano de Execucao Restante
 
-## Fase 1 - Fundacao de dados e address book
-
-Objetivo:
-
-- adicionar todas as estruturas persistentes sem quebrar o checkout atual
-
-Escopo:
-
-- criar tabela `addresses`
-- criar indices e constraint de default
-- adicionar colunas de frete em `farms`
-- expor `addressRouter`
-- expor novos campos de `farm.getCurrent`
-- adicionar `farm.saveDeliveryConfig`
-- criar `/dashboard/perfil`
-- manter `CartDrawer` atual funcionando sem usar os novos recursos
-
-Criterio de saida:
-
-- comprador consegue criar e listar enderecos
-- produtor consegue salvar configuracao de entrega
-- nenhum fluxo atual de catalogo, pedido ou webhook foi removido
-
-## Fase 2 - Motor de frete e novo contrato de checkout
+## Fase 1 - Fechar o backend seguro de checkout por fazenda
 
 Objetivo:
 
-- introduzir o calculo geografico e o fluxo backend seguro por fazenda, sem ainda virar o drawer inteiro
+- concluir o contrato novo sem depender do fluxo legado
 
 Escopo:
 
-- adicionar `logistics.calculateFreight`
 - adicionar `createFarmCheckoutSessionInputSchema`
 - adicionar `checkout.createFarmCheckoutSession`
-- fazer o webhook aceitar metadata nova baseada em `address_snapshot` e `delivery_point`
-- parar de geocodificar endereco do comprador em checkout/webhook no novo caminho
-- adicionar `farmId` ao retorno de `lot.getAvailableLots`
-- adicionar `farmId` em `CatalogLot` e `CartItem`
+- recalcular itens e frete totalmente no backend
+- salvar `address_snapshot`, `delivery_point` e `delivery_fee` na metadata nova
+- parar de geocodificar endereco do comprador no novo caminho
 
 Criterio de saida:
 
-- existe um caminho novo funcional de sessao Stripe por fazenda
-- o backend nao confia mais em `unitPrice` ou `productName` do cliente nesse novo caminho
-- o legado continua disponivel enquanto o frontend ainda nao migrou
+- existe sessao Stripe nova de 1 fazenda para 1 pedido
+- o backend nao confia em endereco bruto nem em valores calculados no frontend
 
-## Fase 3 - Virada do frontend para o carrinho estilo Shopee
+## Fase 2 - Virar o frontend para o contrato novo
 
 Objetivo:
 
-- ativar a UX final de checkout separado por produtor
+- fazer o `CartDrawer` usar somente o fluxo por fazenda
 
 Escopo:
 
-- agrupar `CartDrawer` por `farmId`
-- trocar formulario manual por seletor de endereco salvo
-- mostrar frete dinamico por bloco
-- adicionar CTA por fazenda
-- remover itens apenas do grupo comprado
-- atualizar copy e estados visuais
-- apos estabilizacao, deprecar o contrato legado de checkout misto
+- trocar o CTA para `checkout.createFarmCheckoutSession`
+- adicionar `removeItemsByFarm(farmId)` no store
+- manter grupos fora de cobertura visiveis, mas nao compraveis
+- manter a copy "cada fazenda gera um pedido e um pagamento separado"
 
 Criterio de saida:
 
-- usuario comprador consegue manter itens de varias fazendas no carrinho
-- cada pagamento fecha somente o pedido da fazenda correspondente
-- o banco continua recebendo 1 `order` para 1 comprador e 1 vendedor
+- cada bloco fecha somente o pedido da fazenda correspondente
+- itens de outras fazendas permanecem no carrinho
+
+## Fase 3 - Limpeza do legado
+
+Objetivo:
+
+- reduzir superficie de risco e eliminar caminhos antigos
+
+Escopo:
+
+- remover dependencia do contrato legado misto no frontend
+- revisar webhook e `order.createOrder` para evitar re-geocoding do comprador no caminho publico
+- documentar deprecacao final do fluxo antigo
+
+Criterio de saida:
+
+- o caminho principal de compra fica coerente com a regra "1 comprador -> 1 fazenda -> 1 pedido"
 
 ---
 

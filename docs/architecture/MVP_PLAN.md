@@ -371,50 +371,115 @@ Revalidação: triggered por webhook quando produtor atualiza produto/lote
 - **Autenticação:** Sessões armazenadas em PostgreSQL (tabela `sessions`), sem JWT persistido — evita revogação complexa
 - **Autorização:** RBAC implementado em middleware tRPC por `role` do usuário logado
 - **Rate Limiting:** `@upstash/ratelimit` com Redis para endpoints públicos do catálogo
-- **RLS (Row Level Security):** Avaliado para fase pós-MVP como segunda camada de proteção
+- **RLS (Row Level Security):** Ja implementado no banco e obrigatorio para manter isolamento multi-tenant
 
 ---
 
-## 9. Roadmap do MVP em Fases
+## 9. Escopo Real do MVP
 
-### Fase 1 — Fundação (Semanas 1–4)
-- [x] Setup do Monorepo Turborepo com pnpm workspaces
-- [/] Configurar PostgreSQL + PostGIS (Docker local + Neon.tech prod) — *PostgreSQL Neon ✅, PostGIS type declarado mas sem queries geo reais, sem Docker local*
-- [x] Schema Drizzle completo (`tenants`, `users`, `farms`, `products`, `product_lots`) — *+ masterProducts, auth tables, orderItems*
-- [x] Auth funcional (cadastro, login, sessão) — *Better Auth com email/password*
-- [/] tRPC server básico (`auth.*`, `tenant.*`) — *6 routers ativos (product, lot, order, onboarding, checkout, stripe), mas nomenclatura diverge do plano*
+### Regra de produto
 
-### Fase 2 — Produtor (Semanas 5–8)
-- [/] CRUD completo de Fazendas, Produtos e Lotes (web + API) — *Produtos e Lotes ✅, Fazendas: schema existe mas sem CRUD router*
-- [ ] App Expo com layout base e autenticação — *apps/mobile/ não existe*
-- [ ] Implementar Expo SQLite + schema local
-- [ ] Motor de sincronização offline básico (sync_queue)
-- [ ] Job BullMQ de `lot-freshness-worker` — *freshnessScore no schema mas estático, sem BullMQ*
+MVP nao e "tudo que queremos construir". MVP e o menor pacote que permite vender, operar e aprender com seguranca razoavel no fluxo web principal.
 
-### Fase 3 — Marketplace (Semanas 9–13)
-- [x] Catálogo público com ISR (`/catalogo/...`) — *Página única existe, sub-rotas ISR ([categoria]/[produto]) ✅*
-- [ ] Busca por geo (`ST_DWithin` — raio de entrega) — *PostGIS type existe mas sem queries*
-- [/] Fluxo de pedidos completo (draft → confirmed → entregue) — *createOrder com transação ✅, status enum rico ✅, mas sem pipeline de transição post-pagamento*
-- [x] Reserva de lote com transação DB — *db.transaction() em order.ts*
-- [x] Sitemap dinâmico e dados estruturados Schema.org ✅
+Se colocarmos mobile, offline, push, busca geografica avancada, hardening completo e toda a migracao futura dentro do mesmo marco, deixamos de ter MVP e viramos um v1 grande demais.
 
-### Fase 4 — Logística e Analytics (Semanas 14–18)
-- [x] Dashboard de admin para Master Products e Categorias ✅
-- [ ] Notificações push (lote expirando, pedido confirmado)
-- [ ] Testes E2E (Playwright para web, Detox para mobile)
-- [ ] Auditoria de segurança e pentest básico
+### 9.1 MVP de venda (release gate)
 
-### ⚡ Extras Implementados (Fora do Plano Original)
-- [x] Stripe Connect — split payments para produtores
-- [x] Stripe Checkout com sessão e webhook
-- [x] Captura de pagamento por peso (awaiting_weight / captureWeighedOrder)
-- [x] Master Products — catálogo-base centralizado com pricingType
+Itens que devem existir para o Frescari validar operacao comercial no web:
+
+- [x] Monorepo, schema core, auth e base tRPC
+- [x] Catalogo publico com base de SEO
+- [x] Dashboard producer para operar fazenda, produtos e lotes no fluxo web atual
+- [x] Dashboard admin para Master Products e Categorias
+- [x] Livro de enderecos do comprador em `/dashboard/perfil`
+- [x] Calculo de frete por fazenda usando geoespacial no backend
+- [x] Stripe Connect, Stripe Checkout, webhook e captura por peso
+- [/] Checkout seguro por fazenda: o carrinho ja agrupa por `farmId`, mas ainda falta concluir a migracao para `checkout.createFarmCheckoutSession` e remover dependencia do contrato legado
+- [/] Pipeline de pedido de ponta a ponta: pedidos e captura existem, mas ainda faltam ajustes para eliminar endereco bruto e geocoding do caminho legado
+- [ ] IA operacional de entregas e rotas no dashboard web: analisar pedidos pendentes, destacar prioridades, apontar riscos operacionais e sugerir sequenciamento de saida para o operador
+- [ ] Sistema de notificacoes do MVP web: eventos criticos de pedido, entrega e lote precisam gerar notificacao operacional no painel e canal assinado para os atores corretos
+
+#### Direcao tecnica da IA de rotas para o MVP
+
+No MVP, a IA de entregas/rotas nao precisa nascer como um modelo caro ou proprietario. O desenho preferencial e:
+
+- clusterizacao geografica dos pedidos pendentes
+- score operacional por prioridade, distancia, perecibilidade e janela de entrega
+- sugestao de sequenciamento/roteiro para o operador
+- explicacao clara no dashboard sobre o motivo da recomendacao
+
+Isso pode ser implementado inicialmente com stack free/open source e heuristicas deterministicas, desde que a recomendacao seja util na operacao real.
+
+#### Escopo minimo de notificacoes no MVP
+
+Como o primeiro marco continua web-first, o sistema de notificacoes do MVP deve priorizar:
+
+- inbox/centro de notificacoes no painel
+- badges e estados de atencao nas rotas criticas
+- envio assinado por evento para pedido confirmado, pedido em rota, pedido entregue e lote critico
+
+Push mobile continua fora do primeiro marco se depender de app nativo, mas notificacao operacional no web entra no MVP.
+
+#### Quando o 9.1 e considerado concluido
+
+O item 9.1 so fecha quando os pontos abaixo estiverem validados em conjunto:
+
+- checkout por fazenda novo funcionando no web sem depender do contrato legado
+- pipeline de pedido publico sem confiar em endereco bruto ou taxa de entrega vindos do frontend
+- dashboard de entregas com analise assistida por IA util para operacao real
+- notificacoes operacionais funcionando para eventos criticos do fluxo
+- rotas criticas do web revisadas manualmente com checklist funcional, visual e responsivo
+
+### 9.2 Go-live hardening
+
+Itens obrigatorios antes do lancamento publico do MVP. Eles nao mudam o escopo central do produto, mas bloqueiam o go-live enquanto nao estiverem fechados:
+
+- [x] E2E web com Playwright
+- [ ] Finalizar o contrato novo de checkout por fazenda e desativar o fluxo misto legado
+- [ ] Adicionar `noUncheckedIndexedAccess` ao TypeScript
+- [ ] Configurar Husky + lint-staged
+- [ ] Configurar Knip para dead code e dependencias nao usadas
+- [ ] Rodar auditoria completa de teclado e formularios nas rotas de dashboard
+- [ ] Rodar pentest basico e checklist final de seguranca operacional
+
+#### Regra de lancamento
+
+O MVP so pode ser considerado pronto para publicacao quando:
+
+- todos os itens do 9.1 estiverem concluidos
+- todos os itens do 9.2 estiverem concluidos
+- o web core tiver passado por verificacao manual profunda e pela suite automatizada
+
+### 9.3 Pos-MVP
+
+Itens valiosos, mas que devem entrar depois que o nucleo web estiver fechado:
+
+- [ ] App Expo para produtores
+- [ ] Expo SQLite + schema local
+- [ ] Motor de sincronizacao offline
+- [ ] Detox / E2E mobile
+- [ ] Busca geografica de descoberta com `ST_DWithin`
+- [ ] Push mobile nativo
+
+### 9.4 Correcoes de status do plano antigo
+
+O plano anterior ficou desatualizado em alguns pontos. Estado correto do repositorio hoje:
+
+- [x] `lot-freshness-worker` ja existe
+- [x] E2E web ja existe
+- [x] Address book do comprador ja existe
+- [x] Calculo de frete geografico por endereco e fazenda ja existe
+- [x] Carrinho ja agrupa visualmente por fazenda
+
+### ⚡ Extras Ja Entregues
+
+- [x] Master Products com `pricingType`
 - [x] Upload de imagens (UploadThing)
-- [x] Onboarding flow completo (tipo PRODUCER/BUYER)
+- [x] Onboarding completo por tipo de tenant
 - [x] Dashboard diferenciado Buyer vs Producer
-- [x] Página de sucesso pós-compra
-- [x] UI Design System (10 componentes compartilhados)
-- [x] Validators package (Zod schemas compartilhados E2E)
+- [x] Pagina de sucesso pos-compra
+- [x] Design system compartilhado
+- [x] Validators package com Zod compartilhado
 
 ---
 
@@ -431,4 +496,4 @@ Revalidação: triggered por webhook quando produtor atualiza produto/lote
 
 ---
 
-> **Próximo Passo:** Aprovação deste plano → execução da **Fase 1** com setup do monorepo e schema inicial do banco de dados.
+> **Proximo Passo:** Aprovar o recorte acima e tratar como meta imediata o fechamento do MVP web premium: checkout por fazenda, IA operacional de entregas/rotas, notificacoes web e verificacao profunda das rotas criticas. Mobile, offline e push nativo ficam fora do primeiro marco.

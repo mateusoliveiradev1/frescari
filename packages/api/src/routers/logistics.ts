@@ -13,11 +13,16 @@ import {
 } from '@frescari/db';
 import { calculateFreightSchema } from '@frescari/validators';
 
+import {
+    normalizeCurrencyValue,
+    normalizeNullableCurrencyValue,
+    resolveEffectiveDeliveryRadiusKm,
+} from '../freight-quote';
 import { buyerProcedure, createTRPCRouter, producerProcedure } from '../trpc';
 
 const pendingDeliveryStatuses = ['payment_authorized', 'confirmed', 'picking'] as const;
 const deliveryMutationStatuses = ['in_transit', 'delivered'] as const;
-const GENEROUS_MVP_DELIVERY_RADIUS_KM = 5000;
+export { resolveEffectiveDeliveryRadiusKm } from '../freight-quote';
 
 type DeliveryMutationStatus = (typeof deliveryMutationStatuses)[number];
 
@@ -100,42 +105,6 @@ type PendingDelivery = {
     } | null;
     items: PendingDeliveryItem[];
 };
-
-export function resolveEffectiveDeliveryRadiusKm(rawRadiusKm: string | number | null | undefined) {
-    const parsedRadiusKm =
-        typeof rawRadiusKm === 'number' ? rawRadiusKm : Number(rawRadiusKm);
-
-    if (!Number.isFinite(parsedRadiusKm) || parsedRadiusKm <= 0) {
-        return GENEROUS_MVP_DELIVERY_RADIUS_KM;
-    }
-
-    return parsedRadiusKm;
-}
-
-function normalizeCurrencyValue(rawValue: string | number | null | undefined) {
-    const parsedValue =
-        typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
-
-    if (!Number.isFinite(parsedValue)) {
-        return 0;
-    }
-
-    return Math.max(0, Number(parsedValue.toFixed(2)));
-}
-
-function normalizeNullableCurrencyValue(rawValue: string | number | null | undefined) {
-    if (rawValue === null || rawValue === undefined) {
-        return null;
-    }
-
-    const parsedValue = typeof rawValue === 'number' ? rawValue : Number(rawValue);
-
-    if (!Number.isFinite(parsedValue)) {
-        return null;
-    }
-
-    return Math.max(0, Number(parsedValue.toFixed(2)));
-}
 
 function assertDeliveryTransition(currentStatus: string, nextStatus: DeliveryMutationStatus) {
     const allowedTransitions: Record<string, DeliveryMutationStatus[]> = {

@@ -18,6 +18,11 @@ const stripeState = {
     event: null as unknown,
 };
 
+const geocodeState = {
+    callCount: 0,
+    shouldFail: false,
+};
+
 const dbState = {
     selectQueue: [] as unknown[],
     orderInsertError: null as null | Error,
@@ -29,6 +34,8 @@ const dbState = {
 
 function resetMockState() {
     stripeState.event = null;
+    geocodeState.callCount = 0;
+    geocodeState.shouldFail = false;
     dbState.selectQueue = [];
     dbState.orderInsertError = null;
     dbState.ordersInserted = [];
@@ -182,7 +189,15 @@ before(() => {
             return {
                 buildDeliveryAddressLine: (address: Record<string, string>) =>
                     `${address.street}, ${address.number} - ${address.city}/${address.state}`,
-                geocodeDeliveryAddress: async () => ({ latitude: -23.55, longitude: -46.63 }),
+                geocodeDeliveryAddress: async () => {
+                    geocodeState.callCount += 1;
+
+                    if (geocodeState.shouldFail) {
+                        throw new Error('geocode should not be called');
+                    }
+
+                    return { latitude: -23.55, longitude: -46.63 };
+                },
                 isWeighableSaleUnit: (saleUnit?: string | null) => saleUnit === 'kg' || saleUnit === 'g',
                 parseDeliveryPointMetadata: (raw: string | undefined) =>
                     raw ? { latitude: -23.55, longitude: -46.63 } : null,
@@ -307,4 +322,70 @@ test('stripe webhook rejects checkout completion when stock is insufficient befo
     assert.equal(dbState.ordersInserted.length, 0);
     assert.equal(dbState.orderItemsInserted.length, 0);
     assert.equal(dbState.stockUpdates.length, 0);
+});
+
+test('stripe webhook rebuilds the order from address_snapshot metadata without legacy address or geocoding', async () => {
+    geocodeState.shouldFail = true;
+    stripeState.event = createCheckoutCompletedEvent({
+        metadata: {
+            buyer_tenant_id: 'buyer-tenant-1',
+            farm_id: 'farm-1',
+            address_id: 'address-1',
+            address_snapshot: JSON.stringify({
+                street: 'Rua das Flores',
+                number: '123',
+                zipcode: '01010-000',
+                city: 'Sao Paulo',
+                state: 'SP',
+                formattedAddress: 'Rua das Flores, 123 - Sao Paulo/SP - CEP 01010-000',
+                latitude: -23.55,
+                longitude: -46.63,
+            }),
+            items: JSON.stringify([
+                {
+                    lotId: '11111111-1111-4111-8111-111111111111',
+                    qty: 2,
+                    pt: 'UNIT',
+                    name: 'Tomate',
+                    price: 10,
+                },
+            ]),
+            delivery_fee: '12.50',
+            delivery_point: '{"latitude":-23.55,"longitude":-46.63}',
+        },
+    });
+    dbState.selectQueue.push(
+        [],
+        [
+            {
+                lotId: '11111111-1111-4111-8111-111111111111',
+                productId: 'product-1',
+                sellerTenantId: 'seller-tenant-1',
+                availableQty: '10.000',
+                lotUnit: 'unit',
+                saleUnit: 'unit',
+                pricingType: 'UNIT',
+                masterPricingType: 'UNIT',
+            },
+        ],
+    );
+
+    const { POST } = await import('./route');
+
+    const response = await POST(createWebhookRequest());
+
+    assert.equal(response.status, 200);
+    assert.equal(geocodeState.callCount, 0);
+    assert.equal(dbState.ordersInserted.length, 1);
+
+    const insertedOrder = dbState.ordersInserted[0] as Record<string, unknown>;
+    assert.equal(insertedOrder.deliveryStreet, 'Rua das Flores');
+    assert.equal(insertedOrder.deliveryNumber, '123');
+    assert.equal(insertedOrder.deliveryCep, '01010-000');
+    assert.equal(insertedOrder.deliveryCity, 'Sao Paulo');
+    assert.equal(insertedOrder.deliveryState, 'SP');
+    assert.equal(
+        insertedOrder.deliveryAddress,
+        'Rua das Flores, 123 - Sao Paulo/SP - CEP 01010-000',
+    );
 });

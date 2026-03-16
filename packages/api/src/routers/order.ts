@@ -25,7 +25,20 @@ import {
 import { calculateLotPriceAndStatus } from '../utils/lot-status';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const stripe = new Stripe(stripeSecretKey ?? '');
+let stripeClient: Stripe | null = null;
+
+function getStripeClient() {
+    if (!stripeSecretKey) {
+        throw new Error('STRIPE_SECRET_KEY is not set.');
+    }
+
+    if (!stripeClient) {
+        stripeClient = new Stripe(stripeSecretKey);
+    }
+
+    return stripeClient;
+}
+
 const WEIGHT_SAFETY_MARGIN = 1.1;
 const PLATFORM_FEE_RATE = 0.1;
 const legacyDirectOrderMutationEnabled = process.env.ENABLE_LEGACY_DIRECT_ORDER_MUTATION === 'true';
@@ -712,7 +725,7 @@ export const orderRouter = createTRPCRouter({
             let paymentIntentId = targetOrder.paymentIntentId ?? '';
             if (!paymentIntentId) {
             try {
-                const session = await stripe.checkout.sessions.retrieve(targetOrder.stripeSessionId!);
+                const session = await getStripeClient().checkout.sessions.retrieve(targetOrder.stripeSessionId!);
                 const pi = session.payment_intent;
                 paymentIntentId = typeof pi === 'string' ? pi : (pi?.id ?? '');
 
@@ -738,7 +751,7 @@ export const orderRouter = createTRPCRouter({
 
             let paymentIntent: Stripe.PaymentIntent;
             try {
-                paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+                paymentIntent = await getStripeClient().paymentIntents.retrieve(paymentIntentId);
             } catch (error) {
                 console.error('[STRIPE_PAYMENT_INTENT_RETRIEVE_ERROR]', error);
                 throw new TRPCError({
@@ -805,13 +818,17 @@ export const orderRouter = createTRPCRouter({
                 const idempotencyKey = `capture-weighed-order:${targetOrder.id}:${createHash('sha256')
                     .update(captureFingerprint)
                     .digest('hex')}`;
+                const captureParams: Stripe.PaymentIntentCaptureParams = {
+                    amount_to_capture: totalAmountCents,
+                };
+
+                if (paymentIntent.transfer_data?.destination) {
+                    captureParams.application_fee_amount = applicationFeeCents;
+                }
 
                 // 5. Capture Payment in Stripe
                 try {
-                    await stripe.paymentIntents.capture(paymentIntentId, {
-                        amount_to_capture: totalAmountCents,
-                        application_fee_amount: applicationFeeCents,
-                    }, {
+                    await getStripeClient().paymentIntents.capture(paymentIntentId, captureParams, {
                         idempotencyKey,
                     });
             } catch (error) {

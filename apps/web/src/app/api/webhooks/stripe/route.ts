@@ -13,19 +13,35 @@ import {
 import { eq, inArray, sql } from 'drizzle-orm';
 import {
     buildDeliveryAddressLine,
-    geocodeDeliveryAddress,
-    isWeighableSaleUnit,
     parseDeliveryPointMetadata,
-    resolveEffectiveSaleUnit,
     toDeliveryPointGeoJson,
-} from '@frescari/api';
+} from '@frescari/api/geocoding';
+import {
+    isWeighableSaleUnit,
+    resolveEffectiveSaleUnit,
+} from '@frescari/api/sale-units';
 
 import { resolveAuthorizedOrderStatus } from './resolve-order-status';
 
 // ── Stripe SDK ───────────────────────────────────────────────────────
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '');
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const useLegacyCheckoutWebhookFlow = process.env.ENABLE_LEGACY_CHECKOUT_WEBHOOK_FLOW === 'true';
+
+let stripeClient: Stripe | null = null;
+
+function getStripeClient() {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+    if (!stripeSecretKey) {
+        throw new Error('STRIPE_SECRET_KEY is not configured.');
+    }
+
+    if (!stripeClient) {
+        stripeClient = new Stripe(stripeSecretKey);
+    }
+
+    return stripeClient;
+}
 
 // ── Types for parsed metadata ────────────────────────────────────────
 interface MetadataItem {
@@ -44,11 +60,64 @@ interface MetadataAddress {
     state: string;
 }
 
+interface MetadataAddressSnapshot {
+    street: string;
+    number: string;
+    zipcode: string;
+    city: string;
+    state: string;
+    formattedAddress?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+}
+
 async function withWebhookBypass<T>(callback: (database: AppDb) => Promise<T>) {
     return authDb.transaction(async (tx) => {
         await enableRlsBypassContext(tx);
         return callback(tx as AppDb);
     });
+}
+
+function parseAddressSnapshot(
+    rawValue: string | null | undefined,
+    sessionId: string,
+) {
+    if (!rawValue) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(rawValue) as MetadataAddressSnapshot;
+    } catch {
+        throw new Error(
+            `[WEBHOOK] Failed to parse address_snapshot JSON for session ${sessionId}: ${rawValue}`,
+        );
+    }
+}
+
+function addressFromSnapshot(snapshot: MetadataAddressSnapshot): MetadataAddress {
+    return {
+        street: snapshot.street,
+        number: snapshot.number,
+        cep: snapshot.zipcode,
+        city: snapshot.city,
+        state: snapshot.state,
+    };
+}
+
+function deliveryPointFromSnapshot(snapshot: MetadataAddressSnapshot | null) {
+    if (!snapshot) {
+        return null;
+    }
+
+    if (typeof snapshot.latitude !== 'number' || typeof snapshot.longitude !== 'number') {
+        return null;
+    }
+
+    return {
+        latitude: snapshot.latitude,
+        longitude: snapshot.longitude,
+    };
 }
 
 // ── Webhook handler ──────────────────────────────────────────────────
@@ -86,6 +155,18 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Verify signature ─────────────────────────────────────────────
+    let stripe: Stripe;
+    try {
+        stripe = getStripeClient();
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Stripe client unavailable';
+        console.error('[WEBHOOK] Failed to initialize Stripe client:', message);
+        return NextResponse.json(
+            { error: message },
+            { status: 500 },
+        );
+    }
+
     let event: Stripe.Event;
     try {
         event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
@@ -177,10 +258,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const buyerTenantId = metadata.buyer_tenant_id;
     const itemsRaw = metadata.items;
     const addressRaw = metadata.address;
+    const addressSnapshotRaw = metadata.address_snapshot;
     const deliveryFeeStr = metadata.delivery_fee ?? '0';
     const deliveryPointRaw = metadata.delivery_point ?? metadata.deliveryPoint;
 
-    if (!buyerTenantId || !itemsRaw || !addressRaw) {
+    if (!buyerTenantId || !itemsRaw || (!addressRaw && !addressSnapshotRaw)) {
         throw new Error(
             `[WEBHOOK] Metadados obrigatórios ausentes na sessão ${session.id}: ` +
             `buyer_tenant_id=${buyerTenantId ? '✓' : '✗'}, ` +
@@ -195,6 +277,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     // ── 2. Parse JSON safely ─────────────────────────────────────────
     let parsedItems: MetadataItem[];
     let parsedAddress: MetadataAddress;
+    const parsedAddressSnapshot = parseAddressSnapshot(addressSnapshotRaw, session.id);
     const metadataDeliveryPoint = parseDeliveryPointMetadata(deliveryPointRaw);
 
     try {
@@ -203,10 +286,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         throw new Error(`[WEBHOOK] Failed to parse items JSON for session ${session.id}: ${itemsRaw}`);
     }
 
-    try {
-        parsedAddress = JSON.parse(addressRaw) as MetadataAddress;
-    } catch {
-        throw new Error(`[WEBHOOK] Failed to parse address JSON for session ${session.id}: ${addressRaw}`);
+    if (addressRaw) {
+        try {
+            parsedAddress = JSON.parse(addressRaw) as MetadataAddress;
+        } catch {
+            throw new Error(`[WEBHOOK] Failed to parse address JSON for session ${session.id}: ${addressRaw}`);
+        }
+    } else if (parsedAddressSnapshot) {
+        parsedAddress = addressFromSnapshot(parsedAddressSnapshot);
+    } else {
+        throw new Error(
+            `[WEBHOOK] Session ${session.id} requires either metadata.address or metadata.address_snapshot.`,
+        );
     }
 
     if (parsedItems.length === 0) {
@@ -216,14 +307,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const deliveryFee = parseFloat(deliveryFeeStr);
     console.log(`[WEBHOOK] Itens parseados: ${parsedItems.length} item(ns), deliveryFee=${deliveryFee}`);
 
-    let resolvedDeliveryPoint = metadataDeliveryPoint;
-
-    if (!resolvedDeliveryPoint) {
-        console.warn(
-            `[WEBHOOK] metadata.delivery_point ausente ou invalido para sessao ${session.id}. Aplicando fallback de geocoding.`,
-        );
-        resolvedDeliveryPoint = await geocodeDeliveryAddress(parsedAddress);
-    }
+    const resolvedDeliveryPoint =
+        metadataDeliveryPoint ?? deliveryPointFromSnapshot(parsedAddressSnapshot);
 
     if (!resolvedDeliveryPoint) {
         throw new Error(
@@ -235,7 +320,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     if (!useLegacyCheckoutWebhookFlow) {
         const lockedFlowLotIds = [...new Set(parsedItems.map((item) => item.lotId))].sort();
-        const lockedFlowAddressLine = buildDeliveryAddressLine(parsedAddress);
+        const lockedFlowAddressLine =
+            parsedAddressSnapshot?.formattedAddress ?? buildDeliveryAddressLine(parsedAddress);
         const paymentIntentId = typeof session.payment_intent === 'string'
             ? session.payment_intent
             : session.payment_intent?.id;

@@ -40,6 +40,7 @@ export interface CartState {
 export interface CartActions {
     addItem: (lot: CatalogLot, qty?: number) => void;
     removeItem: (lotId: string) => void;
+    removeItemsByFarm: (farmId: string) => void;
     updateItemQty: (lotId: string, newQty: number) => void;
     clearCart: () => void;
     setIsOpen: (isOpen: boolean) => void;
@@ -109,6 +110,12 @@ export const useCartStore = create<CartStore>()(
                 removeItem: (lotId: string) => {
                     set((state: CartStore) => ({
                         items: state.items.filter((i: CartItem) => i.id !== lotId),
+                    }));
+                },
+
+                removeItemsByFarm: (farmId: string) => {
+                    set((state: CartStore) => ({
+                        items: state.items.filter((item: CartItem) => item.farmId !== farmId),
                     }));
                 },
 
