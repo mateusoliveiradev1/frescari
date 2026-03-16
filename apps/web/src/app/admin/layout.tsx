@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role-routing";
+import { getRequestAuthSession } from "@/lib/server-session";
 
 import { AdminShell } from "./admin-shell";
 
@@ -14,9 +13,7 @@ export default async function AdminLayout({
 }: Readonly<{
     children: ReactNode;
 }>) {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    });
+    const session = await getRequestAuthSession();
 
     if (!session?.user) {
         redirect("/auth/login");

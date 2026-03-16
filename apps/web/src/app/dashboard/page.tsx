@@ -1,17 +1,13 @@
+import BuyerDashboard from "./buyer-dashboard-client";
 import DashboardClient from "./dashboard-client";
-import { auth } from "@/lib/auth";
 import { isAdminRole } from "@/lib/role-routing";
-import { headers } from "next/headers";
+import { getRequestAuthSession } from "@/lib/server-session";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-import BuyerDashboard from "./buyer-dashboard-client";
-
 export default async function DashboardPage() {
-    const session = await auth.api.getSession({
-        headers: await headers()
-    });
+    const session = await getRequestAuthSession();
 
     if (!session?.user) {
         return redirect("/auth/login");
@@ -19,6 +15,10 @@ export default async function DashboardPage() {
 
     if (isAdminRole(session.user.role)) {
         return redirect("/admin");
+    }
+
+    if (!session.user.tenantId) {
+        return redirect("/onboarding");
     }
 
     if (session.user.role === "buyer") {
