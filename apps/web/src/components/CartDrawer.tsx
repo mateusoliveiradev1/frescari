@@ -221,6 +221,7 @@ function FarmCheckoutSection({
     isBuyerSignedIn: boolean;
 }) {
     const removeItem = useCartStore((state: CartStore) => state.removeItem);
+    const removeItemsByFarm = useCartStore((state: CartStore) => state.removeItemsByFarm);
     const updateItemQty = useCartStore((state: CartStore) => state.updateItemQty);
     const setIsOpen = useCartStore((state: CartStore) => state.setIsOpen);
     const [drafts, setDrafts] = React.useState<Record<string, string>>({});
@@ -315,12 +316,9 @@ function FarmCheckoutSection({
         },
     );
 
-    const checkoutMutation = trpc.checkout.createCheckoutSession.useMutation({
+    const checkoutMutation = trpc.checkout.createFarmCheckoutSession.useMutation({
         onSuccess: (data) => {
-            for (const item of group.items) {
-                removeItem(item.id);
-            }
-
+            removeItemsByFarm(group.farmId);
             setIsOpen(false);
             window.location.href = data.url;
         },
@@ -390,18 +388,12 @@ function FarmCheckoutSection({
         }
 
         checkoutMutation.mutate({
+            farmId: group.farmId,
+            addressId: defaultAddress.id,
             items: group.items.map((item) => ({
                 lotId: item.id,
                 quantity: item.cartQty,
             })),
-            address: {
-                street: defaultAddress.street,
-                number: defaultAddress.number,
-                cep: defaultAddress.zipcode,
-                city: defaultAddress.city,
-                state: defaultAddress.state,
-            },
-            deliveryFee: freightCost,
         });
     };
 

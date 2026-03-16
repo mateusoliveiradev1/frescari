@@ -4,6 +4,10 @@ import { createTRPCRouter, producerProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { tenants, users } from '@frescari/db';
 import { eq } from 'drizzle-orm';
+import {
+    getStripeConnectOnboardingDisabledMessage,
+    isPlatformOnlyStripeMode,
+} from '../stripe-connect-mode';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
@@ -13,7 +17,20 @@ if (!stripeSecretKey) {
     );
 }
 
-const stripe = new Stripe(stripeSecretKey ?? '');
+let stripeClient: Stripe | null = null;
+
+function getStripeClient() {
+    if (!stripeSecretKey) {
+        throw new Error('STRIPE_SECRET_KEY is not set.');
+    }
+
+    if (!stripeClient) {
+        stripeClient = new Stripe(stripeSecretKey);
+    }
+
+    return stripeClient;
+}
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 export const stripeRouter = createTRPCRouter({
@@ -26,6 +43,13 @@ export const stripeRouter = createTRPCRouter({
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
                     message: 'Stripe secret key não configurada.',
+                });
+            }
+
+            if (isPlatformOnlyStripeMode()) {
+                throw new TRPCError({
+                    code: 'PRECONDITION_FAILED',
+                    message: getStripeConnectOnboardingDisabledMessage(),
                 });
             }
 
@@ -59,12 +83,12 @@ export const stripeRouter = createTRPCRouter({
 
                 // Se já possuir uma conta conectada
                 if (tenant.stripeAccountId) {
-                    const loginLink = await stripe.accounts.createLoginLink(tenant.stripeAccountId);
+                    const loginLink = await getStripeClient().accounts.createLoginLink(tenant.stripeAccountId);
                     return { url: loginLink.url };
                 }
 
                 // Se não possuir conta Stripe
-                const account = await stripe.accounts.create({
+                const account = await getStripeClient().accounts.create({
                     type: 'express',
                     business_type: 'individual',
                     email: userEmail,
@@ -93,7 +117,7 @@ export const stripeRouter = createTRPCRouter({
                     .set({ stripeAccountId: account.id })
                     .where(eq(tenants.id, tenantId));
 
-                const accountLink = await stripe.accountLinks.create({
+                const accountLink = await getStripeClient().accountLinks.create({
                     account: account.id,
                     refresh_url: `${APP_URL}/dashboard/vendas`,
                     return_url: `${APP_URL}/dashboard/vendas`,

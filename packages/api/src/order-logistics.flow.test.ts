@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import Module from 'node:module';
 import { withRlsMockDb } from './test-db';
@@ -8,6 +8,13 @@ process.env.STRIPE_SECRET_KEY ??= 'sk_test_mocked';
 const stripeState = {
     retrievedPaymentIntentIds: [] as string[],
     captureCalls: 0,
+    lastCapturePayload: null as Record<string, unknown> | null,
+    paymentIntent: {
+        status: 'succeeded',
+        amount_received: 1400,
+        amount_capturable: 0,
+        transfer_data: undefined as { destination: string } | undefined,
+    },
 };
 
 class StripeMock {
@@ -25,14 +32,21 @@ class StripeMock {
 
             return {
                 id: paymentIntentId,
-                status: 'succeeded',
-                amount_received: 1400,
-                amount_capturable: 0,
+                ...stripeState.paymentIntent,
             };
         },
-        capture: async () => {
+        capture: async (_paymentIntentId: string, payload: Record<string, unknown>) => {
             stripeState.captureCalls += 1;
-            throw new Error('capture should not be called for already captured payments');
+            stripeState.lastCapturePayload = payload;
+
+            if (stripeState.paymentIntent.status === 'succeeded') {
+                throw new Error('capture should not be called for already captured payments');
+            }
+
+            return {
+                id: 'pi_mock_123',
+                status: 'succeeded',
+            };
         },
     };
 }
@@ -50,6 +64,18 @@ const originalModuleLoad = (Module as typeof Module & {
 
     return originalModuleLoad.call(this, request, parent, isMain);
 };
+
+beforeEach(() => {
+    stripeState.retrievedPaymentIntentIds.length = 0;
+    stripeState.captureCalls = 0;
+    stripeState.lastCapturePayload = null;
+    stripeState.paymentIntent = {
+        status: 'succeeded',
+        amount_received: 1400,
+        amount_capturable: 0,
+        transfer_data: undefined,
+    };
+});
 
 type FlowState = {
     order: {
@@ -268,9 +294,6 @@ async function createFlowCaller(state: FlowState) {
 }
 
 test('awaiting_weight -> confirmed -> /dashboard/entregas stays visible after captureWeighedOrder', async () => {
-    stripeState.retrievedPaymentIntentIds.length = 0;
-    stripeState.captureCalls = 0;
-
     const state: FlowState = {
         order: {
             id: '11111111-1111-4111-8111-111111111111',
@@ -357,4 +380,72 @@ test('awaiting_weight -> confirmed -> /dashboard/entregas stays visible after ca
         unitWeightG: null,
         estimatedWeightKg: 1.1,
     });
+});
+
+test('captureWeighedOrder omits application_fee_amount when the PaymentIntent was created without Connect transfer_data', async () => {
+    stripeState.paymentIntent = {
+        status: 'requires_capture',
+        amount_received: 0,
+        amount_capturable: 1400,
+        transfer_data: undefined,
+    };
+
+    const state: FlowState = {
+        order: {
+            id: '11111111-1111-4111-8111-111111111111',
+            buyerTenantId: 'buyer-1',
+            sellerTenantId: 'tenant-1',
+            status: 'awaiting_weight',
+            totalAmount: '13.0000',
+            deliveryFee: '3.00',
+            paymentIntentId: 'pi_mock_123',
+            stripeSessionId: null,
+            createdAt: new Date('2026-03-13T13:00:00.000Z'),
+            deliveryStreet: 'Rua das Flores',
+            deliveryNumber: '45',
+            deliveryCep: '01010-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua das Flores, 45 - Sao Paulo/SP',
+            deliveryNotes: 'Entregar na doca 2',
+            deliveryWindowStart: new Date('2026-03-13T15:00:00.000Z'),
+            deliveryWindowEnd: new Date('2026-03-13T18:00:00.000Z'),
+        },
+        items: [
+            {
+                id: '22222222-2222-4222-8222-222222222222',
+                qty: '1.000',
+                unitPrice: '10.0000',
+                saleUnit: 'kg',
+                productId: 'product-1',
+                productName: 'Tomate Italiano',
+                pricingType: 'WEIGHT',
+                masterPricingType: null,
+                productSaleUnit: 'kg',
+                unitWeightG: null,
+            },
+        ],
+    };
+
+    const caller = await createFlowCaller(state);
+    const app = caller as Record<string, any>;
+
+    const captureResult = await app.order.captureWeighedOrder({
+        orderId: state.order.id,
+        weighedItems: [
+            {
+                orderItemId: state.items[0].id,
+                finalWeight: 1.1,
+            },
+        ],
+    });
+
+    assert.equal(captureResult.success, true);
+    assert.equal(captureResult.alreadyCaptured, false);
+    assert.equal(stripeState.captureCalls, 1);
+    assert.deepEqual(stripeState.lastCapturePayload, {
+        amount_to_capture: 1400,
+    });
+    assert.equal(state.order.status, 'confirmed');
+    assert.equal(state.order.totalAmount, '14.0000');
 });

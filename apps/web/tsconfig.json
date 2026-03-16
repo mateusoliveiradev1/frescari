@@ -29,6 +29,9 @@
       "@frescari/db": [
         "../../packages/db/src"
       ],
+      "@frescari/api/*": [
+        "../../packages/api/src/*"
+      ],
       "better-auth/adapters/drizzle": [
         "./node_modules/better-auth/dist/adapters/drizzle/index.js"
       ],
