@@ -97,7 +97,8 @@ export const orderRouter = createTRPCRouter({
             if (!legacyDirectOrderMutationEnabled) {
                 throw new TRPCError({
                     code: 'FORBIDDEN',
-                    message: 'Fluxo legado desabilitado. Use checkout.createCheckoutSession para iniciar o pagamento antes de criar pedidos.',
+                    message:
+                        'Fluxo legado desabilitado. Use checkout.createFarmCheckoutSession para iniciar o pagamento antes de criar pedidos.',
                 });
             }
 

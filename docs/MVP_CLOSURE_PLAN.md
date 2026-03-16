@@ -11,9 +11,9 @@ O lancamento publico do MVP exige fechamento completo do escopo de produto e do 
 Status atual: regra de release ainda nao atendida.
 
 ## Status Summary
-- Concluido: 3
+- Concluido: 4
 - Parcial: 3
-- Pendente: 4
+- Pendente: 3
 
 ## Legend
 - `[x]` Concluido
@@ -33,13 +33,13 @@ Status atual: regra de release ainda nao atendida.
   Verify: existe acao `removeItemsByFarm(farmId)` e so o grupo comprado sai do store.
   Status notes: implementado em `apps/web/src/store/useCartStore.ts` e consumido no checkout por fazenda em `apps/web/src/components/CartDrawer.tsx`.
 
-- [-] Limpar o caminho legado de pedido publico.
+- [x] Limpar o caminho legado de pedido publico.
   Verify: checkout/webhook publico nao re-geocodifica endereco do comprador e nao confia em `deliveryFee` calculado no frontend.
-  Status notes: o webhook principal ja reconstrui pedidos a partir de `address_snapshot` e nao re-geocodifica nesse fluxo novo em `apps/web/src/app/api/webhooks/stripe/route.ts`, com teste em `apps/web/src/app/api/webhooks/stripe/route.test.ts`. Mas o mutation legado `createCheckoutSession` ainda existe em `packages/api/src/routers/checkout.ts` e ainda geocodifica endereco bruto.
+  Status notes: o webhook principal ja reconstrui pedidos a partir de `address_snapshot` e nao re-geocodifica nesse fluxo novo em `apps/web/src/app/api/webhooks/stripe/route.ts`, com teste em `apps/web/src/app/api/webhooks/stripe/route.test.ts`. Em 2026-03-16, o mutation legado `createCheckoutSession` foi isolado em `packages/api/src/routers/checkout.ts` para falhar com `FORBIDDEN`, e `order.createOrder` passou a apontar para `checkout.createFarmCheckoutSession`.
 
-- [ ] Implementar a IA operacional de entregas e rotas no dashboard web.
+- [-] Implementar a IA operacional de entregas e rotas no dashboard web.
   Verify: o operador recebe analise clara de prioridades, risco e sugestao de sequenciamento/roteiro a partir dos pedidos pendentes.
-  Status notes: existe painel operacional basico em `apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx`, mas nao ha camada de IA com prioridade, risco ou sequenciamento sugerido.
+  Status notes: existe painel operacional basico em `apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx`, mas nao ha camada de IA implementada com prioridade, risco ou sequenciamento sugerido. Em 2026-03-16, a definicao funcional e de UX da torre de controle foi consolidada em `docs/architecture/DELIVERIES_AI_CONTROL_TOWER_SPEC.md`, destravando a fase de modelo de dados, score e redesign.
 
 - [ ] Implementar o sistema de notificacoes do MVP web.
   Verify: eventos criticos de pedido, entrega e lote geram notificacao no painel e badge/estado visivel nas rotas relevantes.
@@ -70,7 +70,7 @@ Status atual: regra de release ainda nao atendida.
 
 ## Done When
 - [-] Um comprador consegue navegar, escolher endereco salvo, calcular frete por fazenda e pagar cada fazenda separadamente com seguranca.
-  Status notes: o fluxo principal de compra por fazenda esta funcional no web, mas o fechamento total do hardening e da limpeza do legado ainda nao terminou.
+  Status notes: o fluxo principal de compra por fazenda esta funcional no web e o legado publico de checkout foi isolado, mas o fechamento total do hardening e da verificacao final ainda nao terminou.
 
 - [-] Um produtor consegue operar fazenda, produtos e lotes no web sem depender de fluxos quebrados ou pendentes.
   Status notes: os fluxos base existem, mas o plano de fechamento ainda pede polish, auditoria de rotas e hardening de go-live.
@@ -85,8 +85,8 @@ Status atual: regra de release ainda nao atendida.
   Status notes: os checks atuais de lint, typecheck, test e build estao rodando, mas o pacote completo de hardening, E2E core e verificacao final do MVP ainda nao foi fechado.
 
 ## Next Steps
-1. Remover ou isolar de vez o `createCheckoutSession` legado para fechar o item de limpeza do caminho antigo.
-2. Implementar a camada de IA operacional em entregas com prioridade, risco e ordem sugerida de saida.
-3. Criar o sistema de notificacoes web do MVP com leitura, badge e eventos operacionais.
-4. Aplicar o hardening de go-live: `noUncheckedIndexedAccess`, Husky, lint-staged e Knip.
-5. Rodar a varredura completa do core web com E2E e checklist manual das rotas criticas.
+1. Implementar a camada de IA operacional em entregas com prioridade, risco e ordem sugerida de saida.
+2. Criar o sistema de notificacoes web do MVP com leitura, badge e eventos operacionais.
+3. Aplicar o hardening de go-live: `noUncheckedIndexedAccess`, Husky, lint-staged e Knip.
+4. Rodar a varredura completa do core web com E2E e checklist manual das rotas criticas.
+5. Rodar a verificacao final do MVP web com `test`, `typecheck`, `lint`, `build`, E2E core e checklist basico de seguranca.

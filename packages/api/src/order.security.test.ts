@@ -70,7 +70,7 @@ test('order.createOrder rejects the legacy direct-order path', async () => {
             }),
         (error: unknown) => {
             assert.ok(error instanceof Error);
-            assert.match(error.message, /checkout\.createCheckoutSession/i);
+            assert.match(error.message, /checkout\.createFarmCheckoutSession/i);
             return true;
         },
     );

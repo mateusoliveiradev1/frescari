@@ -332,10 +332,10 @@ Mensagem funcional obrigatoria:
 
 ## 5.5 Novo contrato de checkout por fazenda
 
-Em vez de quebrar o contrato atual imediatamente, a estrategia recomendada e aditiva:
+Em vez de quebrar o contrato atual imediatamente, a estrategia recomendada foi aditiva:
 
-- manter `checkout.createCheckoutSession` legado durante a transicao
 - introduzir `checkout.createFarmCheckoutSession` para o novo fluxo
+- isolar `checkout.createCheckoutSession` legado depois da virada do frontend
 
 Comportamento esperado de `checkout.createFarmCheckoutSession`:
 
@@ -372,6 +372,12 @@ Plano de compatibilidade:
 
 - fase 2: webhook aceita o metadata novo sem remover o legado
 - fase 3: apos a virada do frontend, o caminho legado pode ser removido
+
+Estado atual do repositorio:
+
+- o frontend publico ja usa apenas `checkout.createFarmCheckoutSession`
+- o webhook principal reconstrui o pedido por `address_snapshot`
+- `checkout.createCheckoutSession` foi isolado para falhar explicitamente no fluxo publico
 
 Observacao sobre `order.createOrder`:
 

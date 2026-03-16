@@ -397,7 +397,7 @@ Itens que devem existir para o Frescari validar operacao comercial no web:
 - [x] Calculo de frete por fazenda usando geoespacial no backend
 - [x] Stripe Connect, Stripe Checkout, webhook e captura por peso
 - [x] Checkout seguro por fazenda: o fluxo web principal ja usa `checkout.createFarmCheckoutSession`, recalculo server-side e remocao por grupo no carrinho
-- [/] Pipeline de pedido de ponta a ponta: o webhook novo ja reconstrui por `address_snapshot`, mas o caminho legado ainda aceita endereco bruto e geocoding em `createCheckoutSession`
+- [x] Pipeline de pedido de ponta a ponta: o webhook novo reconstrui por `address_snapshot`, e o caminho legado `createCheckoutSession` foi isolado para nao aceitar mais endereco bruto nem geocoding no fluxo publico
 - [ ] IA operacional de entregas e rotas no dashboard web: analisar pedidos pendentes, destacar prioridades, apontar riscos operacionais e sugerir sequenciamento de saida para o operador
 - [ ] Sistema de notificacoes do MVP web: eventos criticos de pedido, entrega e lote precisam gerar notificacao operacional no painel e canal assinado para os atores corretos
 
@@ -411,6 +411,8 @@ No MVP, a IA de entregas/rotas nao precisa nascer como um modelo caro ou proprie
 - explicacao clara no dashboard sobre o motivo da recomendacao
 
 Isso pode ser implementado inicialmente com stack free/open source e heuristicas deterministicas, desde que a recomendacao seja util na operacao real.
+
+Especificacao funcional consolidada para esta frente: `docs/architecture/DELIVERIES_AI_CONTROL_TOWER_SPEC.md`.
 
 #### Escopo minimo de notificacoes no MVP
 
@@ -437,7 +439,7 @@ O item 9.1 so fecha quando os pontos abaixo estiverem validados em conjunto:
 Itens obrigatorios antes do lancamento publico do MVP. Eles nao mudam o escopo central do produto, mas bloqueiam o go-live enquanto nao estiverem fechados:
 
 - [x] E2E web com Playwright
-- [/] Finalizar o contrato novo de checkout por fazenda e desativar o fluxo misto legado
+- [x] Finalizar o contrato novo de checkout por fazenda e desativar o fluxo misto legado
 - [ ] Adicionar `noUncheckedIndexedAccess` ao TypeScript
 - [ ] Configurar Husky + lint-staged
 - [ ] Configurar Knip para dead code e dependencias nao usadas
