@@ -6,7 +6,7 @@
 ---
 
 ## 🏗️ 1. Visão Geral: O SaaS Invisível
-O conceito de "SaaS Invisível" aplicado ao hortifruti foca em reduzir a fricção de entrada. O produtor rural não quer "aprender um software novo", ele quer **vender mais**. 
+O conceito de "SaaS Invisível" aplicado ao hortifruti foca em reduzir a fricção de entrada. O produtor rural não quer "aprender um software novo", ele quer **vender mais**.
 - **Operação:** O Frescari automatiza a gestão de estoque e pedidos.
 - **Invisibilidade:** O sistema gera páginas públicas e catálogos que funcionam como a "frente de loja" digital do produtor, sem que o comprador precise de um login complexo inicialmente.
 - **Aquisição:** 100% orgânica, baseada em intenção de busca B2B.
