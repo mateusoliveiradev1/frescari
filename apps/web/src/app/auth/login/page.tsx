@@ -4,6 +4,7 @@ import { useState, type FormEvent, type InputHTMLAttributes } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { authClient } from "@/lib/auth-client";
+import { getHomePathForRole } from "@/lib/role-routing";
 import { Button } from "@frescari/ui";
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
@@ -66,7 +67,20 @@ export default function LoginPage() {
                 { email, password },
                 {
                     onSuccess: () => {
-                        window.location.href = "/dashboard";
+                        void authClient
+                            .getSession()
+                            .then((sessionResponse) => {
+                                const role = (
+                                    sessionResponse.data?.user as
+                                        | { role?: string | null }
+                                        | undefined
+                                )?.role;
+
+                                window.location.href = getHomePathForRole(role);
+                            })
+                            .catch(() => {
+                                window.location.href = getHomePathForRole();
+                            });
                     },
                     onError: (context) => {
                         setError(

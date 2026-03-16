@@ -87,7 +87,7 @@ export function MasterProductManager() {
             await utils.admin.listMasterProducts.invalidate();
         },
         onError: (error) => {
-            toast.error(error.message || "Não foi possível criar o produto mestre.");
+            toast.error(error.message || "Nao foi possivel criar o produto mestre.");
         },
     });
 
@@ -99,7 +99,7 @@ export function MasterProductManager() {
             setForm(initialForm);
         },
         onError: (error) => {
-            toast.error(error.message || "Não foi possível sincronizar produto e lotes.");
+            toast.error(error.message || "Nao foi possivel sincronizar produto e lotes.");
         },
     });
 
@@ -149,7 +149,7 @@ export function MasterProductManager() {
                     Produtos Mestres
                 </CardTitle>
                 <CardDescription>
-                    Mantenha o catálogo-base que abastece criação de lotes e SEO do
+                    Mantenha o catalogo-base que abastece criacao de lotes e SEO do
                     marketplace.
                 </CardDescription>
             </CardHeader>
@@ -202,7 +202,7 @@ export function MasterProductManager() {
                         </div>
                         <div className="space-y-1.5">
                             <label htmlFor="master-product-pricing" className={labelClassName}>
-                                Tipo de precificação
+                                Tipo de precificacao
                             </label>
                             <select
                                 id="master-product-pricing"
@@ -227,7 +227,7 @@ export function MasterProductManager() {
 
                     <div className="space-y-1.5">
                         <label htmlFor="master-product-image" className={labelClassName}>
-                            URL da imagem padrão
+                            URL da imagem padrao
                         </label>
                         <input
                             id="master-product-image"
@@ -280,7 +280,7 @@ export function MasterProductManager() {
                                 <TableHead>Categoria</TableHead>
                                 <TableHead>Pricing</TableHead>
                                 <TableHead className="hidden md:table-cell">Criado em</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
+                                <TableHead className="text-right">Acoes</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -302,8 +302,8 @@ export function MasterProductManager() {
                                             </div>
                                             <p className="mt-1 text-xs text-bark/60">
                                                 {product.defaultImageUrl
-                                                    ? "Imagem padrão configurada"
-                                                    : "Sem imagem padrão"}
+                                                    ? "Imagem padrao configurada"
+                                                    : "Sem imagem padrao"}
                                             </p>
                                         </TableCell>
                                         <TableCell className="text-bark/70">

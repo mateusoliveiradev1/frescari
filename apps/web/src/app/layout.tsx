@@ -41,8 +41,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="pt-BR">
+    return (
+        <html data-scroll-behavior="smooth" lang="pt-BR">
       <body
         className={`${playfairDisplay.variable} ${dmSans.variable} antialiased`}
       >

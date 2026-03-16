@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminRole } from "./lib/role-routing";
 
 /**
  * Auth Guard Middleware
@@ -10,7 +11,6 @@ export async function proxy(request: NextRequest) {
 
     // Skip middleware for these paths
     if (
-        pathname.startsWith("/onboarding") ||
         pathname.startsWith("/auth") ||
         pathname.startsWith("/api") ||
         pathname.startsWith("/_next") ||
@@ -44,8 +44,40 @@ export async function proxy(request: NextRequest) {
 
         const session = await sessionRes.json();
 
+        if (!session?.user) {
+            return NextResponse.next();
+        }
+
+        const role = typeof session.user.role === "string" ? session.user.role : null;
+        const admin = isAdminRole(role);
+        const isAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
+        const isDashboardPath =
+            pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+        const isLegacyAdminPath =
+            pathname === "/dashboard/admin" || pathname.startsWith("/dashboard/admin/");
+
+        if (admin) {
+            if (pathname === "/onboarding") {
+                return NextResponse.redirect(new URL("/admin", request.url));
+            }
+
+            if (isLegacyAdminPath) {
+                return NextResponse.redirect(new URL("/admin/catalogo", request.url));
+            }
+
+            if (isDashboardPath) {
+                return NextResponse.redirect(new URL("/admin", request.url));
+            }
+
+            return NextResponse.next();
+        }
+
+        if (isAdminPath) {
+            return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+
         // If user is authenticated but has no tenantId, redirect to onboarding
-        if (session?.user && !session.user.tenantId) {
+        if (!session.user.tenantId) {
             return NextResponse.redirect(new URL("/onboarding", request.url));
         }
     } catch {

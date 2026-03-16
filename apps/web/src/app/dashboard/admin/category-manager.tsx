@@ -77,7 +77,7 @@ export function CategoryManager() {
             await utils.admin.listCategories.invalidate();
         },
         onError: (error) => {
-            toast.error(error.message || "Não foi possível criar a categoria.");
+            toast.error(error.message || "Nao foi possivel criar a categoria.");
         },
     });
 
@@ -92,7 +92,7 @@ export function CategoryManager() {
             ]);
         },
         onError: (error) => {
-            toast.error(error.message || "Não foi possível atualizar a categoria.");
+            toast.error(error.message || "Nao foi possivel atualizar a categoria.");
         },
     });
 
@@ -137,10 +137,10 @@ export function CategoryManager() {
             <CardHeader className="bg-cream/50 border-b border-forest/5">
                 <CardTitle className="text-lg font-sans font-bold text-bark flex items-center gap-2">
                     <Tags className="h-5 w-5 text-forest" />
-                    Categorias do Catálogo
+                    Categorias do Catalogo
                 </CardTitle>
                 <CardDescription>
-                    Cadastre e revise os agrupamentos públicos usados no catálogo ISR.
+                    Cadastre e revise os agrupamentos publicos usados no catalogo ISR.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
@@ -189,7 +189,7 @@ export function CategoryManager() {
 
                     <div className="space-y-1.5">
                         <label htmlFor="category-seo" className={labelClassName}>
-                            Descrição SEO
+                            Descricao SEO
                         </label>
                         <textarea
                             id="category-seo"
@@ -201,7 +201,7 @@ export function CategoryManager() {
                                     seoDescription: event.target.value,
                                 }))
                             }
-                            placeholder="Resumo editorial opcional para metadados públicos."
+                            placeholder="Resumo editorial opcional para metadados publicos."
                         />
                     </div>
 
@@ -235,7 +235,7 @@ export function CategoryManager() {
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Slug</TableHead>
                                 <TableHead className="hidden md:table-cell">Criada em</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
+                                <TableHead className="text-right">Acoes</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>

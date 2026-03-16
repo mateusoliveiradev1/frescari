@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@frescari/ui";
+
 import { trpc } from "@/trpc/react";
 
 import { CategoryManager } from "./category-manager";
@@ -18,12 +19,12 @@ export function AdminClient({ userName }: { userName?: string | null }) {
                         Painel Administrativo
                     </p>
                     <h1 className="font-display text-4xl font-black text-soil">
-                        Catálogo Mestre
+                        Catalogo Mestre
                     </h1>
-                    <p className="max-w-2xl text-bark/70 font-sans">
+                    <p className="max-w-2xl font-sans text-bark/70">
                         {userName ? `${userName}, ` : ""}
-                        gerencie categorias e produtos mestres sem sair do padrão visual do
-                        dashboard.
+                        gerencie categorias e produtos mestres dentro da area administrativa
+                        da plataforma.
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -38,7 +39,6 @@ export function AdminClient({ userName }: { userName?: string | null }) {
                 <CategoryManager />
                 <MasterProductManager />
             </div>
-
-         </div>
-     );
+        </div>
+    );
 }
