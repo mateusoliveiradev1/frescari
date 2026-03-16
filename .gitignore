@@ -46,4 +46,7 @@ next-env.d.ts
 # workspace generated files
 node_modules/
 .turbo/
+playwright-report/
+test-results/
+.playwright-tmp/
 

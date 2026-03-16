@@ -1,5 +1,6 @@
 import DashboardClient from "./dashboard-client";
 import { auth } from "@/lib/auth";
+import { isAdminRole } from "@/lib/role-routing";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -14,6 +15,10 @@ export default async function DashboardPage() {
 
     if (!session?.user) {
         return redirect("/auth/login");
+    }
+
+    if (isAdminRole(session.user.role)) {
+        return redirect("/admin");
     }
 
     if (session.user.role === "buyer") {

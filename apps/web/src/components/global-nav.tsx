@@ -213,6 +213,47 @@ export function GlobalNav() {
             );
         }
 
+        if (role === "admin") {
+            return (
+                <>
+                    <Link
+                        aria-current={pathname === "/admin" ? "page" : undefined}
+                        className={pathname === "/admin"
+                            ? (isMobile ? getMobileLinkClasses(true) : getDesktopLinkClasses(true))
+                            : linkClasses("/admin")}
+                        href="/admin"
+                        {...baseProps}
+                    >
+                        Plataforma
+                    </Link>
+                    <Link
+                        aria-current={pathname.startsWith("/admin/catalogo") ? "page" : undefined}
+                        className={linkClasses("/admin/catalogo")}
+                        href="/admin/catalogo"
+                        {...baseProps}
+                    >
+                        Catalogo
+                    </Link>
+                    <Link
+                        aria-current={pathname.startsWith("/admin/usuarios") ? "page" : undefined}
+                        className={linkClasses("/admin/usuarios")}
+                        href="/admin/usuarios"
+                        {...baseProps}
+                    >
+                        Usuarios
+                    </Link>
+                    <Link
+                        aria-current={pathname.startsWith("/catalogo") ? "page" : undefined}
+                        className={linkClasses("/catalogo")}
+                        href="/catalogo"
+                        {...baseProps}
+                    >
+                        Marketplace
+                    </Link>
+                </>
+            );
+        }
+
         return (
             <>
                 <Link
