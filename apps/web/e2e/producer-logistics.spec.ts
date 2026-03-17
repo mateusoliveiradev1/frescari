@@ -175,7 +175,11 @@ test("produtor confirma a saida e registra override manual na mesa logistica", a
         "vehicleLabel",
     );
 
-    await expect(page.getByText(buyerName)).toBeVisible();
+    await expect(
+        page.getByRole("button", {
+            name: new RegExp(escapeRegex(buyerName), "i"),
+        }),
+    ).toBeVisible();
 
     await page
         .getByRole("button", { name: /^Confirmar saida$/ })
@@ -194,9 +198,13 @@ test("produtor confirma a saida e registra override manual na mesa logistica", a
         page,
         "logistics.confirmDispatchWave",
     );
-    await dispatchDialog
-        .getByRole("button", { name: "Confirmar saida" })
-        .click();
+    const confirmDispatchButton = dispatchDialog.getByRole("button", {
+        name: /^Confirmar (saida|wave)(?: \(\d+ pedidos\))?$/,
+    });
+    await expect(confirmDispatchButton).toBeVisible();
+    await confirmDispatchButton.evaluate((button: HTMLButtonElement) =>
+        button.click(),
+    );
 
     expect((await confirmDispatchResponse).ok()).toBeTruthy();
     await expect(
@@ -240,6 +248,67 @@ test("produtor confirma a saida e registra override manual na mesa logistica", a
 
     expect((await clearOverrideResponse).ok()).toBeTruthy();
     await expect(page.getByText("Override manual removido.")).toBeVisible();
+});
+
+test("produtor consolida dois pedidos na mesma wave sugerida", async ({
+    context,
+    page,
+}) => {
+    const fixture = await authenticateProducer(context, {
+        seedFarm: true,
+        seedVehicle: true,
+        seedPendingDelivery: true,
+        seedPendingDeliveryCount: 2,
+        seedConfirmedDispatch: false,
+    });
+
+    await page.goto("/dashboard/entregas");
+
+    await expect(page).toHaveURL(/\/dashboard\/entregas$/i);
+    await expect(page.getByRole("heading", { name: "Entregas" })).toBeVisible();
+
+    const firstOrderId = requireFixtureValue(
+        fixture.orderIds[0] ?? null,
+        "orderIds[0]",
+    );
+    const secondOrderId = requireFixtureValue(
+        fixture.orderIds[1] ?? null,
+        "orderIds[1]",
+    );
+    const vehicleLabel = requireFixtureValue(
+        fixture.vehicleLabel,
+        "vehicleLabel",
+    );
+
+    await page.getByRole("button", { name: /^Confirmar wave \(2 pedidos\)$/ }).click();
+
+    const dispatchDialog = page.getByRole("dialog");
+    const dialogVehicleButton = dispatchDialog.getByRole("button", {
+        name: new RegExp(`^${escapeRegex(vehicleLabel)}(?:\\s|$)`, "i"),
+    });
+
+    await expect(dialogVehicleButton).toBeVisible();
+    await dialogVehicleButton.click();
+    await expect(dispatchDialog.getByText(/^2 pedidos$/)).toBeVisible();
+
+    const confirmDispatchResponse = waitForTrpcMutation(
+        page,
+        "logistics.confirmDispatchWave",
+    );
+    const confirmDispatchButton = dispatchDialog.getByRole("button", {
+        name: /^Confirmar (saida|wave)(?: \(\d+ pedidos\))?$/,
+    });
+    await expect(confirmDispatchButton).toBeVisible();
+    await confirmDispatchButton.evaluate((button: HTMLButtonElement) =>
+        button.click(),
+    );
+
+    const response = await confirmDispatchResponse;
+    const requestBody = response.request().postData() ?? "";
+
+    expect(response.ok()).toBeTruthy();
+    expect(requestBody).toContain(firstOrderId);
+    expect(requestBody).toContain(secondOrderId);
 });
 
 test("produtor nao consegue excluir um veiculo que ja foi usado em uma saida confirmada", async ({

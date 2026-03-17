@@ -11,12 +11,15 @@ export type ProducerDashboardFixtureOptions = {
     seedVehicle: boolean;
     seedPendingDelivery: boolean;
     seedConfirmedDispatch: boolean;
+    seedPendingDeliveryCount?: number;
 };
 
 type ProducerDashboardFixture = {
     buyerName: string | null;
+    buyerNames: string[];
     cookie: string;
     orderId: string | null;
+    orderIds: string[];
     producerTenantId: string;
     vehicleLabel: string | null;
 };
@@ -105,8 +108,8 @@ function makeFutureDate(hoursFromNow) {
   const producerName = \`Produtor E2E \${suffix}\`;
   const producerCompanyName = \`Fazenda E2E \${suffix}\`;
   const producerTenantSlug = \`\${makeSlug(producerCompanyName)}-\${suffix}\`;
-  const buyerName = options.seedPendingDelivery ? \`Restaurante E2E \${suffix}\` : null;
-  const buyerTenantSlug = buyerName ? \`\${makeSlug(buyerName)}-\${suffix}\` : null;
+  const requestedDeliveryCount = options.seedPendingDeliveryCount ?? (options.seedPendingDelivery || options.seedConfirmedDispatch ? 1 : 0);
+  const pendingDeliveryCount = Math.max(0, requestedDeliveryCount);
   const vehicleLabel = options.seedVehicle || options.seedConfirmedDispatch ? \`Van E2E \${suffix}\` : null;
 
   await auth.api.signUpEmail({
@@ -149,6 +152,8 @@ function makeFutureDate(hoursFromNow) {
     let farmId = null;
     let seededVehicleId = null;
     let seededOrderId = null;
+    const seededBuyerNames = [];
+    const seededOrderIds = [];
 
     if (options.seedFarm || options.seedVehicle || options.seedPendingDelivery || options.seedConfirmedDispatch) {
       const [farm] = await tx
@@ -195,20 +200,10 @@ function makeFutureDate(hoursFromNow) {
       seededVehicleId = vehicle.id;
     }
 
-    if (options.seedPendingDelivery || options.seedConfirmedDispatch) {
+    if (pendingDeliveryCount > 0) {
       if (!farmId) {
         throw new Error("Seed de entrega exige fazenda cadastrada.");
       }
-
-      const [buyerTenant] = await tx
-        .insert(tenants)
-        .values({
-          name: buyerName,
-          slug: buyerTenantSlug,
-          type: "BUYER",
-          plan: "pro",
-        })
-        .returning({ id: tenants.id });
 
       const [category] = await tx
         .insert(productCategories)
@@ -263,42 +258,60 @@ function makeFutureDate(hoursFromNow) {
         })
         .returning({ id: productLots.id });
 
-      const orderStatus = options.seedConfirmedDispatch ? "ready_for_dispatch" : "confirmed";
+      for (let index = 0; index < pendingDeliveryCount; index += 1) {
+        const buyerName = \`Restaurante E2E \${suffix} \${index + 1}\`;
+        const buyerTenantSlug = \`\${makeSlug(buyerName)}-\${suffix}-\${index + 1}\`;
+        const [buyerTenant] = await tx
+          .insert(tenants)
+          .values({
+            name: buyerName,
+            slug: buyerTenantSlug,
+            type: "BUYER",
+            plan: "pro",
+          })
+          .returning({ id: tenants.id });
 
-      const [order] = await tx
-        .insert(orders)
-        .values({
-          buyerTenantId: buyerTenant.id,
-          sellerTenantId: producerTenant.id,
-          status: orderStatus,
-          deliveryStreet: "Rua das Palmeiras",
-          deliveryNumber: "45",
-          deliveryCep: "01010-000",
-          deliveryCity: "Sao Paulo",
-          deliveryState: "SP",
-          deliveryAddress: "Rua das Palmeiras, 45 - Sao Paulo/SP",
-          deliveryNotes: "Receber ate as 10h",
-          deliveryPoint: {
-            type: "Point",
-            coordinates: [-46.6503, -23.5631],
-          },
-          deliveryWindowStart: makeFutureDate(2),
-          deliveryWindowEnd: makeFutureDate(5),
-          deliveryFee: "18.00",
-          totalAmount: "138.0000",
-        })
-        .returning({ id: orders.id });
+        const orderStatus =
+          options.seedConfirmedDispatch && index === 0 ? "ready_for_dispatch" : "confirmed";
 
-      seededOrderId = order.id;
+        const [order] = await tx
+          .insert(orders)
+          .values({
+            buyerTenantId: buyerTenant.id,
+            sellerTenantId: producerTenant.id,
+            status: orderStatus,
+            deliveryStreet: "Rua das Palmeiras",
+            deliveryNumber: String(45 + index),
+            deliveryCep: "01010-000",
+            deliveryCity: "Sao Paulo",
+            deliveryState: "SP",
+            deliveryAddress: \`Rua das Palmeiras, \${45 + index} - Sao Paulo/SP\`,
+            deliveryNotes: "Receber ate as 10h",
+            deliveryPoint: {
+              type: "Point",
+              coordinates: [-46.6503 - index * 0.002, -23.5631 - index * 0.0015],
+            },
+            deliveryWindowStart: makeFutureDate(2 + index),
+            deliveryWindowEnd: makeFutureDate(5 + index),
+            deliveryFee: "18.00",
+            totalAmount: index === 0 ? "138.0000" : "96.0000",
+          })
+          .returning({ id: orders.id });
 
-      await tx.insert(orderItems).values({
-        orderId: order.id,
-        lotId: lot.id,
-        productId: product.id,
-        qty: "12.000",
-        unitPrice: "10.0000",
-        saleUnit: "kg",
-      });
+        seededOrderIds.push(order.id);
+        seededBuyerNames.push(buyerName);
+
+        await tx.insert(orderItems).values({
+          orderId: order.id,
+          lotId: lot.id,
+          productId: product.id,
+          qty: index === 0 ? "12.000" : "8.000",
+          unitPrice: "10.0000",
+          saleUnit: "kg",
+        });
+      }
+
+      seededOrderId = seededOrderIds[0] ?? null;
 
       if (options.seedConfirmedDispatch) {
         if (!seededVehicleId) {
@@ -334,15 +347,17 @@ function makeFutureDate(hoursFromNow) {
 
         await tx.insert(deliveryDispatchWaveOrders).values({
           waveId: wave.id,
-          orderId: order.id,
+          orderId: seededOrderIds[0],
           sequence: 1,
           priorityScore: 100,
         });
       }
 
       return {
-        buyerName,
+        buyerName: seededBuyerNames[0] ?? null,
+        buyerNames: seededBuyerNames,
         orderId: seededOrderId,
+        orderIds: seededOrderIds,
         producerTenantId: producerTenant.id,
         vehicleLabel,
       };
@@ -350,7 +365,9 @@ function makeFutureDate(hoursFromNow) {
 
     return {
       buyerName: null,
+      buyerNames: [],
       orderId: null,
+      orderIds: [],
       producerTenantId: producerTenant.id,
       vehicleLabel,
     };
@@ -420,8 +437,10 @@ function makeFutureDate(hoursFromNow) {
 
     return {
         buyerName: fixture.buyerName ?? null,
+        buyerNames: fixture.buyerNames ?? [],
         cookie: fixture.cookie,
         orderId: fixture.orderId ?? null,
+        orderIds: fixture.orderIds ?? [],
         producerTenantId: fixture.producerTenantId,
         vehicleLabel: fixture.vehicleLabel ?? null,
     };

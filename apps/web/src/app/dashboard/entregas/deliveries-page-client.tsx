@@ -40,6 +40,11 @@ import { trpc } from "@/trpc/react";
 import { getSaleUnitLabel, isWeighableSaleUnit } from "@/lib/sale-units";
 
 import { DeliveryMap } from "./delivery-map";
+import {
+    buildDispatchWaveCandidate,
+    buildNextDispatchAction,
+    type DispatchWaveCandidate,
+} from "./delivery-control-summary";
 import type { PendingDelivery } from "./delivery-map.types";
 
 const statusStyles: Record<string, string> = {
@@ -144,6 +149,10 @@ function formatMappedPointsLabel(total: number) {
     }
 
     return `${total} pontos uteis`;
+}
+
+function formatOrdersLabel(total: number) {
+    return total === 1 ? "1 pedido" : `${total} pedidos`;
 }
 
 function formatDateLabel(value: Date | string | null | undefined) {
@@ -540,8 +549,9 @@ export function DeliveriesPageClient() {
     const utils = trpc.useUtils();
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
-    const [dispatchReviewDelivery, setDispatchReviewDelivery] =
-        useState<PendingDelivery | null>(null);
+    const [dispatchReviewCandidate, setDispatchReviewCandidate] =
+        useState<DispatchWaveCandidate | null>(null);
+    const [selectedDispatchOrderIds, setSelectedDispatchOrderIds] = useState<string[]>([]);
     const [selectedDispatchVehicleId, setSelectedDispatchVehicleId] =
         useState<string | null>(null);
     const [overrideDialog, setOverrideDialog] = useState<{
@@ -560,6 +570,10 @@ export function DeliveriesPageClient() {
     });
 
     const deliveries = useMemo(() => pendingDeliveriesQuery.data ?? [], [pendingDeliveriesQuery.data]);
+    const nextDispatchAction = useMemo(
+        () => buildNextDispatchAction(deliveries),
+        [deliveries],
+    );
     const isInitialLoading = pendingDeliveriesQuery.isLoading && !pendingDeliveriesQuery.data;
     const resolvedSelectedOrderId = useMemo(() => {
         if (deliveries.length === 0) {
@@ -592,10 +606,15 @@ export function DeliveriesPageClient() {
     });
 
     const confirmDispatchWaveMutation = trpc.logistics.confirmDispatchWave.useMutation({
-        onSuccess() {
-            toast.success("Saida confirmada com dados operacionais.");
+        onSuccess(data) {
+            toast.success(
+                data.updatedOrderCount > 1
+                    ? `Saida confirmada para ${data.updatedOrderCount} pedidos.`
+                    : "Saida confirmada com dados operacionais.",
+            );
             setActiveActionKey(null);
-            setDispatchReviewDelivery(null);
+            setDispatchReviewCandidate(null);
+            setSelectedDispatchOrderIds([]);
             setSelectedDispatchVehicleId(null);
             void utils.logistics.getPendingDeliveries.invalidate();
         },
@@ -676,41 +695,75 @@ export function DeliveriesPageClient() {
             ),
         [fleetVehiclesQuery.data, selectedDispatchVehicleId],
     );
+    const selectedDispatchDeliveries = useMemo(() => {
+        if (!dispatchReviewCandidate) {
+            return [];
+        }
+
+        return dispatchReviewCandidate.deliveries.filter((delivery) =>
+            selectedDispatchOrderIds.includes(delivery.orderId),
+        );
+    }, [dispatchReviewCandidate, selectedDispatchOrderIds]);
 
     const handleStatusUpdate = (orderId: string, status: "ready_for_dispatch" | "in_transit" | "delivered") => {
         setActiveActionKey(`${orderId}:${status}`);
         statusMutation.mutate({ orderId, status });
     };
 
-    const handleOpenDispatchReview = (delivery: PendingDelivery) => {
-        setDispatchReviewDelivery(delivery);
-        setSelectedDispatchVehicleId(delivery.recommendation.suggestedVehicle?.id ?? null);
-    };
+    const handleOpenDispatchReview = (anchorOrderId: string) => {
+        const candidate = buildDispatchWaveCandidate(deliveries, anchorOrderId);
 
-    const handleConfirmDispatch = () => {
-        if (!dispatchReviewDelivery) {
+        if (!candidate) {
+            toast.error("Nao ha uma saida valida para confirmar neste pedido.");
             return;
         }
 
-        const delivery = dispatchReviewDelivery;
-        setActiveActionKey(`${delivery.orderId}:confirm-dispatch`);
+        setDispatchReviewCandidate(candidate);
+        setSelectedDispatchOrderIds(candidate.orderIds);
+        setSelectedDispatchVehicleId(
+            candidate.primaryDelivery.recommendation.suggestedVehicle?.id ?? null,
+        );
+    };
+
+    const handleConfirmDispatch = () => {
+        if (!dispatchReviewCandidate || selectedDispatchDeliveries.length === 0) {
+            return;
+        }
+
+        const primaryDelivery = dispatchReviewCandidate.primaryDelivery;
+        setActiveActionKey(`${primaryDelivery.orderId}:confirm-dispatch`);
 
         confirmDispatchWaveMutation.mutate({
-            orderIds: [delivery.orderId],
-            farmId: delivery.origin?.farmId ?? undefined,
+            orderIds: selectedDispatchDeliveries.map((delivery) => delivery.orderId),
+            farmId: primaryDelivery.origin?.farmId ?? undefined,
             selectedVehicleId: selectedDispatchVehicleId ?? undefined,
-            confidence: delivery.recommendation.confidence,
-            recommendedVehicleType: delivery.recommendation.suggestedVehicleType,
-            recommendationSummary: delivery.recommendation.explanation,
+            confidence: primaryDelivery.recommendation.confidence,
+            recommendedVehicleType: primaryDelivery.recommendation.suggestedVehicleType,
+            recommendationSummary: dispatchReviewCandidate.recommendationSummary,
             recommendationSnapshot: {
-                priorityScore: delivery.recommendation.priorityScore,
-                urgencyLevel: delivery.recommendation.urgencyLevel,
-                riskLevel: delivery.recommendation.riskLevel,
-                confidence: delivery.recommendation.confidence,
-                suggestedVehicleType: delivery.recommendation.suggestedVehicleType,
-                explanation: delivery.recommendation.explanation,
-                reasons: delivery.recommendation.reasons,
+                priorityScore: primaryDelivery.recommendation.priorityScore,
+                urgencyLevel: primaryDelivery.recommendation.urgencyLevel,
+                riskLevel: primaryDelivery.recommendation.riskLevel,
+                confidence: primaryDelivery.recommendation.confidence,
+                suggestedVehicleType: primaryDelivery.recommendation.suggestedVehicleType,
+                explanation: dispatchReviewCandidate.recommendationSummary,
+                reasons: primaryDelivery.recommendation.reasons,
             },
+        });
+    };
+
+    const handleToggleDispatchOrder = (orderId: string) => {
+        if (!dispatchReviewCandidate || orderId === dispatchReviewCandidate.primaryDelivery.orderId) {
+            return;
+        }
+
+        setSelectedDispatchOrderIds((current) => {
+            if (current.includes(orderId)) {
+                const next = current.filter((value) => value !== orderId);
+                return next.length > 0 ? next : current;
+            }
+
+            return [...current, orderId];
         });
     };
 
@@ -754,7 +807,8 @@ export function DeliveriesPageClient() {
         }
 
         if (!open) {
-            setDispatchReviewDelivery(null);
+            setDispatchReviewCandidate(null);
+            setSelectedDispatchOrderIds([]);
             setSelectedDispatchVehicleId(null);
             return;
         }
@@ -795,6 +849,57 @@ export function DeliveriesPageClient() {
                         </Link>
                     </Button>
                 </header>
+
+                {!isInitialLoading && nextDispatchAction ? (
+                    <Card className="overflow-hidden border-forest/10 bg-white/95 shadow-[0_28px_70px_-34px_rgba(13,51,33,0.35)]">
+                        <CardContent className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-forest/75">
+                                        <Sparkles className="h-3.5 w-3.5" />
+                                        Proxima acao agora
+                                    </p>
+                                    <h2 className="font-display text-3xl font-black text-soil">
+                                        {nextDispatchAction.title}
+                                    </h2>
+                                    <p className="max-w-3xl text-sm leading-6 text-bark/75">
+                                        {nextDispatchAction.subtitle}
+                                    </p>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 text-xs text-bark/70">
+                                    <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1.5">
+                                        {formatOrdersLabel(nextDispatchAction.totalOrders)}
+                                    </span>
+                                    <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1.5">
+                                        Veiculo sugerido: {nextDispatchAction.suggestedVehicleLabel}
+                                    </span>
+                                    <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1.5">
+                                        Confianca {confidenceLabels[nextDispatchAction.primaryDelivery.recommendation.confidence]}
+                                    </span>
+                                    {nextDispatchAction.totalEstimatedWeightKg !== null ? (
+                                        <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1.5">
+                                            Peso estimado: {formatMass(nextDispatchAction.totalEstimatedWeightKg, "kg")}
+                                        </span>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <Button
+                                className="justify-center px-6"
+                                onClick={() =>
+                                    handleOpenDispatchReview(
+                                        nextDispatchAction.primaryDelivery.orderId,
+                                    )
+                                }
+                                type="button"
+                            >
+                                <Truck className="h-4 w-4" />
+                                {nextDispatchAction.ctaLabel}
+                            </Button>
+                        </CardContent>
+                    </Card>
+                ) : null}
 
                 <div className="grid gap-4 md:grid-cols-3">
                     {isInitialLoading ? (
@@ -880,7 +985,7 @@ export function DeliveriesPageClient() {
                                     }
                                     isSelected={resolvedSelectedOrderId === delivery.orderId}
                                     key={delivery.orderId}
-                                    onConfirmDispatch={() => handleOpenDispatchReview(delivery)}
+                                    onConfirmDispatch={() => handleOpenDispatchReview(delivery.orderId)}
                                     onSelect={() => setSelectedOrderId(delivery.orderId)}
                                     onToggleOverride={(action) => handleToggleOverride(delivery, action)}
                                     onUpdateStatus={(status) => handleStatusUpdate(delivery.orderId, status)}
@@ -921,7 +1026,7 @@ export function DeliveriesPageClient() {
 
             <Dialog
                 onOpenChange={handleDispatchReviewChange}
-                open={dispatchReviewDelivery !== null}
+                open={dispatchReviewCandidate !== null}
             >
                 <DialogContent className="max-w-3xl border-soil/10 bg-cream p-0">
                     <DialogHeader className="border-b border-soil/10 px-6 py-5">
@@ -929,11 +1034,11 @@ export function DeliveriesPageClient() {
                             Confirmar saida operacional
                         </DialogTitle>
                         <DialogDescription className="text-sm leading-6 text-bark/70">
-                            Revise o veiculo antes de marcar o pedido como pronto para sair.
+                            Revise os pedidos da wave e o veiculo antes de marcar a saida.
                         </DialogDescription>
                     </DialogHeader>
 
-                    {dispatchReviewDelivery ? (
+                    {dispatchReviewCandidate ? (
                         <>
                             <div className="space-y-5 px-6 py-6">
                                 <div className="rounded-[20px] border border-forest/10 bg-sage/40 px-4 py-4">
@@ -941,29 +1046,108 @@ export function DeliveriesPageClient() {
                                         Recomendacao ativa
                                     </p>
                                     <p className="mt-2 font-semibold text-soil">
-                                        {dispatchReviewDelivery.buyerName}
+                                        {dispatchReviewCandidate.title}
                                     </p>
                                     <p className="mt-1 text-sm leading-6 text-bark/75">
-                                        {dispatchReviewDelivery.recommendation.explanation}
+                                        {dispatchReviewCandidate.recommendationSummary}
                                     </p>
                                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark/70">
                                         <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1">
                                             Veiculo sugerido:{" "}
-                                            {dispatchReviewDelivery.recommendation.suggestedVehicle?.label
+                                            {dispatchReviewCandidate.primaryDelivery.recommendation.suggestedVehicle?.label
                                                 ?? vehicleTypeLabels[
-                                                    dispatchReviewDelivery.recommendation
+                                                    dispatchReviewCandidate.primaryDelivery.recommendation
                                                         .suggestedVehicleType
                                                 ]
-                                                ?? dispatchReviewDelivery.recommendation.suggestedVehicleType}
+                                                ?? dispatchReviewCandidate.primaryDelivery.recommendation.suggestedVehicleType}
                                         </span>
                                         <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1">
                                             Confianca{" "}
                                             {
                                                 confidenceLabels[
-                                                    dispatchReviewDelivery.recommendation.confidence
+                                                    dispatchReviewCandidate.primaryDelivery.recommendation.confidence
                                                 ]
                                             }
                                         </span>
+                                        <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1">
+                                            {formatOrdersLabel(selectedDispatchDeliveries.length)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
+                                            Pedidos na wave
+                                        </p>
+                                        <span className="text-xs font-semibold text-bark/65">
+                                            Ancora fixa + pedidos compativeis opcionais
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {dispatchReviewCandidate.deliveries.map((delivery) => {
+                                            const isPrimary =
+                                                delivery.orderId
+                                                === dispatchReviewCandidate.primaryDelivery.orderId;
+                                            const isSelected = selectedDispatchOrderIds.includes(
+                                                delivery.orderId,
+                                            );
+                                            const estimatedWeight =
+                                                delivery.totalEstimatedWeightKg !== null
+                                                    ? formatMass(
+                                                        delivery.totalEstimatedWeightKg,
+                                                        "kg",
+                                                    )
+                                                    : null;
+
+                                            return (
+                                                <button
+                                                    className={`w-full rounded-[18px] border px-4 py-4 text-left transition ${
+                                                        isSelected
+                                                            ? "border-forest bg-white shadow-[0_16px_32px_-24px_rgba(13,51,33,0.35)]"
+                                                            : "border-soil/10 bg-cream-dark/35 hover:border-forest/20 hover:bg-white/80"
+                                                    }`}
+                                                    disabled={isPrimary}
+                                                    key={delivery.orderId}
+                                                    onClick={() =>
+                                                        handleToggleDispatchOrder(delivery.orderId)
+                                                    }
+                                                    type="button"
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="font-semibold text-soil">
+                                                                {delivery.buyerName}
+                                                            </p>
+                                                            <p className="mt-1 text-sm text-bark/70">
+                                                                {delivery.deliveryAddress.label}
+                                                            </p>
+                                                        </div>
+                                                        <span className="rounded-full border border-soil/10 bg-white/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-bark/70">
+                                                            {isPrimary
+                                                                ? "Ancora"
+                                                                : isSelected
+                                                                    ? "Na wave"
+                                                                    : "Fora da wave"}
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark/70">
+                                                        <span className="rounded-full border border-soil/10 bg-white/80 px-2.5 py-1">
+                                                            {statusLabels[delivery.status] ?? delivery.status}
+                                                        </span>
+                                                        <span className="rounded-full border border-soil/10 bg-white/80 px-2.5 py-1">
+                                                            {formatDistanceKm(delivery.distanceKm)}
+                                                        </span>
+                                                        {estimatedWeight ? (
+                                                            <span className="rounded-full border border-soil/10 bg-white/80 px-2.5 py-1">
+                                                                {estimatedWeight}
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
@@ -985,7 +1169,7 @@ export function DeliveriesPageClient() {
                                             Usar apenas o tipo recomendado
                                         </p>
                                         <p className="mt-1 text-sm leading-6 text-bark/70">
-                                            A saida fica confirmada sem travar um veiculo especifico neste momento.
+                                            A wave fica confirmada sem travar um veiculo especifico neste momento.
                                         </p>
                                     </button>
 
@@ -1055,11 +1239,14 @@ export function DeliveriesPageClient() {
                                     Cancelar
                                 </Button>
                                 <Button
+                                    disabled={selectedDispatchDeliveries.length === 0}
                                     isPending={confirmDispatchWaveMutation.isPending}
                                     onClick={handleConfirmDispatch}
                                     type="button"
                                 >
-                                    Confirmar saida
+                                    {selectedDispatchDeliveries.length > 1
+                                        ? "Confirmar wave"
+                                        : "Confirmar saida"}
                                 </Button>
                             </DialogFooter>
                         </>
