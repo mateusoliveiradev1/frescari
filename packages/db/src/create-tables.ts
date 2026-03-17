@@ -10,7 +10,7 @@ async function main() {
         await sql`CREATE TYPE "plan" AS ENUM('free', 'pro', 'enterprise');`.catch(() => { });
         await sql`CREATE TYPE "role" AS ENUM('producer', 'distributor', 'buyer', 'admin');`.catch(() => { });
         await sql`CREATE TYPE "sale_unit" AS ENUM('kg', 'g', 'unit', 'box', 'dozen', 'bunch');`.catch(() => { });
-        await sql`CREATE TYPE "order_status" AS ENUM('draft', 'confirmed', 'picking', 'in_transit', 'delivered', 'cancelled');`.catch(() => { });
+        await sql`CREATE TYPE "order_status" AS ENUM('draft', 'confirmed', 'payment_authorized', 'awaiting_weight', 'picking', 'ready_for_dispatch', 'in_transit', 'delivered', 'cancelled');`.catch(() => { });
 
         // Tables
         await sql`

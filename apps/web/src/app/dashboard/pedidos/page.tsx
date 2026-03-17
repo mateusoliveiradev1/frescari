@@ -15,6 +15,7 @@ const statusStyles = {
     payment_authorized: "bg-emerald-100 text-emerald-800 border-emerald-200",
     awaiting_weight: "bg-amber-50 text-amber-700 border-amber-300",
     picking: "bg-blue-100 text-blue-800 border-blue-200",
+    ready_for_dispatch: "bg-violet-100 text-violet-800 border-violet-200",
     in_transit: "bg-sky-100 text-sky-800 border-sky-200",
     delivered: "bg-green-100 text-green-800 border-green-200",
     cancelled: "bg-red-100 text-red-800 border-red-200"
@@ -26,6 +27,7 @@ const statusLabels = {
     payment_authorized: "Pagamento Autorizado",
     awaiting_weight: "Aguardando Pesagem",
     picking: "Em separação",
+    ready_for_dispatch: "Pronto para sair",
     in_transit: "A Caminho",
     delivered: "Entregue",
     cancelled: "Cancelado"
@@ -151,6 +153,7 @@ export default function PedidosPage() {
                             { id: "payment_authorized", label: "Pgto Autorizado" },
                             { id: "awaiting_weight", label: "Ag. Pesagem" },
                             { id: "picking", label: "Em separação" },
+                            { id: "ready_for_dispatch", label: "Pronto para sair" },
                             { id: "in_transit", label: "A Caminho" },
                             { id: "delivered", label: "Entregue" },
                             { id: "cancelled", label: "Cancelado" },

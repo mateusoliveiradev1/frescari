@@ -176,7 +176,7 @@ function createDeliveriesSelectChain(state: FlowState) {
             return this;
         },
         orderBy: async () => {
-            if (!['payment_authorized', 'confirmed', 'picking'].includes(state.order.status)) {
+            if (!['payment_authorized', 'confirmed', 'picking', 'ready_for_dispatch'].includes(state.order.status)) {
                 return [];
             }
 
@@ -212,8 +212,26 @@ function createDeliveriesSelectChain(state: FlowState) {
                 productSaleUnit: item.productSaleUnit,
                 unitWeightG: item.unitWeightG,
                 estimatedWeightKg: Number(item.qty),
+                lotExpiryDate: '2026-03-18',
+                lotFreshnessScore: 72,
             }));
         },
+    };
+}
+
+function createSupplementalSelectChain<T>(rows: T[]) {
+    return {
+        from() {
+            return this;
+        },
+        innerJoin() {
+            return this;
+        },
+        leftJoin() {
+            return this;
+        },
+        where: async () => rows,
+        orderBy: async () => rows,
     };
 }
 
@@ -227,6 +245,8 @@ async function createFlowCaller(state: FlowState) {
 
     const db = withRlsMockDb({
         select(selection: Record<string, unknown>) {
+            const keys = Object.keys(selection);
+
             if ('type' in selection && 'id' in selection && Object.keys(selection).length === 2) {
                 return createTenantSelectChain();
             }
@@ -239,7 +259,19 @@ async function createFlowCaller(state: FlowState) {
                 return createCaptureItemsSelectChain(state);
             }
 
-            throw new Error(`Unexpected select shape: ${Object.keys(selection).join(', ')}`);
+            if (keys.includes('operationDate') && keys.includes('action') && keys.includes('reason')) {
+                return createSupplementalSelectChain([]);
+            }
+
+            if (keys.includes('vehicleType') && keys.includes('capacityKg') && keys.includes('availabilityStatus')) {
+                return createSupplementalSelectChain([]);
+            }
+
+            if (keys.includes('waveId') && keys.includes('selectedVehicleLabel') && keys.includes('confirmedAt')) {
+                return createSupplementalSelectChain([]);
+            }
+
+            throw new Error(`Unexpected select shape: ${keys.join(', ')}`);
         },
         query: {
             orders: {

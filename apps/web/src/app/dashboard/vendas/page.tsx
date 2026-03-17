@@ -25,6 +25,7 @@ const statusStyles: Record<string, string> = {
     awaiting_weight: "bg-purple-100 text-purple-800 border-purple-200",
     confirmed: "bg-amber-100 text-amber-800 border-amber-200",
     picking: "bg-blue-100 text-blue-800 border-blue-200",
+    ready_for_dispatch: "bg-violet-100 text-violet-800 border-violet-200",
     in_transit: "bg-sky-100 text-sky-800 border-sky-200",
     delivered: "bg-green-100 text-green-800 border-green-200",
     cancelled: "bg-red-100 text-red-800 border-red-200",
@@ -35,6 +36,7 @@ const statusLabels: Record<string, string> = {
     awaiting_weight: "Aguard. Pesagem",
     confirmed: "Processando",
     picking: "Em separa\u00E7\u00E3o",
+    ready_for_dispatch: "Pronto para sair",
     in_transit: "A Caminho",
     delivered: "Entregue",
     cancelled: "Cancelado",
@@ -44,12 +46,13 @@ const statusIcons: Record<string, React.ReactNode> = {
     awaiting_weight: <Scale className="w-3.5 h-3.5" />,
     confirmed: <Package className="w-3.5 h-3.5" />,
     picking: <Package className="w-3.5 h-3.5" />,
+    ready_for_dispatch: <TruckIcon className="w-3.5 h-3.5" />,
     in_transit: <TruckIcon className="w-3.5 h-3.5" />,
     delivered: <CheckCircle2 className="w-3.5 h-3.5" />,
     cancelled: <XCircle className="w-3.5 h-3.5" />,
 };
 
-const statusFlow = ["awaiting_weight", "confirmed", "picking", "in_transit", "delivered"] as const;
+const statusFlow = ["awaiting_weight", "confirmed", "picking", "ready_for_dispatch", "in_transit", "delivered"] as const;
 type NextOrderStatus = Exclude<(typeof statusFlow)[number], "awaiting_weight">;
 const WEIGHT_SAFETY_MARGIN = 1.1;
 const PLATFORM_FEE_RATE = 0.1;
@@ -261,6 +264,7 @@ export default function VendasPage() {
                         { id: "awaiting_weight", label: "Aguard. Pesagem" },
                         { id: "confirmed", label: "Processando" },
                         { id: "picking", label: "Em separa\u00E7\u00E3o" },
+                        { id: "ready_for_dispatch", label: "Pronto para sair" },
                         { id: "in_transit", label: "A Caminho" },
                         { id: "delivered", label: "Entregue" },
                         { id: "cancelled", label: "Cancelado" },

@@ -4,7 +4,7 @@ import { withRlsMockDb } from './test-db';
 
 type DeliveryRow = {
     orderId: string;
-    status: 'payment_authorized' | 'confirmed' | 'picking';
+    status: 'payment_authorized' | 'confirmed' | 'picking' | 'ready_for_dispatch';
     totalAmount: string;
     deliveryFee: string;
     createdAt: Date;
@@ -34,6 +34,40 @@ type DeliveryRow = {
     productSaleUnit: string;
     unitWeightG: number | null;
     estimatedWeightKg: number | null;
+    lotExpiryDate?: Date | null;
+    lotFreshnessScore?: number | null;
+};
+
+type OverrideRow = {
+    id: string;
+    orderId: string;
+    operationDate: string;
+    action: 'pin_to_top' | 'delay';
+    reason: string;
+    reasonNotes: string | null;
+    createdAt: Date;
+};
+
+type VehicleRow = {
+    id: string;
+    farmId: string | null;
+    label: string;
+    vehicleType: 'motorcycle' | 'car' | 'pickup' | 'van' | 'refrigerated_van' | 'truck' | 'refrigerated_truck';
+    capacityKg: string;
+    refrigeration: boolean;
+    availabilityStatus: 'available' | 'in_use' | 'maintenance' | 'offline';
+};
+
+type DispatchWaveRow = {
+    waveId: string;
+    orderId: string;
+    sequence: number;
+    status: 'confirmed' | 'departed' | 'cancelled';
+    confidence: 'high' | 'medium' | 'low';
+    recommendedVehicleType: 'motorcycle' | 'car' | 'pickup' | 'van' | 'refrigerated_van' | 'truck' | 'refrigerated_truck';
+    selectedVehicleId: string | null;
+    selectedVehicleLabel: string | null;
+    confirmedAt: Date;
 };
 
 function createProducerContext(db: unknown): any {
@@ -86,6 +120,22 @@ function createDeliveriesSelectChain(rows: DeliveryRow[]) {
         where() {
             return this;
         },
+        orderBy: async () => rows,
+    };
+}
+
+function createSupplementalSelectChain<T>(rows: T[]) {
+    return {
+        from() {
+            return this;
+        },
+        innerJoin() {
+            return this;
+        },
+        leftJoin() {
+            return this;
+        },
+        where: async () => rows,
         orderBy: async () => rows,
     };
 }
@@ -165,9 +215,16 @@ test('logistics.getPendingDeliveries groups item rows per order and exposes safe
     const db = withRlsMockDb({
         select() {
             selectCallCount += 1;
-            return selectCallCount === 1
-                ? createTenantSelectChain()
-                : createDeliveriesSelectChain(deliveryRows);
+
+            if (selectCallCount === 1) {
+                return createTenantSelectChain();
+            }
+
+            if (selectCallCount === 2) {
+                return createDeliveriesSelectChain(deliveryRows);
+            }
+
+            return createSupplementalSelectChain([]);
         },
     });
 
@@ -256,9 +313,16 @@ test('logistics.getPendingDeliveries keeps payment_authorized orders even when m
     const db = withRlsMockDb({
         select() {
             selectCallCount += 1;
-            return selectCallCount === 1
-                ? createTenantSelectChain()
-                : createDeliveriesSelectChain(deliveryRows);
+
+            if (selectCallCount === 1) {
+                return createTenantSelectChain();
+            }
+
+            if (selectCallCount === 2) {
+                return createDeliveriesSelectChain(deliveryRows);
+            }
+
+            return createSupplementalSelectChain([]);
         },
     });
 
@@ -286,7 +350,79 @@ test('logistics.getPendingDeliveries keeps payment_authorized orders even when m
     });
 });
 
-test('logistics.updateDeliveryStatus only advances producer orders to allowed delivery states', async () => {
+test('logistics.getPendingDeliveries keeps ready_for_dispatch orders visible for dispatch control', async () => {
+    const deliveryRows: DeliveryRow[] = [
+        {
+            orderId: 'order-3',
+            status: 'ready_for_dispatch',
+            totalAmount: '102.0000',
+            deliveryFee: '11.20',
+            createdAt: new Date('2026-03-14T09:15:00.000Z'),
+            buyerTenantId: 'buyer-3',
+            buyerName: 'Mercado da Vila',
+            deliveryStreet: 'Rua das Acacias',
+            deliveryNumber: '100',
+            deliveryCep: '03030-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua das Acacias, 100 - Sao Paulo/SP',
+            deliveryNotes: 'Portaria lateral',
+            deliveryWindowStart: null,
+            deliveryWindowEnd: null,
+            farmId: 'farm-2',
+            farmName: 'Fazenda Aurora',
+            farmLatitude: -23.51,
+            farmLongitude: -46.61,
+            deliveryLatitude: -23.5,
+            deliveryLongitude: -46.59,
+            distanceKm: 2.75,
+            orderItemId: 'item-4',
+            productId: 'product-4',
+            productName: 'Alface Crespa',
+            itemQty: '12.000',
+            itemSaleUnit: 'unit',
+            productSaleUnit: 'unit',
+            unitWeightG: 250,
+            estimatedWeightKg: 3,
+        },
+    ];
+
+    let selectCallCount = 0;
+
+    const db = withRlsMockDb({
+        select() {
+            selectCallCount += 1;
+
+            if (selectCallCount === 1) {
+                return createTenantSelectChain();
+            }
+
+            if (selectCallCount === 2) {
+                return createDeliveriesSelectChain(deliveryRows);
+            }
+
+            return createSupplementalSelectChain([]);
+        },
+    });
+
+    const [{ pendingDeliveryStatuses }, caller] = await Promise.all([
+        import('./routers/logistics'),
+        createLogisticsCaller(db),
+    ]);
+    const logisticsNamespace = (caller as Record<string, any>).logistics;
+
+    assert.ok(pendingDeliveryStatuses.includes('ready_for_dispatch'));
+    assert.ok(logisticsNamespace?.getPendingDeliveries, 'logistics.getPendingDeliveries should be exposed');
+
+    const result = await logisticsNamespace.getPendingDeliveries();
+
+    assert.equal(result.length, 1);
+    assert.equal(result[0].orderId, 'order-3');
+    assert.equal(result[0].status, 'ready_for_dispatch');
+    assert.equal(result[0].distanceKm, 2.75);
+});
+
+test('logistics.updateDeliveryStatus advances producer orders through ready_for_dispatch before transit', async () => {
     const orderId = '11111111-1111-4111-8111-111111111111';
 
     const state = {
@@ -295,7 +431,7 @@ test('logistics.updateDeliveryStatus only advances producer orders to allowed de
             sellerTenantId: 'tenant-1',
             status: 'picking',
         },
-        updatedStatus: null as string | null,
+        updatedStatuses: [] as string[],
     };
 
     let selectCallCount = 0;
@@ -315,10 +451,11 @@ test('logistics.updateDeliveryStatus only advances producer orders to allowed de
                 set(values: Record<string, unknown>) {
                     return {
                         where: async () => {
-                            state.updatedStatus = String(values.status);
+                            const nextStatus = String(values.status);
+                            state.updatedStatuses.push(nextStatus);
                             state.order = {
                                 ...state.order,
-                                status: state.updatedStatus,
+                                status: nextStatus,
                             };
                         },
                     };
@@ -332,11 +469,252 @@ test('logistics.updateDeliveryStatus only advances producer orders to allowed de
 
     assert.ok(logisticsNamespace?.updateDeliveryStatus, 'logistics.updateDeliveryStatus should be exposed');
 
-    const mutationResult = await logisticsNamespace.updateDeliveryStatus({
+    const readyForDispatchResult = await logisticsNamespace.updateDeliveryStatus({
+        orderId,
+        status: 'ready_for_dispatch',
+    });
+
+    assert.deepEqual(readyForDispatchResult, { success: true, status: 'ready_for_dispatch' });
+    assert.equal(state.order.status, 'ready_for_dispatch');
+
+    const inTransitResult = await logisticsNamespace.updateDeliveryStatus({
         orderId,
         status: 'in_transit',
     });
 
-    assert.deepEqual(mutationResult, { success: true, status: 'in_transit' });
-    assert.equal(state.updatedStatus, 'in_transit');
+    assert.deepEqual(inTransitResult, { success: true, status: 'in_transit' });
+    assert.deepEqual(state.updatedStatuses, ['ready_for_dispatch', 'in_transit']);
+});
+
+test('logistics.getPendingDeliveries enriches queue items with AI recommendation and persistent override', async () => {
+    const operationDate = new Date().toISOString().slice(0, 10);
+    const deliveryRows: DeliveryRow[] = [
+        {
+            orderId: 'order-priority',
+            status: 'confirmed',
+            totalAmount: '210.0000',
+            deliveryFee: '18.00',
+            createdAt: new Date('2026-03-16T07:00:00.000Z'),
+            buyerTenantId: 'buyer-1',
+            buyerName: 'Mercado Modelo',
+            deliveryStreet: 'Rua A',
+            deliveryNumber: '100',
+            deliveryCep: '01010-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua A, 100 - Sao Paulo/SP',
+            deliveryNotes: null,
+            deliveryWindowStart: new Date('2026-03-16T13:00:00.000Z'),
+            deliveryWindowEnd: new Date('2026-03-16T15:00:00.000Z'),
+            farmId: 'farm-1',
+            farmName: 'Sitio Horizonte',
+            farmLatitude: -23.55,
+            farmLongitude: -46.63,
+            deliveryLatitude: -23.57,
+            deliveryLongitude: -46.65,
+            distanceKm: 11.8,
+            orderItemId: 'item-1',
+            productId: 'product-1',
+            productName: 'Tomate Italiano',
+            itemQty: '12.000',
+            itemSaleUnit: 'box',
+            productSaleUnit: 'box',
+            unitWeightG: 2500,
+            estimatedWeightKg: 30,
+            lotExpiryDate: new Date('2026-03-16T23:00:00.000Z'),
+            lotFreshnessScore: 38,
+        },
+        {
+            orderId: 'order-pinned',
+            status: 'confirmed',
+            totalAmount: '90.0000',
+            deliveryFee: '11.00',
+            createdAt: new Date('2026-03-16T08:30:00.000Z'),
+            buyerTenantId: 'buyer-2',
+            buyerName: 'Padaria do Bairro',
+            deliveryStreet: 'Rua B',
+            deliveryNumber: '20',
+            deliveryCep: '02020-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua B, 20 - Sao Paulo/SP',
+            deliveryNotes: 'Cliente pediu prioridade',
+            deliveryWindowStart: null,
+            deliveryWindowEnd: null,
+            farmId: 'farm-1',
+            farmName: 'Sitio Horizonte',
+            farmLatitude: -23.55,
+            farmLongitude: -46.63,
+            deliveryLatitude: -23.56,
+            deliveryLongitude: -46.61,
+            distanceKm: 4.3,
+            orderItemId: 'item-2',
+            productId: 'product-2',
+            productName: 'Alface',
+            itemQty: '4.000',
+            itemSaleUnit: 'unit',
+            productSaleUnit: 'unit',
+            unitWeightG: 300,
+            estimatedWeightKg: 1.2,
+            lotExpiryDate: new Date('2026-03-18T23:00:00.000Z'),
+            lotFreshnessScore: 74,
+        },
+    ];
+
+    const overrideRows: OverrideRow[] = [
+        {
+            id: 'override-1',
+            orderId: 'order-pinned',
+            operationDate,
+            action: 'pin_to_top',
+            reason: 'customer_priority',
+            reasonNotes: null,
+            createdAt: new Date('2026-03-16T09:00:00.000Z'),
+        },
+    ];
+
+    const vehicleRows: VehicleRow[] = [
+        {
+            id: 'vehicle-1',
+            farmId: 'farm-1',
+            label: 'Van Refrigerada',
+            vehicleType: 'refrigerated_van',
+            capacityKg: '80.000',
+            refrigeration: true,
+            availabilityStatus: 'available',
+        },
+    ];
+
+    let selectCallCount = 0;
+
+    const db = withRlsMockDb({
+        select() {
+            selectCallCount += 1;
+
+            if (selectCallCount === 1) {
+                return createTenantSelectChain();
+            }
+
+            if (selectCallCount === 2) {
+                return createDeliveriesSelectChain(deliveryRows);
+            }
+
+            if (selectCallCount === 3) {
+                return createSupplementalSelectChain(overrideRows);
+            }
+
+            if (selectCallCount === 4) {
+                return createSupplementalSelectChain(vehicleRows);
+            }
+
+            return createSupplementalSelectChain<DispatchWaveRow>([]);
+        },
+    });
+
+    const caller = await createLogisticsCaller(db);
+    const logisticsNamespace = (caller as Record<string, any>).logistics;
+    const result = await logisticsNamespace.getPendingDeliveries();
+
+    assert.equal(result[0].orderId, 'order-pinned');
+    assert.equal(result[0].activeOverride?.action, 'pin_to_top');
+    assert.equal(result[1].recommendation.suggestedVehicleType, 'refrigerated_van');
+    assert.equal(result[1].recommendation.suggestedVehicle?.id, 'vehicle-1');
+    assert.equal(result[1].recommendation.riskLevel, 'high');
+});
+
+test('logistics.confirmDispatchWave persists structured dispatch data and marks orders as ready_for_dispatch', async () => {
+    const state = {
+        insertedWave: null as Record<string, unknown> | null,
+        insertedWaveOrders: null as Record<string, unknown>[] | null,
+        updatedStatuses: [] as string[],
+        orderLookup: new Map([
+            ['11111111-1111-4111-8111-111111111111', {
+                id: '11111111-1111-4111-8111-111111111111',
+                sellerTenantId: 'tenant-1',
+                status: 'confirmed',
+            }],
+            ['22222222-2222-4222-8222-222222222222', {
+                id: '22222222-2222-4222-8222-222222222222',
+                sellerTenantId: 'tenant-1',
+                status: 'picking',
+            }],
+        ]),
+    };
+
+    let selectCallCount = 0;
+    let insertCallCount = 0;
+
+    const db = withRlsMockDb({
+        select() {
+            selectCallCount += 1;
+
+            if (selectCallCount === 1) {
+                return createTenantSelectChain();
+            }
+
+            return createSupplementalSelectChain(
+                Array.from(state.orderLookup.values()).map((order) => ({
+                    id: order.id,
+                    status: order.status,
+                })),
+            );
+        },
+        insert() {
+            insertCallCount += 1;
+
+            if (insertCallCount === 1) {
+                return {
+                    values(values: Record<string, unknown>) {
+                        state.insertedWave = values;
+                        return {
+                            returning: async () => [{ id: 'wave-1' }],
+                        };
+                    },
+                };
+            }
+
+            return {
+                values(values: Record<string, unknown>[]) {
+                    state.insertedWaveOrders = values;
+                    return {
+                        returning: async () => values,
+                    };
+                },
+            };
+        },
+        update() {
+            return {
+                set(values: Record<string, unknown>) {
+                    return {
+                        where: async () => {
+                            state.updatedStatuses.push(String(values.status));
+                        },
+                    };
+                },
+            };
+        },
+    });
+
+    const caller = await createLogisticsCaller(db);
+    const logisticsNamespace = (caller as Record<string, any>).logistics;
+
+    const result = await logisticsNamespace.confirmDispatchWave({
+        orderIds: [
+            '11111111-1111-4111-8111-111111111111',
+            '22222222-2222-4222-8222-222222222222',
+        ],
+        confidence: 'high',
+        recommendedVehicleType: 'pickup',
+        recommendationSummary: 'Saida sugerida para consolidar entregas da manha.',
+    });
+
+    assert.deepEqual(result, {
+        success: true,
+        waveId: 'wave-1',
+        status: 'confirmed',
+        updatedOrderCount: 2,
+    });
+    assert.equal(state.insertedWave?.recommendedVehicleType, 'pickup');
+    assert.equal(state.insertedWaveOrders?.length, 2);
+    assert.deepEqual(state.updatedStatuses, ['ready_for_dispatch']);
 });

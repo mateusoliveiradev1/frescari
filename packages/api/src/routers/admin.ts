@@ -37,6 +37,7 @@ const activeOrderStatuses = [
     'payment_authorized',
     'awaiting_weight',
     'picking',
+    'ready_for_dispatch',
     'in_transit',
     'delivered',
 ] as const;
@@ -45,6 +46,7 @@ const operationalOrderStatuses = [
     'payment_authorized',
     'awaiting_weight',
     'picking',
+    'ready_for_dispatch',
     'in_transit',
 ] as const;
 

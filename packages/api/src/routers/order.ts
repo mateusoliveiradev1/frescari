@@ -52,8 +52,9 @@ const isWeightBasedItem = (item: {
 const allowedProducerStatusTransitions: Record<string, ReadonlyArray<string>> = {
     awaiting_weight: ['confirmed', 'cancelled'],
     payment_authorized: ['confirmed', 'cancelled'],
-    confirmed: ['picking', 'in_transit', 'delivered', 'cancelled'],
-    picking: ['in_transit', 'delivered', 'cancelled'],
+    confirmed: ['picking', 'ready_for_dispatch', 'in_transit', 'delivered', 'cancelled'],
+    picking: ['ready_for_dispatch', 'in_transit', 'delivered', 'cancelled'],
+    ready_for_dispatch: ['in_transit', 'delivered', 'cancelled'],
     in_transit: ['delivered'],
     delivered: [],
     cancelled: [],
@@ -333,7 +334,7 @@ export const orderRouter = createTRPCRouter({
                 .where(
                     and(
                         eq(orders.buyerTenantId, tenantId),
-                        input?.status && input.status !== 'all' ? eq(orders.status, input.status as "draft" | "confirmed" | "picking" | "in_transit" | "delivered" | "cancelled") : undefined
+                        input?.status && input.status !== 'all' ? eq(orders.status, input.status as "draft" | "payment_authorized" | "awaiting_weight" | "confirmed" | "ready_for_dispatch" | "picking" | "in_transit" | "delivered" | "cancelled") : undefined
                     )
                 )
                 .orderBy(sql`${orders.createdAt} DESC`);
@@ -467,7 +468,7 @@ export const orderRouter = createTRPCRouter({
                     and(
                         eq(orders.sellerTenantId, tenantId),
                         input?.status && input.status !== 'all'
-                            ? eq(orders.status, input.status as "draft" | "confirmed" | "picking" | "in_transit" | "delivered" | "cancelled")
+                            ? eq(orders.status, input.status as "draft" | "payment_authorized" | "awaiting_weight" | "confirmed" | "ready_for_dispatch" | "picking" | "in_transit" | "delivered" | "cancelled")
                             : undefined
                     )
                 )
@@ -510,7 +511,7 @@ export const orderRouter = createTRPCRouter({
         .input(
             z.object({
                 orderId: z.string().uuid(),
-                status: z.enum(['confirmed', 'picking', 'in_transit', 'delivered', 'cancelled']),
+                status: z.enum(['confirmed', 'picking', 'ready_for_dispatch', 'in_transit', 'delivered', 'cancelled']),
             })
         )
         .mutation(async ({ ctx, input }) => {

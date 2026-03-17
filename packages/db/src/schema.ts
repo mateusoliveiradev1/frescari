@@ -78,9 +78,53 @@ const postgisPoint = customType<{ data: [number, number]; driverData: string }>(
 export const planEnum = pgEnum('plan', ['free', 'pro', 'enterprise']);
 export const roleEnum = pgEnum('role', ['producer', 'distributor', 'buyer', 'admin']);
 export const saleUnitEnum = pgEnum('sale_unit', ['kg', 'g', 'unit', 'box', 'dozen', 'bunch']);
-export const orderStatusEnum = pgEnum('order_status', ['draft', 'confirmed', 'payment_authorized', 'awaiting_weight', 'picking', 'in_transit', 'delivered', 'cancelled']);
+export const orderStatusEnum = pgEnum('order_status', ['draft', 'confirmed', 'payment_authorized', 'awaiting_weight', 'picking', 'ready_for_dispatch', 'in_transit', 'delivered', 'cancelled']);
 export const tenantTypeEnum = pgEnum('tenant_type', ['PRODUCER', 'BUYER']);
 export const pricingTypeEnum = pgEnum('pricing_type', ['UNIT', 'WEIGHT', 'BOX']);
+export const fleetVehicleTypeEnum = pgEnum('fleet_vehicle_type', [
+    'motorcycle',
+    'car',
+    'pickup',
+    'van',
+    'refrigerated_van',
+    'truck',
+    'refrigerated_truck',
+]);
+export const fleetVehicleStatusEnum = pgEnum('fleet_vehicle_status', [
+    'available',
+    'in_use',
+    'maintenance',
+    'offline',
+]);
+export const dispatchConfidenceEnum = pgEnum('dispatch_confidence', ['high', 'medium', 'low']);
+export const dispatchOverrideActionEnum = pgEnum('dispatch_override_action', ['pin_to_top', 'delay']);
+export const dispatchOverrideReasonEnum = pgEnum('dispatch_override_reason', [
+    'customer_priority',
+    'delivery_window',
+    'vehicle_load',
+    'address_issue',
+    'awaiting_picking',
+    'commercial_decision',
+    'other',
+]);
+export const dispatchWaveStatusEnum = pgEnum('dispatch_wave_status', ['confirmed', 'departed', 'cancelled']);
+
+export type DispatchRecommendationSnapshot = {
+    priorityScore: number;
+    urgencyLevel: 'high' | 'medium' | 'low';
+    riskLevel: 'high' | 'medium' | 'low';
+    confidence: 'high' | 'medium' | 'low';
+    suggestedVehicleType:
+        | 'motorcycle'
+        | 'car'
+        | 'pickup'
+        | 'van'
+        | 'refrigerated_van'
+        | 'truck'
+        | 'refrigerated_truck';
+    explanation: string;
+    reasons: string[];
+};
 
 export const tenants = pgTable('tenants', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -280,6 +324,78 @@ export const orderItems = pgTable('order_items', {
     saleUnit: text('sale_unit').default('unit').notNull(),
 });
 
+export const farmVehicles = pgTable('farm_vehicles', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+    farmId: uuid('farm_id').references(() => farms.id).notNull(),
+    label: text('label').notNull(),
+    vehicleType: fleetVehicleTypeEnum('vehicle_type').notNull(),
+    capacityKg: numeric('capacity_kg', { precision: 10, scale: 3 }).notNull(),
+    refrigeration: boolean('refrigeration').default(false).notNull(),
+    availabilityStatus: fleetVehicleStatusEnum('availability_status').default('available').notNull(),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+    index('farm_vehicles_tenant_idx').on(table.tenantId),
+    index('farm_vehicles_farm_idx').on(table.farmId),
+    index('farm_vehicles_status_idx').on(table.availabilityStatus),
+]);
+
+export const deliveryDispatchOverrides = pgTable('delivery_dispatch_overrides', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+    orderId: uuid('order_id').references(() => orders.id).notNull(),
+    operationDate: date('operation_date').notNull(),
+    action: dispatchOverrideActionEnum('action').notNull(),
+    reason: dispatchOverrideReasonEnum('reason').notNull(),
+    reasonNotes: text('reason_notes'),
+    createdByUserId: text('created_by_user_id').references(() => users.id).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    clearedAt: timestamp('cleared_at', { withTimezone: true }),
+}, (table) => [
+    index('delivery_dispatch_overrides_tenant_idx').on(table.tenantId),
+    index('delivery_dispatch_overrides_order_idx').on(table.orderId),
+    uniqueIndex('delivery_dispatch_overrides_active_unique')
+        .on(table.tenantId, table.orderId, table.operationDate)
+        .where(sql`${table.clearedAt} IS NULL`),
+]);
+
+export const deliveryDispatchWaves = pgTable('delivery_dispatch_waves', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+    farmId: uuid('farm_id').references(() => farms.id),
+    operationDate: date('operation_date').notNull(),
+    status: dispatchWaveStatusEnum('status').default('confirmed').notNull(),
+    confidence: dispatchConfidenceEnum('confidence').notNull(),
+    recommendedVehicleType: fleetVehicleTypeEnum('recommended_vehicle_type').notNull(),
+    selectedVehicleId: uuid('selected_vehicle_id').references(() => farmVehicles.id),
+    selectedVehicleLabel: text('selected_vehicle_label'),
+    recommendationSummary: text('recommendation_summary').notNull(),
+    recommendationSnapshot: jsonb('recommendation_snapshot').$type<DispatchRecommendationSnapshot | null>(),
+    confirmedByUserId: text('confirmed_by_user_id').references(() => users.id).notNull(),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }).defaultNow().notNull(),
+    departedAt: timestamp('departed_at', { withTimezone: true }),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+}, (table) => [
+    index('delivery_dispatch_waves_tenant_idx').on(table.tenantId),
+    index('delivery_dispatch_waves_farm_idx').on(table.farmId),
+    index('delivery_dispatch_waves_operation_idx').on(table.operationDate),
+]);
+
+export const deliveryDispatchWaveOrders = pgTable('delivery_dispatch_wave_orders', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    waveId: uuid('wave_id').references(() => deliveryDispatchWaves.id).notNull(),
+    orderId: uuid('order_id').references(() => orders.id).notNull(),
+    sequence: integer('sequence').notNull(),
+    priorityScore: integer('priority_score').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+    index('delivery_dispatch_wave_orders_wave_idx').on(table.waveId),
+    index('delivery_dispatch_wave_orders_order_idx').on(table.orderId),
+    uniqueIndex('delivery_dispatch_wave_orders_wave_order_unique').on(table.waveId, table.orderId),
+]);
+
 // Relations
 import { relations } from 'drizzle-orm';
 
@@ -303,6 +419,8 @@ export const farmsRelations = relations(farms, ({ one, many }) => ({
         references: [tenants.id],
     }),
     products: many(products),
+    vehicles: many(farmVehicles),
+    dispatchWaves: many(deliveryDispatchWaves),
 }));
 
 export const addressesRelations = relations(addresses, ({ one }) => ({
@@ -340,6 +458,95 @@ export const productLotsRelations = relations(productLots, ({ one }) => ({
     tenant: one(tenants, {
         fields: [productLots.tenantId],
         references: [tenants.id],
+    }),
+}));
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+    order: one(orders, {
+        fields: [orderItems.orderId],
+        references: [orders.id],
+    }),
+    lot: one(productLots, {
+        fields: [orderItems.lotId],
+        references: [productLots.id],
+    }),
+    product: one(products, {
+        fields: [orderItems.productId],
+        references: [products.id],
+    }),
+}));
+
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+    buyerTenant: one(tenants, {
+        fields: [orders.buyerTenantId],
+        references: [tenants.id],
+        relationName: 'buyer_orders',
+    }),
+    sellerTenant: one(tenants, {
+        fields: [orders.sellerTenantId],
+        references: [tenants.id],
+        relationName: 'seller_orders',
+    }),
+    items: many(orderItems),
+    dispatchOverrides: many(deliveryDispatchOverrides),
+    dispatchWaveOrders: many(deliveryDispatchWaveOrders),
+}));
+
+export const farmVehiclesRelations = relations(farmVehicles, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [farmVehicles.tenantId],
+        references: [tenants.id],
+    }),
+    farm: one(farms, {
+        fields: [farmVehicles.farmId],
+        references: [farms.id],
+    }),
+    dispatchWaves: many(deliveryDispatchWaves),
+}));
+
+export const deliveryDispatchOverridesRelations = relations(deliveryDispatchOverrides, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [deliveryDispatchOverrides.tenantId],
+        references: [tenants.id],
+    }),
+    order: one(orders, {
+        fields: [deliveryDispatchOverrides.orderId],
+        references: [orders.id],
+    }),
+    createdByUser: one(users, {
+        fields: [deliveryDispatchOverrides.createdByUserId],
+        references: [users.id],
+    }),
+}));
+
+export const deliveryDispatchWavesRelations = relations(deliveryDispatchWaves, ({ one, many }) => ({
+    tenant: one(tenants, {
+        fields: [deliveryDispatchWaves.tenantId],
+        references: [tenants.id],
+    }),
+    farm: one(farms, {
+        fields: [deliveryDispatchWaves.farmId],
+        references: [farms.id],
+    }),
+    selectedVehicle: one(farmVehicles, {
+        fields: [deliveryDispatchWaves.selectedVehicleId],
+        references: [farmVehicles.id],
+    }),
+    confirmedByUser: one(users, {
+        fields: [deliveryDispatchWaves.confirmedByUserId],
+        references: [users.id],
+    }),
+    orders: many(deliveryDispatchWaveOrders),
+}));
+
+export const deliveryDispatchWaveOrdersRelations = relations(deliveryDispatchWaveOrders, ({ one }) => ({
+    wave: one(deliveryDispatchWaves, {
+        fields: [deliveryDispatchWaveOrders.waveId],
+        references: [deliveryDispatchWaves.id],
+    }),
+    order: one(orders, {
+        fields: [deliveryDispatchWaveOrders.orderId],
+        references: [orders.id],
     }),
 }));
 

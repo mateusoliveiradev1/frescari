@@ -4,6 +4,7 @@ export type OrderStatus =
     | 'payment_authorized'
     | 'awaiting_weight'
     | 'picking'
+    | 'ready_for_dispatch'
     | 'in_transit'
     | 'delivered'
     | 'cancelled';
@@ -11,6 +12,7 @@ export type OrderStatus =
 const terminalOrDeliveryStatuses = new Set<OrderStatus>([
     'confirmed',
     'picking',
+    'ready_for_dispatch',
     'in_transit',
     'delivered',
     'cancelled',

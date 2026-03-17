@@ -9,6 +9,12 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
     Skeleton,
     SkeletonCard,
     SkeletonText,
@@ -20,8 +26,10 @@ import {
 import {
     ArrowLeft,
     CheckCircle2,
+    Clock3,
     MapPinned,
     Package,
+    Sparkles,
     Store,
     Truck,
 } from "lucide-react";
@@ -38,6 +46,7 @@ const statusStyles: Record<string, string> = {
     payment_authorized: "bg-emerald-100 text-emerald-800 border-emerald-200",
     confirmed: "bg-amber-100 text-amber-800 border-amber-200",
     picking: "bg-blue-100 text-blue-800 border-blue-200",
+    ready_for_dispatch: "bg-violet-100 text-violet-800 border-violet-200",
     in_transit: "bg-sky-100 text-blue-800 border-sky-200",
     delivered: "bg-green-100 text-green-800 border-green-200",
 };
@@ -46,8 +55,71 @@ const statusLabels: Record<string, string> = {
     payment_authorized: "Pagamento autorizado",
     confirmed: "Confirmado",
     picking: "Em separacao",
+    ready_for_dispatch: "Pronto para sair",
     in_transit: "Em transito",
     delivered: "Entregue",
+};
+
+const confidenceLabels: Record<"high" | "medium" | "low", string> = {
+    high: "Alta",
+    medium: "Media",
+    low: "Baixa",
+};
+
+const riskLabels: Record<"high" | "medium" | "low", string> = {
+    high: "Risco alto",
+    medium: "Risco medio",
+    low: "Risco controlado",
+};
+
+const vehicleTypeLabels: Record<string, string> = {
+    motorcycle: "Moto",
+    car: "Carro",
+    pickup: "Pickup",
+    van: "Van",
+    refrigerated_van: "Van refrigerada",
+    truck: "Caminhao",
+    refrigerated_truck: "Caminhao refrigerado",
+};
+
+const overrideActionLabels: Record<string, string> = {
+    pin_to_top: "Prioridade manual",
+    delay: "Segurar na fila",
+};
+
+const overrideReasonLabels: Record<string, string> = {
+    customer_priority: "Cliente prioritario",
+    delivery_window: "Janela de entrega",
+    vehicle_load: "Ajuste de carga",
+    address_issue: "Endereco em revisao",
+    awaiting_picking: "Aguardando picking",
+    commercial_decision: "Decisao comercial",
+    other: "Outro motivo",
+};
+
+const overrideReasonOptions = [
+    { value: "customer_priority", label: "Cliente prioritario" },
+    { value: "delivery_window", label: "Janela combinada" },
+    { value: "vehicle_load", label: "Carga ou veiculo" },
+    { value: "address_issue", label: "Endereco em revisao" },
+    { value: "awaiting_picking", label: "Aguardar picking" },
+    { value: "commercial_decision", label: "Decisao comercial" },
+    { value: "other", label: "Outro" },
+] as const;
+
+type DispatchOverrideReason = (typeof overrideReasonOptions)[number]["value"];
+
+const dispatchStatusLabels: Record<string, string> = {
+    confirmed: "Saida confirmada",
+    departed: "Saiu da fazenda",
+    cancelled: "Saida cancelada",
+};
+
+const vehicleAvailabilityLabels: Record<string, string> = {
+    available: "Disponivel",
+    in_use: "Em rota",
+    maintenance: "Manutencao",
+    offline: "Offline",
 };
 
 function buildVisualId(index: number, length: number) {
@@ -74,6 +146,45 @@ function formatMappedPointsLabel(total: number) {
     return `${total} pontos uteis`;
 }
 
+function formatDateLabel(value: Date | string | null | undefined) {
+    if (!value) {
+        return "--";
+    }
+
+    const date = value instanceof Date ? value : new Date(value);
+
+    return new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+    }).format(date);
+}
+
+function formatDateTimeLabel(value: Date | string | null | undefined) {
+    if (!value) {
+        return "--";
+    }
+
+    const date = value instanceof Date ? value : new Date(value);
+
+    return new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(date);
+}
+
+function getDefaultOverrideReason(
+    delivery: PendingDelivery,
+    action: "pin_to_top" | "delay",
+): DispatchOverrideReason {
+    if (action === "delay" && delivery.status === "picking") {
+        return "awaiting_picking";
+    }
+
+    return "commercial_decision";
+}
+
 function DeliveriesMetricSkeleton() {
     return (
         <div className="rounded-[24px_16px_20px_16px] border border-soil/8 bg-white/85 px-5 py-4 shadow-card">
@@ -96,16 +207,26 @@ function DeliveryCard({
     delivery,
     visualId,
     isSelected,
-    isMutating,
+    isPrimaryPending,
+    isDeliveredPending,
+    isPinPending,
+    isDelayPending,
     onSelect,
+    onConfirmDispatch,
+    onToggleOverride,
     onUpdateStatus,
 }: {
     delivery: PendingDelivery;
     visualId: string;
     isSelected: boolean;
-    isMutating: boolean;
+    isPrimaryPending: boolean;
+    isDeliveredPending: boolean;
+    isPinPending: boolean;
+    isDelayPending: boolean;
     onSelect: () => void;
-    onUpdateStatus: (status: "in_transit" | "delivered") => void;
+    onConfirmDispatch: () => void;
+    onToggleOverride: (action: "pin_to_top" | "delay") => void;
+    onUpdateStatus: (status: "ready_for_dispatch" | "in_transit" | "delivered") => void;
 }) {
     const totalEstimatedWeight = getEstimatedWeight(delivery);
     const hasRouteCoordinates =
@@ -113,7 +234,26 @@ function DeliveryCard({
         && delivery.origin?.longitude !== null
         && delivery.destination?.latitude !== null
         && delivery.destination?.longitude !== null;
+    const hasDispatchPlan = delivery.dispatch !== null || delivery.status === "ready_for_dispatch";
+    const primaryAction = hasDispatchPlan
+        ? {
+            icon: Truck,
+            label: "Saiu para entrega",
+            intent: "status" as const,
+            nextStatus: "in_transit" as const,
+        }
+        : {
+            icon: Sparkles,
+            label: "Confirmar saida",
+            intent: "dispatch" as const,
+            nextStatus: "ready_for_dispatch" as const,
+        };
+    const PrimaryActionIcon = primaryAction.icon;
     const handleCardSelect = () => onSelect();
+    const suggestedVehicleLabel =
+        delivery.recommendation.suggestedVehicle?.label
+        ?? vehicleTypeLabels[delivery.recommendation.suggestedVehicleType]
+        ?? delivery.recommendation.suggestedVehicleType;
 
     return (
         <div
@@ -213,6 +353,88 @@ function DeliveryCard({
                     </div>
 
                     <div className="space-y-3">
+                        <div className="rounded-sm border border-forest/10 bg-sage/45 px-4 py-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
+                                        <Sparkles className="h-3.5 w-3.5" />
+                                        Saida recomendada
+                                    </p>
+                                    <p className="mt-2 font-semibold text-soil">
+                                        {suggestedVehicleLabel}
+                                    </p>
+                                    <p className="mt-1 text-sm leading-6 text-bark/75">
+                                        {delivery.recommendation.explanation}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Badge className="rounded-full border border-forest/15 bg-white/90 px-3 py-1 text-[10px] font-bold tracking-[0.12em] text-forest" variant="secondary">
+                                        Confianca {confidenceLabels[delivery.recommendation.confidence]}
+                                    </Badge>
+                                    <Badge className="rounded-full border border-soil/10 bg-white/90 px-3 py-1 text-[10px] font-bold tracking-[0.12em] text-bark/80" variant="secondary">
+                                        {riskLabels[delivery.recommendation.riskLevel]}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                                <div className="rounded-sm border border-white/70 bg-white/70 px-3 py-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-bark/60">
+                                        Prioridade IA
+                                    </p>
+                                    <p className="mt-2 font-display text-xl font-black text-soil">
+                                        {delivery.recommendation.priorityScore}
+                                    </p>
+                                </div>
+                                <div className="rounded-sm border border-white/70 bg-white/70 px-3 py-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-bark/60">
+                                        Frescor minimo
+                                    </p>
+                                    <p className="mt-2 font-display text-xl font-black text-soil">
+                                        {delivery.minFreshnessScore ?? "--"}
+                                    </p>
+                                </div>
+                                <div className="rounded-sm border border-white/70 bg-white/70 px-3 py-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-bark/60">
+                                        Validade mais curta
+                                    </p>
+                                    <p className="mt-2 font-display text-xl font-black text-soil">
+                                        {formatDateLabel(delivery.nearestExpiryDate)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {delivery.dispatch ? (
+                            <div className="rounded-sm border border-violet-200 bg-violet-50 px-4 py-4">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">
+                                    {dispatchStatusLabels[delivery.dispatch.status] ?? "Saida operacional"}
+                                </p>
+                                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-violet-900">
+                                    <span className="font-semibold">
+                                        Ordem #{delivery.dispatch.sequence}
+                                    </span>
+                                    <span>
+                                        Veiculo: {delivery.dispatch.selectedVehicleLabel ?? (vehicleTypeLabels[delivery.dispatch.recommendedVehicleType] ?? delivery.dispatch.recommendedVehicleType)}
+                                    </span>
+                                    <span>
+                                        Confirmado em {formatDateTimeLabel(delivery.dispatch.confirmedAt)}
+                                    </span>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {delivery.activeOverride ? (
+                            <div className="rounded-sm border border-amber-200 bg-amber-50 px-4 py-4">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">
+                                    {overrideActionLabels[delivery.activeOverride.action] ?? "Override manual"}
+                                </p>
+                                <p className="mt-2 text-sm text-amber-950">
+                                    {overrideReasonLabels[delivery.activeOverride.reason] ?? delivery.activeOverride.reason}
+                                    {delivery.activeOverride.reasonNotes ? ` - ${delivery.activeOverride.reasonNotes}` : ""}
+                                </p>
+                            </div>
+                        ) : null}
+
                         <div className="flex items-center justify-between gap-4">
                             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
                                 Carga
@@ -249,20 +471,25 @@ function DeliveryCard({
                     <div className="flex flex-col gap-3 border-t border-soil/8 pt-5 sm:flex-row">
                         <Button
                             className="flex-1 justify-center gap-2"
-                            isPending={isMutating}
+                            isPending={isPrimaryPending}
                             onClick={(event) => {
                                 event.stopPropagation();
-                                onUpdateStatus("in_transit");
+                                if (primaryAction.intent === "dispatch") {
+                                    onConfirmDispatch();
+                                    return;
+                                }
+
+                                onUpdateStatus(primaryAction.nextStatus);
                             }}
                             type="button"
                             variant="primary"
                         >
-                            <Truck className="h-4 w-4" />
-                            Despachar
+                            <PrimaryActionIcon className="h-4 w-4" />
+                            {primaryAction.label}
                         </Button>
                         <Button
                             className="flex-1 justify-center gap-2"
-                            isPending={isMutating}
+                            isPending={isDeliveredPending}
                             onClick={(event) => {
                                 event.stopPropagation();
                                 onUpdateStatus("delivered");
@@ -274,6 +501,35 @@ function DeliveryCard({
                             Entregue
                         </Button>
                     </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <Button
+                            className="justify-center gap-2"
+                            isPending={isPinPending}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onToggleOverride("pin_to_top");
+                            }}
+                            type="button"
+                            variant={delivery.activeOverride?.action === "pin_to_top" ? "primary" : "secondary"}
+                        >
+                            <Sparkles className="h-4 w-4" />
+                            {delivery.activeOverride?.action === "pin_to_top" ? "Remover prioridade" : "Priorizar"}
+                        </Button>
+                        <Button
+                            className="justify-center gap-2"
+                            isPending={isDelayPending}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onToggleOverride("delay");
+                            }}
+                            type="button"
+                            variant={delivery.activeOverride?.action === "delay" ? "primary" : "secondary"}
+                        >
+                            <Clock3 className="h-4 w-4" />
+                            {delivery.activeOverride?.action === "delay" ? "Retomar fila" : "Adiar"}
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
         </div>
@@ -283,9 +539,23 @@ function DeliveryCard({
 export function DeliveriesPageClient() {
     const utils = trpc.useUtils();
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-    const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+    const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
+    const [dispatchReviewDelivery, setDispatchReviewDelivery] =
+        useState<PendingDelivery | null>(null);
+    const [selectedDispatchVehicleId, setSelectedDispatchVehicleId] =
+        useState<string | null>(null);
+    const [overrideDialog, setOverrideDialog] = useState<{
+        delivery: PendingDelivery;
+        action: "pin_to_top" | "delay";
+    } | null>(null);
+    const [overrideReason, setOverrideReason] =
+        useState<DispatchOverrideReason>("commercial_decision");
+    const [overrideReasonNotes, setOverrideReasonNotes] = useState("");
 
     const pendingDeliveriesQuery = trpc.logistics.getPendingDeliveries.useQuery(undefined, {
+        refetchOnWindowFocus: false,
+    });
+    const fleetVehiclesQuery = trpc.farm.listVehicles.useQuery(undefined, {
         refetchOnWindowFocus: false,
     });
 
@@ -306,16 +576,63 @@ export function DeliveriesPageClient() {
     const statusMutation = trpc.logistics.updateDeliveryStatus.useMutation({
         onSuccess(_data, variables) {
             toast.success(
-                variables.status === "in_transit"
-                    ? "Entrega despachada."
-                    : "Entrega marcada como concluida.",
+                variables.status === "ready_for_dispatch"
+                    ? "Entrega pronta para sair."
+                    : variables.status === "in_transit"
+                        ? "Entrega despachada."
+                        : "Entrega marcada como concluida.",
             );
-            setActiveOrderId(null);
+            setActiveActionKey(null);
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
             toast.error(error.message || "Nao foi possivel atualizar a entrega.");
-            setActiveOrderId(null);
+            setActiveActionKey(null);
+        },
+    });
+
+    const confirmDispatchWaveMutation = trpc.logistics.confirmDispatchWave.useMutation({
+        onSuccess() {
+            toast.success("Saida confirmada com dados operacionais.");
+            setActiveActionKey(null);
+            setDispatchReviewDelivery(null);
+            setSelectedDispatchVehicleId(null);
+            void utils.logistics.getPendingDeliveries.invalidate();
+        },
+        onError(error) {
+            toast.error(error.message || "Nao foi possivel confirmar a saida.");
+            setActiveActionKey(null);
+        },
+    });
+
+    const applyDispatchOverrideMutation = trpc.logistics.applyDispatchOverride.useMutation({
+        onSuccess(_data, variables) {
+            toast.success(
+                variables.action === "pin_to_top"
+                    ? "Pedido priorizado na fila."
+                    : "Pedido marcado para segurar a saida.",
+            );
+            setActiveActionKey(null);
+            setOverrideDialog(null);
+            setOverrideReason("commercial_decision");
+            setOverrideReasonNotes("");
+            void utils.logistics.getPendingDeliveries.invalidate();
+        },
+        onError(error) {
+            toast.error(error.message || "Nao foi possivel aplicar o override.");
+            setActiveActionKey(null);
+        },
+    });
+
+    const clearDispatchOverrideMutation = trpc.logistics.clearDispatchOverride.useMutation({
+        onSuccess() {
+            toast.success("Override manual removido.");
+            setActiveActionKey(null);
+            void utils.logistics.getPendingDeliveries.invalidate();
+        },
+        onError(error) {
+            toast.error(error.message || "Nao foi possivel limpar o override.");
+            setActiveActionKey(null);
         },
     });
 
@@ -350,14 +667,114 @@ export function DeliveriesPageClient() {
         return totalDistance / deliveriesWithDistance.length;
     }, [deliveries]);
 
-    const handleStatusUpdate = (orderId: string, status: "in_transit" | "delivered") => {
-        setActiveOrderId(orderId);
+    const selectableVehicles = useMemo(
+        () =>
+            (fleetVehiclesQuery.data ?? []).filter(
+                (vehicle) =>
+                    vehicle.availabilityStatus === "available"
+                    || vehicle.id === selectedDispatchVehicleId,
+            ),
+        [fleetVehiclesQuery.data, selectedDispatchVehicleId],
+    );
+
+    const handleStatusUpdate = (orderId: string, status: "ready_for_dispatch" | "in_transit" | "delivered") => {
+        setActiveActionKey(`${orderId}:${status}`);
         statusMutation.mutate({ orderId, status });
+    };
+
+    const handleOpenDispatchReview = (delivery: PendingDelivery) => {
+        setDispatchReviewDelivery(delivery);
+        setSelectedDispatchVehicleId(delivery.recommendation.suggestedVehicle?.id ?? null);
+    };
+
+    const handleConfirmDispatch = () => {
+        if (!dispatchReviewDelivery) {
+            return;
+        }
+
+        const delivery = dispatchReviewDelivery;
+        setActiveActionKey(`${delivery.orderId}:confirm-dispatch`);
+
+        confirmDispatchWaveMutation.mutate({
+            orderIds: [delivery.orderId],
+            farmId: delivery.origin?.farmId ?? undefined,
+            selectedVehicleId: selectedDispatchVehicleId ?? undefined,
+            confidence: delivery.recommendation.confidence,
+            recommendedVehicleType: delivery.recommendation.suggestedVehicleType,
+            recommendationSummary: delivery.recommendation.explanation,
+            recommendationSnapshot: {
+                priorityScore: delivery.recommendation.priorityScore,
+                urgencyLevel: delivery.recommendation.urgencyLevel,
+                riskLevel: delivery.recommendation.riskLevel,
+                confidence: delivery.recommendation.confidence,
+                suggestedVehicleType: delivery.recommendation.suggestedVehicleType,
+                explanation: delivery.recommendation.explanation,
+                reasons: delivery.recommendation.reasons,
+            },
+        });
+    };
+
+    const handleToggleOverride = (delivery: PendingDelivery, action: "pin_to_top" | "delay") => {
+        if (delivery.activeOverride?.action === action) {
+            setActiveActionKey(`${delivery.orderId}:clear-override`);
+            clearDispatchOverrideMutation.mutate({ orderId: delivery.orderId });
+            return;
+        }
+
+        setOverrideDialog({
+            delivery,
+            action,
+        });
+        setOverrideReason(getDefaultOverrideReason(delivery, action));
+        setOverrideReasonNotes("");
+    };
+
+    const handleApplyOverride = () => {
+        if (!overrideDialog) {
+            return;
+        }
+
+        if (overrideReason === "other" && !overrideReasonNotes.trim()) {
+            toast.error("Descreva o motivo quando selecionar 'Outro'.");
+            return;
+        }
+
+        setActiveActionKey(`${overrideDialog.delivery.orderId}:${overrideDialog.action}`);
+        applyDispatchOverrideMutation.mutate({
+            orderId: overrideDialog.delivery.orderId,
+            action: overrideDialog.action,
+            reason: overrideReason,
+            reasonNotes: overrideReasonNotes.trim() || null,
+        });
+    };
+
+    const handleDispatchReviewChange = (open: boolean) => {
+        if (!open && confirmDispatchWaveMutation.isPending) {
+            return;
+        }
+
+        if (!open) {
+            setDispatchReviewDelivery(null);
+            setSelectedDispatchVehicleId(null);
+            return;
+        }
+    };
+
+    const handleOverrideDialogChange = (open: boolean) => {
+        if (!open && applyDispatchOverrideMutation.isPending) {
+            return;
+        }
+
+        if (!open) {
+            setOverrideDialog(null);
+            setOverrideReason("commercial_decision");
+            setOverrideReasonNotes("");
+        }
     };
 
     return (
         <>
-             <div className="space-y-8">
+            <div className="space-y-8">
                 <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div className="space-y-2">
                         <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/70">
@@ -442,10 +859,30 @@ export function DeliveriesPageClient() {
                             mappedDeliveries.map(({ delivery, visualId }) => (
                                 <DeliveryCard
                                     delivery={delivery}
-                                    isMutating={statusMutation.isPending && activeOrderId === delivery.orderId}
+                                    isDeliveredPending={
+                                        statusMutation.isPending && activeActionKey === `${delivery.orderId}:delivered`
+                                    }
+                                    isDelayPending={
+                                        applyDispatchOverrideMutation.isPending && activeActionKey === `${delivery.orderId}:delay`
+                                        || clearDispatchOverrideMutation.isPending
+                                            && activeActionKey === `${delivery.orderId}:clear-override`
+                                            && delivery.activeOverride?.action === "delay"
+                                    }
+                                    isPinPending={
+                                        applyDispatchOverrideMutation.isPending && activeActionKey === `${delivery.orderId}:pin_to_top`
+                                        || clearDispatchOverrideMutation.isPending
+                                            && activeActionKey === `${delivery.orderId}:clear-override`
+                                            && delivery.activeOverride?.action === "pin_to_top"
+                                    }
+                                    isPrimaryPending={
+                                        confirmDispatchWaveMutation.isPending && activeActionKey === `${delivery.orderId}:confirm-dispatch`
+                                        || statusMutation.isPending && activeActionKey === `${delivery.orderId}:in_transit`
+                                    }
                                     isSelected={resolvedSelectedOrderId === delivery.orderId}
                                     key={delivery.orderId}
+                                    onConfirmDispatch={() => handleOpenDispatchReview(delivery)}
                                     onSelect={() => setSelectedOrderId(delivery.orderId)}
+                                    onToggleOverride={(action) => handleToggleOverride(delivery, action)}
                                     onUpdateStatus={(status) => handleStatusUpdate(delivery.orderId, status)}
                                     visualId={visualId}
                                 />
@@ -481,6 +918,249 @@ export function DeliveriesPageClient() {
                     </aside>
                 </div>
             </div>
+
+            <Dialog
+                onOpenChange={handleDispatchReviewChange}
+                open={dispatchReviewDelivery !== null}
+            >
+                <DialogContent className="max-w-3xl border-soil/10 bg-cream p-0">
+                    <DialogHeader className="border-b border-soil/10 px-6 py-5">
+                        <DialogTitle className="font-display text-2xl font-black text-soil">
+                            Confirmar saida operacional
+                        </DialogTitle>
+                        <DialogDescription className="text-sm leading-6 text-bark/70">
+                            Revise o veiculo antes de marcar o pedido como pronto para sair.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {dispatchReviewDelivery ? (
+                        <>
+                            <div className="space-y-5 px-6 py-6">
+                                <div className="rounded-[20px] border border-forest/10 bg-sage/40 px-4 py-4">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
+                                        Recomendacao ativa
+                                    </p>
+                                    <p className="mt-2 font-semibold text-soil">
+                                        {dispatchReviewDelivery.buyerName}
+                                    </p>
+                                    <p className="mt-1 text-sm leading-6 text-bark/75">
+                                        {dispatchReviewDelivery.recommendation.explanation}
+                                    </p>
+                                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark/70">
+                                        <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1">
+                                            Veiculo sugerido:{" "}
+                                            {dispatchReviewDelivery.recommendation.suggestedVehicle?.label
+                                                ?? vehicleTypeLabels[
+                                                    dispatchReviewDelivery.recommendation
+                                                        .suggestedVehicleType
+                                                ]
+                                                ?? dispatchReviewDelivery.recommendation.suggestedVehicleType}
+                                        </span>
+                                        <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1">
+                                            Confianca{" "}
+                                            {
+                                                confidenceLabels[
+                                                    dispatchReviewDelivery.recommendation.confidence
+                                                ]
+                                            }
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
+                                        Escolha do veiculo
+                                    </p>
+
+                                    <button
+                                        className={`w-full rounded-[18px] border px-4 py-4 text-left transition ${
+                                            selectedDispatchVehicleId === null
+                                                ? "border-forest bg-white shadow-[0_16px_32px_-24px_rgba(13,51,33,0.35)]"
+                                                : "border-soil/10 bg-cream-dark/35 hover:border-forest/20 hover:bg-white/80"
+                                        }`}
+                                        onClick={() => setSelectedDispatchVehicleId(null)}
+                                        type="button"
+                                    >
+                                        <p className="font-semibold text-soil">
+                                            Usar apenas o tipo recomendado
+                                        </p>
+                                        <p className="mt-1 text-sm leading-6 text-bark/70">
+                                            A saida fica confirmada sem travar um veiculo especifico neste momento.
+                                        </p>
+                                    </button>
+
+                                    {fleetVehiclesQuery.isLoading && !fleetVehiclesQuery.data ? (
+                                        <div className="space-y-3">
+                                            <Skeleton className="h-24 rounded-[18px]" />
+                                            <Skeleton className="h-24 rounded-[18px]" />
+                                        </div>
+                                    ) : selectableVehicles.length > 0 ? (
+                                        <div className="grid gap-3 md:grid-cols-2">
+                                            {selectableVehicles.map((vehicle) => (
+                                                <button
+                                                    className={`rounded-[18px] border px-4 py-4 text-left transition ${
+                                                        selectedDispatchVehicleId === vehicle.id
+                                                            ? "border-forest bg-white shadow-[0_16px_32px_-24px_rgba(13,51,33,0.35)]"
+                                                            : "border-soil/10 bg-cream-dark/35 hover:border-forest/20 hover:bg-white/80"
+                                                    }`}
+                                                    key={vehicle.id}
+                                                    onClick={() =>
+                                                        setSelectedDispatchVehicleId(vehicle.id)
+                                                    }
+                                                    type="button"
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="font-semibold text-soil">
+                                                                {vehicle.label}
+                                                            </p>
+                                                            <p className="mt-1 text-sm text-bark/70">
+                                                                {vehicleTypeLabels[vehicle.vehicleType] ??
+                                                                    vehicle.vehicleType}
+                                                            </p>
+                                                        </div>
+                                                        <span className="rounded-full border border-soil/10 bg-white/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-bark/70">
+                                                            {vehicleAvailabilityLabels[
+                                                                vehicle.availabilityStatus
+                                                            ] ?? vehicle.availabilityStatus}
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark/70">
+                                                        <span className="rounded-full border border-soil/10 bg-white/80 px-2.5 py-1">
+                                                            {vehicle.capacityKg} kg
+                                                        </span>
+                                                        <span className="rounded-full border border-soil/10 bg-white/80 px-2.5 py-1">
+                                                            {vehicle.refrigeration
+                                                                ? "Refrigerado"
+                                                                : "Carga seca"}
+                                                        </span>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-4 text-sm leading-6 text-bark/75">
+                                            Nenhum veiculo disponivel no catalogo. A confirmacao pode seguir apenas com o tipo recomendado.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <DialogFooter className="border-t border-soil/10 px-6 py-5">
+                                <Button
+                                    onClick={() => handleDispatchReviewChange(false)}
+                                    type="button"
+                                    variant="ghost"
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    isPending={confirmDispatchWaveMutation.isPending}
+                                    onClick={handleConfirmDispatch}
+                                    type="button"
+                                >
+                                    Confirmar saida
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                onOpenChange={handleOverrideDialogChange}
+                open={overrideDialog !== null}
+            >
+                <DialogContent className="max-w-2xl border-soil/10 bg-cream p-0">
+                    <DialogHeader className="border-b border-soil/10 px-6 py-5">
+                        <DialogTitle className="font-display text-2xl font-black text-soil">
+                            {overrideDialog?.action === "pin_to_top"
+                                ? "Priorizar pedido manualmente"
+                                : "Adiar pedido na fila"}
+                        </DialogTitle>
+                        <DialogDescription className="text-sm leading-6 text-bark/70">
+                            O motivo fica salvo no ciclo operacional do dia e aparece no control tower.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {overrideDialog ? (
+                        <>
+                            <div className="space-y-5 px-6 py-6">
+                                <div className="rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-4">
+                                    <p className="font-semibold text-soil">
+                                        {overrideDialog.delivery.buyerName}
+                                    </p>
+                                    <p className="mt-1 text-sm text-bark/70">
+                                        {overrideDialog.delivery.deliveryAddress.label}
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
+                                        Motivo do override
+                                    </p>
+
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        {overrideReasonOptions.map((option) => (
+                                            <button
+                                                className={`rounded-[18px] border px-4 py-3 text-left text-sm transition ${
+                                                    overrideReason === option.value
+                                                        ? "border-forest bg-white text-soil shadow-[0_16px_32px_-24px_rgba(13,51,33,0.35)]"
+                                                        : "border-soil/10 bg-cream-dark/35 text-bark/75 hover:border-forest/20 hover:bg-white/80"
+                                                }`}
+                                                key={option.value}
+                                                onClick={() => setOverrideReason(option.value)}
+                                                type="button"
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label
+                                        className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60"
+                                        htmlFor="override-reason-notes"
+                                    >
+                                        Observacao {overrideReason === "other" ? "(obrigatoria)" : "(opcional)"}
+                                    </label>
+                                    <textarea
+                                        className="min-h-[120px] w-full rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-3 text-sm leading-6 text-soil outline-none transition focus:border-forest focus:ring-2 focus:ring-forest/15"
+                                        id="override-reason-notes"
+                                        onChange={(event) =>
+                                            setOverrideReasonNotes(event.target.value)
+                                        }
+                                        placeholder={
+                                            overrideReason === "other"
+                                                ? "Explique o motivo operacional."
+                                                : "Detalhes adicionais para a equipe."
+                                        }
+                                        value={overrideReasonNotes}
+                                    />
+                                </div>
+                            </div>
+
+                            <DialogFooter className="border-t border-soil/10 px-6 py-5">
+                                <Button
+                                    onClick={() => handleOverrideDialogChange(false)}
+                                    type="button"
+                                    variant="ghost"
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    isPending={applyDispatchOverrideMutation.isPending}
+                                    onClick={handleApplyOverride}
+                                    type="button"
+                                >
+                                    Salvar override
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

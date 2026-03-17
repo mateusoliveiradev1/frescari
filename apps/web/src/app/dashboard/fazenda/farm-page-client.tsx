@@ -2,7 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { Button, Skeleton, SkeletonText } from "@frescari/ui";
+import {
+    Button,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    Skeleton,
+    SkeletonText,
+} from "@frescari/ui";
 import type { FarmAddress } from "@frescari/db";
 import { LoaderCircle, MapPin, Route, Save, Search, Tractor } from "lucide-react";
 import Link from "next/link";
@@ -62,6 +72,46 @@ type FarmMapSearchResult = {
     label: string;
     latitude: number;
     longitude: number;
+};
+
+const fleetVehicleTypeOptions = [
+    { value: "motorcycle", label: "Moto" },
+    { value: "car", label: "Carro" },
+    { value: "pickup", label: "Pickup" },
+    { value: "van", label: "Van" },
+    { value: "refrigerated_van", label: "Van refrigerada" },
+    { value: "truck", label: "Caminhao" },
+    { value: "refrigerated_truck", label: "Caminhao refrigerado" },
+] as const;
+
+const fleetVehicleStatusOptions = [
+    { value: "available", label: "Disponivel" },
+    { value: "in_use", label: "Em rota" },
+    { value: "maintenance", label: "Manutencao" },
+    { value: "offline", label: "Offline" },
+] as const;
+
+type FleetVehicleType = (typeof fleetVehicleTypeOptions)[number]["value"];
+type FleetVehicleStatus = (typeof fleetVehicleStatusOptions)[number]["value"];
+
+type FleetVehicleView = {
+    id: string;
+    label: string;
+    vehicleType: FleetVehicleType;
+    capacityKg: number;
+    refrigeration: boolean;
+    availabilityStatus: FleetVehicleStatus;
+    notes: string | null;
+};
+
+type FleetVehicleFormValues = {
+    vehicleId?: string;
+    label: string;
+    vehicleType: FleetVehicleType;
+    capacityKg: string;
+    refrigeration: boolean;
+    availabilityStatus: FleetVehicleStatus;
+    notes: string;
 };
 
 type FarmAddressSuggestion = {
@@ -189,6 +239,38 @@ function coerceNullableNonNegativeNumber(
     }
 
     return parsedValue;
+}
+
+function getDefaultFleetVehicleFormValues(): FleetVehicleFormValues {
+    return {
+        vehicleId: undefined,
+        label: "",
+        vehicleType: "pickup",
+        capacityKg: "",
+        refrigeration: false,
+        availabilityStatus: "available",
+        notes: "",
+    };
+}
+
+function buildFleetVehicleFormValues(
+    vehicle: FleetVehicleView,
+): FleetVehicleFormValues {
+    return {
+        vehicleId: vehicle.id,
+        label: vehicle.label,
+        vehicleType: vehicle.vehicleType,
+        capacityKg: String(vehicle.capacityKg),
+        refrigeration: vehicle.refrigeration,
+        availabilityStatus: vehicle.availabilityStatus,
+        notes: vehicle.notes ?? "",
+    };
+}
+
+function formatVehicleCapacity(value: number) {
+    return new Intl.NumberFormat("pt-BR", {
+        maximumFractionDigits: 0,
+    }).format(value);
 }
 
 function buildMapFeedbackClassName(tone: MapFeedbackTone) {
@@ -339,7 +421,14 @@ export function FarmPageClient() {
         tone: MapFeedbackTone;
         message: string;
     } | null>(null);
+    const [isVehicleDialogOpen, setIsVehicleDialogOpen] = useState(false);
+    const [vehicleForm, setVehicleForm] = useState<FleetVehicleFormValues>(
+        getDefaultFleetVehicleFormValues(),
+    );
     const currentFarmQuery = trpc.farm.getCurrent.useQuery(undefined, {
+        refetchOnWindowFocus: false,
+    });
+    const vehiclesQuery = trpc.farm.listVehicles.useQuery(undefined, {
         refetchOnWindowFocus: false,
     });
     const isInitialLoading = currentFarmQuery.isLoading && !currentFarmQuery.data;
@@ -363,6 +452,42 @@ export function FarmPageClient() {
 
     const searchLocationMutation = trpc.farm.searchLocation.useMutation();
     const reverseGeocodeMutation = trpc.farm.reverseGeocodeLocation.useMutation();
+    const upsertVehicleMutation = trpc.farm.upsertVehicle.useMutation({
+        onSuccess(_data, variables) {
+            void utils.farm.listVehicles.invalidate();
+            setVehicleForm(getDefaultFleetVehicleFormValues());
+            setIsVehicleDialogOpen(false);
+
+            toast.success(
+                variables.vehicleId
+                    ? "Veiculo atualizado."
+                    : "Veiculo cadastrado.",
+                {
+                    description:
+                        "A frota operacional ja pode ser usada na recomendacao de saida.",
+                },
+            );
+        },
+        onError(error) {
+            toast.error("Nao foi possivel salvar o veiculo.", {
+                description: error.message,
+            });
+        },
+    });
+    const deleteVehicleMutation = trpc.farm.deleteVehicle.useMutation({
+        onSuccess() {
+            void utils.farm.listVehicles.invalidate();
+            setVehicleForm(getDefaultFleetVehicleFormValues());
+            setIsVehicleDialogOpen(false);
+
+            toast.success("Veiculo removido da frota.");
+        },
+        onError(error) {
+            toast.error("Nao foi possivel remover o veiculo.", {
+                description: error.message,
+            });
+        },
+    });
 
     const {
         control,
@@ -397,6 +522,72 @@ export function FarmPageClient() {
 
         reset(parseFarmToFormValues(currentFarmQuery.data));
     }, [currentFarmQuery.data, isDirty, reset]);
+
+    const openCreateVehicleDialog = () => {
+        setVehicleForm(getDefaultFleetVehicleFormValues());
+        setIsVehicleDialogOpen(true);
+    };
+
+    const openEditVehicleDialog = (vehicle: FleetVehicleView) => {
+        setVehicleForm(buildFleetVehicleFormValues(vehicle));
+        setIsVehicleDialogOpen(true);
+    };
+
+    const handleVehicleDialogChange = (open: boolean) => {
+        if (!open && (upsertVehicleMutation.isPending || deleteVehicleMutation.isPending)) {
+            return;
+        }
+
+        setIsVehicleDialogOpen(open);
+
+        if (!open) {
+            setVehicleForm(getDefaultFleetVehicleFormValues());
+        }
+    };
+
+    const handleVehicleFieldChange = <Field extends keyof FleetVehicleFormValues>(
+        field: Field,
+        value: FleetVehicleFormValues[Field],
+    ) => {
+        setVehicleForm((currentValue) => ({
+            ...currentValue,
+            [field]: value,
+        }));
+    };
+
+    const handleVehicleSubmit = () => {
+        const normalizedCapacityKg = Number(vehicleForm.capacityKg);
+
+        if (!vehicleForm.label.trim()) {
+            toast.error("Informe um nome para o veiculo.");
+            return;
+        }
+
+        if (!Number.isFinite(normalizedCapacityKg) || normalizedCapacityKg <= 0) {
+            toast.error("Informe uma capacidade valida em quilos.");
+            return;
+        }
+
+        upsertVehicleMutation.mutate({
+            vehicleId: vehicleForm.vehicleId,
+            label: vehicleForm.label,
+            vehicleType: vehicleForm.vehicleType,
+            capacityKg: normalizedCapacityKg,
+            refrigeration: vehicleForm.refrigeration,
+            availabilityStatus: vehicleForm.availabilityStatus,
+            notes: vehicleForm.notes.trim() || null,
+        });
+    };
+
+    const handleVehicleDelete = () => {
+        if (!vehicleForm.vehicleId) {
+            return;
+        }
+
+        deleteVehicleMutation.mutate({
+            vehicleId: vehicleForm.vehicleId,
+        });
+    };
 
     const applyAddressSuggestion = (
         suggestion: FarmAddressSuggestion,
@@ -1148,6 +1339,96 @@ export function FarmPageClient() {
 
                     <aside className="space-y-6">
                         <section className="rounded-[18px_24px_18px_22px] border border-soil/8 bg-cream p-6 shadow-card">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
+                                        Frota operacional
+                                    </p>
+                                    <h2 className="mt-2 font-display text-2xl font-black text-soil">
+                                        Veiculos usados nas saidas
+                                    </h2>
+                                    <p className="mt-3 text-sm leading-6 text-bark/70">
+                                        Esse catalogo alimenta a recomendacao de veiculo e a confirmacao manual da saida no painel de entregas.
+                                    </p>
+                                </div>
+
+                                <Button
+                                    disabled={!currentFarmQuery.data}
+                                    onClick={openCreateVehicleDialog}
+                                    type="button"
+                                    variant="secondary"
+                                >
+                                    Cadastrar veiculo
+                                </Button>
+                            </div>
+
+                            {!currentFarmQuery.data ? (
+                                <div className="mt-6 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
+                                    Salve a fazenda e a localizacao primeiro para habilitar o cadastro da frota.
+                                </div>
+                            ) : vehiclesQuery.isLoading && !vehiclesQuery.data ? (
+                                <div className="mt-6 space-y-3">
+                                    <Skeleton className="h-24 rounded-[18px]" />
+                                    <Skeleton className="h-24 rounded-[18px]" />
+                                </div>
+                            ) : vehiclesQuery.data && vehiclesQuery.data.length > 0 ? (
+                                <div className="mt-6 space-y-3">
+                                    {vehiclesQuery.data.map((vehicle) => (
+                                        <button
+                                            className="w-full rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-4 text-left transition hover:border-forest/20 hover:bg-white/85"
+                                            key={vehicle.id}
+                                            onClick={() => openEditVehicleDialog(vehicle)}
+                                            type="button"
+                                        >
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p className="font-semibold text-soil">
+                                                        {vehicle.label}
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-bark/70">
+                                                        {
+                                                            fleetVehicleTypeOptions.find(
+                                                                (option) =>
+                                                                    option.value === vehicle.vehicleType,
+                                                            )?.label
+                                                        }{" "}
+                                                        · {formatVehicleCapacity(vehicle.capacityKg)} kg
+                                                    </p>
+                                                </div>
+
+                                                <span className="rounded-full border border-forest/10 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-forest">
+                                                    {
+                                                        fleetVehicleStatusOptions.find(
+                                                            (option) =>
+                                                                option.value === vehicle.availabilityStatus,
+                                                        )?.label
+                                                    }
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-bark/70">
+                                                <span className="rounded-full border border-soil/10 bg-white/75 px-2.5 py-1">
+                                                    {vehicle.refrigeration
+                                                        ? "Refrigerado"
+                                                        : "Carga seca"}
+                                                </span>
+                                                {vehicle.notes ? (
+                                                    <span className="line-clamp-1">
+                                                        {vehicle.notes}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="mt-6 rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-4 text-sm leading-6 text-bark/75">
+                                    Nenhum veiculo cadastrado ainda. Comece com a frota que realmente opera as saidas do dia.
+                                </div>
+                            )}
+                        </section>
+
+                        <section className="rounded-[18px_24px_18px_22px] border border-soil/8 bg-cream p-6 shadow-card">
                             <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
                                 Coordenadas atuais
                             </p>
@@ -1222,6 +1503,185 @@ export function FarmPageClient() {
                     </aside>
                 </div>
             </div>
+
+            <Dialog
+                onOpenChange={handleVehicleDialogChange}
+                open={isVehicleDialogOpen}
+            >
+                <DialogContent className="max-w-2xl border-soil/10 bg-cream p-0">
+                    <DialogHeader className="border-b border-soil/10 px-6 py-5">
+                        <DialogTitle className="font-display text-2xl font-black text-soil">
+                            {vehicleForm.vehicleId
+                                ? "Editar veiculo"
+                                : "Cadastrar veiculo"}
+                        </DialogTitle>
+                        <DialogDescription className="text-sm leading-6 text-bark/70">
+                            Mantenha aqui apenas os veiculos que participam da operacao real de saida.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4 px-6 py-6 md:grid-cols-2">
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label
+                                className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                                htmlFor="fleet-vehicle-label"
+                            >
+                                Nome operacional
+                            </label>
+                            <input
+                                className={baseInputClassName}
+                                id="fleet-vehicle-label"
+                                onChange={(event) =>
+                                    handleVehicleFieldChange("label", event.target.value)
+                                }
+                                placeholder="Ex: Van refrigerada principal"
+                                value={vehicleForm.label}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label
+                                className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                                htmlFor="fleet-vehicle-type"
+                            >
+                                Tipo
+                            </label>
+                            <select
+                                className={baseInputClassName}
+                                id="fleet-vehicle-type"
+                                onChange={(event) =>
+                                    handleVehicleFieldChange(
+                                        "vehicleType",
+                                        event.target.value as FleetVehicleType,
+                                    )
+                                }
+                                value={vehicleForm.vehicleType}
+                            >
+                                {fleetVehicleTypeOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label
+                                className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                                htmlFor="fleet-vehicle-capacity"
+                            >
+                                Capacidade (kg)
+                            </label>
+                            <input
+                                className={baseInputClassName}
+                                id="fleet-vehicle-capacity"
+                                inputMode="decimal"
+                                min={0}
+                                onChange={(event) =>
+                                    handleVehicleFieldChange("capacityKg", event.target.value)
+                                }
+                                placeholder="Ex: 850"
+                                step="0.01"
+                                type="number"
+                                value={vehicleForm.capacityKg}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label
+                                className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                                htmlFor="fleet-vehicle-status"
+                            >
+                                Disponibilidade
+                            </label>
+                            <select
+                                className={baseInputClassName}
+                                id="fleet-vehicle-status"
+                                onChange={(event) =>
+                                    handleVehicleFieldChange(
+                                        "availabilityStatus",
+                                        event.target.value as FleetVehicleStatus,
+                                    )
+                                }
+                                value={vehicleForm.availabilityStatus}
+                            >
+                                {fleetVehicleStatusOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <label className="flex items-center gap-3 rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-3 text-sm text-soil">
+                            <input
+                                checked={vehicleForm.refrigeration}
+                                className="h-4 w-4 rounded border-soil/30 text-forest focus:ring-forest"
+                                onChange={(event) =>
+                                    handleVehicleFieldChange(
+                                        "refrigeration",
+                                        event.target.checked,
+                                    )
+                                }
+                                type="checkbox"
+                            />
+                            Usa refrigeracao para pereciveis
+                        </label>
+
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label
+                                className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
+                                htmlFor="fleet-vehicle-notes"
+                            >
+                                Observacoes
+                            </label>
+                            <textarea
+                                className={`${baseInputClassName} min-h-[110px] resize-y`}
+                                id="fleet-vehicle-notes"
+                                onChange={(event) =>
+                                    handleVehicleFieldChange("notes", event.target.value)
+                                }
+                                placeholder="Ex: Sai cedo para entregas urbanas e volta para segunda carga."
+                                value={vehicleForm.notes}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="border-t border-soil/10 px-6 py-5 sm:justify-between">
+                        {vehicleForm.vehicleId ? (
+                            <Button
+                                isPending={deleteVehicleMutation.isPending}
+                                onClick={handleVehicleDelete}
+                                type="button"
+                                variant="danger"
+                            >
+                                Remover veiculo
+                            </Button>
+                        ) : (
+                            <div />
+                        )}
+
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+                            <Button
+                                onClick={() => handleVehicleDialogChange(false)}
+                                type="button"
+                                variant="ghost"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                isPending={upsertVehicleMutation.isPending}
+                                onClick={handleVehicleSubmit}
+                                type="button"
+                            >
+                                {vehicleForm.vehicleId
+                                    ? "Salvar alteracoes"
+                                    : "Cadastrar veiculo"}
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
