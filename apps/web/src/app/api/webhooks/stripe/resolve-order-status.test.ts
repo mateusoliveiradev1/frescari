@@ -7,6 +7,7 @@ test('resolveAuthorizedOrderStatus keeps orders that are already ahead in the fu
     assert.equal(resolveAuthorizedOrderStatus('awaiting_weight'), 'awaiting_weight');
     assert.equal(resolveAuthorizedOrderStatus('confirmed'), 'confirmed');
     assert.equal(resolveAuthorizedOrderStatus('picking'), 'picking');
+    assert.equal(resolveAuthorizedOrderStatus('ready_for_dispatch'), 'ready_for_dispatch');
     assert.equal(resolveAuthorizedOrderStatus('in_transit'), 'in_transit');
     assert.equal(resolveAuthorizedOrderStatus('delivered'), 'delivered');
     assert.equal(resolveAuthorizedOrderStatus('cancelled'), 'cancelled');

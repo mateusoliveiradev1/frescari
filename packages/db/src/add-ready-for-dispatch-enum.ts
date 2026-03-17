@@ -1,7 +1,7 @@
 /**
- * One-shot migration: adds 'awaiting_weight' to the order_status enum.
+ * One-shot migration: adds 'ready_for_dispatch' to the order_status enum.
  *
- * Run with: npx tsx packages/db/src/add-awaiting-weight-enum.ts
+ * Run with: npx tsx packages/db/src/add-ready-for-dispatch-enum.ts
  */
 import { config } from 'dotenv';
 import path from 'path';
@@ -24,9 +24,9 @@ for (const envPath of envCandidates) {
 async function migrate() {
     const { client } = await import('./index');
 
-    console.log('[MIGRATION] Adding awaiting_weight to order_status enum...');
+    console.log('[MIGRATION] Adding ready_for_dispatch to order_status enum...');
     await client.query(
-        `ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'awaiting_weight';`,
+        `ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'ready_for_dispatch';`,
     );
     console.log('[MIGRATION] Done.');
     await client.end();
