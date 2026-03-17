@@ -3,8 +3,7 @@ import test from "node:test";
 
 test("buildNextDispatchAction groups compatible deliveries into a single candidate wave", async () => {
     const { buildNextDispatchAction } = await import("./delivery-control-summary");
-
-    const result = buildNextDispatchAction([
+    const deliveries = [
         {
             activeOverride: null,
             buyerName: "Mercado Modelo",
@@ -62,7 +61,9 @@ test("buildNextDispatchAction groups compatible deliveries into a single candida
             status: "confirmed",
             totalEstimatedWeightKg: 5,
         },
-    ] as any[]);
+    ] as unknown as Parameters<typeof buildNextDispatchAction>[0];
+
+    const result = buildNextDispatchAction(deliveries);
 
     assert.ok(result);
     assert.equal(result.primaryDelivery.orderId, "order-1");
@@ -76,8 +77,7 @@ test("buildNextDispatchAction groups compatible deliveries into a single candida
 
 test("buildNextDispatchAction skips already dispatched deliveries and returns null when nothing is actionable", async () => {
     const { buildNextDispatchAction } = await import("./delivery-control-summary");
-
-    const result = buildNextDispatchAction([
+    const deliveries = [
         {
             activeOverride: null,
             buyerName: "Pedido Ja Confirmado",
@@ -116,7 +116,9 @@ test("buildNextDispatchAction skips already dispatched deliveries and returns nu
             status: "confirmed",
             totalEstimatedWeightKg: 6,
         },
-    ] as any[]);
+    ] as unknown as Parameters<typeof buildNextDispatchAction>[0];
+
+    const result = buildNextDispatchAction(deliveries);
 
     assert.equal(result, null);
 });
