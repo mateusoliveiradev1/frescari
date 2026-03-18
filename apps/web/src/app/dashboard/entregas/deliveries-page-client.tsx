@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
     Badge,
@@ -18,6 +18,7 @@ import {
     Skeleton,
     SkeletonCard,
     SkeletonText,
+    cn,
     formatCurrencyBRL,
     formatDistanceKm,
     formatMass,
@@ -25,10 +26,12 @@ import {
 } from "@frescari/ui";
 import {
     ArrowLeft,
+    AlertTriangle,
     CheckCircle2,
     Clock3,
     MapPinned,
     Package,
+    RefreshCcw,
     Sparkles,
     Store,
     Truck,
@@ -40,9 +43,11 @@ import { trpc } from "@/trpc/react";
 import { getSaleUnitLabel, isWeighableSaleUnit } from "@/lib/sale-units";
 
 import { DeliveryMap } from "./delivery-map";
+import { reconcileRecommendationQueue } from "./delivery-control-refresh";
 import {
     buildDispatchWaveCandidate,
     buildNextDispatchAction,
+    buildSelectedWaveMapContext,
     type DispatchWaveCandidate,
 } from "./delivery-control-summary";
 import type { PendingDelivery } from "./delivery-map.types";
@@ -547,6 +552,7 @@ function DeliveryCard({
 
 export function DeliveriesPageClient() {
     const utils = trpc.useUtils();
+    const forceApplyIncomingQueueRef = useRef(false);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
     const [dispatchReviewCandidate, setDispatchReviewCandidate] =
@@ -561,6 +567,13 @@ export function DeliveriesPageClient() {
     const [overrideReason, setOverrideReason] =
         useState<DispatchOverrideReason>("commercial_decision");
     const [overrideReasonNotes, setOverrideReasonNotes] = useState("");
+    const [queueSync, setQueueSync] = useState<{
+        visibleDeliveries: PendingDelivery[];
+        stagedDeliveries: PendingDelivery[] | null;
+    }>({
+        visibleDeliveries: [],
+        stagedDeliveries: null,
+    });
 
     const pendingDeliveriesQuery = trpc.logistics.getPendingDeliveries.useQuery(undefined, {
         refetchOnWindowFocus: false,
@@ -568,13 +581,36 @@ export function DeliveriesPageClient() {
     const fleetVehiclesQuery = trpc.farm.listVehicles.useQuery(undefined, {
         refetchOnWindowFocus: false,
     });
+    const incomingDeliveries = useMemo(
+        () => pendingDeliveriesQuery.data ?? [],
+        [pendingDeliveriesQuery.data],
+    );
 
-    const deliveries = useMemo(() => pendingDeliveriesQuery.data ?? [], [pendingDeliveriesQuery.data]);
+    useEffect(() => {
+        setQueueSync((current) => {
+            const next = reconcileRecommendationQueue({
+                visibleDeliveries: current.visibleDeliveries,
+                incomingDeliveries,
+                forceApplyIncoming: forceApplyIncomingQueueRef.current,
+            });
+
+            forceApplyIncomingQueueRef.current = false;
+
+            return {
+                visibleDeliveries: next.visibleDeliveries,
+                stagedDeliveries: next.stagedDeliveries,
+            };
+        });
+    }, [incomingDeliveries]);
+
+    const deliveries = queueSync.visibleDeliveries;
+    const hasPendingRecommendationUpdate = queueSync.stagedDeliveries !== null;
     const nextDispatchAction = useMemo(
         () => buildNextDispatchAction(deliveries),
         [deliveries],
     );
     const isInitialLoading = pendingDeliveriesQuery.isLoading && !pendingDeliveriesQuery.data;
+    const isRefreshingRecommendations = pendingDeliveriesQuery.isRefetching && !isInitialLoading;
     const resolvedSelectedOrderId = useMemo(() => {
         if (deliveries.length === 0) {
             return null;
@@ -586,6 +622,22 @@ export function DeliveriesPageClient() {
 
         return deliveries[0].orderId;
     }, [deliveries, selectedOrderId]);
+    const externalContext = deliveries[0]?.recommendation.externalContext ?? null;
+    const selectedWaveMapContext = useMemo(
+        () =>
+            buildSelectedWaveMapContext({
+                deliveries,
+                dispatchReviewCandidate,
+                selectedDispatchOrderIds,
+                selectedOrderId: resolvedSelectedOrderId,
+            }),
+        [
+            deliveries,
+            dispatchReviewCandidate,
+            selectedDispatchOrderIds,
+            resolvedSelectedOrderId,
+        ],
+    );
 
     const statusMutation = trpc.logistics.updateDeliveryStatus.useMutation({
         onSuccess(_data, variables) {
@@ -597,6 +649,7 @@ export function DeliveriesPageClient() {
                         : "Entrega marcada como concluida.",
             );
             setActiveActionKey(null);
+            forceApplyIncomingQueueRef.current = true;
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
@@ -616,6 +669,7 @@ export function DeliveriesPageClient() {
             setDispatchReviewCandidate(null);
             setSelectedDispatchOrderIds([]);
             setSelectedDispatchVehicleId(null);
+            forceApplyIncomingQueueRef.current = true;
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
@@ -635,6 +689,7 @@ export function DeliveriesPageClient() {
             setOverrideDialog(null);
             setOverrideReason("commercial_decision");
             setOverrideReasonNotes("");
+            forceApplyIncomingQueueRef.current = true;
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
@@ -647,6 +702,7 @@ export function DeliveriesPageClient() {
         onSuccess() {
             toast.success("Override manual removido.");
             setActiveActionKey(null);
+            forceApplyIncomingQueueRef.current = true;
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
@@ -826,6 +882,33 @@ export function DeliveriesPageClient() {
         }
     };
 
+    const handleApplyLatestRecommendation = () => {
+        setQueueSync((current) => {
+            if (!current.stagedDeliveries) {
+                return current;
+            }
+
+            return {
+                visibleDeliveries: current.stagedDeliveries,
+                stagedDeliveries: null,
+            };
+        });
+        toast.success("Nova recomendacao aplicada sem sobrescrever o override manual.");
+    };
+
+    const handleRefreshRecommendation = async () => {
+        if (queueSync.stagedDeliveries) {
+            handleApplyLatestRecommendation();
+            return;
+        }
+
+        const result = await pendingDeliveriesQuery.refetch();
+
+        if (result.error) {
+            toast.error(result.error.message || "Nao foi possivel atualizar a recomendacao.");
+        }
+    };
+
     return (
         <>
             <div className="space-y-8">
@@ -842,13 +925,83 @@ export function DeliveriesPageClient() {
                         </p>
                     </div>
 
-                    <Button asChild className="justify-center" variant="ghost">
-                        <Link href="/dashboard">
-                            <ArrowLeft className="h-4 w-4" />
-                            Voltar ao painel
-                        </Link>
-                    </Button>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        <Button
+                            className="justify-center"
+                            disabled={isRefreshingRecommendations}
+                            onClick={() => {
+                                void handleRefreshRecommendation();
+                            }}
+                            type="button"
+                            variant={hasPendingRecommendationUpdate ? "secondary" : "ghost"}
+                        >
+                            <RefreshCcw className={`h-4 w-4 ${isRefreshingRecommendations ? "animate-spin" : ""}`} />
+                            {hasPendingRecommendationUpdate
+                                ? "Aplicar nova recomendacao"
+                                : "Atualizar recomendacao"}
+                        </Button>
+                        <Button asChild className="justify-center" variant="ghost">
+                            <Link href="/dashboard">
+                                <ArrowLeft className="h-4 w-4" />
+                                Voltar ao painel
+                            </Link>
+                        </Button>
+                    </div>
                 </header>
+
+                {externalContext ? (
+                    <Card
+                        className={cn(
+                            "overflow-hidden shadow-card",
+                            externalContext.status === "degraded"
+                                ? "border-amber-200 bg-amber-50/95"
+                                : "border-forest/10 bg-white/95",
+                        )}
+                    >
+                        <CardContent className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="space-y-2">
+                                <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    Contexto externo {externalContext.status === "degraded" ? "degradado" : "sincronizado"}
+                                </p>
+                                <p className="text-sm leading-6 text-bark/80">
+                                    {externalContext.summary}
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 text-xs text-bark/70">
+                                {externalContext.signals.map((signal) => (
+                                    <span
+                                        className="rounded-full border border-soil/10 bg-white/85 px-3 py-1.5"
+                                        key={signal.source}
+                                    >
+                                        {signal.summary}
+                                    </span>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : null}
+
+                {hasPendingRecommendationUpdate ? (
+                    <Card className="overflow-hidden border-amber-200 bg-white/95 shadow-card">
+                        <CardContent className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-800">
+                                    Nova recomendacao disponivel
+                                </p>
+                                <p className="text-sm leading-6 text-bark/80">
+                                    Existe override manual ativo. A fila atual foi preservada e a nova leitura da IA ficou aguardando sua aprovacao.
+                                </p>
+                            </div>
+
+                            <Button onClick={handleApplyLatestRecommendation} type="button">
+                                <Sparkles className="h-4 w-4" />
+                                Aplicar nova recomendacao
+                            </Button>
+                        </CardContent>
+                    </Card>
+                ) : null}
 
                 {!isInitialLoading && nextDispatchAction ? (
                     <Card className="overflow-hidden border-forest/10 bg-white/95 shadow-[0_28px_70px_-34px_rgba(13,51,33,0.35)]">
@@ -1011,6 +1164,25 @@ export function DeliveriesPageClient() {
                             </div>
                         </div>
 
+                        {selectedWaveMapContext ? (
+                            <div className="mb-4 rounded-[22px_16px_20px_16px] border border-soil/10 bg-white/90 px-4 py-4 shadow-card">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
+                                    {selectedWaveMapContext.title}
+                                </p>
+                                <p className="mt-2 text-sm leading-6 text-bark/75">
+                                    {selectedWaveMapContext.subtitle}
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark/70">
+                                    <span className="rounded-full border border-soil/10 bg-cream-dark/35 px-3 py-1.5">
+                                        {formatOrdersLabel(selectedWaveMapContext.stops.length)}
+                                    </span>
+                                    <span className="rounded-full border border-soil/10 bg-cream-dark/35 px-3 py-1.5">
+                                        Sequencia {selectedWaveMapContext.kind === "confirmed" ? "confirmada" : "sugerida"}
+                                    </span>
+                                </div>
+                            </div>
+                        ) : null}
+
                         {isInitialLoading ? (
                             <DeliveriesMapSkeleton />
                         ) : (
@@ -1018,6 +1190,7 @@ export function DeliveriesPageClient() {
                                 deliveries={deliveries}
                                 onSelect={(orderId) => setSelectedOrderId(orderId)}
                                 selectedOrderId={resolvedSelectedOrderId}
+                                waveContext={selectedWaveMapContext}
                             />
                         )}
                     </aside>

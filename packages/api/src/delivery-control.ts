@@ -9,6 +9,9 @@ export type FleetVehicleType =
 
 export type FleetVehicleStatus = 'available' | 'in_use' | 'maintenance' | 'offline';
 export type DispatchConfidence = 'high' | 'medium' | 'low';
+export type DeliveryExternalSignalSource = 'weather' | 'traffic' | 'closures';
+export type DeliveryExternalSignalStatus = 'available' | 'unavailable';
+export type DeliveryExternalSignalImpact = 'none' | 'attention' | 'critical';
 export type DispatchOverrideAction = 'pin_to_top' | 'delay';
 export type DispatchOverrideReason =
     | 'customer_priority'
@@ -70,11 +73,25 @@ export type DeliveryControlWaveAssignment = {
     confirmedAt: Date;
 };
 
+export type DeliveryExternalSignal = {
+    source: DeliveryExternalSignalSource;
+    status: DeliveryExternalSignalStatus;
+    impact: DeliveryExternalSignalImpact;
+    summary: string;
+};
+
+export type DeliveryExternalContext = {
+    status: 'ready' | 'degraded';
+    summary: string;
+    signals: DeliveryExternalSignal[];
+};
+
 export type DeliveryRecommendation = {
     priorityScore: number;
     urgencyLevel: 'high' | 'medium' | 'low';
     riskLevel: 'high' | 'medium' | 'low';
     confidence: DispatchConfidence;
+    externalContext: DeliveryExternalContext;
     suggestedVehicleType: FleetVehicleType;
     suggestedVehicle: DeliveryControlFleetVehicle | null;
     explanation: string;
@@ -93,9 +110,33 @@ type BuildDispatchControlQueueOptions = {
     overrides: DeliveryControlOverride[];
     vehicles: DeliveryControlFleetVehicle[];
     waveAssignments: DeliveryControlWaveAssignment[];
+    externalSignals?: DeliveryExternalSignal[];
 };
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+function getFallbackExternalSignals(): DeliveryExternalSignal[] {
+    return [
+        {
+            source: 'weather',
+            status: 'unavailable',
+            impact: 'none',
+            summary: 'clima indisponivel no momento',
+        },
+        {
+            source: 'traffic',
+            status: 'unavailable',
+            impact: 'none',
+            summary: 'transito indisponivel no momento',
+        },
+        {
+            source: 'closures',
+            status: 'unavailable',
+            impact: 'none',
+            summary: 'vias e interdições indisponiveis no momento',
+        },
+    ];
+}
 
 function diffInDays(target: Date, source: Date) {
     return Math.ceil((target.getTime() - source.getTime()) / DAY_IN_MS);
@@ -108,6 +149,14 @@ function diffInHours(target: Date, source: Date) {
 function parseCurrency(value: string) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function lowerConfidence(confidence: DispatchConfidence, levels = 1): DispatchConfidence {
+    const scale: DispatchConfidence[] = ['high', 'medium', 'low'];
+    const currentIndex = scale.indexOf(confidence);
+    const nextIndex = Math.min(scale.length - 1, currentIndex + levels);
+
+    return scale[nextIndex] ?? confidence;
 }
 
 function resolveUrgency(delivery: DeliveryControlBaseDelivery, now: Date) {
@@ -214,7 +263,64 @@ function pickSuggestedVehicle(
     return exactMatch ?? availableVehicles[0] ?? null;
 }
 
-function resolveConfidence(delivery: DeliveryControlBaseDelivery) {
+function resolveExternalContext(externalSignals?: DeliveryExternalSignal[]) {
+    const signals = externalSignals?.length ? externalSignals : getFallbackExternalSignals();
+    const impactfulSignals = signals.filter(
+        (signal) => signal.status === 'available' && signal.impact !== 'none',
+    );
+    const hasUnavailableSignals = signals.some((signal) => signal.status === 'unavailable');
+
+    if (hasUnavailableSignals) {
+        return {
+            confidencePenalty: 1,
+            explanationNote: 'Contexto externo degradado: revisar clima, transito e vias antes de despachar.',
+            priorityPoints: 0,
+            reasons: ['contexto externo degradado, fila mantida com sinais internos'],
+            context: {
+                status: 'degraded' as const,
+                summary:
+                    'Contexto externo degradado: clima, transito ou vias sem resposta; a fila segue com sinais internos.',
+                signals,
+            } satisfies DeliveryExternalContext,
+        };
+    }
+
+    if (impactfulSignals.length === 0) {
+        return {
+            confidencePenalty: 0,
+            explanationNote: null,
+            priorityPoints: 0,
+            reasons: [] as string[],
+            context: {
+                status: 'ready' as const,
+                summary: 'Clima, transito e vias sem alertas relevantes para a rota atual.',
+                signals,
+            } satisfies DeliveryExternalContext,
+        };
+    }
+
+    const summaries = impactfulSignals.map((signal) => signal.summary);
+    const priorityPoints = impactfulSignals.reduce((total, signal) => {
+        return total + (signal.impact === 'critical' ? 8 : 4);
+    }, 0);
+
+    return {
+        confidencePenalty: 0,
+        explanationNote: `Sinais externos ativos: ${summaries.join(' | ')}.`,
+        priorityPoints,
+        reasons: summaries,
+        context: {
+            status: 'ready' as const,
+            summary: summaries.join(' | '),
+            signals,
+        } satisfies DeliveryExternalContext,
+    };
+}
+
+function resolveConfidence(
+    delivery: DeliveryControlBaseDelivery,
+    externalContext: ReturnType<typeof resolveExternalContext>,
+) {
     let missingSignals = 0;
 
     if (!delivery.hasValidRouteCoordinates || delivery.distanceKm === null) {
@@ -234,30 +340,33 @@ function resolveConfidence(delivery: DeliveryControlBaseDelivery) {
     }
 
     if (missingSignals === 1) {
-        return 'medium' as const;
+        return lowerConfidence('medium', externalContext.confidencePenalty);
     }
 
-    return 'high' as const;
+    return lowerConfidence('high', externalContext.confidencePenalty);
 }
 
 function buildRecommendation(
     delivery: DeliveryControlBaseDelivery,
     vehicles: DeliveryControlFleetVehicle[],
     now: Date,
+    externalSignals?: DeliveryExternalSignal[],
 ) {
     const urgency = resolveUrgency(delivery, now);
     const risk = resolveRisk(delivery, now);
     const geographyPoints = resolveGeographyPoints(delivery);
     const valuePoints = Math.min(18, Math.round(parseCurrency(delivery.totalAmount) / 20));
+    const externalContext = resolveExternalContext(externalSignals);
     const suggestedVehicleType = resolveSuggestedVehicleType(delivery, risk.level);
     const suggestedVehicle = pickSuggestedVehicle(delivery, vehicles, suggestedVehicleType, risk.level);
-    const confidence = resolveConfidence(delivery);
+    const confidence = resolveConfidence(delivery, externalContext);
     const reasons = [
         urgency.reason,
         risk.reason,
         delivery.distanceKm === null
             ? 'geografia incompleta exige validacao manual'
             : `distancia de ${delivery.distanceKm.toFixed(1)} km considerada no sequenciamento`,
+        ...externalContext.reasons,
     ];
     const explanationParts = [
         `Prioridade ${urgency.level} com risco ${risk.level}.`,
@@ -266,15 +375,25 @@ function buildRecommendation(
             : `Tipo de veiculo sugerido: ${suggestedVehicleType}.`,
     ];
 
+    if (externalContext.explanationNote) {
+        explanationParts.push(externalContext.explanationNote);
+    }
+
     if (confidence === 'low') {
         explanationParts.push('Revisao humana recomendada antes de confirmar a saida.');
     }
 
     return {
-        priorityScore: urgency.points + risk.points + geographyPoints + valuePoints,
+        priorityScore:
+            urgency.points
+            + risk.points
+            + geographyPoints
+            + valuePoints
+            + externalContext.priorityPoints,
         urgencyLevel: urgency.level,
         riskLevel: risk.level,
         confidence,
+        externalContext: externalContext.context,
         suggestedVehicleType,
         suggestedVehicle,
         explanation: explanationParts.join(' '),
@@ -302,7 +421,12 @@ export function buildDispatchControlQueue<TDelivery extends DeliveryControlBaseD
     const enrichedDeliveries = deliveries.map((delivery) => {
         const activeOverride = overridesByOrder.get(delivery.orderId) ?? null;
         const dispatch = waveAssignmentsByOrder.get(delivery.orderId) ?? null;
-        const recommendation = buildRecommendation(delivery, options.vehicles, options.now);
+        const recommendation = buildRecommendation(
+            delivery,
+            options.vehicles,
+            options.now,
+            options.externalSignals,
+        );
 
         return {
             ...delivery,

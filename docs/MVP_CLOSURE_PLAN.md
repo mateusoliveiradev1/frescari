@@ -1,6 +1,6 @@
 # MVP Closure Plan
 
-> Status review atualizado em 2026-03-16 com base no estado atual do repositorio.
+> Status review atualizado em 2026-03-17 com base no estado atual do repositorio.
 
 ## Goal
 Fechar um MVP premium no web: experiencia forte no fluxo central de compra, operacao e entregas, incluindo a camada de IA operacional para apoiar analise de entregas e rotas e um sistema de notificacoes web-first.
@@ -39,7 +39,7 @@ Status atual: regra de release ainda nao atendida.
 
 - [-] Implementar a IA operacional de entregas e rotas no dashboard web.
   Verify: o operador recebe analise clara de prioridades, risco e sugestao de sequenciamento/roteiro a partir dos pedidos pendentes.
-  Status notes: a base da control tower ja existe no branch atual com score heuristico, risco, confianca, sugestao de veiculo e explicacao operacional em `packages/api/src/delivery-control.ts`, persistencia de override/wave em `packages/api/src/routers/logistics.ts` e `packages/db/src/schema.ts`, e UI operacional em `apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx`. A cobertura principal ja entrou em `packages/api/src/delivery-control.test.ts`, `packages/api/src/logistics.router.test.ts`, `packages/api/src/order-logistics.flow.test.ts` e `apps/web/e2e/producer-logistics.spec.ts`. O fechamento ainda depende de itens da spec em `docs/architecture/DELIVERIES_AI_CONTROL_TOWER_SPEC.md`: `Proxima acao agora`, waves realmente agrupadas/clustering, sinais externos resilientes e refinamentos de refresh/manual override.
+  Status notes: a base da control tower ja calcula score heuristico, risco, confianca, sugestao de veiculo e explicacao operacional em `packages/api/src/delivery-control.ts`, com persistencia de override/wave em `packages/api/src/routers/logistics.ts` e `packages/db/src/schema.ts`. Em 2026-03-17 entrou o corte de `Proxima acao agora` e a confirmacao de wave com multiplos pedidos em `apps/web/src/app/dashboard/entregas/delivery-control-summary.ts` e `apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx`, cobertos por `apps/web/src/app/dashboard/entregas/delivery-control-summary.test.ts` e `apps/web/e2e/producer-logistics.spec.ts`. O fechamento da IA agora depende de tres frentes restantes da spec em `docs/architecture/DELIVERIES_AI_CONTROL_TOWER_SPEC.md`: mapa com contexto de sequencia/onda selecionada, sinais externos resilientes com estado degradado e refresh de recomendacao sem conflito com override manual.
 
 - [ ] Implementar o sistema de notificacoes do MVP web.
   Verify: eventos criticos de pedido, entrega e lote geram notificacao no painel e badge/estado visivel nas rotas relevantes.
@@ -55,7 +55,7 @@ Status atual: regra de release ainda nao atendida.
 
 - [ ] Executar varredura completa do web core rota por rota.
   Verify: catalogo, perfil, checkout, sucesso, fazenda, pedidos e entregas passam por checklist funcional, visual, responsivo e de estados vazios/erro.
-  Status notes: existe base de E2E em `apps/web/playwright.config.ts` e o branch atual adicionou `apps/web/e2e/producer-logistics.spec.ts`, mas ainda nao ha varredura completa do core web rota por rota cobrindo catalogo, checkout, sucesso, perfil, pedidos e entregas em checklist unico.
+  Status notes: existe base de E2E em `apps/web/playwright.config.ts` e o repositorio ja contem `apps/web/e2e/producer-logistics.spec.ts`, mas ainda nao ha varredura completa do core web rota por rota cobrindo catalogo, checkout, sucesso, perfil, pedidos e entregas em checklist unico.
 
 - [-] Rodar verificacao final do MVP web.
   Verify: `test`, `typecheck`, `lint`, `build`, E2E web e checklist basico de seguranca concluidos.
@@ -76,7 +76,7 @@ Status atual: regra de release ainda nao atendida.
   Status notes: os fluxos base existem, mas o plano de fechamento ainda pede polish, auditoria de rotas e hardening de go-live.
 
 - [-] O operador de entregas consegue usar a camada de IA para entender prioridade, risco e ordem sugerida de saida.
-  Status notes: a fila operacional ja expõe prioridade, risco, confianca, sugestao de veiculo e override manual, mas a control tower ainda nao fechou todos os comportamentos e superficies descritos na spec.
+  Status notes: a fila operacional ja expoe prioridade, risco, confianca, sugestao de veiculo, `Proxima acao agora` e revisao de wave com multiplos pedidos, mas a control tower ainda nao fechou os comportamentos de mapa contextual, sinais externos resilientes e refresh pos-override descritos na spec.
 
 - [ ] Os eventos principais do fluxo aparecem como notificacoes operacionais no web sem depender de aplicativo mobile.
   Status notes: ainda nao implementado.
@@ -85,7 +85,7 @@ Status atual: regra de release ainda nao atendida.
   Status notes: os checks atuais de lint, typecheck, test e build estao rodando, mas o pacote completo de hardening, E2E core e verificacao final do MVP ainda nao foi fechado.
 
 ## Next Steps
-1. Fechar a control tower sobre a base ja implementada: `Proxima acao agora`, waves agrupadas, mapa com contexto de sequencia e refresh de recomendacao sem conflito com overrides.
+1. Fechar a control tower sobre a base ja implementada: mapa com contexto de sequencia, sinais externos resilientes e refresh de recomendacao sem conflito com overrides.
 2. Criar o sistema de notificacoes web do MVP com leitura, badge e eventos operacionais.
 3. Aplicar o hardening de go-live: `noUncheckedIndexedAccess`, Husky, lint-staged e Knip.
 4. Rodar a varredura completa do core web com E2E e checklist manual das rotas criticas.
