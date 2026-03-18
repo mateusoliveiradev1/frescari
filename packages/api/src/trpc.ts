@@ -19,6 +19,24 @@ const t = initTRPC.context<Context>().create({
     transformer: superjson,
 });
 
+function getAuthenticatedRlsInput(user: NonNullable<Context['user']>) {
+    return {
+        userId: user.id,
+        tenantId: typeof user.tenantId === 'string' ? user.tenantId : null,
+    };
+}
+
+export async function withAuthenticatedTransaction<T>(
+    database: AppDb,
+    user: NonNullable<Context['user']>,
+    callback: (tx: AppDb) => Promise<T>,
+) {
+    return database.transaction(async (tx) => {
+        await enableAuthenticatedRlsContext(tx, getAuthenticatedRlsInput(user));
+        return callback(tx as AppDb);
+    });
+}
+
 export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
@@ -27,20 +45,27 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'You must be logged in.' });
     }
 
-    return ctx.db.transaction(async (tx) => {
-        await enableAuthenticatedRlsContext(tx, {
-            userId: ctx.user.id,
-            tenantId: typeof ctx.user.tenantId === 'string' ? ctx.user.tenantId : null,
-        });
+    return withAuthenticatedTransaction(ctx.db, ctx.user, async (tx) => next({
+        ctx: {
+            ...ctx,
+            db: tx as AppDb,
+            session: ctx.session,
+            user: ctx.user,
+        },
+    }));
+});
 
-        return next({
-            ctx: {
-                ...ctx,
-                db: tx as AppDb,
-                session: ctx.session,
-                user: ctx.user,
-            },
-        });
+export const protectedProcedureNoTransaction = t.procedure.use(({ ctx, next }) => {
+    if (!ctx.session || !ctx.user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'You must be logged in.' });
+    }
+
+    return next({
+        ctx: {
+            ...ctx,
+            session: ctx.session,
+            user: ctx.user,
+        },
     });
 });
 
@@ -59,7 +84,34 @@ export const tenantProcedure = protectedProcedure.use(async ({ ctx, next }) => {
         .limit(1);
 
     if (!tenant) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Organização do usuário não encontrada.' });
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Organizacao do usuario nao encontrada.' });
+    }
+
+    return next({
+        ctx: {
+            ...ctx,
+            tenantId: tenant.id,
+            tenantType: tenant.type,
+        },
+    });
+});
+
+export const tenantProcedureNoTransaction = protectedProcedureNoTransaction.use(async ({ ctx, next }) => {
+    if (!ctx.user.tenantId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'User must belong to a tenant.' });
+    }
+
+    const [tenant] = await withAuthenticatedTransaction(ctx.db, ctx.user, async (tx) => tx
+        .select({
+            id: tenants.id,
+            type: tenants.type,
+        })
+        .from(tenants)
+        .where(eq(tenants.id, ctx.user.tenantId as string))
+        .limit(1));
+
+    if (!tenant) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Organizacao do usuario nao encontrada.' });
     }
 
     return next({
@@ -73,7 +125,22 @@ export const tenantProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 
 export const producerProcedure = tenantProcedure.use(({ ctx, next }) => {
     if (ctx.user.role !== 'producer') {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas produtores podem realizar esta ação.' });
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas produtores podem realizar esta acao.' });
+    }
+
+    if (!isTenantTypeCompatibleWithRole('producer', ctx.tenantType)) {
+        throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: getTenantTypeMismatchMessage('producer', ctx.tenantType),
+        });
+    }
+
+    return next({ ctx });
+});
+
+export const producerProcedureNoTransaction = tenantProcedureNoTransaction.use(({ ctx, next }) => {
+    if (ctx.user.role !== 'producer') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas produtores podem realizar esta acao.' });
     }
 
     if (!isTenantTypeCompatibleWithRole('producer', ctx.tenantType)) {
@@ -88,7 +155,7 @@ export const producerProcedure = tenantProcedure.use(({ ctx, next }) => {
 
 export const buyerProcedure = tenantProcedure.use(({ ctx, next }) => {
     if (ctx.user.role !== 'buyer') {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas compradores podem realizar esta ação.' });
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas compradores podem realizar esta acao.' });
     }
 
     if (!isTenantTypeCompatibleWithRole('buyer', ctx.tenantType)) {

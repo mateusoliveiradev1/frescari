@@ -108,6 +108,26 @@ export const dispatchOverrideReasonEnum = pgEnum('dispatch_override_reason', [
     'other',
 ]);
 export const dispatchWaveStatusEnum = pgEnum('dispatch_wave_status', ['confirmed', 'departed', 'cancelled']);
+export const notificationTypeEnum = pgEnum('notification_type', [
+    'lot_expiring_soon',
+    'lot_expired',
+    'order_awaiting_weight',
+    'order_confirmed',
+    'order_cancelled',
+    'order_ready_for_dispatch',
+    'delivery_in_transit',
+    'delivery_delayed',
+    'delivery_delivered',
+]);
+export const notificationScopeEnum = pgEnum('notification_scope', [
+    'inventory',
+    'sales',
+    'orders',
+    'deliveries',
+    'platform',
+]);
+export const notificationSeverityEnum = pgEnum('notification_severity', ['info', 'warning', 'critical']);
+export const notificationEntityTypeEnum = pgEnum('notification_entity_type', ['lot', 'order']);
 
 export type DispatchRecommendationSnapshot = {
     priorityScore: number;
@@ -324,6 +344,30 @@ export const orderItems = pgTable('order_items', {
     saleUnit: text('sale_unit').default('unit').notNull(),
 });
 
+export const notifications = pgTable('notifications', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
+    userId: text('user_id').references(() => users.id).notNull(),
+    recipientRole: roleEnum('recipient_role').notNull(),
+    type: notificationTypeEnum('type').notNull(),
+    scope: notificationScopeEnum('scope').notNull(),
+    severity: notificationSeverityEnum('severity').default('info').notNull(),
+    entityType: notificationEntityTypeEnum('entity_type').notNull(),
+    entityId: uuid('entity_id').notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    href: text('href').notNull(),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    dedupeKey: text('dedupe_key').notNull(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+    index('notifications_user_created_idx').on(table.userId, table.createdAt),
+    index('notifications_user_unread_idx').on(table.userId, table.readAt, table.createdAt),
+    index('notifications_tenant_role_created_idx').on(table.tenantId, table.recipientRole, table.createdAt),
+    uniqueIndex('notifications_user_dedupe_unique').on(table.userId, table.dedupeKey),
+]);
+
 export const farmVehicles = pgTable('farm_vehicles', {
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
@@ -404,13 +448,15 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
     farms: many(farms),
     addresses: many(addresses),
     products: many(products),
+    notifications: many(notifications),
 }));
 
-export const usersRelations = relations(users, ({ one }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
     tenant: one(tenants, {
         fields: [users.tenantId],
         references: [tenants.id],
     }),
+    notifications: many(notifications),
 }));
 
 export const farmsRelations = relations(farms, ({ one, many }) => ({
@@ -490,6 +536,17 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     items: many(orderItems),
     dispatchOverrides: many(deliveryDispatchOverrides),
     dispatchWaveOrders: many(deliveryDispatchWaveOrders),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+    tenant: one(tenants, {
+        fields: [notifications.tenantId],
+        references: [tenants.id],
+    }),
+    user: one(users, {
+        fields: [notifications.userId],
+        references: [users.id],
+    }),
 }));
 
 export const farmVehiclesRelations = relations(farmVehicles, ({ one, many }) => ({

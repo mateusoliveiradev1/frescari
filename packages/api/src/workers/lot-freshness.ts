@@ -20,6 +20,7 @@ export const LOT_FRESHNESS_JOB_NAME = 'refresh-active-lots';
 export const LOT_FRESHNESS_SCHEDULER_ID = 'lot-freshness-every-6-hours';
 export const LOT_EVENTS_QUEUE_NAME = 'lot-events';
 export const LOT_EXPIRING_SOON_EVENT_NAME = 'lot.expiring_soon';
+export const LOT_EXPIRED_EVENT_NAME = 'lot.expired';
 export const LOT_EXPIRING_SOON_THRESHOLD = 30;
 export const SIX_HOURS_IN_MS = 6 * 60 * 60 * 1000;
 export const LOT_FRESHNESS_RUN_ONCE_TIMEOUT_MS = 60_000;
@@ -60,6 +61,21 @@ export type LotExpiringSoonEvent = {
     occurredAt: string;
 };
 
+export type LotExpiredEvent = {
+    type: typeof LOT_EXPIRED_EVENT_NAME;
+    lotId: string;
+    tenantId: string;
+    productId: string;
+    lotCode: string;
+    freshnessScore: 0;
+    previousFreshnessScore: number | null;
+    harvestDate: string;
+    expiryDate: string;
+    occurredAt: string;
+};
+
+export type LotNotificationEvent = LotExpiringSoonEvent | LotExpiredEvent;
+
 export type LotFreshnessRunSummary = {
     processedLots: number;
     updatedLots: number;
@@ -78,9 +94,9 @@ type BullLotFreshnessQueue = Queue<
 >;
 
 type BullLotEventsQueue = Queue<
-    LotExpiringSoonEvent,
+    LotNotificationEvent,
     void,
-    typeof LOT_EXPIRING_SOON_EVENT_NAME
+    typeof LOT_EXPIRING_SOON_EVENT_NAME | typeof LOT_EXPIRED_EVENT_NAME
 >;
 
 export interface LotFreshnessRepository {
@@ -90,6 +106,7 @@ export interface LotFreshnessRepository {
 
 export interface LotEventPublisher {
     publishExpiringSoon(event: LotExpiringSoonEvent): Promise<void>;
+    publishExpired(event: LotExpiredEvent): Promise<void>;
 }
 
 type SchedulerQueue = {
@@ -301,6 +318,7 @@ export async function runLotFreshnessPass({
         const shouldPublishExpiringSoon = !isExpired &&
             freshnessScore < LOT_EXPIRING_SOON_THRESHOLD &&
             (lot.freshnessScore === null || lot.freshnessScore >= LOT_EXPIRING_SOON_THRESHOLD);
+        const shouldPublishExpired = isExpired && !lot.isExpired;
 
         if (shouldPublishExpiringSoon) {
             await publisher.publishExpiringSoon({
@@ -316,6 +334,21 @@ export async function runLotFreshnessPass({
                 occurredAt: now.toISOString(),
             });
             summary.expiringSoonEvents += 1;
+        }
+
+        if (shouldPublishExpired) {
+            await publisher.publishExpired({
+                type: LOT_EXPIRED_EVENT_NAME,
+                lotId: lot.id,
+                tenantId: lot.tenantId,
+                productId: lot.productId,
+                lotCode: lot.lotCode,
+                freshnessScore: 0,
+                previousFreshnessScore: lot.freshnessScore,
+                harvestDate: formatDateOnly(lot.harvestDate),
+                expiryDate: formatDateOnly(lot.expiryDate),
+                occurredAt: now.toISOString(),
+            });
         }
 
         if (lot.freshnessScore !== freshnessScore || lot.isExpired !== isExpired) {
@@ -365,7 +398,11 @@ export function createLotFreshnessQueue(connection: ConnectionOptions): BullLotF
 }
 
 export function createLotEventsQueue(connection: ConnectionOptions): BullLotEventsQueue {
-    return new Queue<LotExpiringSoonEvent, void, typeof LOT_EXPIRING_SOON_EVENT_NAME>(
+    return new Queue<
+        LotNotificationEvent,
+        void,
+        typeof LOT_EXPIRING_SOON_EVENT_NAME | typeof LOT_EXPIRED_EVENT_NAME
+    >(
         LOT_EVENTS_QUEUE_NAME,
         {
             connection,
@@ -408,6 +445,12 @@ export function createBullLotEventPublisher(queue: LotEventQueue): LotEventPubli
             await queue.add(LOT_EXPIRING_SOON_EVENT_NAME, event, {
                 ...LOT_EVENT_JOB_OPTIONS,
                 jobId: `lot-expiring-soon-${event.lotId}`,
+            });
+        },
+        async publishExpired(event) {
+            await queue.add(LOT_EXPIRED_EVENT_NAME, event, {
+                ...LOT_EVENT_JOB_OPTIONS,
+                jobId: `lot-expired-${event.lotId}`,
             });
         },
     };

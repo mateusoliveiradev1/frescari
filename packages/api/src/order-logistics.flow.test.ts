@@ -110,6 +110,7 @@ type FlowState = {
         productSaleUnit: string;
         unitWeightG: number | null;
     }>;
+    insertedNotifications?: Array<Record<string, unknown>>;
 };
 
 function createProducerContext(db: unknown): any {
@@ -235,6 +236,23 @@ function createSupplementalSelectChain<T>(rows: T[]) {
     };
 }
 
+function createNotificationInsertChain(
+    values: Array<Record<string, unknown>>,
+    onInsert: (rows: Array<Record<string, unknown>>) => void,
+) {
+    onInsert(values);
+
+    return {
+        onConflictDoNothing() {
+            return {
+                returning: async () => values.map((_, index) => ({
+                    id: `notification-${index + 1}`,
+                })),
+            };
+        },
+    };
+}
+
 async function createFlowCaller(state: FlowState) {
     const [{ orderItems, orders }, { createTRPCRouter }, { orderRouter }, { logisticsRouter }] = await Promise.all([
         import('@frescari/db'),
@@ -271,7 +289,26 @@ async function createFlowCaller(state: FlowState) {
                 return createSupplementalSelectChain([]);
             }
 
+            if (keys.includes('userId')) {
+                return createSupplementalSelectChain([
+                    { userId: 'buyer-user-1' },
+                ]);
+            }
+
             throw new Error(`Unexpected select shape: ${keys.join(', ')}`);
+        },
+        insert() {
+            return {
+                values(values: Record<string, unknown> | Record<string, unknown>[]) {
+                    const notificationRows = Array.isArray(values) ? values : [values];
+                    return createNotificationInsertChain(notificationRows, (rows) => {
+                        state.insertedNotifications = [
+                            ...(state.insertedNotifications ?? []),
+                            ...rows,
+                        ];
+                    });
+                },
+            };
         },
         query: {
             orders: {

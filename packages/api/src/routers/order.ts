@@ -1,7 +1,15 @@
 import { z } from 'zod';
 import { createHash } from 'crypto';
 import Stripe from 'stripe';
-import { createTRPCRouter, protectedProcedure, buyerProcedure, producerProcedure, tenantProcedure } from '../trpc';
+import {
+    createTRPCRouter,
+    protectedProcedure,
+    buyerProcedure,
+    producerProcedure,
+    producerProcedureNoTransaction,
+    tenantProcedure,
+    withAuthenticatedTransaction,
+} from '../trpc';
 import {
     activeProductLotWhere,
     enableProductLotBypassContext,
@@ -23,6 +31,7 @@ import {
     type GeocodedPoint,
 } from '../geocoding';
 import { calculateLotPriceAndStatus } from '../utils/lot-status';
+import { emitOrderNotifications } from '../notifications/domain-events';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 let stripeClient: Stripe | null = null;
@@ -72,6 +81,23 @@ function assertOrderStatusTransition(currentStatus: string, nextStatus: string) 
             code: 'BAD_REQUEST',
             message: `Nao e possivel alterar o pedido de "${currentStatus}" para "${nextStatus}".`,
         });
+    }
+}
+
+function resolveOrderNotificationType(nextStatus: string) {
+    switch (nextStatus) {
+        case 'confirmed':
+            return 'order_confirmed' as const;
+        case 'cancelled':
+            return 'order_cancelled' as const;
+        case 'ready_for_dispatch':
+            return 'order_ready_for_dispatch' as const;
+        case 'in_transit':
+            return 'delivery_in_transit' as const;
+        case 'delivered':
+            return 'delivery_delivered' as const;
+        default:
+            return null;
     }
 }
 
@@ -538,11 +564,28 @@ export const orderRouter = createTRPCRouter({
                 .set({ status: input.status })
                 .where(eq(orders.id, input.orderId));
 
+            const notificationType = resolveOrderNotificationType(input.status);
+
+            if (notificationType) {
+                await emitOrderNotifications({
+                    tx: db,
+                    type: notificationType,
+                    orderId: targetOrder.id,
+                    buyerTenantId: targetOrder.buyerTenantId,
+                    sellerTenantId: targetOrder.sellerTenantId,
+                    actorUserId: ctx.user.id,
+                    metadata: {
+                        orderId: targetOrder.id,
+                        status: input.status,
+                    },
+                });
+            }
+
             return { success: true };
         }),
 
     // ─── Capture Weighed Order (Stripe Destination Charge) ───
-    captureWeighedOrder: producerProcedure
+    captureWeighedOrder: producerProcedureNoTransaction
         .input(
             z.object({
                 orderId: z.string().uuid(),
@@ -555,7 +598,7 @@ export const orderRouter = createTRPCRouter({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            const { db, tenantId } = ctx;
+            const { db, tenantId, user } = ctx;
 
             if (!stripeSecretKey) {
                 throw new TRPCError({
@@ -564,12 +607,44 @@ export const orderRouter = createTRPCRouter({
                 });
             }
 
-            // 1. Fetch order and validate ownership
-            const targetOrder = await db.query.orders.findFirst({
-                where: and(
-                    eq(orders.id, input.orderId),
-                    eq(orders.sellerTenantId, tenantId)
-                ),
+            // 1. Fetch order snapshot under authenticated context before any Stripe call.
+            const { targetOrder, items } = await withAuthenticatedTransaction(db, user, async (tx) => {
+                const nextTargetOrder = await tx.query.orders.findFirst({
+                    where: and(
+                        eq(orders.id, input.orderId),
+                        eq(orders.sellerTenantId, tenantId),
+                    ),
+                });
+
+                if (!nextTargetOrder) {
+                    return {
+                        targetOrder: null,
+                        items: [],
+                    };
+                }
+
+                await enableProductLotTenantContext(tx, tenantId);
+
+                const nextItems = await tx
+                    .select({
+                        id: orderItems.id,
+                        qty: orderItems.qty,
+                        unitPrice: orderItems.unitPrice,
+                        saleUnit: orderItems.saleUnit,
+                        productName: products.name,
+                        pricingType: productLots.pricingType,
+                        masterPricingType: masterProducts.pricingType,
+                    })
+                    .from(orderItems)
+                    .innerJoin(products, eq(orderItems.productId, products.id))
+                    .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
+                    .where(eq(orderItems.orderId, nextTargetOrder.id));
+
+                return {
+                    targetOrder: nextTargetOrder,
+                    items: nextItems,
+                };
             });
 
             if (!targetOrder) {
@@ -592,26 +667,6 @@ export const orderRouter = createTRPCRouter({
                     message: 'Este pedido não possui uma sessão de pagamento vinculada.',
                 });
             }
-
-            const items = await db.transaction(async (tx) => {
-                await enableProductLotTenantContext(tx, tenantId);
-
-                return tx
-                    .select({
-                        id: orderItems.id,
-                        qty: orderItems.qty,
-                        unitPrice: orderItems.unitPrice,
-                        saleUnit: orderItems.saleUnit,
-                        productName: products.name,
-                        pricingType: productLots.pricingType,
-                        masterPricingType: masterProducts.pricingType,
-                    })
-                    .from(orderItems)
-                    .innerJoin(products, eq(orderItems.productId, products.id))
-                    .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
-                    .leftJoin(masterProducts, eq(products.masterProductId, masterProducts.id))
-                    .where(eq(orderItems.orderId, targetOrder.id));
-            });
 
             if (items.length === 0) {
                 throw new TRPCError({
@@ -845,24 +900,37 @@ export const orderRouter = createTRPCRouter({
 
             }
 
-            // 6. DB Updates in Transaction
+            // 6. Persist local state and notifications atomically after Stripe succeeds.
             try {
-                await db.transaction(async (tx) => {
-                    // Update quantities
+                await withAuthenticatedTransaction(db, user, async (tx) => {
                     for (const uItem of updatedItemsParams) {
                         await tx.update(orderItems)
                             .set({ qty: uItem.qty })
                             .where(eq(orderItems.id, uItem.id));
                     }
 
-                    // Update order status and new total
                     await tx.update(orders)
                         .set({
-                            status: 'confirmed', // Movendo de "awaiting_weight" para "confirmed"
+                            status: 'confirmed',
                             totalAmount: totalAmountBrl.toFixed(4),
                             paymentIntentId,
                         })
                         .where(eq(orders.id, targetOrder.id));
+
+                    await emitOrderNotifications({
+                        tx,
+                        type: 'order_confirmed',
+                        orderId: targetOrder.id,
+                        buyerTenantId: targetOrder.buyerTenantId,
+                        sellerTenantId: targetOrder.sellerTenantId,
+                        actorUserId: user.id,
+                        metadata: {
+                            orderId: targetOrder.id,
+                            status: 'confirmed',
+                            totalAmount: totalAmountBrl,
+                            weighedItems: validatedPayload.data.weighedItems,
+                        },
+                    });
                 });
             } catch (error) {
                 console.error('[DB_UPDATE_ERROR]', error);
