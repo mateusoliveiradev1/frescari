@@ -18,7 +18,11 @@ import {
 } from '@frescari/db';
 import { calculateFreightSchema } from '@frescari/validators';
 
-import { buildDispatchControlQueue, getOperationDate } from '../delivery-control';
+import {
+    buildDispatchControlQueue,
+    getOperationDate,
+    type DeliveryControlQueueItem,
+} from '../delivery-control';
 import {
     normalizeCurrencyValue,
     normalizeNullableCurrencyValue,
@@ -128,6 +132,87 @@ type PendingDelivery = {
 type PendingDeliveryAccumulator = PendingDelivery & {
     totalEstimatedWeightKg: number;
     hasEstimatedWeight: boolean;
+};
+
+type PendingDeliveryQueueItem = DeliveryControlQueueItem<PendingDelivery>;
+
+type DeliveryMapWavePoint = {
+    latitude: number;
+    longitude: number;
+};
+
+type DeliveryMapWaveOrigin = {
+    farmId: string;
+    farmName: string;
+    latitude: number;
+    longitude: number;
+} | null;
+
+type DeliveryMapWaveStop = {
+    orderId: string;
+    buyerName: string;
+    sequence: number;
+    latitude: number;
+    longitude: number;
+    distanceKm: number | null;
+};
+
+type DeliveryMapWaveContext = {
+    kind: 'suggested' | 'confirmed';
+    orderIds: string[];
+    origin: DeliveryMapWaveOrigin;
+    polyline: DeliveryMapWavePoint[];
+    primaryOrderId: string;
+    stops: DeliveryMapWaveStop[];
+    subtitle: string;
+    title: string;
+};
+
+type DispatchSuggestionDelivery = {
+    orderId: string;
+    buyerName: string;
+    deliveryAddress: {
+        label: string;
+    };
+    status: string;
+    distanceKm: number | null;
+    totalEstimatedWeightKg: number | null;
+};
+
+type DispatchSuggestion = {
+    ctaLabel: string;
+    deliveries: DispatchSuggestionDelivery[];
+    orderIds: string[];
+    primaryDelivery: {
+        orderId: string;
+        origin: {
+            farmId: string | null;
+        } | null;
+        recommendation: {
+            priorityScore: number;
+            urgencyLevel: 'high' | 'medium' | 'low';
+            riskLevel: 'high' | 'medium' | 'low';
+            confidence: (typeof dispatchConfidenceLevels)[number];
+            suggestedVehicleType: (typeof fleetVehicleTypes)[number];
+            suggestedVehicle: {
+                id: string;
+                label: string;
+            } | null;
+            reasons: string[];
+        };
+    };
+    recommendationSummary: string;
+    suggestedVehicleLabel: string;
+    subtitle: string;
+    title: string;
+    totalEstimatedWeightKg: number | null;
+    totalOrders: number;
+    waveContext: DeliveryMapWaveContext;
+};
+
+type PendingDeliveryResponseItem = PendingDeliveryQueueItem & {
+    dispatchSuggestion: DispatchSuggestion | null;
+    mapWaveContext: DeliveryMapWaveContext | null;
 };
 
 type DeliveryOverrideRow = {
@@ -289,6 +374,320 @@ function groupPendingDeliveryRows(rows: PendingDeliveryRow[]): PendingDelivery[]
         ...delivery,
         totalEstimatedWeightKg: hasEstimatedWeight ? Number(totalEstimatedWeightKg.toFixed(3)) : null,
     }));
+}
+
+function isValidCoordinate(value: number | null | undefined): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
+}
+
+function humanizeVehicleType(value: string) {
+    return value.replace(/_/g, ' ');
+}
+
+function hasConfirmedDispatch(delivery: PendingDeliveryQueueItem) {
+    return delivery.dispatch !== null || delivery.status === 'ready_for_dispatch';
+}
+
+function isDispatchable(delivery: PendingDeliveryQueueItem) {
+    return !hasConfirmedDispatch(delivery)
+        && delivery.status !== 'in_transit'
+        && delivery.status !== 'delivered';
+}
+
+function isAutoActionable(delivery: PendingDeliveryQueueItem) {
+    return isDispatchable(delivery)
+        && delivery.activeOverride?.action !== 'delay';
+}
+
+function resolveWaveOrigin(delivery: PendingDeliveryQueueItem): DeliveryMapWaveOrigin {
+    if (
+        !delivery.origin
+        || !isValidCoordinate(delivery.origin.latitude)
+        || !isValidCoordinate(delivery.origin.longitude)
+    ) {
+        return null;
+    }
+
+    return {
+        farmId: delivery.origin.farmId,
+        farmName: delivery.origin.farmName,
+        latitude: delivery.origin.latitude,
+        longitude: delivery.origin.longitude,
+    };
+}
+
+function createWaveStop(
+    delivery: PendingDeliveryQueueItem,
+    sequence: number,
+): DeliveryMapWaveStop | null {
+    if (
+        !delivery.destination
+        || !isValidCoordinate(delivery.destination.latitude)
+        || !isValidCoordinate(delivery.destination.longitude)
+    ) {
+        return null;
+    }
+
+    return {
+        orderId: delivery.orderId,
+        buyerName: delivery.buyerName,
+        sequence,
+        latitude: delivery.destination.latitude,
+        longitude: delivery.destination.longitude,
+        distanceKm: delivery.distanceKm,
+    };
+}
+
+function buildWavePolyline(
+    origin: DeliveryMapWaveOrigin,
+    stops: DeliveryMapWaveStop[],
+): DeliveryMapWavePoint[] {
+    const polyline: DeliveryMapWavePoint[] = [];
+
+    if (origin) {
+        polyline.push({
+            latitude: origin.latitude,
+            longitude: origin.longitude,
+        });
+    }
+
+    for (const stop of stops) {
+        polyline.push({
+            latitude: stop.latitude,
+            longitude: stop.longitude,
+        });
+    }
+
+    return polyline;
+}
+
+function sumEstimatedWeight(deliveries: PendingDeliveryQueueItem[]) {
+    return deliveries.reduce<number | null>((sum, delivery) => {
+        if (delivery.totalEstimatedWeightKg === null) {
+            return sum;
+        }
+
+        return (sum ?? 0) + delivery.totalEstimatedWeightKg;
+    }, null);
+}
+
+function isCompatibleWithPrimary(
+    primaryDelivery: PendingDeliveryQueueItem,
+    delivery: PendingDeliveryQueueItem,
+) {
+    if (primaryDelivery.orderId === delivery.orderId || !isAutoActionable(delivery)) {
+        return false;
+    }
+
+    if ((primaryDelivery.origin?.farmId ?? null) !== (delivery.origin?.farmId ?? null)) {
+        return false;
+    }
+
+    if (
+        primaryDelivery.recommendation.suggestedVehicleType
+        !== delivery.recommendation.suggestedVehicleType
+    ) {
+        return false;
+    }
+
+    const primaryVehicleId = primaryDelivery.recommendation.suggestedVehicle?.id ?? null;
+    const deliveryVehicleId = delivery.recommendation.suggestedVehicle?.id ?? null;
+
+    if (primaryVehicleId && deliveryVehicleId && primaryVehicleId !== deliveryVehicleId) {
+        return false;
+    }
+
+    return true;
+}
+
+function buildSuggestedWaveContext(
+    primaryDelivery: PendingDeliveryQueueItem,
+    deliveries: PendingDeliveryQueueItem[],
+): DeliveryMapWaveContext {
+    const stops = deliveries
+        .map((delivery, index) => createWaveStop(delivery, index + 1))
+        .filter((stop): stop is DeliveryMapWaveStop => stop !== null);
+    const origin = resolveWaveOrigin(primaryDelivery);
+    const totalOrders = deliveries.length;
+    const suggestedVehicleLabel =
+        primaryDelivery.recommendation.suggestedVehicle?.label
+        ?? humanizeVehicleType(primaryDelivery.recommendation.suggestedVehicleType);
+
+    return {
+        kind: 'suggested',
+        orderIds: deliveries.map((delivery) => delivery.orderId),
+        origin,
+        polyline: buildWavePolyline(origin, stops),
+        primaryOrderId: primaryDelivery.orderId,
+        stops,
+        subtitle:
+            totalOrders === 1
+                ? primaryDelivery.recommendation.explanation
+                : `Wave sugerida com ${totalOrders} pedidos usando ${suggestedVehicleLabel.toLowerCase()}.`,
+        title:
+            totalOrders > 1
+                ? 'Wave sugerida selecionada'
+                : 'Saida sugerida selecionada',
+    };
+}
+
+function buildConfirmedWaveContext(
+    deliveries: PendingDeliveryQueueItem[],
+    selectedOrderId: string,
+): DeliveryMapWaveContext | null {
+    const selectedDelivery = deliveries.find((delivery) => delivery.orderId === selectedOrderId);
+
+    if (!selectedDelivery) {
+        return null;
+    }
+
+    const waveId = selectedDelivery?.dispatch?.waveId ?? null;
+
+    if (!waveId) {
+        return null;
+    }
+
+    const waveDeliveries = deliveries
+        .filter((delivery) => delivery.dispatch?.waveId === waveId)
+        .sort((left, right) => (left.dispatch?.sequence ?? 0) - (right.dispatch?.sequence ?? 0));
+
+    if (waveDeliveries.length === 0) {
+        return null;
+    }
+
+    const stops = waveDeliveries
+        .map((delivery) => createWaveStop(delivery, delivery.dispatch?.sequence ?? 0))
+        .filter((stop): stop is DeliveryMapWaveStop => stop !== null);
+    const origin = resolveWaveOrigin(selectedDelivery);
+    const totalOrders = waveDeliveries.length;
+
+    return {
+        kind: 'confirmed',
+        orderIds: waveDeliveries.map((delivery) => delivery.orderId),
+        origin,
+        polyline: buildWavePolyline(origin, stops),
+        primaryOrderId: selectedOrderId,
+        stops,
+        subtitle: `Sequencia operacional confirmada com ${totalOrders} pedido${totalOrders > 1 ? 's' : ''}.`,
+        title:
+            totalOrders > 1
+                ? 'Wave confirmada selecionada'
+                : 'Saida confirmada selecionada',
+    };
+}
+
+function buildDispatchSuggestion(
+    deliveries: PendingDeliveryQueueItem[],
+    anchorOrderId: string,
+): DispatchSuggestion | null {
+    const primaryDelivery = deliveries.find(
+        (delivery) => delivery.orderId === anchorOrderId && isDispatchable(delivery),
+    );
+
+    if (!primaryDelivery) {
+        return null;
+    }
+
+    const groupedDeliveries = [
+        primaryDelivery,
+        ...deliveries
+            .filter((delivery) => isCompatibleWithPrimary(primaryDelivery, delivery))
+            .slice(0, 2),
+    ];
+    const totalEstimatedWeightKg = sumEstimatedWeight(groupedDeliveries);
+    const totalOrders = groupedDeliveries.length;
+    const suggestedVehicleLabel =
+        primaryDelivery.recommendation.suggestedVehicle?.label
+        ?? humanizeVehicleType(primaryDelivery.recommendation.suggestedVehicleType);
+    const extraOrders = totalOrders - 1;
+    const title =
+        extraOrders <= 0
+            ? `Despachar ${primaryDelivery.buyerName} agora`
+            : `Despachar ${primaryDelivery.buyerName} e mais ${extraOrders} pedido${extraOrders > 1 ? 's' : ''}`;
+    const subtitle =
+        totalOrders === 1
+            ? primaryDelivery.recommendation.explanation
+            : `Wave sugerida com ${totalOrders} pedidos usando ${suggestedVehicleLabel.toLowerCase()}.`;
+    const recommendationSummary =
+        totalOrders === 1
+            ? primaryDelivery.recommendation.explanation
+            : `Consolidar ${totalOrders} pedidos agora. ${primaryDelivery.recommendation.explanation}`;
+
+    return {
+        ctaLabel:
+            totalOrders === 1
+                ? 'Confirmar saida'
+                : `Confirmar wave (${totalOrders} pedidos)`,
+        deliveries: groupedDeliveries.map((delivery) => ({
+            orderId: delivery.orderId,
+            buyerName: delivery.buyerName,
+            deliveryAddress: {
+                label: delivery.deliveryAddress.label,
+            },
+            status: delivery.status,
+            distanceKm: delivery.distanceKm,
+            totalEstimatedWeightKg: delivery.totalEstimatedWeightKg,
+        })),
+        orderIds: groupedDeliveries.map((delivery) => delivery.orderId),
+        primaryDelivery: {
+            orderId: primaryDelivery.orderId,
+            origin: primaryDelivery.origin
+                ? {
+                    farmId: primaryDelivery.origin.farmId,
+                }
+                : null,
+            recommendation: {
+                priorityScore: primaryDelivery.recommendation.priorityScore,
+                urgencyLevel: primaryDelivery.recommendation.urgencyLevel,
+                riskLevel: primaryDelivery.recommendation.riskLevel,
+                confidence: primaryDelivery.recommendation.confidence,
+                suggestedVehicleType: primaryDelivery.recommendation.suggestedVehicleType,
+                suggestedVehicle: primaryDelivery.recommendation.suggestedVehicle
+                    ? {
+                        id: primaryDelivery.recommendation.suggestedVehicle.id,
+                        label: primaryDelivery.recommendation.suggestedVehicle.label,
+                    }
+                    : null,
+                reasons: primaryDelivery.recommendation.reasons,
+            },
+        },
+        recommendationSummary,
+        suggestedVehicleLabel,
+        subtitle,
+        title,
+        totalEstimatedWeightKg,
+        totalOrders,
+        waveContext: buildSuggestedWaveContext(primaryDelivery, groupedDeliveries),
+    };
+}
+
+function attachDispatchMapContext(
+    deliveries: PendingDeliveryQueueItem[],
+): PendingDeliveryResponseItem[] {
+    const dispatchSuggestionsByOrder = new Map<string, DispatchSuggestion | null>();
+    const confirmedWaveContextsByOrder = new Map<string, DeliveryMapWaveContext | null>();
+
+    for (const delivery of deliveries) {
+        dispatchSuggestionsByOrder.set(
+            delivery.orderId,
+            buildDispatchSuggestion(deliveries, delivery.orderId),
+        );
+        confirmedWaveContextsByOrder.set(
+            delivery.orderId,
+            buildConfirmedWaveContext(deliveries, delivery.orderId),
+        );
+    }
+
+    return deliveries.map((delivery) => {
+        const dispatchSuggestion = dispatchSuggestionsByOrder.get(delivery.orderId) ?? null;
+        const confirmedWaveContext = confirmedWaveContextsByOrder.get(delivery.orderId) ?? null;
+
+        return {
+            ...delivery,
+            dispatchSuggestion,
+            mapWaveContext: confirmedWaveContext ?? dispatchSuggestion?.waveContext ?? null,
+        };
+    });
 }
 
 export const logisticsRouter = createTRPCRouter({
@@ -551,13 +950,15 @@ export const logisticsRouter = createTRPCRouter({
         const orderIds = groupedDeliveries.map((delivery) => delivery.orderId);
 
         if (groupedDeliveries.length === 0) {
-            return buildDispatchControlQueue([], {
-                now,
-                operationDate,
-                overrides: [],
-                vehicles: [],
-                waveAssignments: [],
-            });
+            return attachDispatchMapContext(
+                buildDispatchControlQueue([], {
+                    now,
+                    operationDate,
+                    overrides: [],
+                    vehicles: [],
+                    waveAssignments: [],
+                }),
+            );
         }
 
         const [overrideRows, vehicleRows, waveAssignments] = await Promise.all([
@@ -615,16 +1016,18 @@ export const logisticsRouter = createTRPCRouter({
                 ),
         ]);
 
-        return buildDispatchControlQueue(groupedDeliveries, {
-            now,
-            operationDate,
-            overrides: overrideRows as DeliveryOverrideRow[],
-            vehicles: (vehicleRows as FleetVehicleRow[]).map((vehicle) => ({
-                ...vehicle,
-                capacityKg: Number(vehicle.capacityKg),
-            })),
-            waveAssignments: waveAssignments as DispatchWaveAssignmentRow[],
-        });
+        return attachDispatchMapContext(
+            buildDispatchControlQueue(groupedDeliveries, {
+                now,
+                operationDate,
+                overrides: overrideRows as DeliveryOverrideRow[],
+                vehicles: (vehicleRows as FleetVehicleRow[]).map((vehicle) => ({
+                    ...vehicle,
+                    capacityKg: Number(vehicle.capacityKg),
+                })),
+                waveAssignments: waveAssignments as DispatchWaveAssignmentRow[],
+            }),
+        );
     }),
 
     applyDispatchOverride: producerProcedure

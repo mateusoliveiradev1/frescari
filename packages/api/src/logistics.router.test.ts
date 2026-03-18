@@ -617,9 +617,183 @@ test('logistics.getPendingDeliveries enriches queue items with AI recommendation
 
     assert.equal(result[0].orderId, 'order-pinned');
     assert.equal(result[0].activeOverride?.action, 'pin_to_top');
+    assert.equal(result[0].dispatchSuggestion?.primaryDelivery.orderId, 'order-pinned');
+    assert.deepEqual(result[0].dispatchSuggestion?.orderIds, ['order-pinned']);
+    assert.equal(result[0].dispatchSuggestion?.waveContext.kind, 'suggested');
+    assert.deepEqual(
+        result[0].dispatchSuggestion?.waveContext.stops.map((stop: { orderId: string; sequence: number }) => ({
+            orderId: stop.orderId,
+            sequence: stop.sequence,
+        })),
+        [
+            { orderId: 'order-pinned', sequence: 1 },
+        ],
+    );
+    assert.deepEqual(
+        result[0].dispatchSuggestion?.waveContext.polyline,
+        [
+            { latitude: -23.55, longitude: -46.63 },
+            { latitude: -23.56, longitude: -46.61 },
+        ],
+    );
+    assert.equal(result[0].mapWaveContext?.primaryOrderId, 'order-pinned');
     assert.equal(result[1].recommendation.suggestedVehicleType, 'refrigerated_van');
     assert.equal(result[1].recommendation.suggestedVehicle?.id, 'vehicle-1');
     assert.equal(result[1].recommendation.riskLevel, 'high');
+});
+
+test('logistics.getPendingDeliveries returns confirmed mapWaveContext already sequenced by the backend', async () => {
+    const deliveryRows: DeliveryRow[] = [
+        {
+            orderId: 'order-wave-1',
+            status: 'ready_for_dispatch',
+            totalAmount: '125.0000',
+            deliveryFee: '10.00',
+            createdAt: new Date('2026-03-16T07:30:00.000Z'),
+            buyerTenantId: 'buyer-1',
+            buyerName: 'Mercado Norte',
+            deliveryStreet: 'Rua C',
+            deliveryNumber: '50',
+            deliveryCep: '01010-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua C, 50 - Sao Paulo/SP',
+            deliveryNotes: null,
+            deliveryWindowStart: null,
+            deliveryWindowEnd: null,
+            farmId: 'farm-1',
+            farmName: 'Sitio Horizonte',
+            farmLatitude: -23.55,
+            farmLongitude: -46.63,
+            deliveryLatitude: -23.57,
+            deliveryLongitude: -46.65,
+            distanceKm: 8.4,
+            orderItemId: 'item-wave-1',
+            productId: 'product-wave-1',
+            productName: 'Tomate',
+            itemQty: '6.000',
+            itemSaleUnit: 'box',
+            productSaleUnit: 'box',
+            unitWeightG: 2500,
+            estimatedWeightKg: 15,
+            lotExpiryDate: new Date('2026-03-18T23:00:00.000Z'),
+            lotFreshnessScore: 65,
+        },
+        {
+            orderId: 'order-wave-2',
+            status: 'ready_for_dispatch',
+            totalAmount: '98.0000',
+            deliveryFee: '9.00',
+            createdAt: new Date('2026-03-16T07:45:00.000Z'),
+            buyerTenantId: 'buyer-2',
+            buyerName: 'Padaria Sul',
+            deliveryStreet: 'Rua D',
+            deliveryNumber: '90',
+            deliveryCep: '02020-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua D, 90 - Sao Paulo/SP',
+            deliveryNotes: null,
+            deliveryWindowStart: null,
+            deliveryWindowEnd: null,
+            farmId: 'farm-1',
+            farmName: 'Sitio Horizonte',
+            farmLatitude: -23.55,
+            farmLongitude: -46.63,
+            deliveryLatitude: -23.56,
+            deliveryLongitude: -46.61,
+            distanceKm: 4.3,
+            orderItemId: 'item-wave-2',
+            productId: 'product-wave-2',
+            productName: 'Alface',
+            itemQty: '4.000',
+            itemSaleUnit: 'unit',
+            productSaleUnit: 'unit',
+            unitWeightG: 300,
+            estimatedWeightKg: 1.2,
+            lotExpiryDate: new Date('2026-03-18T23:00:00.000Z'),
+            lotFreshnessScore: 38,
+        },
+    ];
+
+    const waveAssignments: DispatchWaveRow[] = [
+        {
+            waveId: 'wave-1',
+            orderId: 'order-wave-1',
+            sequence: 2,
+            status: 'confirmed',
+            confidence: 'high',
+            recommendedVehicleType: 'pickup',
+            selectedVehicleId: null,
+            selectedVehicleLabel: 'Pickup 01',
+            confirmedAt: new Date('2026-03-16T10:00:00.000Z'),
+        },
+        {
+            waveId: 'wave-1',
+            orderId: 'order-wave-2',
+            sequence: 1,
+            status: 'confirmed',
+            confidence: 'high',
+            recommendedVehicleType: 'pickup',
+            selectedVehicleId: null,
+            selectedVehicleLabel: 'Pickup 01',
+            confirmedAt: new Date('2026-03-16T10:00:00.000Z'),
+        },
+    ];
+
+    let selectCallCount = 0;
+
+    const db = withRlsMockDb({
+        select() {
+            selectCallCount += 1;
+
+            if (selectCallCount === 1) {
+                return createTenantSelectChain();
+            }
+
+            if (selectCallCount === 2) {
+                return createDeliveriesSelectChain(deliveryRows);
+            }
+
+            if (selectCallCount === 3) {
+                return createSupplementalSelectChain<OverrideRow>([]);
+            }
+
+            if (selectCallCount === 4) {
+                return createSupplementalSelectChain<VehicleRow>([]);
+            }
+
+            return createSupplementalSelectChain(waveAssignments);
+        },
+    });
+
+    const caller = await createLogisticsCaller(db);
+    const logisticsNamespace = (caller as Record<string, any>).logistics;
+    const result = await logisticsNamespace.getPendingDeliveries();
+    const selectedDelivery = result.find((delivery: { orderId: string }) => delivery.orderId === 'order-wave-1');
+
+    assert.ok(selectedDelivery);
+    assert.equal(selectedDelivery.dispatchSuggestion, null);
+    assert.equal(selectedDelivery.mapWaveContext?.kind, 'confirmed');
+    assert.equal(selectedDelivery.mapWaveContext?.primaryOrderId, 'order-wave-1');
+    assert.deepEqual(
+        selectedDelivery.mapWaveContext?.stops.map((stop: { orderId: string; sequence: number }) => ({
+            orderId: stop.orderId,
+            sequence: stop.sequence,
+        })),
+        [
+            { orderId: 'order-wave-2', sequence: 1 },
+            { orderId: 'order-wave-1', sequence: 2 },
+        ],
+    );
+    assert.deepEqual(
+        selectedDelivery.mapWaveContext?.polyline,
+        [
+            { latitude: -23.55, longitude: -46.63 },
+            { latitude: -23.56, longitude: -46.61 },
+            { latitude: -23.57, longitude: -46.65 },
+        ],
+    );
 });
 
 test('logistics.confirmDispatchWave persists structured dispatch data and marks orders as ready_for_dispatch', async () => {

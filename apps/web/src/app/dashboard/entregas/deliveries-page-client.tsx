@@ -43,13 +43,7 @@ import { trpc } from "@/trpc/react";
 import { getSaleUnitLabel, isWeighableSaleUnit } from "@/lib/sale-units";
 
 import { DeliveryMap } from "./delivery-map";
-import {
-    buildDispatchWaveCandidate,
-    buildNextDispatchAction,
-    buildSelectedWaveMapContext,
-    type DispatchWaveCandidate,
-} from "./delivery-control-summary";
-import type { PendingDelivery } from "./delivery-map.types";
+import type { DispatchWaveCandidate, PendingDelivery } from "./delivery-map.types";
 import { useDeliveryControlRefresh } from "./use-delivery-control-refresh";
 
 const statusStyles: Record<string, string> = {
@@ -581,7 +575,9 @@ export function DeliveriesPageClient() {
     const deliveries = recommendationQueue.deliveries;
     const hasPendingRecommendationUpdate = recommendationQueue.hasPendingRecommendationUpdate;
     const nextDispatchAction = useMemo(
-        () => buildNextDispatchAction(deliveries),
+        () =>
+            deliveries.find((delivery) => delivery.dispatchSuggestion !== null)?.dispatchSuggestion
+            ?? null,
         [deliveries],
     );
     const isInitialLoading = pendingDeliveriesQuery.isLoading && !pendingDeliveriesQuery.data;
@@ -598,19 +594,18 @@ export function DeliveriesPageClient() {
         return deliveries[0].orderId;
     }, [deliveries, selectedOrderId]);
     const externalContext = deliveries[0]?.recommendation.externalContext ?? null;
-    const selectedWaveMapContext = useMemo(
+    const selectedDelivery = useMemo(
         () =>
-            buildSelectedWaveMapContext({
-                deliveries,
-                dispatchReviewCandidate,
-                selectedDispatchOrderIds,
-                selectedOrderId: resolvedSelectedOrderId,
-            }),
+            resolvedSelectedOrderId
+                ? deliveries.find((delivery) => delivery.orderId === resolvedSelectedOrderId) ?? null
+                : null,
+        [deliveries, resolvedSelectedOrderId],
+    );
+    const selectedWaveMapContext = useMemo(
+        () => dispatchReviewCandidate?.waveContext ?? selectedDelivery?.mapWaveContext ?? null,
         [
-            deliveries,
             dispatchReviewCandidate,
-            selectedDispatchOrderIds,
-            resolvedSelectedOrderId,
+            selectedDelivery,
         ],
     );
 
@@ -744,7 +739,9 @@ export function DeliveriesPageClient() {
     };
 
     const handleOpenDispatchReview = (anchorOrderId: string) => {
-        const candidate = buildDispatchWaveCandidate(deliveries, anchorOrderId);
+        const candidate = deliveries.find(
+            (delivery) => delivery.orderId === anchorOrderId,
+        )?.dispatchSuggestion ?? null;
 
         if (!candidate) {
             toast.error("Nao ha uma saida valida para confirmar neste pedido.");

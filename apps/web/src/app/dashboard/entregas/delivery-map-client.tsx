@@ -30,6 +30,8 @@ type DeliveryWithValidDestination = PendingDelivery & {
     destination: ValidDestination;
 };
 
+type WaveStop = NonNullable<DeliveryMapProps["waveContext"]>["stops"][number];
+
 const originPinIcon = divIcon({
     className: "delivery-origin-pin",
     iconSize: [30, 42],
@@ -115,40 +117,12 @@ function extractUniqueOrigins(deliveries: PendingDelivery[]) {
     return Array.from(originsByFarm.values());
 }
 
-function computeWaveFocusPoints(
-    deliveries: PendingDelivery[],
-    waveContext: DeliveryMapProps["waveContext"],
-) {
-    if (!waveContext || waveContext.stops.length === 0) {
+function computeWaveFocusPoints(waveContext: DeliveryMapProps["waveContext"]) {
+    if (!waveContext || waveContext.polyline.length === 0) {
         return [];
     }
 
-    const points: Array<[number, number]> = [];
-    const primaryDelivery = deliveries.find((delivery) => delivery.orderId === waveContext.primaryOrderId);
-    const primaryOrigin = primaryDelivery?.origin;
-
-    if (
-        primaryOrigin
-        && isValidCoordinate(primaryOrigin.latitude)
-        && isValidCoordinate(primaryOrigin.longitude)
-    ) {
-        points.push([primaryOrigin.latitude, primaryOrigin.longitude]);
-    }
-
-    for (const stop of waveContext.stops) {
-        const delivery = deliveries.find((candidate) => candidate.orderId === stop.orderId);
-        const destination = delivery?.destination;
-
-        if (
-            destination
-            && isValidCoordinate(destination.latitude)
-            && isValidCoordinate(destination.longitude)
-        ) {
-            points.push([destination.latitude, destination.longitude]);
-        }
-    }
-
-    return points;
+    return waveContext.polyline.map((point) => [point.latitude, point.longitude] as [number, number]);
 }
 
 function computeMapFocus(
@@ -156,7 +130,7 @@ function computeMapFocus(
     selectedOrderId: string | null,
     waveContext: DeliveryMapProps["waveContext"],
 ) {
-    const wavePoints = computeWaveFocusPoints(deliveries, waveContext);
+    const wavePoints = computeWaveFocusPoints(waveContext);
 
     if (wavePoints.length > 0) {
         return wavePoints;
@@ -251,6 +225,11 @@ export function DeliveryMapClient({
     onSelect,
 }: DeliveryMapProps) {
     const origins = useMemo(() => extractUniqueOrigins(deliveries), [deliveries]);
+    const waveStops = useMemo(() => waveContext?.stops ?? [], [waveContext]);
+    const waveStopOrderIds = useMemo(
+        () => new Set(waveStops.map((stop) => stop.orderId)),
+        [waveStops],
+    );
     const destinationMarkers = useMemo(
         () =>
             deliveries.filter(
@@ -259,17 +238,14 @@ export function DeliveryMapClient({
                         delivery.destination
                         && isValidCoordinate(delivery.destination.latitude)
                         && isValidCoordinate(delivery.destination.longitude),
-                    ),
+                    )
+                    && !waveStopOrderIds.has(delivery.orderId),
             ),
-        [deliveries],
-    );
-    const waveStopSequences = useMemo(
-        () => new Map((waveContext?.stops ?? []).map((stop) => [stop.orderId, stop.sequence])),
-        [waveContext],
+        [deliveries, waveStopOrderIds],
     );
     const wavePolylinePositions = useMemo(
-        () => computeWaveFocusPoints(deliveries, waveContext),
-        [deliveries, waveContext],
+        () => computeWaveFocusPoints(waveContext),
+        [waveContext],
     );
 
     return (
@@ -296,13 +272,12 @@ export function DeliveryMapClient({
 
                 {wavePolylinePositions.length >= 2 ? (
                     <Polyline
-                        pathOptions={{
-                            color: waveContext?.kind === "confirmed" ? "#0d6f54" : "#e84c1e",
-                            dashArray: waveContext?.kind === "suggested" ? "8 12" : undefined,
-                            opacity: 0.82,
-                            weight: 4,
-                        }}
+                        className="delivery-wave-sequence-line"
+                        color={waveContext?.kind === "confirmed" ? "#0d6f54" : "#e84c1e"}
+                        dashArray={waveContext?.kind === "suggested" ? "8 12" : undefined}
+                        opacity={0.82}
                         positions={wavePolylinePositions}
+                        weight={4}
                     />
                 ) : null}
 
@@ -323,6 +298,38 @@ export function DeliveryMapClient({
                     </Marker>
                 ))}
 
+                {waveStops.map((stop: WaveStop) => {
+                    const isSelected = stop.orderId === selectedOrderId;
+
+                    return (
+                        <Marker
+                            key={`wave-stop-${stop.orderId}`}
+                            eventHandlers={{
+                                click: () => onSelect(stop.orderId),
+                            }}
+                            icon={createWaveSequenceIcon({
+                                isSelected,
+                                kind: waveContext?.kind ?? "suggested",
+                                sequence: stop.sequence,
+                            })}
+                            position={[stop.latitude, stop.longitude]}
+                        >
+                            <Tooltip direction="top" offset={[0, -18]} opacity={1}>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-forest/75">
+                                        Sequencia {stop.sequence}
+                                    </p>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/65">
+                                        Destino
+                                    </p>
+                                    <p className="font-semibold text-soil">{stop.buyerName}</p>
+                                    <p className="text-xs text-bark/75">{formatDistance(stop.distanceKm)}</p>
+                                </div>
+                            </Tooltip>
+                        </Marker>
+                    );
+                })}
+
                 {destinationMarkers.map((delivery) => {
                     const destination = delivery.destination;
 
@@ -331,7 +338,6 @@ export function DeliveryMapClient({
                     }
 
                     const isSelected = delivery.orderId === selectedOrderId;
-                    const stopSequence = waveStopSequences.get(delivery.orderId) ?? null;
 
                     return (
                         <Marker
@@ -339,24 +345,11 @@ export function DeliveryMapClient({
                             eventHandlers={{
                                 click: () => onSelect(delivery.orderId),
                             }}
-                            icon={
-                                stopSequence !== null
-                                    ? createWaveSequenceIcon({
-                                        isSelected,
-                                        kind: waveContext?.kind ?? "suggested",
-                                        sequence: stopSequence,
-                                    })
-                                    : createDestinationPinIcon(isSelected)
-                            }
+                            icon={createDestinationPinIcon(isSelected)}
                             position={[destination.latitude, destination.longitude]}
                         >
                             <Tooltip direction="top" offset={[0, -18]} opacity={1}>
                                 <div className="space-y-1">
-                                    {stopSequence !== null ? (
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-forest/75">
-                                            Sequencia {stopSequence}
-                                        </p>
-                                    ) : null}
                                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/65">
                                         Destino
                                     </p>
