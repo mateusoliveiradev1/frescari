@@ -11,6 +11,10 @@ async function main() {
         await sql`CREATE TYPE "role" AS ENUM('producer', 'distributor', 'buyer', 'admin');`.catch(() => { });
         await sql`CREATE TYPE "sale_unit" AS ENUM('kg', 'g', 'unit', 'box', 'dozen', 'bunch');`.catch(() => { });
         await sql`CREATE TYPE "order_status" AS ENUM('draft', 'confirmed', 'payment_authorized', 'awaiting_weight', 'picking', 'ready_for_dispatch', 'in_transit', 'delivered', 'cancelled');`.catch(() => { });
+        await sql`CREATE TYPE "notification_type" AS ENUM('lot_expiring_soon', 'lot_expired', 'order_awaiting_weight', 'order_confirmed', 'order_cancelled', 'order_ready_for_dispatch', 'delivery_in_transit', 'delivery_delayed', 'delivery_delivered');`.catch(() => { });
+        await sql`CREATE TYPE "notification_scope" AS ENUM('inventory', 'sales', 'orders', 'deliveries', 'platform');`.catch(() => { });
+        await sql`CREATE TYPE "notification_severity" AS ENUM('info', 'warning', 'critical');`.catch(() => { });
+        await sql`CREATE TYPE "notification_entity_type" AS ENUM('lot', 'order');`.catch(() => { });
 
         // Tables
         await sql`
@@ -139,6 +143,145 @@ async function main() {
                 "is_expired" boolean DEFAULT false NOT NULL,
                 "created_at" timestamp with time zone DEFAULT now() NOT NULL
             );
+        `;
+
+        await sql`
+            CREATE TABLE IF NOT EXISTS "notifications" (
+                "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                "tenant_id" uuid NOT NULL REFERENCES "tenants"("id"),
+                "user_id" text NOT NULL REFERENCES "user"("id"),
+                "recipient_role" "role" NOT NULL,
+                "type" "notification_type" NOT NULL,
+                "scope" "notification_scope" NOT NULL,
+                "severity" "notification_severity" DEFAULT 'info' NOT NULL,
+                "entity_type" "notification_entity_type" NOT NULL,
+                "entity_id" uuid NOT NULL,
+                "title" text NOT NULL,
+                "body" text NOT NULL,
+                "href" text NOT NULL,
+                "metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+                "dedupe_key" text NOT NULL,
+                "read_at" timestamp with time zone,
+                "created_at" timestamp with time zone DEFAULT now() NOT NULL
+            );
+        `;
+
+        await sql`
+            CREATE INDEX IF NOT EXISTS "notifications_user_created_idx"
+            ON "notifications" ("user_id", "created_at" DESC);
+        `;
+        await sql`
+            CREATE INDEX IF NOT EXISTS "notifications_user_unread_idx"
+            ON "notifications" ("user_id", "read_at", "created_at" DESC);
+        `;
+        await sql`
+            CREATE INDEX IF NOT EXISTS "notifications_tenant_role_created_idx"
+            ON "notifications" ("tenant_id", "recipient_role", "created_at" DESC);
+        `;
+        await sql`
+            CREATE UNIQUE INDEX IF NOT EXISTS "notifications_user_dedupe_unique"
+            ON "notifications" ("user_id", "dedupe_key");
+        `;
+
+        await sql`
+            ALTER TABLE "notifications" ENABLE ROW LEVEL SECURITY;
+        `.catch(() => { });
+        await sql`
+            ALTER TABLE "notifications" FORCE ROW LEVEL SECURITY;
+        `.catch(() => { });
+
+        await sql`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_policies
+                    WHERE schemaname = 'public'
+                      AND tablename = 'notifications'
+                      AND policyname = 'notifications_select_policy'
+                ) THEN
+                    CREATE POLICY "notifications_select_policy" ON "notifications"
+                        FOR SELECT
+                        USING (
+                            current_setting('app.bypass_rls', true) = 'on'
+                            OR (
+                                "user_id" = nullif(current_setting('app.current_user', true), '')
+                                AND "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            )
+                        );
+                END IF;
+            END
+            $$;
+        `;
+
+        await sql`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_policies
+                    WHERE schemaname = 'public'
+                      AND tablename = 'notifications'
+                      AND policyname = 'notifications_insert_policy'
+                ) THEN
+                    CREATE POLICY "notifications_insert_policy" ON "notifications"
+                        FOR INSERT
+                        WITH CHECK (
+                            current_setting('app.bypass_rls', true) = 'on'
+                            OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                        );
+                END IF;
+            END
+            $$;
+        `;
+
+        await sql`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_policies
+                    WHERE schemaname = 'public'
+                      AND tablename = 'notifications'
+                      AND policyname = 'notifications_update_policy'
+                ) THEN
+                    CREATE POLICY "notifications_update_policy" ON "notifications"
+                        FOR UPDATE
+                        USING (
+                            current_setting('app.bypass_rls', true) = 'on'
+                            OR (
+                                "user_id" = nullif(current_setting('app.current_user', true), '')
+                                AND "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            )
+                        )
+                        WITH CHECK (
+                            current_setting('app.bypass_rls', true) = 'on'
+                            OR (
+                                "user_id" = nullif(current_setting('app.current_user', true), '')
+                                AND "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            )
+                        );
+                END IF;
+            END
+            $$;
+        `;
+
+        await sql`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_policies
+                    WHERE schemaname = 'public'
+                      AND tablename = 'notifications'
+                      AND policyname = 'notifications_delete_policy'
+                ) THEN
+                    CREATE POLICY "notifications_delete_policy" ON "notifications"
+                        FOR DELETE
+                        USING (current_setting('app.bypass_rls', true) = 'on');
+                END IF;
+            END
+            $$;
         `;
 
         console.log('Tables created successfully!');

@@ -140,6 +140,18 @@ function createSupplementalSelectChain<T>(rows: T[]) {
     };
 }
 
+function createNotificationInsertChain(values: Record<string, unknown>[]) {
+    return {
+        onConflictDoNothing() {
+            return {
+                returning: async () => values.map((_, index) => ({
+                    id: `notification-${index + 1}`,
+                })),
+            };
+        },
+    };
+}
+
 test('logistics.getPendingDeliveries groups item rows per order and exposes safe coordinates', async () => {
     const deliveryRows: DeliveryRow[] = [
         {
@@ -428,18 +440,29 @@ test('logistics.updateDeliveryStatus advances producer orders through ready_for_
     const state = {
         order: {
             id: orderId,
+            buyerTenantId: 'buyer-1',
             sellerTenantId: 'tenant-1',
             status: 'picking',
         },
         updatedStatuses: [] as string[],
     };
 
-    let selectCallCount = 0;
-
     const db = withRlsMockDb({
-        select() {
-            selectCallCount += 1;
+        select(selection: Record<string, unknown>) {
+            if ('userId' in selection) {
+                return createSupplementalSelectChain([
+                    { userId: 'buyer-user-1' },
+                ]);
+            }
+
             return createTenantSelectChain();
+        },
+        insert() {
+            return {
+                values(values: Record<string, unknown>[]) {
+                    return createNotificationInsertChain(values);
+                },
+            };
         },
         query: {
             orders: {
@@ -800,15 +823,18 @@ test('logistics.confirmDispatchWave persists structured dispatch data and marks 
     const state = {
         insertedWave: null as Record<string, unknown> | null,
         insertedWaveOrders: null as Record<string, unknown>[] | null,
+        insertedNotifications: [] as Record<string, unknown>[],
         updatedStatuses: [] as string[],
         orderLookup: new Map([
             ['11111111-1111-4111-8111-111111111111', {
                 id: '11111111-1111-4111-8111-111111111111',
+                buyerTenantId: 'buyer-1',
                 sellerTenantId: 'tenant-1',
                 status: 'confirmed',
             }],
             ['22222222-2222-4222-8222-222222222222', {
                 id: '22222222-2222-4222-8222-222222222222',
+                buyerTenantId: 'buyer-2',
                 sellerTenantId: 'tenant-1',
                 status: 'picking',
             }],
@@ -819,17 +845,24 @@ test('logistics.confirmDispatchWave persists structured dispatch data and marks 
     let insertCallCount = 0;
 
     const db = withRlsMockDb({
-        select() {
+        select(selection?: Record<string, unknown>) {
             selectCallCount += 1;
 
             if (selectCallCount === 1) {
                 return createTenantSelectChain();
             }
 
+            if (selection && 'userId' in selection) {
+                return createSupplementalSelectChain([
+                    { userId: 'buyer-user-1' },
+                ]);
+            }
+
             return createSupplementalSelectChain(
                 Array.from(state.orderLookup.values()).map((order) => ({
                     id: order.id,
                     status: order.status,
+                    buyerTenantId: order.buyerTenantId,
                 })),
             );
         },
@@ -849,10 +882,15 @@ test('logistics.confirmDispatchWave persists structured dispatch data and marks 
 
             return {
                 values(values: Record<string, unknown>[]) {
-                    state.insertedWaveOrders = values;
-                    return {
-                        returning: async () => values,
-                    };
+                    if (insertCallCount === 2) {
+                        state.insertedWaveOrders = values;
+                        return {
+                            returning: async () => values,
+                        };
+                    }
+
+                    state.insertedNotifications.push(...values);
+                    return createNotificationInsertChain(values);
                 },
             };
         },

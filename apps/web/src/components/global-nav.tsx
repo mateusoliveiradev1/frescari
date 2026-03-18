@@ -8,6 +8,7 @@ import { Menu, ShoppingCart } from "lucide-react";
 import { Button } from "@frescari/ui";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { NotificationInboxSheet } from "@/components/notification-inbox-sheet";
 import { authClient } from "@/lib/auth-client";
 import { CartStore, useCartStore, useCartTotals } from "@/store/useCartStore";
 import {
@@ -67,6 +68,7 @@ export function GlobalNav() {
 
     const role = user?.role;
     const canUseCart = role === "buyer";
+    const canUseNotifications = role === "buyer" || role === "producer";
 
     useEffect(() => {
         let cancelled = false;
@@ -305,6 +307,7 @@ export function GlobalNav() {
                         {navLinks()}
                     </div>
 
+                    {user && canUseNotifications ? <NotificationInboxSheet /> : null}
                     {canUseCart ? <CartButton /> : null}
 
                     {!user ? (

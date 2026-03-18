@@ -5,10 +5,12 @@
     "main": "src/index.ts",
     "scripts": {
         "test": "tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\"",
-        "test:worker": "tsx --test src/workers/lot-freshness.test.ts",
+        "test:worker": "tsx --test src/workers/*.test.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "worker:lot-freshness": "tsx src/workers/lot-freshness-cli.ts",
-        "worker:lot-freshness:run-once": "tsx src/workers/lot-freshness-cli.ts --run-once"
+        "worker:lot-freshness:run-once": "tsx src/workers/lot-freshness-cli.ts --run-once",
+        "worker:notifications": "tsx src/workers/notification-worker-cli.ts",
+        "worker:notifications:run-once": "tsx src/workers/notification-worker-cli.ts --run-once"
     },
     "dependencies": {
         "@better-auth/drizzle-adapter": "1.5.3",

@@ -29,6 +29,7 @@ import {
     normalizeNullableCurrencyValue,
     resolveEffectiveDeliveryRadiusKm,
 } from '../freight-quote';
+import { emitOrderNotifications } from '../notifications/domain-events';
 import { buyerProcedure, createTRPCRouter, producerProcedure } from '../trpc';
 
 const pendingDeliveryStatuses = ['payment_authorized', 'confirmed', 'picking', 'ready_for_dispatch'] as const;
@@ -1159,6 +1160,7 @@ export const logisticsRouter = createTRPCRouter({
                 .select({
                     id: orders.id,
                     status: orders.status,
+                    buyerTenantId: orders.buyerTenantId,
                 })
                 .from(orders)
                 .where(
@@ -1244,6 +1246,22 @@ export const logisticsRouter = createTRPCRouter({
                     ),
                 );
 
+            for (const targetOrder of targetOrders) {
+                await emitOrderNotifications({
+                    tx: ctx.db,
+                    type: 'order_ready_for_dispatch',
+                    orderId: targetOrder.id,
+                    buyerTenantId: targetOrder.buyerTenantId,
+                    sellerTenantId: ctx.tenantId,
+                    actorUserId: ctx.user.id,
+                    metadata: {
+                        orderId: targetOrder.id,
+                        status: 'ready_for_dispatch',
+                        waveId: wave.id,
+                    },
+                });
+            }
+
             return {
                 success: true,
                 waveId: wave.id,
@@ -1283,6 +1301,25 @@ export const logisticsRouter = createTRPCRouter({
                         eq(orders.sellerTenantId, ctx.tenantId),
                     ),
                 );
+
+            const notificationType = input.status === 'ready_for_dispatch'
+                ? 'order_ready_for_dispatch'
+                : input.status === 'in_transit'
+                    ? 'delivery_in_transit'
+                    : 'delivery_delivered';
+
+            await emitOrderNotifications({
+                tx: ctx.db,
+                type: notificationType,
+                orderId: targetOrder.id,
+                buyerTenantId: targetOrder.buyerTenantId,
+                sellerTenantId: targetOrder.sellerTenantId,
+                actorUserId: ctx.user.id,
+                metadata: {
+                    orderId: targetOrder.id,
+                    status: input.status,
+                },
+            });
 
             return {
                 success: true,

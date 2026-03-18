@@ -20,6 +20,7 @@ import {
     isWeighableSaleUnit,
     resolveEffectiveSaleUnit,
 } from '@frescari/api/sale-units';
+import { emitOrderNotifications } from '@frescari/api/notifications/domain-events';
 
 import { resolveAuthorizedOrderStatus } from './resolve-order-status';
 
@@ -465,6 +466,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                             })
                             .where(eq(productLots.id, item.lotId));
                     }
+
+                    await emitOrderNotifications({
+                        tx: database,
+                        type: initialStatus === 'awaiting_weight'
+                            ? 'order_awaiting_weight'
+                            : 'order_confirmed',
+                        orderId: newOrder.id,
+                        buyerTenantId,
+                        sellerTenantId: sellerId,
+                        metadata: {
+                            orderId: newOrder.id,
+                            status: initialStatus,
+                            stripeSessionId: session.id,
+                        },
+                    });
                 }
             });
         } catch (error) {
@@ -621,6 +637,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
                 console.log(`[WEBHOOK] ✅ Estoque decrementado: lote ${item.lotId} (-${item.qty})`);
             }
+
+            await emitOrderNotifications({
+                tx: database,
+                type: initialStatus === 'awaiting_weight'
+                    ? 'order_awaiting_weight'
+                    : 'order_confirmed',
+                orderId: newOrder.id,
+                buyerTenantId,
+                sellerTenantId: sellerId,
+                metadata: {
+                    orderId: newOrder.id,
+                    status: initialStatus,
+                    stripeSessionId: session.id,
+                },
+            });
         }
     });
 

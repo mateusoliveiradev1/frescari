@@ -23,6 +23,10 @@ const geocodeState = {
     shouldFail: false,
 };
 
+const notificationState = {
+    emitCalls: [] as unknown[],
+};
+
 const dbState = {
     selectQueue: [] as unknown[],
     orderInsertError: null as null | Error,
@@ -36,6 +40,7 @@ function resetMockState() {
     stripeState.event = null;
     geocodeState.callCount = 0;
     geocodeState.shouldFail = false;
+    notificationState.emitCalls = [];
     dbState.selectQueue = [];
     dbState.orderInsertError = null;
     dbState.ordersInserted = [];
@@ -203,6 +208,14 @@ before(() => {
                     raw ? { latitude: -23.55, longitude: -46.63 } : null,
                 resolveEffectiveSaleUnit: (saleUnit?: string | null, lotUnit?: string | null) => saleUnit ?? lotUnit ?? 'unit',
                 toDeliveryPointGeoJson: (point: unknown) => point,
+            };
+        }
+
+        if (request === '@frescari/api/notifications/domain-events') {
+            return {
+                emitOrderNotifications: async (payload: unknown) => {
+                    notificationState.emitCalls.push(payload);
+                },
             };
         }
 

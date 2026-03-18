@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
     createBullLotEventPublisher,
+    LOT_EXPIRED_EVENT_NAME,
     enqueueLotFreshnessRun,
     LOT_EXPIRING_SOON_EVENT_NAME,
     LOT_EXPIRING_SOON_THRESHOLD,
@@ -13,6 +14,7 @@ import {
     ensureLotFreshnessSchedule,
     runLotFreshnessPass,
     type ActiveLotRecord,
+    type LotExpiredEvent,
     type LotExpiringSoonEvent,
     type LotFreshnessRepository,
 } from './lot-freshness';
@@ -36,14 +38,19 @@ function createRepository(lots: ActiveLotRecord[]): {
 
 function createPublisher() {
     const events: LotExpiringSoonEvent[] = [];
+    const expiredEvents: LotExpiredEvent[] = [];
 
     return {
         publisher: {
             publishExpiringSoon: async (event: LotExpiringSoonEvent) => {
                 events.push(event);
             },
+            publishExpired: async (event: LotExpiredEvent) => {
+                expiredEvents.push(event);
+            },
         },
         events,
+        expiredEvents,
     };
 }
 
@@ -207,7 +214,7 @@ test('marks expired lots automatically and forces freshness to zero', async () =
         isExpired: false,
     };
     const { repository, updates } = createRepository([lot]);
-    const { publisher, events } = createPublisher();
+    const { publisher, events, expiredEvents } = createPublisher();
 
     const result = await runLotFreshnessPass({
         repository,
@@ -219,6 +226,8 @@ test('marks expired lots automatically and forces freshness to zero', async () =
     assert.equal(result.expiredLots, 1);
     assert.equal(result.expiringSoonEvents, 0);
     assert.equal(events.length, 0);
+    assert.equal(expiredEvents.length, 1);
+    assert.equal(expiredEvents[0]?.type, LOT_EXPIRED_EVENT_NAME);
     assert.deepEqual(updates, [
         {
             lotId: 'lot-3',
@@ -226,6 +235,42 @@ test('marks expired lots automatically and forces freshness to zero', async () =
             isExpired: true,
         },
     ]);
+});
+
+test('uses a BullMQ-safe job id for lot.expired events', async () => {
+    const calls: Array<{
+        name: string;
+        data: LotExpiredEvent;
+        opts?: { jobId?: string };
+    }> = [];
+    const queue = {
+        add: async (
+            name: string,
+            data: LotExpiredEvent,
+            opts?: { jobId?: string },
+        ) => {
+            calls.push({ name, data, opts });
+            return undefined;
+        },
+    };
+    const publisher = createBullLotEventPublisher(queue);
+
+    await publisher.publishExpired({
+        type: LOT_EXPIRED_EVENT_NAME,
+        lotId: 'lot-5',
+        tenantId: 'tenant-9',
+        productId: 'product-5',
+        lotCode: 'L-005',
+        freshnessScore: 0,
+        previousFreshnessScore: 12,
+        harvestDate: '2026-03-10',
+        expiryDate: '2026-03-12',
+        occurredAt: '2026-03-14T12:00:00.000Z',
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.name, LOT_EXPIRED_EVENT_NAME);
+    assert.equal(calls[0]?.opts?.jobId, 'lot-expired-lot-5');
 });
 
 test('registers the recurring scheduler for the lot freshness worker every 6 hours', async () => {
