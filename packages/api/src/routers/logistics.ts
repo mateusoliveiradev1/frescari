@@ -19,10 +19,11 @@ import {
 import { calculateFreightSchema } from '@frescari/validators';
 
 import {
-    buildDispatchControlQueue,
+    buildDispatchControlQueueWithExternalRiskSignals,
     getOperationDate,
     type DeliveryControlQueueItem,
 } from '../delivery-control';
+import { stubDeliveryExternalSignalsResolver } from '../external-risk-signals';
 import {
     normalizeCurrencyValue,
     normalizeNullableCurrencyValue,
@@ -951,12 +952,13 @@ export const logisticsRouter = createTRPCRouter({
 
         if (groupedDeliveries.length === 0) {
             return attachDispatchMapContext(
-                buildDispatchControlQueue([], {
+                await buildDispatchControlQueueWithExternalRiskSignals<PendingDeliveryQueueItem>([], {
                     now,
                     operationDate,
                     overrides: [],
                     vehicles: [],
                     waveAssignments: [],
+                    resolveExternalSignals: stubDeliveryExternalSignalsResolver,
                 }),
             );
         }
@@ -1017,7 +1019,7 @@ export const logisticsRouter = createTRPCRouter({
         ]);
 
         return attachDispatchMapContext(
-            buildDispatchControlQueue(groupedDeliveries, {
+            await buildDispatchControlQueueWithExternalRiskSignals(groupedDeliveries, {
                 now,
                 operationDate,
                 overrides: overrideRows as DeliveryOverrideRow[],
@@ -1026,6 +1028,7 @@ export const logisticsRouter = createTRPCRouter({
                     capacityKg: Number(vehicle.capacityKg),
                 })),
                 waveAssignments: waveAssignments as DispatchWaveAssignmentRow[],
+                resolveExternalSignals: stubDeliveryExternalSignalsResolver,
             }),
         );
     }),

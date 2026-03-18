@@ -104,6 +104,16 @@ export type DeliveryControlQueueItem<TDelivery extends DeliveryControlBaseDelive
     recommendation: DeliveryRecommendation;
 };
 
+export type DeliveryExternalSignalsResolverInput<TDelivery extends DeliveryControlBaseDelivery = DeliveryControlBaseDelivery> = {
+    deliveries: TDelivery[];
+    now: Date;
+    operationDate: string;
+};
+
+export type DeliveryExternalSignalsResolver<TDelivery extends DeliveryControlBaseDelivery = DeliveryControlBaseDelivery> = (
+    input: DeliveryExternalSignalsResolverInput<TDelivery>,
+) => Promise<DeliveryExternalSignal[]>;
+
 type BuildDispatchControlQueueOptions = {
     now: Date;
     operationDate: string;
@@ -113,30 +123,17 @@ type BuildDispatchControlQueueOptions = {
     externalSignals?: DeliveryExternalSignal[];
 };
 
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
+type BuildDispatchControlQueueWithExternalRiskSignalsOptions<TDelivery extends DeliveryControlBaseDelivery> =
+    BuildDispatchControlQueueOptions & {
+        resolveExternalSignals?: DeliveryExternalSignalsResolver<TDelivery>;
+        externalSignalsTimeoutMs?: number;
+    };
 
-function getFallbackExternalSignals(): DeliveryExternalSignal[] {
-    return [
-        {
-            source: 'weather',
-            status: 'unavailable',
-            impact: 'none',
-            summary: 'clima indisponivel no momento',
-        },
-        {
-            source: 'traffic',
-            status: 'unavailable',
-            impact: 'none',
-            summary: 'transito indisponivel no momento',
-        },
-        {
-            source: 'closures',
-            status: 'unavailable',
-            impact: 'none',
-            summary: 'vias e interdições indisponiveis no momento',
-        },
-    ];
-}
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const EXTERNAL_RISK_PRIORITY_PENALTY = {
+    attention: 6,
+    critical: 12,
+} as const;
 
 function diffInDays(target: Date, source: Date) {
     return Math.ceil((target.getTime() - source.getTime()) / DAY_IN_MS);
@@ -264,22 +261,35 @@ function pickSuggestedVehicle(
 }
 
 function resolveExternalContext(externalSignals?: DeliveryExternalSignal[]) {
-    const signals = externalSignals?.length ? externalSignals : getFallbackExternalSignals();
+    const signals = externalSignals?.length ? externalSignals : [];
     const impactfulSignals = signals.filter(
         (signal) => signal.status === 'available' && signal.impact !== 'none',
     );
     const hasUnavailableSignals = signals.some((signal) => signal.status === 'unavailable');
 
+    if (signals.length === 0) {
+        return {
+            confidencePenalty: 0,
+            explanationNote: null,
+            priorityAdjustment: 0,
+            reasons: [] as string[],
+            context: {
+                status: 'ready' as const,
+                summary: 'Sem alertas externos relevantes; heuristica mantida com a pontuacao base.',
+                signals: [],
+            } satisfies DeliveryExternalContext,
+        };
+    }
+
     if (hasUnavailableSignals) {
         return {
-            confidencePenalty: 1,
-            explanationNote: 'Contexto externo degradado: revisar clima, transito e vias antes de despachar.',
-            priorityPoints: 0,
-            reasons: ['contexto externo degradado, fila mantida com sinais internos'],
+            confidencePenalty: 0,
+            explanationNote: null,
+            priorityAdjustment: 0,
+            reasons: [] as string[],
             context: {
                 status: 'degraded' as const,
-                summary:
-                    'Contexto externo degradado: clima, transito ou vias sem resposta; a fila segue com sinais internos.',
+                summary: 'Sinais externos indisponiveis; heuristica mantida com a pontuacao base.',
                 signals,
             } satisfies DeliveryExternalContext,
         };
@@ -289,7 +299,7 @@ function resolveExternalContext(externalSignals?: DeliveryExternalSignal[]) {
         return {
             confidencePenalty: 0,
             explanationNote: null,
-            priorityPoints: 0,
+            priorityAdjustment: 0,
             reasons: [] as string[],
             context: {
                 status: 'ready' as const,
@@ -300,15 +310,17 @@ function resolveExternalContext(externalSignals?: DeliveryExternalSignal[]) {
     }
 
     const summaries = impactfulSignals.map((signal) => signal.summary);
-    const priorityPoints = impactfulSignals.reduce((total, signal) => {
-        return total + (signal.impact === 'critical' ? 8 : 4);
+    const priorityPenalty = impactfulSignals.reduce((total, signal) => {
+        return total + (signal.impact === 'critical'
+            ? EXTERNAL_RISK_PRIORITY_PENALTY.critical
+            : EXTERNAL_RISK_PRIORITY_PENALTY.attention);
     }, 0);
 
     return {
         confidencePenalty: 0,
-        explanationNote: `Sinais externos ativos: ${summaries.join(' | ')}.`,
-        priorityPoints,
-        reasons: summaries,
+        explanationNote: `Penalizacao externa aplicada: ${summaries.join(' | ')}.`,
+        priorityAdjustment: -priorityPenalty,
+        reasons: summaries.map((summary) => `risco externo: ${summary}`),
         context: {
             status: 'ready' as const,
             summary: summaries.join(' | '),
@@ -389,7 +401,7 @@ function buildRecommendation(
             + risk.points
             + geographyPoints
             + valuePoints
-            + externalContext.priorityPoints,
+            + externalContext.priorityAdjustment,
         urgencyLevel: urgency.level,
         riskLevel: risk.level,
         confidence,
@@ -463,5 +475,72 @@ export function buildDispatchControlQueue<TDelivery extends DeliveryControlBaseD
         }
 
         return left.createdAt.getTime() - right.createdAt.getTime();
+    });
+}
+
+class DeliveryExternalSignalsTimeoutError extends Error {
+    constructor(timeoutMs: number) {
+        super(`external risk signals timed out after ${timeoutMs}ms`);
+        this.name = 'DeliveryExternalSignalsTimeoutError';
+    }
+}
+
+async function resolveExternalSignalsWithTimeout<TDelivery extends DeliveryControlBaseDelivery>(
+    deliveries: TDelivery[],
+    options: BuildDispatchControlQueueWithExternalRiskSignalsOptions<TDelivery>,
+) {
+    if (!options.resolveExternalSignals) {
+        return options.externalSignals;
+    }
+
+    const timeoutMs = options.externalSignalsTimeoutMs ?? 1500;
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    try {
+        return await Promise.race([
+            options.resolveExternalSignals({
+                deliveries,
+                now: options.now,
+                operationDate: options.operationDate,
+            }),
+            new Promise<never>((_, reject) => {
+                timeoutHandle = setTimeout(() => {
+                    reject(new DeliveryExternalSignalsTimeoutError(timeoutMs));
+                }, timeoutMs);
+            }),
+        ]);
+    } finally {
+        if (timeoutHandle) {
+            clearTimeout(timeoutHandle);
+        }
+    }
+}
+
+export async function buildDispatchControlQueueWithExternalRiskSignals<TDelivery extends DeliveryControlBaseDelivery>(
+    deliveries: TDelivery[],
+    options: BuildDispatchControlQueueWithExternalRiskSignalsOptions<TDelivery>,
+) {
+    let externalSignals = options.externalSignals;
+
+    if (!externalSignals && options.resolveExternalSignals) {
+        try {
+            externalSignals = await resolveExternalSignalsWithTimeout(deliveries, options);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'unknown error';
+            console.warn(
+                `[delivery-control.external-risk-signals] external risk signals unavailable; falling back to base scoring (${errorMessage})`,
+                error,
+            );
+            externalSignals = undefined;
+        }
+    }
+
+    return buildDispatchControlQueue(deliveries, {
+        now: options.now,
+        operationDate: options.operationDate,
+        overrides: options.overrides,
+        vehicles: options.vehicles,
+        waveAssignments: options.waveAssignments,
+        externalSignals,
     });
 }
