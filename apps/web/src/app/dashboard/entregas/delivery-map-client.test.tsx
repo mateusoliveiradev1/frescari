@@ -95,9 +95,34 @@ test("renders the selected wave sequence with a polyline and numbered stop marke
         kind: "suggested",
         orderIds: ["order-1", "order-2"],
         primaryOrderId: "order-1",
+        origin: {
+            farmId: "farm-1",
+            farmName: "Fazenda Sol",
+            latitude: -23.55,
+            longitude: -46.63,
+        },
+        polyline: [
+            { latitude: -23.55, longitude: -46.63 },
+            { latitude: -23.56, longitude: -46.64 },
+            { latitude: -23.57, longitude: -46.65 },
+        ],
         stops: [
-            { orderId: "order-1", sequence: 1 },
-            { orderId: "order-2", sequence: 2 },
+            {
+                buyerName: "Mercado Modelo",
+                distanceKm: 12.4,
+                latitude: -23.56,
+                longitude: -46.64,
+                orderId: "order-1",
+                sequence: 1,
+            },
+            {
+                buyerName: "Padaria Central",
+                distanceKm: 14.1,
+                latitude: -23.57,
+                longitude: -46.65,
+                orderId: "order-2",
+                sequence: 2,
+            },
         ],
         subtitle: "Wave sugerida com contexto geografico.",
         title: "Wave sugerida selecionada",
@@ -130,4 +155,78 @@ test("renders the selected wave sequence with a polyline and numbered stop marke
         container.querySelectorAll(".delivery-wave-sequence-line").length,
         1,
     );
+});
+
+test("renders backend-provided wave markers even when delivery coordinates are not usable on the client", async (context) => {
+    const dom = setupDom();
+    const { window } = dom;
+    const container = window.document.createElement("div");
+    window.document.body.appendChild(container);
+    const root: Root = createRoot(container);
+    const { DeliveryMapClient } = (await import("./delivery-map-client")) as DeliveryMapClientModule;
+
+    const deliveries = [
+        {
+            orderId: "order-1",
+            buyerName: "Mercado Modelo",
+            destination: null,
+            distanceKm: 12.4,
+            origin: {
+                farmId: "farm-1",
+                farmName: "Fazenda Sol",
+                latitude: -23.55,
+                longitude: -46.63,
+            },
+            recommendation: {},
+        },
+    ] as Parameters<DeliveryMapClientModule["DeliveryMapClient"]>[0]["deliveries"];
+
+    const waveContext = {
+        kind: "confirmed",
+        orderIds: ["order-1"],
+        primaryOrderId: "order-1",
+        origin: {
+            farmId: "farm-1",
+            farmName: "Fazenda Sol",
+            latitude: -23.55,
+            longitude: -46.63,
+        },
+        polyline: [
+            { latitude: -23.55, longitude: -46.63 },
+            { latitude: -23.56, longitude: -46.64 },
+        ],
+        stops: [
+            {
+                buyerName: "Mercado Modelo",
+                distanceKm: 12.4,
+                latitude: -23.56,
+                longitude: -46.64,
+                orderId: "order-1",
+                sequence: 1,
+            },
+        ],
+        subtitle: "Sequencia operacional confirmada.",
+        title: "Wave confirmada selecionada",
+    } as Parameters<DeliveryMapClientModule["DeliveryMapClient"]>[0]["waveContext"];
+
+    context.after(async () => {
+        await act(async () => {
+            root.unmount();
+        });
+        dom.window.close();
+    });
+
+    await act(async () => {
+        root.render(
+            <DeliveryMapClient
+                deliveries={deliveries}
+                onSelect={() => {}}
+                selectedOrderId="order-1"
+                waveContext={waveContext}
+            />,
+        );
+    });
+
+    assert.equal(container.querySelectorAll(".delivery-wave-sequence-pin").length, 1);
+    assert.equal(container.querySelectorAll(".delivery-wave-sequence-line").length, 1);
 });
