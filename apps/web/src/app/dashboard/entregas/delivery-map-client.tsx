@@ -296,13 +296,12 @@ export function DeliveryMapClient({
 
                 {wavePolylinePositions.length >= 2 ? (
                     <Polyline
-                        pathOptions={{
-                            color: waveContext?.kind === "confirmed" ? "#0d6f54" : "#e84c1e",
-                            dashArray: waveContext?.kind === "suggested" ? "8 12" : undefined,
-                            opacity: 0.82,
-                            weight: 4,
-                        }}
+                        className="delivery-wave-sequence-line"
+                        color={waveContext?.kind === "confirmed" ? "#0d6f54" : "#e84c1e"}
+                        dashArray={waveContext?.kind === "suggested" ? "8 12" : undefined}
+                        opacity={0.82}
                         positions={wavePolylinePositions}
+                        weight={4}
                     />
                 ) : null}
 

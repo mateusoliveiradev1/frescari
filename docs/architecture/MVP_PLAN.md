@@ -398,7 +398,7 @@ Itens que devem existir para o Frescari validar operacao comercial no web:
 - [x] Stripe Connect, Stripe Checkout, webhook e captura por peso
 - [x] Checkout seguro por fazenda: o fluxo web principal ja usa `checkout.createFarmCheckoutSession`, recalculo server-side e remocao por grupo no carrinho
 - [x] Pipeline de pedido de ponta a ponta: o webhook novo reconstrui por `address_snapshot`, e o caminho legado `createCheckoutSession` foi isolado para nao aceitar mais endereco bruto nem geocoding no fluxo publico
-- [-] IA operacional de entregas e rotas no dashboard web: a base ja calcula score heuristico, risco, confianca, sugestao de veiculo, override manual e persistencia de wave; em 2026-03-17 entrou `Proxima acao agora` com revisao de wave multi-order no topo da mesa, e agora faltam mapa com contexto de sequencia, sinais externos resilientes e refresh/manual override final da control tower
+- [-] IA operacional de entregas e rotas no dashboard web: a base ja calcula score heuristico, risco, confianca, sugestao de veiculo, override manual e persistencia de wave; em 2026-03-17 entrou `Proxima acao agora` com revisao de wave multi-order no topo da mesa, e em 2026-03-18 o contexto de sequencia geografica da wave selecionada no mapa foi CONCLUIDO. Agora faltam sinais externos resilientes e refresh/manual override final da control tower
 - [ ] Sistema de notificacoes do MVP web: eventos criticos de pedido, entrega e lote precisam gerar notificacao operacional no painel e canal assinado para os atores corretos
 
 #### Direcao tecnica da IA de rotas para o MVP
@@ -502,4 +502,4 @@ O plano anterior ficou desatualizado em alguns pontos. Estado correto do reposit
 
 ---
 
-> **Proximo Passo:** Executar o fechamento da control tower em tres cortes restantes: contexto de sequencia no mapa, sinais externos resilientes com estado degradado e refresh da recomendacao sem sobrescrever override manual. Na sequencia, fechar notificacoes web, hardening e verificacao profunda das rotas criticas. Mobile, offline e push nativo continuam fora do primeiro marco.
+> **Proximo Passo:** Executar o fechamento da control tower nos dois cortes restantes: sinais externos resilientes com estado degradado e refresh da recomendacao sem sobrescrever override manual. Na sequencia, fechar notificacoes web, hardening e verificacao profunda das rotas criticas. Mobile, offline e push nativo continuam fora do primeiro marco.
