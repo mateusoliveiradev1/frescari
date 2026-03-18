@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
     Badge,
@@ -43,7 +43,6 @@ import { trpc } from "@/trpc/react";
 import { getSaleUnitLabel, isWeighableSaleUnit } from "@/lib/sale-units";
 
 import { DeliveryMap } from "./delivery-map";
-import { reconcileRecommendationQueue } from "./delivery-control-refresh";
 import {
     buildDispatchWaveCandidate,
     buildNextDispatchAction,
@@ -51,6 +50,7 @@ import {
     type DispatchWaveCandidate,
 } from "./delivery-control-summary";
 import type { PendingDelivery } from "./delivery-map.types";
+import { useDeliveryControlRefresh } from "./use-delivery-control-refresh";
 
 const statusStyles: Record<string, string> = {
     payment_authorized: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -552,7 +552,6 @@ function DeliveryCard({
 
 export function DeliveriesPageClient() {
     const utils = trpc.useUtils();
-    const forceApplyIncomingQueueRef = useRef(false);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [activeActionKey, setActiveActionKey] = useState<string | null>(null);
     const [dispatchReviewCandidate, setDispatchReviewCandidate] =
@@ -567,13 +566,6 @@ export function DeliveriesPageClient() {
     const [overrideReason, setOverrideReason] =
         useState<DispatchOverrideReason>("commercial_decision");
     const [overrideReasonNotes, setOverrideReasonNotes] = useState("");
-    const [queueSync, setQueueSync] = useState<{
-        visibleDeliveries: PendingDelivery[];
-        stagedDeliveries: PendingDelivery[] | null;
-    }>({
-        visibleDeliveries: [],
-        stagedDeliveries: null,
-    });
 
     const pendingDeliveriesQuery = trpc.logistics.getPendingDeliveries.useQuery(undefined, {
         refetchOnWindowFocus: false,
@@ -585,26 +577,9 @@ export function DeliveriesPageClient() {
         () => pendingDeliveriesQuery.data ?? [],
         [pendingDeliveriesQuery.data],
     );
-
-    useEffect(() => {
-        setQueueSync((current) => {
-            const next = reconcileRecommendationQueue({
-                visibleDeliveries: current.visibleDeliveries,
-                incomingDeliveries,
-                forceApplyIncoming: forceApplyIncomingQueueRef.current,
-            });
-
-            forceApplyIncomingQueueRef.current = false;
-
-            return {
-                visibleDeliveries: next.visibleDeliveries,
-                stagedDeliveries: next.stagedDeliveries,
-            };
-        });
-    }, [incomingDeliveries]);
-
-    const deliveries = queueSync.visibleDeliveries;
-    const hasPendingRecommendationUpdate = queueSync.stagedDeliveries !== null;
+    const recommendationQueue = useDeliveryControlRefresh(incomingDeliveries);
+    const deliveries = recommendationQueue.deliveries;
+    const hasPendingRecommendationUpdate = recommendationQueue.hasPendingRecommendationUpdate;
     const nextDispatchAction = useMemo(
         () => buildNextDispatchAction(deliveries),
         [deliveries],
@@ -649,7 +624,7 @@ export function DeliveriesPageClient() {
                         : "Entrega marcada como concluida.",
             );
             setActiveActionKey(null);
-            forceApplyIncomingQueueRef.current = true;
+            recommendationQueue.forceApplyNextIncomingQueue();
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
@@ -669,7 +644,7 @@ export function DeliveriesPageClient() {
             setDispatchReviewCandidate(null);
             setSelectedDispatchOrderIds([]);
             setSelectedDispatchVehicleId(null);
-            forceApplyIncomingQueueRef.current = true;
+            recommendationQueue.forceApplyNextIncomingQueue();
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
@@ -689,7 +664,8 @@ export function DeliveriesPageClient() {
             setOverrideDialog(null);
             setOverrideReason("commercial_decision");
             setOverrideReasonNotes("");
-            forceApplyIncomingQueueRef.current = true;
+            recommendationQueue.registerManualOverride();
+            recommendationQueue.forceApplyNextIncomingQueue();
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
@@ -702,7 +678,8 @@ export function DeliveriesPageClient() {
         onSuccess() {
             toast.success("Override manual removido.");
             setActiveActionKey(null);
-            forceApplyIncomingQueueRef.current = true;
+            recommendationQueue.clearManualOverrideLock();
+            recommendationQueue.forceApplyNextIncomingQueue();
             void utils.logistics.getPendingDeliveries.invalidate();
         },
         onError(error) {
@@ -883,21 +860,12 @@ export function DeliveriesPageClient() {
     };
 
     const handleApplyLatestRecommendation = () => {
-        setQueueSync((current) => {
-            if (!current.stagedDeliveries) {
-                return current;
-            }
-
-            return {
-                visibleDeliveries: current.stagedDeliveries,
-                stagedDeliveries: null,
-            };
-        });
+        recommendationQueue.applyLatestRecommendation();
         toast.success("Nova recomendacao aplicada sem sobrescrever o override manual.");
     };
 
     const handleRefreshRecommendation = async () => {
-        if (queueSync.stagedDeliveries) {
+        if (hasPendingRecommendationUpdate) {
             handleApplyLatestRecommendation();
             return;
         }

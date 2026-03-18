@@ -1,4 +1,4 @@
-type QueueDeliveryLike = {
+export type QueueDeliveryLike = {
     orderId: string;
     status: string;
     activeOverride: {
@@ -26,6 +26,7 @@ type ReconcileRecommendationQueueInput<TDelivery extends QueueDeliveryLike> = {
     visibleDeliveries: TDelivery[];
     incomingDeliveries: TDelivery[];
     forceApplyIncoming?: boolean;
+    lockIncomingUpdates?: boolean;
 };
 
 type ReconcileRecommendationQueueResult<TDelivery extends QueueDeliveryLike> = {
@@ -61,6 +62,7 @@ export function reconcileRecommendationQueue<TDelivery extends QueueDeliveryLike
     visibleDeliveries,
     incomingDeliveries,
     forceApplyIncoming = false,
+    lockIncomingUpdates = false,
 }: ReconcileRecommendationQueueInput<TDelivery>): ReconcileRecommendationQueueResult<TDelivery> {
     if (incomingDeliveries.length === 0) {
         return {
@@ -89,7 +91,7 @@ export function reconcileRecommendationQueue<TDelivery extends QueueDeliveryLike
         };
     }
 
-    if (!hasActiveManualOverride(visibleDeliveries)) {
+    if (!lockIncomingUpdates && !hasActiveManualOverride(visibleDeliveries)) {
         return {
             visibleDeliveries: incomingDeliveries,
             stagedDeliveries: null,
