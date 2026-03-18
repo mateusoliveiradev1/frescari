@@ -114,3 +114,44 @@ test("reconcileRecommendationQueue force applies the incoming queue after an ope
     assert.equal(result.stagedDeliveries, null);
     assert.equal(result.hasPendingRecommendationUpdate, false);
 });
+
+test("reconcileRecommendationQueue stages incoming updates while the UI manual override lock is active", async () => {
+    const { reconcileRecommendationQueue } = await import("./delivery-control-refresh");
+    const visibleDeliveries = [
+        {
+            activeOverride: null,
+            dispatch: null,
+            orderId: "order-1",
+            recommendation: {
+                confidence: "medium",
+                priorityScore: 80,
+                suggestedVehicle: null,
+                suggestedVehicleType: "pickup",
+            },
+            status: "confirmed",
+        },
+        {
+            activeOverride: null,
+            dispatch: null,
+            orderId: "order-2",
+            recommendation: {
+                confidence: "medium",
+                priorityScore: 70,
+                suggestedVehicle: null,
+                suggestedVehicleType: "pickup",
+            },
+            status: "confirmed",
+        },
+    ];
+    const incomingDeliveries = [visibleDeliveries[1], visibleDeliveries[0]];
+
+    const result = reconcileRecommendationQueue({
+        visibleDeliveries,
+        incomingDeliveries,
+        lockIncomingUpdates: true,
+    });
+
+    assert.deepEqual(result.visibleDeliveries, visibleDeliveries);
+    assert.deepEqual(result.stagedDeliveries, incomingDeliveries);
+    assert.equal(result.hasPendingRecommendationUpdate, true);
+});

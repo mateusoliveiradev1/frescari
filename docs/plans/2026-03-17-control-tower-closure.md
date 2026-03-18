@@ -15,8 +15,9 @@
 - [ ] Task 1: Expor sinais externos resilientes na recomendacao.
   Verify: a control tower continua operando sem weather/traffic/closures e a UI mostra estado degradado de contexto externo em vez de quebrar ou ocultar a fila.
 
-- [ ] Task 2: Fechar o contrato de refresh versus override manual.
+- [x] Task 2: Fechar o contrato de refresh versus override manual.
   Verify: quando existe override ativo, a fila nao e reordenada silenciosamente; a UI mostra `nova recomendacao disponivel` e o operador decide quando aplicar o refresh.
+  Status notes: concluido em 2026-03-18 no frontend web com lock local de override em `apps/web/src/app/dashboard/entregas/use-delivery-control-refresh.ts`, integracao da UI em `apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx` e cobertura em `apps/web/src/app/dashboard/entregas/use-delivery-control-refresh.test.tsx`.
 
 - [ ] Task 3: Dar contexto de sequencia para a onda selecionada no mapa.
   Verify: ao selecionar ou revisar uma wave, o mapa destaca a onda, sua ordem sugerida e o contexto geografico da sequencia sem virar navegacao turn-by-turn.
@@ -27,5 +28,5 @@
 ## Done When
 
 - [ ] A control tower entrega explicacao operacional, risco, proxima acao, consolidacao de wave, contexto de mapa e degradacao elegante de sinais externos.
-- [ ] Override manual e refresh convivem sem conflito de UX ou perda de auditoria.
+- [x] Override manual e refresh convivem sem conflito de UX ou perda de auditoria.
 - [ ] O item de IA operacional em `docs/MVP_CLOSURE_PLAN.md` permanece parcial apenas se ainda faltar notificacoes ou hardening externos a esta frente.
