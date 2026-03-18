@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
     buildDispatchControlQueue,
+    buildDispatchControlQueueWithExternalRiskSignals,
     getOperationDate,
     type DeliveryControlBaseDelivery,
     type DeliveryControlFleetVehicle,
@@ -146,25 +147,133 @@ test('buildDispatchControlQueue lowers confidence when key operational signals a
     assert.match(result[0].recommendation.explanation, /revisao humana/i);
 });
 
-test('buildDispatchControlQueue keeps the queue operational and exposes degraded external context when providers are unavailable', () => {
+test('buildDispatchControlQueueWithExternalRiskSignals penalizes priority when external risk is critical', async () => {
     const now = new Date('2026-03-16T09:30:00.000Z');
+    const operationDate = getOperationDate(now);
+    const deliveries = [
+        createDelivery({
+            orderId: 'order-weather-risk',
+        }),
+    ];
 
-    const result = buildDispatchControlQueue(
-        [
-            createDelivery({
-                orderId: 'order-external-degraded',
-            }),
+    const baseline = buildDispatchControlQueue(deliveries, {
+        now,
+        operationDate,
+        overrides: [],
+        vehicles: [],
+        waveAssignments: [],
+    });
+
+    const result = await buildDispatchControlQueueWithExternalRiskSignals(deliveries, {
+        now,
+        operationDate,
+        overrides: [],
+        vehicles: [],
+        waveAssignments: [],
+        resolveExternalSignals: async () => [
+            {
+                source: 'weather',
+                status: 'available',
+                impact: 'critical',
+                summary: 'tempestade severa prevista na rota',
+            },
         ],
-        {
+    });
+
+    assert.equal(
+        result[0].recommendation.priorityScore,
+        baseline[0].recommendation.priorityScore - 12,
+    );
+    assert.match(result[0].recommendation.externalContext.summary, /tempestade severa/i);
+});
+
+test('buildDispatchControlQueueWithExternalRiskSignals falls back to base scoring and logs a warning when the provider throws', async () => {
+    const now = new Date('2026-03-16T09:30:00.000Z');
+    const operationDate = getOperationDate(now);
+    const deliveries = [
+        createDelivery({
+            orderId: 'order-fallback-error',
+        }),
+    ];
+
+    const baseline = buildDispatchControlQueue(deliveries, {
+        now,
+        operationDate,
+        overrides: [],
+        vehicles: [],
+        waveAssignments: [],
+    });
+
+    const warnings: unknown[][] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+        warnings.push(args);
+    };
+
+    try {
+        const result = await buildDispatchControlQueueWithExternalRiskSignals(deliveries, {
             now,
-            operationDate: getOperationDate(now),
+            operationDate,
             overrides: [],
             vehicles: [],
             waveAssignments: [],
-        },
-    );
+            resolveExternalSignals: async () => {
+                throw new Error('weather provider offline');
+            },
+        });
 
-    assert.equal(result[0].recommendation.externalContext.status, 'degraded');
-    assert.match(result[0].recommendation.externalContext.summary, /contexto externo degradado/i);
-    assert.match(result[0].recommendation.explanation, /contexto externo degradado/i);
+        assert.equal(result[0].recommendation.priorityScore, baseline[0].recommendation.priorityScore);
+        assert.equal(result[0].recommendation.riskLevel, baseline[0].recommendation.riskLevel);
+        assert.equal(result[0].recommendation.externalContext.status, baseline[0].recommendation.externalContext.status);
+        assert.equal(warnings.length, 1);
+        assert.match(String(warnings[0]?.[0] ?? ''), /external risk signals/i);
+    } finally {
+        console.warn = originalWarn;
+    }
+});
+
+test('buildDispatchControlQueueWithExternalRiskSignals falls back to base scoring when the provider times out', async () => {
+    const now = new Date('2026-03-16T09:30:00.000Z');
+    const operationDate = getOperationDate(now);
+    const deliveries = [
+        createDelivery({
+            orderId: 'order-fallback-timeout',
+        }),
+    ];
+
+    const baseline = buildDispatchControlQueue(deliveries, {
+        now,
+        operationDate,
+        overrides: [],
+        vehicles: [],
+        waveAssignments: [],
+    });
+
+    const warnings: unknown[][] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+        warnings.push(args);
+    };
+
+    try {
+        const result = await buildDispatchControlQueueWithExternalRiskSignals(deliveries, {
+            now,
+            operationDate,
+            overrides: [],
+            vehicles: [],
+            waveAssignments: [],
+            externalSignalsTimeoutMs: 5,
+            resolveExternalSignals: async () => {
+                await new Promise(() => undefined);
+                return [];
+            },
+        });
+
+        assert.equal(result[0].recommendation.priorityScore, baseline[0].recommendation.priorityScore);
+        assert.equal(result[0].recommendation.riskLevel, baseline[0].recommendation.riskLevel);
+        assert.equal(warnings.length, 1);
+        assert.match(String(warnings[0]?.[0] ?? ''), /timed out/i);
+    } finally {
+        console.warn = originalWarn;
+    }
 });
