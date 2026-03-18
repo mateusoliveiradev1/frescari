@@ -145,3 +145,26 @@ test('buildDispatchControlQueue lowers confidence when key operational signals a
     assert.equal(result[0].recommendation.confidence, 'low');
     assert.match(result[0].recommendation.explanation, /revisao humana/i);
 });
+
+test('buildDispatchControlQueue keeps the queue operational and exposes degraded external context when providers are unavailable', () => {
+    const now = new Date('2026-03-16T09:30:00.000Z');
+
+    const result = buildDispatchControlQueue(
+        [
+            createDelivery({
+                orderId: 'order-external-degraded',
+            }),
+        ],
+        {
+            now,
+            operationDate: getOperationDate(now),
+            overrides: [],
+            vehicles: [],
+            waveAssignments: [],
+        },
+    );
+
+    assert.equal(result[0].recommendation.externalContext.status, 'degraded');
+    assert.match(result[0].recommendation.externalContext.summary, /contexto externo degradado/i);
+    assert.match(result[0].recommendation.explanation, /contexto externo degradado/i);
+});

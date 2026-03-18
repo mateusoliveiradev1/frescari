@@ -13,6 +13,18 @@ export type DispatchWaveCandidate = {
     totalOrders: number;
 };
 
+export type DeliveryMapWaveContext = {
+    kind: "suggested" | "confirmed";
+    orderIds: string[];
+    primaryOrderId: string;
+    stops: Array<{
+        orderId: string;
+        sequence: number;
+    }>;
+    subtitle: string;
+    title: string;
+};
+
 function hasConfirmedDispatch(delivery: PendingDelivery) {
     return delivery.dispatch !== null || delivery.status === "ready_for_dispatch";
 }
@@ -107,6 +119,80 @@ function isCompatibleWithPrimary(
     return true;
 }
 
+function buildSuggestedWaveMapContext(
+    candidate: DispatchWaveCandidate,
+    selectedDispatchOrderIds?: string[],
+): DeliveryMapWaveContext {
+    const selectedOrderIds =
+        selectedDispatchOrderIds && selectedDispatchOrderIds.length > 0
+            ? candidate.deliveries
+                .filter(
+                    (delivery) =>
+                        delivery.orderId === candidate.primaryDelivery.orderId
+                        || selectedDispatchOrderIds.includes(delivery.orderId),
+                )
+                .map((delivery) => delivery.orderId)
+            : candidate.orderIds;
+    const stops = selectedOrderIds.map((orderId, index) => ({
+        orderId,
+        sequence: index + 1,
+    }));
+    const totalOrders = stops.length;
+
+    return {
+        kind: "suggested",
+        orderIds: selectedOrderIds,
+        primaryOrderId: candidate.primaryDelivery.orderId,
+        stops,
+        subtitle:
+            totalOrders === candidate.totalOrders
+                ? candidate.subtitle
+                : `Sequencia ajustada manualmente com ${totalOrders} pedido${totalOrders > 1 ? "s" : ""}.`,
+        title:
+            totalOrders > 1
+                ? "Wave sugerida selecionada"
+                : "Saida sugerida selecionada",
+    };
+}
+
+function buildConfirmedWaveMapContext(
+    deliveries: PendingDelivery[],
+    selectedOrderId: string,
+): DeliveryMapWaveContext | null {
+    const selectedDelivery = deliveries.find((delivery) => delivery.orderId === selectedOrderId);
+    const waveId = selectedDelivery?.dispatch?.waveId ?? null;
+
+    if (!waveId) {
+        return null;
+    }
+
+    const waveDeliveries = deliveries
+        .filter((delivery) => delivery.dispatch?.waveId === waveId)
+        .sort((left, right) => (left.dispatch?.sequence ?? 0) - (right.dispatch?.sequence ?? 0));
+
+    if (waveDeliveries.length === 0) {
+        return null;
+    }
+
+    const stops = waveDeliveries.map((delivery) => ({
+        orderId: delivery.orderId,
+        sequence: delivery.dispatch?.sequence ?? 0,
+    }));
+    const totalOrders = stops.length;
+
+    return {
+        kind: "confirmed",
+        orderIds: waveDeliveries.map((delivery) => delivery.orderId),
+        primaryOrderId: selectedOrderId,
+        stops,
+        subtitle: `Sequencia operacional confirmada com ${totalOrders} pedido${totalOrders > 1 ? "s" : ""}.`,
+        title:
+            totalOrders > 1
+                ? "Wave confirmada selecionada"
+                : "Saida confirmada selecionada",
+    };
+}
+
 export function buildDispatchWaveCandidate(
     deliveries: PendingDelivery[],
     anchorOrderId: string,
@@ -137,4 +223,41 @@ export function buildNextDispatchAction(deliveries: PendingDelivery[]) {
     }
 
     return buildDispatchWaveCandidate(deliveries, primaryDelivery.orderId);
+}
+
+export function buildSelectedWaveMapContext({
+    deliveries,
+    dispatchReviewCandidate,
+    selectedDispatchOrderIds,
+    selectedOrderId,
+}: {
+    deliveries: PendingDelivery[];
+    dispatchReviewCandidate: DispatchWaveCandidate | null;
+    selectedDispatchOrderIds?: string[];
+    selectedOrderId: string | null;
+}): DeliveryMapWaveContext | null {
+    if (dispatchReviewCandidate) {
+        return buildSuggestedWaveMapContext(
+            dispatchReviewCandidate,
+            selectedDispatchOrderIds,
+        );
+    }
+
+    if (!selectedOrderId) {
+        return null;
+    }
+
+    const confirmedWaveContext = buildConfirmedWaveMapContext(deliveries, selectedOrderId);
+
+    if (confirmedWaveContext) {
+        return confirmedWaveContext;
+    }
+
+    const candidate = buildDispatchWaveCandidate(deliveries, selectedOrderId);
+
+    if (!candidate) {
+        return null;
+    }
+
+    return buildSuggestedWaveMapContext(candidate);
 }

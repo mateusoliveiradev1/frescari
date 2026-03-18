@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 
 import { cn, formatDistanceKm } from "@frescari/ui";
 import { divIcon, latLngBounds } from "leaflet";
-import { MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "react-leaflet";
 
 import type { DeliveryMapProps, PendingDelivery } from "./delivery-map.types";
 
@@ -58,6 +58,31 @@ function createDestinationPinIcon(isSelected: boolean) {
     });
 }
 
+function createWaveSequenceIcon({
+    isSelected,
+    kind,
+    sequence,
+}: {
+    isSelected: boolean;
+    kind: "suggested" | "confirmed";
+    sequence: number;
+}) {
+    const background = kind === "confirmed" ? "#0d6f54" : "#e84c1e";
+    const ring = isSelected ? "0 16px 30px rgba(13,51,33,0.32)" : "0 12px 24px rgba(13,51,33,0.18)";
+
+    return divIcon({
+        className: "delivery-wave-sequence-pin",
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+        popupAnchor: [0, -22],
+        html: `
+            <div style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9999px;background:${background};color:#fff7ef;font-size:13px;font-weight:800;border:3px solid rgba(249,246,240,0.96);box-shadow:${ring};">
+                ${sequence}
+            </div>
+        `,
+    });
+}
+
 function formatDistance(distanceKm: number | null) {
     return formatDistanceKm(distanceKm);
 }
@@ -90,7 +115,53 @@ function extractUniqueOrigins(deliveries: PendingDelivery[]) {
     return Array.from(originsByFarm.values());
 }
 
-function computeMapFocus(deliveries: PendingDelivery[], selectedOrderId: string | null) {
+function computeWaveFocusPoints(
+    deliveries: PendingDelivery[],
+    waveContext: DeliveryMapProps["waveContext"],
+) {
+    if (!waveContext || waveContext.stops.length === 0) {
+        return [];
+    }
+
+    const points: Array<[number, number]> = [];
+    const primaryDelivery = deliveries.find((delivery) => delivery.orderId === waveContext.primaryOrderId);
+    const primaryOrigin = primaryDelivery?.origin;
+
+    if (
+        primaryOrigin
+        && isValidCoordinate(primaryOrigin.latitude)
+        && isValidCoordinate(primaryOrigin.longitude)
+    ) {
+        points.push([primaryOrigin.latitude, primaryOrigin.longitude]);
+    }
+
+    for (const stop of waveContext.stops) {
+        const delivery = deliveries.find((candidate) => candidate.orderId === stop.orderId);
+        const destination = delivery?.destination;
+
+        if (
+            destination
+            && isValidCoordinate(destination.latitude)
+            && isValidCoordinate(destination.longitude)
+        ) {
+            points.push([destination.latitude, destination.longitude]);
+        }
+    }
+
+    return points;
+}
+
+function computeMapFocus(
+    deliveries: PendingDelivery[],
+    selectedOrderId: string | null,
+    waveContext: DeliveryMapProps["waveContext"],
+) {
+    const wavePoints = computeWaveFocusPoints(deliveries, waveContext);
+
+    if (wavePoints.length > 0) {
+        return wavePoints;
+    }
+
     const selectedDelivery = deliveries.find((delivery) => delivery.orderId === selectedOrderId);
 
     if (selectedDelivery) {
@@ -138,14 +209,16 @@ function computeMapFocus(deliveries: PendingDelivery[], selectedOrderId: string 
 function MapViewport({
     deliveries,
     selectedOrderId,
+    waveContext,
 }: {
     deliveries: PendingDelivery[];
     selectedOrderId: string | null;
+    waveContext: DeliveryMapProps["waveContext"];
 }) {
     const map = useMap();
 
     useEffect(() => {
-        const focusPoints = computeMapFocus(deliveries, selectedOrderId);
+        const focusPoints = computeMapFocus(deliveries, selectedOrderId, waveContext);
 
         if (focusPoints.length === 0) {
             map.setView([DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude], BASE_ZOOM, {
@@ -166,7 +239,7 @@ function MapViewport({
             maxZoom: 13,
             padding: [48, 48],
         });
-    }, [deliveries, map, selectedOrderId]);
+    }, [deliveries, map, selectedOrderId, waveContext]);
 
     return null;
 }
@@ -174,6 +247,7 @@ function MapViewport({
 export function DeliveryMapClient({
     deliveries,
     selectedOrderId,
+    waveContext,
     onSelect,
 }: DeliveryMapProps) {
     const origins = useMemo(() => extractUniqueOrigins(deliveries), [deliveries]);
@@ -188,6 +262,14 @@ export function DeliveryMapClient({
                     ),
             ),
         [deliveries],
+    );
+    const waveStopSequences = useMemo(
+        () => new Map((waveContext?.stops ?? []).map((stop) => [stop.orderId, stop.sequence])),
+        [waveContext],
+    );
+    const wavePolylinePositions = useMemo(
+        () => computeWaveFocusPoints(deliveries, waveContext),
+        [deliveries, waveContext],
     );
 
     return (
@@ -206,7 +288,23 @@ export function DeliveryMapClient({
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                <MapViewport deliveries={deliveries} selectedOrderId={selectedOrderId} />
+                <MapViewport
+                    deliveries={deliveries}
+                    selectedOrderId={selectedOrderId}
+                    waveContext={waveContext}
+                />
+
+                {wavePolylinePositions.length >= 2 ? (
+                    <Polyline
+                        pathOptions={{
+                            color: waveContext?.kind === "confirmed" ? "#0d6f54" : "#e84c1e",
+                            dashArray: waveContext?.kind === "suggested" ? "8 12" : undefined,
+                            opacity: 0.82,
+                            weight: 4,
+                        }}
+                        positions={wavePolylinePositions}
+                    />
+                ) : null}
 
                 {origins.map((origin) => (
                     <Marker
@@ -233,6 +331,7 @@ export function DeliveryMapClient({
                     }
 
                     const isSelected = delivery.orderId === selectedOrderId;
+                    const stopSequence = waveStopSequences.get(delivery.orderId) ?? null;
 
                     return (
                         <Marker
@@ -240,11 +339,24 @@ export function DeliveryMapClient({
                             eventHandlers={{
                                 click: () => onSelect(delivery.orderId),
                             }}
-                            icon={createDestinationPinIcon(isSelected)}
+                            icon={
+                                stopSequence !== null
+                                    ? createWaveSequenceIcon({
+                                        isSelected,
+                                        kind: waveContext?.kind ?? "suggested",
+                                        sequence: stopSequence,
+                                    })
+                                    : createDestinationPinIcon(isSelected)
+                            }
                             position={[destination.latitude, destination.longitude]}
                         >
                             <Tooltip direction="top" offset={[0, -18]} opacity={1}>
                                 <div className="space-y-1">
+                                    {stopSequence !== null ? (
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-forest/75">
+                                            Sequencia {stopSequence}
+                                        </p>
+                                    ) : null}
                                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/65">
                                         Destino
                                     </p>

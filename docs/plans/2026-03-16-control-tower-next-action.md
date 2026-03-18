@@ -1,5 +1,6 @@
 # Control Tower Next Action Implementation Plan
 
+> Status: concluido e mergeado em 2026-03-17 pela PR #13 (`feat(entregas): Add next dispatch action for delivery waves`).
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Exibir a `Proxima acao agora` na mesa de entregas e permitir confirmar uma wave com multiplos pedidos no mesmo fluxo operacional.
@@ -8,9 +9,16 @@
 
 **Tech Stack:** Next.js App Router, React 19, tRPC, Playwright, `node:test`, TypeScript.
 
+## Outcome
+
+- `delivery-control-summary.ts` passou a derivar a `Proxima acao agora` e a wave candidata a partir da fila ordenada.
+- `deliveries-page-client.tsx` ganhou o card operacional do topo e o fluxo de confirmacao de wave com multiplos pedidos.
+- Fixtures e E2E foram atualizados para validar o payload multi-order em `confirmDispatchWave`.
+- O corte foi validado com testes focados, `pnpm check` e checks remotos antes do merge.
+
 ---
 
-### Task 1: Extrair a logica da proxima acao
+### [x] Task 1: Extrair a logica da proxima acao
 
 **Files:**
 - Create: `apps/web/src/app/dashboard/entregas/delivery-control-summary.ts`
@@ -47,7 +55,9 @@ git add apps/web/src/app/dashboard/entregas/delivery-control-summary.ts apps/web
 git commit -m "feat: derive next dispatch action"
 ```
 
-### Task 2: Aplicar o resumo na UI e consolidar multi-order no dialogo
+Status: concluido em `apps/web/src/app/dashboard/entregas/delivery-control-summary.ts` com cobertura em `apps/web/src/app/dashboard/entregas/delivery-control-summary.test.ts`.
+
+### [x] Task 2: Aplicar o resumo na UI e consolidar multi-order no dialogo
 
 **Files:**
 - Modify: `apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx`
@@ -87,7 +97,9 @@ git add apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx apps/web/
 git commit -m "feat: add multi-order dispatch review"
 ```
 
-### Task 3: Validacao final do corte
+Status: concluido em `apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx`, `apps/web/e2e/support/producer-session.ts` e `apps/web/e2e/producer-logistics.spec.ts`.
+
+### [x] Task 3: Validacao final do corte
 
 **Files:**
 - Modify: `docs/MVP_CLOSURE_PLAN.md` (somente se o comportamento final divergir do plano atual)
@@ -109,3 +121,9 @@ Expected: PASS
 git add docs/MVP_CLOSURE_PLAN.md docs/architecture/MVP_PLAN.md
 git commit -m "docs: refresh control tower rollout status"
 ```
+
+Status: concluido com os comandos abaixo antes do merge:
+
+- `pnpm --filter web exec tsx --test src/app/dashboard/entregas/delivery-control-summary.test.ts`
+- `pnpm check`
+- `gh pr checks 13 --watch --interval 10`
