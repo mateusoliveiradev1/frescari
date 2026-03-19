@@ -1,6 +1,6 @@
 # Go-Live Security Checklist
 
-> Documento operacional do go-live web do Frescari. Atualizado em 2026-03-18.
+> Documento operacional do go-live web do Frescari. Atualizado em 2026-03-19.
 
 ## Objective
 
@@ -218,12 +218,19 @@ Prova minima:
 
 ## 9. Stripe, payments and webhooks
 
-- [ ] Confirmar verificacao de assinatura do webhook Stripe.
-- [ ] Confirmar idempotencia do processamento e seguranca contra replay.
+- [x] Confirmar verificacao de assinatura do webhook Stripe.
+- [x] Confirmar idempotencia do processamento e seguranca contra replay.
 - [ ] Confirmar que pedido, pagamento e status final sao reconstruidos do lado servidor.
 - [ ] Confirmar que metadata usada no webhook nao permite escalacao de tenant, alteracao de valor ou troca de destinatario.
 - [ ] Confirmar logs suficientes para auditar eventos de pagamento sem vazar segredos.
 - [ ] Validar cenarios de retry do Stripe, timeout e webhook duplicado.
+
+Status parcial desta rodada (2026-03-19):
+
+- Assinatura: `apps/web/src/app/api/webhooks/stripe/route.ts` le `stripe-signature`, rejeita ausencia do header e usa `stripe.webhooks.constructEvent(...)` antes de qualquer processamento de evento.
+- Idempotencia: o fluxo de pedido existente (`metadata.orderId`) agora roda em transacao com `pg_advisory_xact_lock` por pedido e faz early return silencioso quando o pedido ja esta em estado pos-pagamento.
+- Idempotencia: o fluxo legado agora pega lock transacional por `stripe-session`, faz a checagem de `stripeSessionId` dentro da transacao principal e trata `23505` como evento ja processado com retorno HTTP 200.
+- Evidencia automatizada: `pnpm test` passou no monorepo em 2026-03-19, incluindo os testes de webhook do Stripe com retry duplicado.
 
 Arquivos foco:
 
