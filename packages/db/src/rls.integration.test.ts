@@ -326,6 +326,31 @@ test(
         "DATABASE_URL must use a role without BYPASSRLS",
       );
 
+      const runtimeDbModule = await import("./index");
+
+      try {
+        const authRoleState = await runtimeDbModule.authDb.execute(sql`
+                    select
+                        current_user as rolname,
+                        rolbypassrls
+                    from pg_roles
+                    where rolname = current_user
+                `);
+
+        assert.equal(
+          String(authRoleState.rows[0]?.rolname),
+          String(appRoleState.rows[0]?.rolname),
+          "authDb must use the same restricted runtime role as db",
+        );
+        assert.equal(
+          readPgBool(authRoleState.rows[0]?.rolbypassrls),
+          false,
+          "authDb must not use a role with BYPASSRLS",
+        );
+      } finally {
+        await runtimeDbModule.closeDbPools();
+      }
+
       const policyState = await adminDb.execute(sql`
                 select
                     tablename,
