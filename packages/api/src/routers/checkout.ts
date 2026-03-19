@@ -49,25 +49,31 @@ const WEIGHT_SAFETY_MARGIN = 1.1;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const PLATFORM_FEE_RATE = 0.1;
 
-const checkoutItemSchema = z.object({
-  lotId: z.string().uuid(),
-  quantity: z.number().positive(),
-});
+const checkoutItemSchema = z
+  .object({
+    lotId: z.string().uuid(),
+    quantity: z.number().positive(),
+  })
+  .strict();
 
-const deliveryAddressSchema = z.object({
-  street: z.string().min(3, "Rua e obrigatoria."),
-  number: z.string().min(1, "Numero e obrigatorio."),
-  cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP invalido."),
-  city: z.string().min(2, "Cidade e obrigatoria."),
-  state: z.string().length(2, "Estado deve ter 2 letras (UF)."),
-});
+const deliveryAddressSchema = z
+  .object({
+    street: z.string().min(3, "Rua e obrigatoria."),
+    number: z.string().min(1, "Numero e obrigatorio."),
+    cep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP invalido."),
+    city: z.string().min(2, "Cidade e obrigatoria."),
+    state: z.string().length(2, "Estado deve ter 2 letras (UF)."),
+  })
+  .strict();
 
-const createFarmCheckoutSessionInputSchema = z.object({
-  farmId: z.string().uuid(),
-  addressId: z.string().uuid(),
-  items: z.array(checkoutItemSchema).min(1, "Carrinho vazio."),
-  deliveryNotes: z.string().trim().max(500).optional(),
-});
+const createFarmCheckoutSessionInputSchema = z
+  .object({
+    farmId: z.string().uuid(),
+    addressId: z.string().uuid(),
+    items: z.array(checkoutItemSchema).min(1, "Carrinho vazio."),
+    deliveryNotes: z.string().trim().max(500).optional(),
+  })
+  .strict();
 
 type PricingType = "UNIT" | "WEIGHT" | "BOX";
 
@@ -322,11 +328,13 @@ function buildCheckoutSessionParams({
 export const checkoutRouter = createTRPCRouter({
   createCheckoutSession: buyerProcedure
     .input(
-      z.object({
-        items: z.array(checkoutItemSchema).min(1, "Carrinho vazio."),
-        address: deliveryAddressSchema,
-        deliveryFee: z.number().min(0),
-      }),
+      z
+        .object({
+          items: z.array(checkoutItemSchema).min(1, "Carrinho vazio."),
+          address: deliveryAddressSchema,
+          deliveryFee: z.number().min(0),
+        })
+        .strict(),
     )
     .mutation(async () => {
       throw new TRPCError({
@@ -376,20 +384,18 @@ export const checkoutRouter = createTRPCRouter({
               location: addresses.location,
             })
             .from(addresses)
-            .where(eq(addresses.id, input.addressId))
+            .where(
+              and(
+                eq(addresses.id, input.addressId),
+                eq(addresses.tenantId, buyerTenantId),
+              ),
+            )
             .limit(1);
 
           if (!addressRecord) {
             throw new TRPCError({
               code: "NOT_FOUND",
               message: "Endereco nao encontrado.",
-            });
-          }
-
-          if (addressRecord.tenantId !== buyerTenantId) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "Este endereco nao pertence ao tenant autenticado.",
             });
           }
 

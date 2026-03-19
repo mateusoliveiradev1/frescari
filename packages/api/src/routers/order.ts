@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 import { createHash } from "crypto";
 import Stripe from "stripe";
 import {
@@ -13,6 +13,7 @@ import {
   activeProductLotWhere,
   enableProductLotBypassContext,
   enableProductLotTenantContext,
+  farms,
   productLots,
   products,
   orders,
@@ -33,6 +34,7 @@ import {
   toDeliveryPointGeoJson,
   type GeocodedPoint,
 } from "../geocoding";
+import { buildFreightQuote } from "../freight-quote";
 import { calculateLotPriceAndStatus } from "../utils/lot-status";
 import { emitOrderNotifications } from "../notifications/domain-events";
 
@@ -58,6 +60,67 @@ const legacyDirectOrderMutationEnabled =
 const STRIPE_CAPTURE_FINGERPRINT_METADATA_KEY = "frescari_capture_fingerprint";
 const STRIPE_CAPTURE_TOTAL_AMOUNT_CENTS_METADATA_KEY =
   "frescari_capture_total_amount_cents";
+
+const legacyCreateOrderItemSchema = z
+  .object({
+    lotId: z.string().uuid(),
+    quantity: z.number().positive(),
+  })
+  .strict();
+
+const legacyCreateOrderInputSchema = z
+  .object({
+    deliveryStreet: z.string().min(3, "Rua e obrigatoria."),
+    deliveryNumber: z.string().min(1, "Numero e obrigatorio."),
+    deliveryCep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP invalido."),
+    deliveryCity: z.string().min(2, "Cidade e obrigatoria."),
+    deliveryState: z.string().length(2, "Estado deve ter 2 letras (UF)."),
+    deliveryNotes: z.string().trim().max(500).optional(),
+    items: z.array(legacyCreateOrderItemSchema).min(1, "Carrinho vazio."),
+  })
+  .strict();
+
+const orderStatusFilterInputSchema = z
+  .object({
+    status: z.string().optional(),
+  })
+  .strict();
+
+const orderIdInputSchema = z
+  .object({
+    orderId: z.string().uuid(),
+  })
+  .strict();
+
+const updateOrderStatusInputSchema = z
+  .object({
+    orderId: z.string().uuid(),
+    status: z.enum([
+      "confirmed",
+      "picking",
+      "ready_for_dispatch",
+      "in_transit",
+      "delivered",
+      "cancelled",
+    ]),
+  })
+  .strict();
+
+const weighedItemSchema = z
+  .object({
+    orderItemId: z.string().uuid(),
+    finalWeight: z.number().positive(),
+  })
+  .strict();
+
+const captureWeighedOrderInputSchema = z
+  .object({
+    orderId: z.string().uuid(),
+    weighedItems: z
+      .array(weighedItemSchema)
+      .min(1, "E necessario informar ao menos um peso final."),
+  })
+  .strict();
 
 const isWeightBasedItem = (item: { saleUnit?: string | null }) => {
   return isWeighableSaleUnit(item.saleUnit);
@@ -113,6 +176,10 @@ function resolveOrderNotificationType(nextStatus: string) {
   }
 }
 
+function formatCurrencyMessage(value: number) {
+  return `R$ ${value.toFixed(2).replace(".", ",")}`;
+}
+
 function buildWeighedCaptureFingerprint(
   weighedItems: ReadonlyArray<{
     orderItemId: string;
@@ -131,23 +198,7 @@ function buildWeighedCaptureFingerprint(
 
 export const orderRouter = createTRPCRouter({
   createOrder: buyerProcedure
-    .input(
-      z.object({
-        deliveryStreet: z.string().min(3, "Rua é obrigatória."),
-        deliveryNumber: z.string().min(1, "Número é obrigatório."),
-        deliveryCep: z.string().regex(/^\d{5}-?\d{3}$/, "CEP inválido."),
-        deliveryCity: z.string().min(2, "Cidade é obrigatória."),
-        deliveryState: z.string().length(2, "Estado deve ter 2 letras (UF)."),
-        deliveryFee: z.number().min(0).default(0),
-        deliveryNotes: z.string().optional(),
-        items: z.array(
-          z.object({
-            lotId: z.string().uuid(),
-            quantity: z.number().positive(),
-          }),
-        ),
-      }),
-    )
+    .input(legacyCreateOrderInputSchema)
     .mutation(async ({ ctx, input }) => {
       if (!legacyDirectOrderMutationEnabled) {
         throw new TRPCError({
@@ -164,7 +215,7 @@ export const orderRouter = createTRPCRouter({
         throw new TRPCError({
           code: "FORBIDDEN",
           message:
-            "Comprador não possui uma organização vinculada (tenantId ausente).",
+            "Comprador nÃ£o possui uma organizaÃ§Ã£o vinculada (tenantId ausente).",
         });
       }
 
@@ -223,6 +274,7 @@ export const orderRouter = createTRPCRouter({
               lotId: productLots.id,
               productId: products.id,
               sellerTenantId: productLots.tenantId,
+              farmId: products.farmId,
               availableQty: productLots.availableQty,
               expiryDate: productLots.expiryDate,
               priceOverride: productLots.priceOverride,
@@ -243,7 +295,7 @@ export const orderRouter = createTRPCRouter({
           if (fetchedLots.length !== lotIds.length) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: "Um ou mais produtos não foram encontrados.",
+              message: "Um ou mais produtos nÃ£o foram encontrados.",
             });
           }
 
@@ -256,7 +308,7 @@ export const orderRouter = createTRPCRouter({
             if (Number(lotData.availableQty) < reqItem.quantity) {
               throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: `Quantidade indisponível para o lote ${reqItem.lotId}`,
+                message: `Quantidade indisponÃ­vel para o lote ${reqItem.lotId}`,
               });
             }
 
@@ -269,7 +321,7 @@ export const orderRouter = createTRPCRouter({
             if (!isWeight && !Number.isInteger(reqItem.quantity)) {
               throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: `A quantidade para o produto ${lotData.productId} deve ser um número inteiro.`,
+                message: `A quantidade para o produto ${lotData.productId} deve ser um nÃºmero inteiro.`,
               });
             }
 
@@ -294,17 +346,19 @@ export const orderRouter = createTRPCRouter({
               ...reqItem,
               productId: lotData.productId,
               sellerTenantId: lotData.sellerTenantId,
+              farmId: lotData.farmId,
               unitPrice: finalUnitPrice,
               totalPrice: finalUnitPrice * reqItem.quantity,
               saleUnit: normalizeSaleUnit(effectiveSaleUnit) || "unit",
             };
           });
 
-          // Group by sellerTenantId
-          const ordersBySeller = processedItems.reduce(
+          // Legacy direct orders stay farm-scoped so freight is still
+          // computed from the authoritative farm configuration.
+          const ordersBySellerFarm = processedItems.reduce(
             (acc, item) => {
-              const sellerItems =
-                acc[item.sellerTenantId] ?? (acc[item.sellerTenantId] = []);
+              const groupKey = `${item.sellerTenantId}:${item.farmId}`;
+              const sellerItems = acc[groupKey] ?? (acc[groupKey] = []);
 
               sellerItems.push(item);
               return acc;
@@ -312,16 +366,83 @@ export const orderRouter = createTRPCRouter({
             {} as Record<string, typeof processedItems>,
           );
 
-          // Insert Orders & OrderItems per Seller
+          // Insert Orders & OrderItems per Seller/Farm
           const createdOrders: string[] = [];
 
-          for (const [sellerId, items] of Object.entries(ordersBySeller)) {
+          for (const items of Object.values(ordersBySellerFarm)) {
+            const sellerId = items[0]?.sellerTenantId;
+            const farmId = items[0]?.farmId;
+
+            if (!sellerId || !farmId) {
+              throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message:
+                  "Nao foi possivel resolver o produtor e a fazenda do pedido legado.",
+              });
+            }
+
             const itemsTotal = items.reduce(
               (sum, item) => sum + item.totalPrice,
               0,
             );
-            // Final formula: (sum of base_price * qty) + deliveryFee
-            const orderTotal = itemsTotal + input.deliveryFee;
+            const [farmDeliveryConfig] = await tx
+              .select({
+                id: farms.id,
+                location: farms.location,
+                baseDeliveryFee: farms.baseDeliveryFee,
+                pricePerKm: farms.pricePerKm,
+                maxDeliveryRadiusKm: farms.maxDeliveryRadiusKm,
+                minOrderValue: farms.minOrderValue,
+                freeShippingThreshold: farms.freeShippingThreshold,
+                distanceMeters: sql<number>`
+                  CAST(
+                    ST_DistanceSphere(
+                      ${farms.location},
+                      ST_SetSRID(
+                        ST_MakePoint(
+                          ${geocodedDeliveryPoint.longitude},
+                          ${geocodedDeliveryPoint.latitude}
+                        ),
+                        4326
+                      )
+                    )
+                    AS double precision
+                  )
+                `,
+              })
+              .from(farms)
+              .where(and(eq(farms.id, farmId), eq(farms.tenantId, sellerId)))
+              .limit(1);
+
+            if (!farmDeliveryConfig) {
+              throw new TRPCError({
+                code: "PRECONDITION_FAILED",
+                message:
+                  "Nao foi possivel carregar a configuracao de entrega da fazenda deste pedido.",
+              });
+            }
+
+            const freightQuote = buildFreightQuote({
+              hasFarmLocation: Boolean(farmDeliveryConfig.location),
+              hasAddressLocation: true,
+              distanceMeters: farmDeliveryConfig.distanceMeters,
+              baseDeliveryFee: farmDeliveryConfig.baseDeliveryFee,
+              pricePerKm: farmDeliveryConfig.pricePerKm,
+              maxDeliveryRadiusKm: farmDeliveryConfig.maxDeliveryRadiusKm,
+              subtotal: itemsTotal,
+              minOrderValue: farmDeliveryConfig.minOrderValue,
+              freeShippingThreshold: farmDeliveryConfig.freeShippingThreshold,
+            });
+
+            if (!freightQuote.hasReachedMinimumOrder) {
+              throw new TRPCError({
+                code: "PRECONDITION_FAILED",
+                message: `Este pedido nao atingiu o valor minimo de ${formatCurrencyMessage(freightQuote.minOrderValue)} para esta fazenda.`,
+              });
+            }
+
+            const effectiveDeliveryFee = freightQuote.freightCost;
+            const orderTotal = itemsTotal + effectiveDeliveryFee;
 
             // Create the Order
             const [newOrder] = await tx
@@ -337,7 +458,7 @@ export const orderRouter = createTRPCRouter({
                 deliveryState: input.deliveryState,
                 deliveryAddress: composedAddress,
                 deliveryPoint,
-                deliveryFee: input.deliveryFee.toFixed(2),
+                deliveryFee: effectiveDeliveryFee.toFixed(2),
                 deliveryNotes: input.deliveryNotes,
                 totalAmount: orderTotal.toFixed(4),
               })
@@ -406,7 +527,7 @@ export const orderRouter = createTRPCRouter({
     }),
 
   listMyOrders: tenantProcedure
-    .input(z.object({ status: z.string().optional() }).optional())
+    .input(orderStatusFilterInputSchema.optional())
     .query(async ({ ctx, input }) => {
       const { db, tenantId } = ctx;
 
@@ -488,11 +609,7 @@ export const orderRouter = createTRPCRouter({
     }),
 
   cancelOrder: buyerProcedure
-    .input(
-      z.object({
-        orderId: z.string().uuid(),
-      }),
-    )
+    .input(orderIdInputSchema)
     .mutation(async ({ ctx, input }) => {
       const { db, tenantId } = ctx;
 
@@ -512,7 +629,7 @@ export const orderRouter = createTRPCRouter({
             throw new TRPCError({
               code: "NOT_FOUND",
               message:
-                "Pedido não encontrado ou você não tem permissão para acessá-lo.",
+                "Pedido nÃ£o encontrado ou vocÃª nÃ£o tem permissÃ£o para acessÃ¡-lo.",
             });
           }
 
@@ -561,9 +678,9 @@ export const orderRouter = createTRPCRouter({
       }
     }),
 
-  // ─── Seller-side: list orders received by the producer ───
+  // â”€â”€â”€ Seller-side: list orders received by the producer â”€â”€â”€
   listReceivedOrders: producerProcedure
-    .input(z.object({ status: z.string().optional() }).optional())
+    .input(orderStatusFilterInputSchema.optional())
     .query(async ({ ctx, input }) => {
       const { db, tenantId } = ctx;
 
@@ -636,21 +753,9 @@ export const orderRouter = createTRPCRouter({
       }));
     }),
 
-  // ─── Seller-side: update order status ───
+  // â”€â”€â”€ Seller-side: update order status â”€â”€â”€
   updateOrderStatus: producerProcedure
-    .input(
-      z.object({
-        orderId: z.string().uuid(),
-        status: z.enum([
-          "confirmed",
-          "picking",
-          "ready_for_dispatch",
-          "in_transit",
-          "delivered",
-          "cancelled",
-        ]),
-      }),
-    )
+    .input(updateOrderStatusInputSchema)
     .mutation(async ({ ctx, input }) => {
       const { db, tenantId } = ctx;
 
@@ -665,7 +770,7 @@ export const orderRouter = createTRPCRouter({
       if (!targetOrder) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Pedido não encontrado.",
+          message: "Pedido nÃ£o encontrado.",
         });
       }
 
@@ -696,28 +801,16 @@ export const orderRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  // ─── Capture Weighed Order (Stripe Destination Charge) ───
+  // â”€â”€â”€ Capture Weighed Order (Stripe Destination Charge) â”€â”€â”€
   captureWeighedOrder: producerProcedureNoTransaction
-    .input(
-      z.object({
-        orderId: z.string().uuid(),
-        weighedItems: z
-          .array(
-            z.object({
-              orderItemId: z.string().uuid(),
-              finalWeight: z.number().positive(),
-            }),
-          )
-          .min(1, "É necessário informar ao menos um peso final."),
-      }),
-    )
+    .input(captureWeighedOrderInputSchema)
     .mutation(async ({ ctx, input }) => {
       const { db, tenantId, user } = ctx;
 
       if (!stripeSecretKey) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Stripe não está configurado.",
+          message: "Stripe nÃ£o estÃ¡ configurado.",
         });
       }
 
@@ -771,7 +864,7 @@ export const orderRouter = createTRPCRouter({
       if (!targetOrder) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Pedido não encontrado ou você não tem permissão.",
+          message: "Pedido nÃ£o encontrado ou vocÃª nÃ£o tem permissÃ£o.",
         });
       }
 
@@ -782,21 +875,22 @@ export const orderRouter = createTRPCRouter({
       ) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Este pedido não está aguardando pesagem.",
+          message: "Este pedido nÃ£o estÃ¡ aguardando pesagem.",
         });
       }
 
       if (!targetOrder.paymentIntentId && !targetOrder.stripeSessionId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Este pedido não possui uma sessão de pagamento vinculada.",
+          message:
+            "Este pedido nÃ£o possui uma sessÃ£o de pagamento vinculada.",
         });
       }
 
       if (items.length === 0) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Este pedido nÃ£o possui itens para reconciliar.",
+          message: "Este pedido nÃƒÂ£o possui itens para reconciliar.",
         });
       }
 
@@ -805,26 +899,15 @@ export const orderRouter = createTRPCRouter({
       if (weightItems.length === 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Este pedido nÃ£o possui itens vendidos por peso.",
+          message: "Este pedido nÃƒÂ£o possui itens vendidos por peso.",
         });
       }
 
       const itemsById = new Map(items.map((item) => [item.id, item]));
       const weightItemIds = new Set(weightItems.map((item) => item.id));
 
-      const dynamicCaptureSchema = z
-        .object({
-          orderId: z.string().uuid(),
-          weighedItems: z
-            .array(
-              z.object({
-                orderItemId: z.string().uuid(),
-                finalWeight: z.number().positive(),
-              }),
-            )
-            .min(1, "Ã‰ necessÃ¡rio informar ao menos um peso final."),
-        })
-        .superRefine((payload, validationContext) => {
+      const dynamicCaptureSchema = captureWeighedOrderInputSchema.superRefine(
+        (payload, validationContext) => {
           const seenOrderItemIds = new Set<string>();
 
           payload.weighedItems.forEach((weighedItem, index) => {
@@ -843,7 +926,7 @@ export const orderRouter = createTRPCRouter({
                 code: z.ZodIssueCode.custom,
                 path: ["weighedItems", index, "orderItemId"],
                 message:
-                  "Cada item pesÃ¡vel deve ser informado apenas uma vez.",
+                  "Cada item pesÃƒÂ¡vel deve ser informado apenas uma vez.",
               });
               return;
             }
@@ -876,7 +959,8 @@ export const orderRouter = createTRPCRouter({
               });
             }
           });
-        });
+        },
+      );
 
       const validatedPayload = dynamicCaptureSchema.safeParse(input);
 
@@ -885,7 +969,7 @@ export const orderRouter = createTRPCRouter({
           code: "BAD_REQUEST",
           message:
             validatedPayload.error.issues[0]?.message ??
-            "Os pesos informados sÃ£o invÃ¡lidos.",
+            "Os pesos informados sÃƒÂ£o invÃƒÂ¡lidos.",
         });
       }
 
@@ -937,7 +1021,7 @@ export const orderRouter = createTRPCRouter({
           paymentIntentId = typeof pi === "string" ? pi : (pi?.id ?? "");
 
           if (!paymentIntentId) {
-            throw new Error("Payment Intent ID não encontrado na sessão.");
+            throw new Error("Payment Intent ID nÃ£o encontrado na sessÃ£o.");
           }
         } catch (error) {
           console.error("[STRIPE_RETRIEVE_ERROR]", error);
@@ -952,7 +1036,8 @@ export const orderRouter = createTRPCRouter({
       if (!paymentIntentId) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "NÃ£o foi possÃ­vel identificar o Payment Intent do Stripe.",
+          message:
+            "NÃƒÂ£o foi possÃƒÂ­vel identificar o Payment Intent do Stripe.",
         });
       }
 
@@ -979,7 +1064,7 @@ export const orderRouter = createTRPCRouter({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "O pagamento jÃ¡ foi capturado com um valor diferente. Revise este pedido manualmente.",
+              "O pagamento jÃƒÂ¡ foi capturado com um valor diferente. Revise este pedido manualmente.",
           });
         }
 
@@ -1015,7 +1100,7 @@ export const orderRouter = createTRPCRouter({
             throw new TRPCError({
               code: "BAD_REQUEST",
               message:
-                "O pedido jÃ¡ foi confirmado com um total diferente. Revise este pedido manualmente.",
+                "O pedido jÃƒÂ¡ foi confirmado com um total diferente. Revise este pedido manualmente.",
             });
           }
 
@@ -1033,7 +1118,7 @@ export const orderRouter = createTRPCRouter({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "O pedido jÃ¡ foi confirmado no sistema, mas o pagamento ainda nÃ£o estÃ¡ capturado. Revise manualmente.",
+              "O pedido jÃƒÂ¡ foi confirmado no sistema, mas o pagamento ainda nÃƒÂ£o estÃƒÂ¡ capturado. Revise manualmente.",
           });
         }
 
@@ -1041,7 +1126,7 @@ export const orderRouter = createTRPCRouter({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "Este pagamento nÃ£o estÃ¡ em um estado capturÃ¡vel no Stripe.",
+              "Este pagamento nÃƒÂ£o estÃƒÂ¡ em um estado capturÃƒÂ¡vel no Stripe.",
           });
         }
 
@@ -1087,7 +1172,7 @@ export const orderRouter = createTRPCRouter({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "O pagamento falhou ou foi recusado pela operadora. Não libere o pedido. Verifique logs do Stripe.",
+              "O pagamento falhou ou foi recusado pela operadora. NÃ£o libere o pedido. Verifique logs do Stripe.",
             cause: error,
           });
         }
@@ -1132,7 +1217,7 @@ export const orderRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            "Falha ao salvar as atualizações de peso no banco de dados, mas o pagamento já foi capturado no Stripe!",
+            "Falha ao salvar as atualizaÃ§Ãµes de peso no banco de dados, mas o pagamento jÃ¡ foi capturado no Stripe!",
           cause: error,
         });
       }
