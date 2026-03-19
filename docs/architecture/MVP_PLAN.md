@@ -459,10 +459,30 @@ Itens obrigatorios antes do lancamento publico do MVP. Eles nao mudam o escopo c
 - [x] Configurar Knip para dead code e dependencias nao usadas
 - [ ] Rodar auditoria completa de teclado e formularios nas rotas de dashboard
 - [ ] Executar varredura completa do web core rota por rota
-- [ ] Rodar verificacao final do MVP web (`test`, `typecheck`, `lint`, `build`, E2E core e checklist basico de seguranca)
-- [ ] Rodar pentest basico e checklist final de seguranca operacional
+- [ ] Rodar verificacao final do MVP web (`test`, `typecheck`, `lint`, `build`, E2E core e checklist completo de seguranca de alto nivel)
+- [ ] Executar validacao ofensiva proporcional ao MVP sobre autenticacao, autorizacao, webhooks, uploads e abuso de superficie publica
 
-Em 2026-03-18 o repositorio passou a rodar com `noUncheckedIndexedAccess` ativo nos tsconfigs efetivos do monorepo, com fallout moderado resolvido no `api` e no `web`, seguido por `pnpm typecheck` global verde. No mesmo ciclo, o hardening de go-live ganhou `prepare: husky`, hook `.husky/pre-commit` chamando `pnpm exec lint-staged`, script raiz `pnpm knip`, configuracao dedicada em `knip.json` e etapa de Knip no CI, com `pnpm exec knip --reporter compact` verde apos a limpeza de dependencias e exports mortos do monorepo. O agregado `pnpm check` tambem passou no root, consolidando `lint`, `typecheck`, `test` e `knip` antes da rodada final de `build`, E2E core e seguranca.
+Em 2026-03-18 o repositorio passou a rodar com `noUncheckedIndexedAccess` ativo nos tsconfigs efetivos do monorepo, com fallout moderado resolvido no `api` e no `web`, seguido por `pnpm typecheck` global verde. No mesmo ciclo, o hardening de go-live ganhou `prepare: husky`, hook `.husky/pre-commit` chamando `pnpm exec lint-staged`, script raiz `pnpm knip`, configuracao dedicada em `knip.json` e etapa de Knip no CI, com `pnpm exec knip --reporter compact` verde apos a limpeza de dependencias e exports mortos do monorepo. O agregado `pnpm check` tambem passou no root, consolidando `lint`, `typecheck`, `test` e `knip` antes da rodada final de `build`, E2E core e seguranca. O checklist detalhado, por superficie real do app, ficou consolidado em `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`.
+
+#### Checklist completo de seguranca de alto nivel
+
+O checklist final de seguranca do MVP deve ser completo o suficiente para nao deixar pontos cegos graves no go-live. Para o Frescari, isso significa fechar e registrar verificacao nas frentes abaixo:
+
+- autenticacao, sessao e cookies: expiracao, `HttpOnly`, `Secure` em producao, `SameSite`, revogacao e superficie de login/reset
+- autorizacao e isolamento: RBAC efetivo, escopo por tenant, enforcement server-side, RLS e ausencia de rotas/acoes acessiveis so porque a UI esconde
+- validacao de entrada e saida: schemas runtime, coercao segura, serializacao, ausencia de trust em tipos TS e protecao contra payloads invalidos
+- browser e frontend security: CSP, headers, XSS/DOM XSS, redirects, `postMessage`, links externos, estados autenticados e protecao CSRF quando houver cookie auth
+- pagamentos e webhooks: assinatura, idempotencia, reconstrucao server-side, protecao contra replay, destino Stripe valido e ausencia de confianca em valores vindos do cliente
+- uploads, arquivos e midia: allowlist de tipos, limites, nomes aleatorios, servico fora de webroot, preview seguro e ausencia de path traversal
+- superficie publica e abuso: rate limiting, throttling, protecao de endpoints caros, anti-bot proporcional ao MVP e limites de payload
+- segredos e configuracao: inventario de env vars, ausencia de segredos no client, segregacao de `NEXT_PUBLIC_*`, rotacao e trilha de quem depende de cada segredo
+- dependencias e supply chain: lockfile consistente, auditoria de vulnerabilidades, resposta a advisories criticos e revisao de scripts de install/build
+- observabilidade e auditoria: logs sem vazamento de dados sensiveis, eventos de seguranca relevantes, trilha de webhook/pagamento e alertas minimos de operacao
+- dados e resiliencia operacional: backup, restore testado, retencao minima, rollback, tratamento de incidentes e capacidade de recovery de pedidos/pagamentos
+
+Esse checklist e propositalmente completo. O ponto nao e transformar o MVP em certificacao enterprise, e sim impedir que o primeiro go-live aconteca com lacunas severas em autenticacao, isolamento, browser security, pagamentos ou operacao.
+
+Checklist operacional por rota, API e camada: `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`.
 
 #### Regra de lancamento
 
@@ -518,4 +538,4 @@ O plano anterior ficou desatualizado em alguns pontos. Estado correto do reposit
 
 ---
 
-> **Proximo Passo:** Fechar o polish do core web e a verificacao profunda das rotas criticas antes da rodada final de build, E2E e checklist basico de seguranca. Mobile, offline e push nativo continuam fora do primeiro marco.
+> **Proximo Passo:** Fechar o polish do core web e a verificacao profunda das rotas criticas antes da rodada final de build, E2E e execucao de `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`. Mobile, offline e push nativo continuam fora do primeiro marco.

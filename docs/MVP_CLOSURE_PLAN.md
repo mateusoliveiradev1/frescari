@@ -63,8 +63,8 @@ Status atual: regra de release ainda nao atendida.
       Status notes: existe base de E2E em `apps/web/playwright.config.ts` e o repositorio ja contem `apps/web/e2e/producer-logistics.spec.ts`, mas ainda nao ha varredura completa do core web rota por rota cobrindo catalogo, checkout, sucesso, perfil, pedidos e entregas em checklist unico.
 
 - [-] Rodar verificacao final do MVP web.
-  Verify: `test`, `typecheck`, `lint`, `build`, E2E web e checklist basico de seguranca concluidos.
-  Status notes: em 2026-03-18 o agregado `pnpm check` passou no root com `lint`, `typecheck`, `test` e `knip` verdes, consolidando o hardening tecnico do monorepo. Ainda faltam `build`, a varredura/E2E do core web e a etapa basica de seguranca operacional para fechar o MVP.
+  Verify: `test`, `typecheck`, `lint`, `build`, E2E web e checklist completo de seguranca de alto nivel concluidos.
+  Status notes: em 2026-03-18 o agregado `pnpm check` passou no root com `lint`, `typecheck`, `test` e `knip` verdes, consolidando o hardening tecnico do monorepo. Ainda faltam `build`, a varredura/E2E do core web e a rodada final do checklist completo de seguranca, agora operacionalizado em `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md` com cobertura por rota, API, tenant isolation, Stripe/webhooks, uploads, abuso de superficie publica, logs/auditoria e recuperacao operacional.
 
 ## Out of Scope
 
@@ -89,10 +89,10 @@ Status atual: regra de release ainda nao atendida.
       Status notes: pedidos, entregas e lotes agora alimentam notificacoes operacionais no web com inbox, badge, filtros e leitura otimista.
 
 - [-] O projeto passa pelos checks de qualidade e fica pronto para um primeiro go-live web serio.
-  Status notes: o hardening obrigatorio de go-live agora esta fechado com `noUncheckedIndexedAccess`, Husky/lint-staged e Knip ativos no monorepo, e o agregado `pnpm check` passou no root em 2026-03-18. Ainda faltam a varredura completa do core web, `build`, E2E final do fluxo e o checklist basico de seguranca para considerar o MVP pronto para go-live.
+  Status notes: o hardening obrigatorio de go-live agora esta fechado com `noUncheckedIndexedAccess`, Husky/lint-staged e Knip ativos no monorepo, e o agregado `pnpm check` passou no root em 2026-03-18. Ainda faltam a varredura completa do core web, `build`, E2E final do fluxo e a execucao do checklist completo de seguranca de alto nivel documentado em `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md` para considerar o MVP pronto para go-live.
 
 ## Next Steps
 
 1. Fechar o polish do core flow com auditoria de teclado, formularios e ajustes finais nas rotas principais.
 2. Rodar a varredura completa do core web com E2E e checklist manual das rotas criticas.
-3. Rodar a verificacao final do MVP web com `test`, `typecheck`, `lint`, `build`, E2E core e checklist basico de seguranca.
+3. Rodar a verificacao final do MVP web com `test`, `typecheck`, `lint`, `build`, E2E core e o checklist de `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`.
