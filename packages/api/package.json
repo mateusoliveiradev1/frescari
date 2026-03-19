@@ -13,13 +13,10 @@
         "worker:notifications:run-once": "tsx src/workers/notification-worker-cli.ts --run-once"
     },
     "dependencies": {
-        "@better-auth/drizzle-adapter": "1.5.3",
         "@frescari/db": "workspace:*",
         "@frescari/validators": "workspace:*",
         "@trpc/server": "^11.0.0-rc.366",
-        "better-auth": "^1.5.3",
         "bullmq": "^5.71.0",
-        "drizzle-kit": "^0.31.9",
         "drizzle-orm": "0.45.1",
         "ioredis": "^5.10.0",
         "next": "16.1.6",

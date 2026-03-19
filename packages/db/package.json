@@ -1,27 +1,25 @@
 {
-    "name": "@frescari/db",
-    "version": "1.0.0",
-    "private": true,
-    "main": "src/index.ts",
-    "scripts": {
-        "db:seed": "tsx src/seed.ts",
-        "db:generate": "drizzle-kit generate",
-        "db:migrate": "tsx migrate.ts",
-        "db:push": "drizzle-kit push",
-        "typecheck": "tsc -p tsconfig.json --noEmit"
-    },
-    "dependencies": {
-        "@better-auth/drizzle-adapter": "1.5.3",
-        "@neondatabase/serverless": "^1.0.2",
-        "better-auth": "^1.5.3",
-        "bufferutil": "^4.1.0",
-        "drizzle-orm": "0.45.1",
-        "ws": "^8.19.0"
-    },
-    "devDependencies": {
-        "dotenv": "^17.3.1",
-        "drizzle-kit": "0.31.9",
-        "tsx": "^4.21.0",
-        "typescript": "^5.4.5"
-    }
+  "name": "@frescari/db",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "db:seed": "tsx src/seed.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx migrate.ts",
+    "db:push": "drizzle-kit push",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "bufferutil": "^4.1.0",
+    "drizzle-orm": "0.45.1",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "dotenv": "^17.3.1",
+    "drizzle-kit": "0.31.9",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.5"
+  }
 }

@@ -21,19 +21,19 @@
 
 ## 2. Stack Técnica de Alta Integridade
 
-| Camada | Tecnologia | Justificativa |
-|---|---|---|
-| **Monorepo** | Turborepo | Cache remoto, pipelines paralelas, build incremental |
-| **Backend API** | Node.js + tRPC v11 | Type-safety E2E sem geração de código |
-| **Frontend** | Next.js 15+ (App Router) | RSC, streaming, layouts aninhados, ISR/SSR |
-| **Mobile** | React Native + Expo SDK 52 | Offline-first com Expo SQLite + sync |
-| **Banco de Dados** | PostgreSQL 16 + PostGIS 3.4 | Geoespacial nativo, extensões ricas |
-| **ORM** | Drizzle ORM | Queries type-safe, migrations versionadas, zero-runtime overhead |
-| **Validação** | Zod v3 | Schema único: validação runtime + tipos estáticos |
-| **Autenticação** | Lucia Auth ou Better Auth | Sessões DB-backed, suporte a multi-tenant |
-| **Fila de Tarefas** | BullMQ + Redis | Sincronização offline, notificações, expiração de lotes |
-| **Armazenamento** | Cloudflare R2 | Fotos de produtos, documentos de rastreabilidade |
-| **CI/CD** | GitHub Actions + Turborepo Remote Cache | Build apenas do que mudou |
+| Camada              | Tecnologia                              | Justificativa                                                    |
+| ------------------- | --------------------------------------- | ---------------------------------------------------------------- |
+| **Monorepo**        | Turborepo                               | Cache remoto, pipelines paralelas, build incremental             |
+| **Backend API**     | Node.js + tRPC v11                      | Type-safety E2E sem geração de código                            |
+| **Frontend**        | Next.js 15+ (App Router)                | RSC, streaming, layouts aninhados, ISR/SSR                       |
+| **Mobile**          | React Native + Expo SDK 52              | Offline-first com Expo SQLite + sync                             |
+| **Banco de Dados**  | PostgreSQL 16 + PostGIS 3.4             | Geoespacial nativo, extensões ricas                              |
+| **ORM**             | Drizzle ORM                             | Queries type-safe, migrations versionadas, zero-runtime overhead |
+| **Validação**       | Zod v3                                  | Schema único: validação runtime + tipos estáticos                |
+| **Autenticação**    | Lucia Auth ou Better Auth               | Sessões DB-backed, suporte a multi-tenant                        |
+| **Fila de Tarefas** | BullMQ + Redis                          | Sincronização offline, notificações, expiração de lotes          |
+| **Armazenamento**   | Cloudflare R2                           | Fotos de produtos, documentos de rastreabilidade                 |
+| **CI/CD**           | GitHub Actions + Turborepo Remote Cache | Build apenas do que mudou                                        |
 
 ---
 
@@ -79,114 +79,123 @@ Nenhum `any`, nenhum cast manual. Um único ponto de mutação de tipo.
 ### 4.1 Entidades Núcleo
 
 #### `tenants` — Multi-tenant raiz
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | `uuid PK` | |
-| `slug` | `text UNIQUE` | Ex: `cooperativa-vale-verde` |
-| `name` | `text` | Razão social |
-| `plan` | `enum(free, pro, enterprise)` | |
-| `geo_region` | `geometry(POINT, 4326)` | PostGIS: sede geográfica |
-| `created_at` | `timestamptz` | |
+
+| Coluna       | Tipo                          | Descrição                    |
+| ------------ | ----------------------------- | ---------------------------- |
+| `id`         | `uuid PK`                     |                              |
+| `slug`       | `text UNIQUE`                 | Ex: `cooperativa-vale-verde` |
+| `name`       | `text`                        | Razão social                 |
+| `plan`       | `enum(free, pro, enterprise)` |                              |
+| `geo_region` | `geometry(POINT, 4326)`       | PostGIS: sede geográfica     |
+| `created_at` | `timestamptz`                 |                              |
 
 #### `users`
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | `uuid PK` | |
-| `tenant_id` | `uuid FK` | |
-| `role` | `enum(producer, distributor, buyer, admin)` | |
-| `email` | `text UNIQUE` | |
-| `name` | `text` | |
+
+| Coluna      | Tipo                                        | Descrição |
+| ----------- | ------------------------------------------- | --------- |
+| `id`        | `uuid PK`                                   |           |
+| `tenant_id` | `uuid FK`                                   |           |
+| `role`      | `enum(producer, distributor, buyer, admin)` |           |
+| `email`     | `text UNIQUE`                               |           |
+| `name`      | `text`                                      |           |
 
 #### `farms` — Propriedades dos produtores
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | `uuid PK` | |
-| `tenant_id` | `uuid FK` | |
-| `name` | `text` | |
-| `location` | `geometry(POINT, 4326)` | **PostGIS** — coords GPS da propriedade |
-| `address` | `jsonb` | Endereço estruturado |
-| `certifications` | `text[]` | ex: `["organico_mapa","GlobalGAP"]` |
+
+| Coluna           | Tipo                    | Descrição                               |
+| ---------------- | ----------------------- | --------------------------------------- |
+| `id`             | `uuid PK`               |                                         |
+| `tenant_id`      | `uuid FK`               |                                         |
+| `name`           | `text`                  |                                         |
+| `location`       | `geometry(POINT, 4326)` | **PostGIS** — coords GPS da propriedade |
+| `address`        | `jsonb`                 | Endereço estruturado                    |
+| `certifications` | `text[]`                | ex: `["organico_mapa","GlobalGAP"]`     |
 
 #### `product_categories` — Taxonomia fixa do Hortifruti
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | `uuid PK` | |
-| `slug` | `text UNIQUE` | `tomate-italiano`, `alface-hidroponica` |
-| `name` | `text` | Nome canônico para SEO |
-| `parent_id` | `uuid FK self` | Hierarquia: Verduras > Alface |
-| `seo_description` | `text` | Texto base para SEO Programático |
+
+| Coluna            | Tipo           | Descrição                               |
+| ----------------- | -------------- | --------------------------------------- |
+| `id`              | `uuid PK`      |                                         |
+| `slug`            | `text UNIQUE`  | `tomate-italiano`, `alface-hidroponica` |
+| `name`            | `text`         | Nome canônico para SEO                  |
+| `parent_id`       | `uuid FK self` | Hierarquia: Verduras > Alface           |
+| `seo_description` | `text`         | Texto base para SEO Programático        |
 
 #### `products` — Catálogo do produtor
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | `uuid PK` | |
-| `tenant_id` | `uuid FK` | |
-| `farm_id` | `uuid FK` | |
-| `category_id` | `uuid FK` | |
-| `sku` | `text` | Código interno do produtor |
-| `name` | `text` | Nome do produto (ex: "Tomate Débora Orgânico") |
-| `sale_unit` | `enum(kg, g, unit, box, dozen, bunch)` | **Venda por peso vs. unidade** |
-| `unit_weight_g` | `integer NULL` | Peso médio por unidade em gramas (para conversão) |
-| `price_per_unit` | `numeric(12,4)` | Preço na `sale_unit` definida |
-| `min_order_qty` | `numeric(10,3)` | Qtd mínima de pedido (permite frações para kg) |
-| `origin_location` | `geometry(POINT, 4326)` | PostGIS — origem geográfica do produto |
-| `images` | `text[]` | URLs em R2 |
-| `is_active` | `boolean` | |
+
+| Coluna            | Tipo                                   | Descrição                                         |
+| ----------------- | -------------------------------------- | ------------------------------------------------- |
+| `id`              | `uuid PK`                              |                                                   |
+| `tenant_id`       | `uuid FK`                              |                                                   |
+| `farm_id`         | `uuid FK`                              |                                                   |
+| `category_id`     | `uuid FK`                              |                                                   |
+| `sku`             | `text`                                 | Código interno do produtor                        |
+| `name`            | `text`                                 | Nome do produto (ex: "Tomate Débora Orgânico")    |
+| `sale_unit`       | `enum(kg, g, unit, box, dozen, bunch)` | **Venda por peso vs. unidade**                    |
+| `unit_weight_g`   | `integer NULL`                         | Peso médio por unidade em gramas (para conversão) |
+| `price_per_unit`  | `numeric(12,4)`                        | Preço na `sale_unit` definida                     |
+| `min_order_qty`   | `numeric(10,3)`                        | Qtd mínima de pedido (permite frações para kg)    |
+| `origin_location` | `geometry(POINT, 4326)`                | PostGIS — origem geográfica do produto            |
+| `images`          | `text[]`                               | URLs em R2                                        |
+| `is_active`       | `boolean`                              |                                                   |
 
 > **Decisão de Design:** A coluna `sale_unit` + `unit_weight_g` permite que um produto seja vendido "por kg" mas também que o sistema calcule quantas unidades físicas compõem um pedido — essencial para picking e logística.
 
 #### `product_lots` — ⚡ Entidade crítica: Lotes com Decaimento de Validade
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | `uuid PK` | |
-| `product_id` | `uuid FK` | |
-| `lot_code` | `text` | Código de rastreabilidade do lote |
-| `harvest_date` | `date` | Data de colheita |
-| `expiry_date` | `date` | **Data de validade** — motor de decaimento |
-| `available_qty` | `numeric(12,3)` | Quantidade disponível (em `sale_unit` do produto) |
-| `reserved_qty` | `numeric(12,3)` | Reservado por pedidos em andamento |
-| `price_override` | `numeric(12,4) NULL` | Permite precificação dinâmica por lote (ex: desconto próximo ao vencimento) |
-| `freshness_score` | `integer` | 0–100, calculado por job agendado (BullMQ) |
-| `storage_location` | `text` | Ex: "Câmara Fria B3" |
-| `created_at` | `timestamptz` | |
+
+| Coluna             | Tipo                 | Descrição                                                                   |
+| ------------------ | -------------------- | --------------------------------------------------------------------------- |
+| `id`               | `uuid PK`            |                                                                             |
+| `product_id`       | `uuid FK`            |                                                                             |
+| `lot_code`         | `text`               | Código de rastreabilidade do lote                                           |
+| `harvest_date`     | `date`               | Data de colheita                                                            |
+| `expiry_date`      | `date`               | **Data de validade** — motor de decaimento                                  |
+| `available_qty`    | `numeric(12,3)`      | Quantidade disponível (em `sale_unit` do produto)                           |
+| `reserved_qty`     | `numeric(12,3)`      | Reservado por pedidos em andamento                                          |
+| `price_override`   | `numeric(12,4) NULL` | Permite precificação dinâmica por lote (ex: desconto próximo ao vencimento) |
+| `freshness_score`  | `integer`            | 0–100, calculado por job agendado (BullMQ)                                  |
+| `storage_location` | `text`               | Ex: "Câmara Fria B3"                                                        |
+| `created_at`       | `timestamptz`        |                                                                             |
 
 **Estratégia de Decaimento de Validade:**
+
 - Job BullMQ (`lot-freshness-worker`) roda a cada 6h
 - Calcula `freshness_score = (expiry_date - now) / (expiry_date - harvest_date) * 100`
 - Score < 30: publica evento `lot.expiring_soon` → notificação automática ao produtor e comprador
 - Score = 0 (ou `expiry_date < now`): lote automaticamente marcado como `is_expired = true`, removido do catálogo ativo
 
 #### `orders` e `order_items`
-| Coluna (`orders`) | Tipo | Descrição |
-|---|---|---|
-| `id` | `uuid PK` | |
-| `buyer_tenant_id` | `uuid FK` | |
-| `seller_tenant_id` | `uuid FK` | |
-| `status` | `enum(draft, confirmed, picking, in_transit, delivered, cancelled)` | |
-| `delivery_address` | `jsonb` | |
-| `delivery_point` | `geometry(POINT, 4326)` | PostGIS — ponto de entrega |
-| `delivery_window_start` | `timestamptz` | |
-| `delivery_window_end` | `timestamptz` | |
-| `total_amount` | `numeric(14,4)` | |
 
-| Coluna (`order_items`) | Tipo | Descrição |
-|---|---|---|
-| `id` | `uuid PK` | |
-| `order_id` | `uuid FK` | |
-| `lot_id` | `uuid FK` | **Vinculado ao lote específico** (rastreabilidade) |
-| `product_id` | `uuid FK` | |
-| `qty` | `numeric(12,3)` | Quantidade (suporta frações para kg) |
-| `unit_price` | `numeric(12,4)` | Preço no momento da reserva |
+| Coluna (`orders`)       | Tipo                                                                | Descrição                  |
+| ----------------------- | ------------------------------------------------------------------- | -------------------------- |
+| `id`                    | `uuid PK`                                                           |                            |
+| `buyer_tenant_id`       | `uuid FK`                                                           |                            |
+| `seller_tenant_id`      | `uuid FK`                                                           |                            |
+| `status`                | `enum(draft, confirmed, picking, in_transit, delivered, cancelled)` |                            |
+| `delivery_address`      | `jsonb`                                                             |                            |
+| `delivery_point`        | `geometry(POINT, 4326)`                                             | PostGIS — ponto de entrega |
+| `delivery_window_start` | `timestamptz`                                                       |                            |
+| `delivery_window_end`   | `timestamptz`                                                       |                            |
+| `total_amount`          | `numeric(14,4)`                                                     |                            |
+
+| Coluna (`order_items`) | Tipo            | Descrição                                          |
+| ---------------------- | --------------- | -------------------------------------------------- |
+| `id`                   | `uuid PK`       |                                                    |
+| `order_id`             | `uuid FK`       |                                                    |
+| `lot_id`               | `uuid FK`       | **Vinculado ao lote específico** (rastreabilidade) |
+| `product_id`           | `uuid FK`       |                                                    |
+| `qty`                  | `numeric(12,3)` | Quantidade (suporta frações para kg)               |
+| `unit_price`           | `numeric(12,4)` | Preço no momento da reserva                        |
 
 #### `delivery_routes` — Roteamento PostGIS
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| `id` | `uuid PK` | |
-| `date` | `date` | |
-| `vehicle_id` | `uuid FK` | |
-| `stops` | `geometry(LINESTRING, 4326)` | Rota otimizada |
-| `order_ids` | `uuid[]` | Pedidos na rota |
-| `estimated_duration_min` | `integer` | |
+
+| Coluna                   | Tipo                         | Descrição       |
+| ------------------------ | ---------------------------- | --------------- |
+| `id`                     | `uuid PK`                    |                 |
+| `date`                   | `date`                       |                 |
+| `vehicle_id`             | `uuid FK`                    |                 |
+| `stops`                  | `geometry(LINESTRING, 4326)` | Rota otimizada  |
+| `order_ids`              | `uuid[]`                     | Pedidos na rota |
+| `estimated_duration_min` | `integer`                    |                 |
 
 > **PostGIS em uso:** Queries como `ST_DWithin(farms.location, buyer.location, 50000)` para "fornecedores num raio de 50km" são nativas e indexadas com GiST.
 
@@ -228,6 +237,7 @@ AppRouter
 ```
 
 **Convenção de procedures:**
+
 - `query` = leitura (GET semântico, cacheável por React Query)
 - `mutation` = escrita
 - Toda `mutation` que modifica estoque valida disponibilidade dentro de uma **transação de banco de dados** (via Drizzle `db.transaction()`)
@@ -247,13 +257,13 @@ Produtores no campo operam em áreas com cobertura de sinal fraca ou nula. O app
 
 ### 6.2 Stack de Sincronização
 
-| Componente | Tecnologia |
-|---|---|
-| Banco local | **Expo SQLite** (expo-sqlite v14+) com WAL mode |
-| Schema local | Drizzle ORM com driver `expo-sqlite` (mesmo schema, subset de tabelas) |
-| Fila de sincronização | `expo-background-fetch` + `expo-task-manager` |
-| Detector de conectividade | `@react-native-community/netinfo` |
-| Resolução de conflitos | **Last-Write-Wins** por `updated_at` para a fase MVP |
+| Componente                | Tecnologia                                                             |
+| ------------------------- | ---------------------------------------------------------------------- |
+| Banco local               | **Expo SQLite** (expo-sqlite v14+) com WAL mode                        |
+| Schema local              | Drizzle ORM com driver `expo-sqlite` (mesmo schema, subset de tabelas) |
+| Fila de sincronização     | `expo-background-fetch` + `expo-task-manager`                          |
+| Detector de conectividade | `@react-native-community/netinfo`                                      |
+| Resolução de conflitos    | **Last-Write-Wins** por `updated_at` para a fase MVP                   |
 
 ### 6.3 Fluxo de Sincronização
 
@@ -261,10 +271,10 @@ Produtores no campo operam em áreas com cobertura de sinal fraca ou nula. O app
 [OFFLINE]
   Produtor registra colheita → salva em SQLite local com status: "pending_sync"
   Produtor atualiza estoque → idem
-  
+
 [CONEXÃO DETECTADA]
   netinfo.addEventListener → dispara SyncEngine
-  
+
 [SyncEngine — executado em background worker]
   1. Lê todos os registros com status: "pending_sync"
   2. Agrupa em batch (máx 50 por request)
@@ -314,15 +324,15 @@ O catálogo público do Frescari (`frescari.com.br/catalogo/...`) é um ativo de
 
 Cada página de produto gerada programaticamente incluirá:
 
-| Elemento | Geração |
-|---|---|
-| `<title>` | `{produto.name} a granel em {cidade} - Frescari` |
+| Elemento             | Geração                                                                                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `<title>`            | `{produto.name} a granel em {cidade} - Frescari`                                                                             |
 | `<meta description>` | Template: "Compre {produto} direto do produtor em {região}. Disponível em lotes de {min_order} {unit}. Entrega em {raio}km." |
-| `<h1>` | `{produto.name} — {categoria.name}` |
-| Dados estruturados | `schema.org/Product` com `offers`, `availability`, `areaServed` |
-| Conteúdo editorial | `category.seo_description` + dados dinâmicos de disponibilidade |
-| `hreflang` | Não aplicável (somente pt-BR) |
-| `canonical` | URL canônica auto-gerada |
+| `<h1>`               | `{produto.name} — {categoria.name}`                                                                                          |
+| Dados estruturados   | `schema.org/Product` com `offers`, `availability`, `areaServed`                                                              |
+| Conteúdo editorial   | `category.seo_description` + dados dinâmicos de disponibilidade                                                              |
+| `hreflang`           | Não aplicável (somente pt-BR)                                                                                                |
+| `canonical`          | URL canônica auto-gerada                                                                                                     |
 
 ### 7.4 `generateStaticParams` — Estratégia de Build
 
@@ -355,7 +365,11 @@ Revalidação: triggered por webhook quando produtor atualiza produto/lote
     "availability": "https://schema.org/InStock",
     "areaServed": {
       "@type": "GeoCircle",
-      "geoMidpoint": { "@type": "GeoCoordinates", "latitude": -22.9, "longitude": -47.1 },
+      "geoMidpoint": {
+        "@type": "GeoCoordinates",
+        "latitude": -22.9,
+        "longitude": -47.1
+      },
       "geoRadius": "50000"
     }
   },
@@ -441,14 +455,14 @@ Itens obrigatorios antes do lancamento publico do MVP. Eles nao mudam o escopo c
 - [x] E2E web com Playwright
 - [x] Finalizar o contrato novo de checkout por fazenda e desativar o fluxo misto legado
 - [x] Adicionar `noUncheckedIndexedAccess` ao TypeScript
-- [ ] Configurar Husky + lint-staged
-- [ ] Configurar Knip para dead code e dependencias nao usadas
+- [x] Configurar Husky + lint-staged
+- [x] Configurar Knip para dead code e dependencias nao usadas
 - [ ] Rodar auditoria completa de teclado e formularios nas rotas de dashboard
 - [ ] Executar varredura completa do web core rota por rota
 - [ ] Rodar verificacao final do MVP web (`test`, `typecheck`, `lint`, `build`, E2E core e checklist basico de seguranca)
 - [ ] Rodar pentest basico e checklist final de seguranca operacional
 
-Em 2026-03-18 o repositorio passou a rodar com `noUncheckedIndexedAccess` ativo nos tsconfigs efetivos do monorepo, com fallout moderado resolvido no `api` e no `web`, seguido por `pnpm typecheck` global verde.
+Em 2026-03-18 o repositorio passou a rodar com `noUncheckedIndexedAccess` ativo nos tsconfigs efetivos do monorepo, com fallout moderado resolvido no `api` e no `web`, seguido por `pnpm typecheck` global verde. No mesmo ciclo, o hardening de go-live ganhou `prepare: husky`, hook `.husky/pre-commit` chamando `pnpm exec lint-staged`, script raiz `pnpm knip`, configuracao dedicada em `knip.json` e etapa de Knip no CI, com `pnpm exec knip --reporter compact` verde apos a limpeza de dependencias e exports mortos do monorepo. O agregado `pnpm check` tambem passou no root, consolidando `lint`, `typecheck`, `test` e `knip` antes da rodada final de `build`, E2E core e seguranca.
 
 #### Regra de lancamento
 
@@ -493,15 +507,15 @@ O plano anterior ficou desatualizado em alguns pontos. Estado correto do reposit
 
 ## 10. Decisões de Arquitetura (ADRs Resumidos)
 
-| Decisão | Escolha | Alternativa Rejeitada | Motivo |
-|---|---|---|---|
-| ORM | Drizzle | Prisma | Drizzle tem melhor suporte a tipos para PostGIS e queries manuais; zero overhead de runtime |
-| API | tRPC | REST + OpenAPI | Type-safety E2E elimina uma camada de geração de código e possíveis desacordos de tipagem |
-| Sync offline | SQLite local + queue | Apenas retry de rede | SQLite garante operação real sem dependência de rede; queue é auditável |
-| Conflitos de sync | LWW (Last Write Wins) | CRDT / Operational Transform | Suficiente para MVP; operações de estoque são raras de conflitar no campo |
-| Geo | PostGIS | Serviço externo (Google Maps API) | PostGIS nativo elimina latência de rede e custo por query; queries complexas (raio + filtros) |
-| Perecibilidade | `product_lots` separado | Campo direto em `products` | Um produto pode ter múltiplos lotes simultâneos com validades diferentes — modelo é obrigatório |
+| Decisão           | Escolha                 | Alternativa Rejeitada             | Motivo                                                                                          |
+| ----------------- | ----------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------- |
+| ORM               | Drizzle                 | Prisma                            | Drizzle tem melhor suporte a tipos para PostGIS e queries manuais; zero overhead de runtime     |
+| API               | tRPC                    | REST + OpenAPI                    | Type-safety E2E elimina uma camada de geração de código e possíveis desacordos de tipagem       |
+| Sync offline      | SQLite local + queue    | Apenas retry de rede              | SQLite garante operação real sem dependência de rede; queue é auditável                         |
+| Conflitos de sync | LWW (Last Write Wins)   | CRDT / Operational Transform      | Suficiente para MVP; operações de estoque são raras de conflitar no campo                       |
+| Geo               | PostGIS                 | Serviço externo (Google Maps API) | PostGIS nativo elimina latência de rede e custo por query; queries complexas (raio + filtros)   |
+| Perecibilidade    | `product_lots` separado | Campo direto em `products`        | Um produto pode ter múltiplos lotes simultâneos com validades diferentes — modelo é obrigatório |
 
 ---
 
-> **Proximo Passo:** Fechar o hardening restante de go-live (Husky, lint-staged e Knip) e a verificacao profunda das rotas criticas. Mobile, offline e push nativo continuam fora do primeiro marco.
+> **Proximo Passo:** Fechar o polish do core web e a verificacao profunda das rotas criticas antes da rodada final de build, E2E e checklist basico de seguranca. Mobile, offline e push nativo continuam fora do primeiro marco.

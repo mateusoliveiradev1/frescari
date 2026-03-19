@@ -3,9 +3,10 @@
   "private": true,
   "scripts": {
     "build": "turbo build",
-    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm knip",
     "ci": "pnpm check",
     "dev": "turbo dev",
+    "knip": "knip",
     "lint": "turbo lint",
     "test": "turbo test",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
@@ -19,20 +20,16 @@
   "devDependencies": {
     "@eslint/js": "^9.39.3",
     "@types/node": "^25.3.3",
-    "drizzle-kit": "0.31.9",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "globals": "^17.4.0",
     "husky": "^9.1.7",
+    "knip": "^5.88.0",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
-    "tsx": "^4.21.0",
     "turbo": "^2.8.14",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.57.1"
   },
-  "packageManager": "pnpm@9.0.0",
-  "dependencies": {
-    "drizzle-orm": "0.45.1"
-  }
+  "packageManager": "pnpm@9.0.0"
 }
