@@ -41,6 +41,7 @@ export const notificationRouter = createTRPCRouter({
             .groupBy(notifications.scope, notifications.severity);
 
         const byScope = createEmptyScopeSummary();
+        const criticalByScope = createEmptyScopeSummary();
         let totalUnread = 0;
         let criticalUnread = 0;
         let latestCreatedAt: Date | null = null;
@@ -52,6 +53,7 @@ export const notificationRouter = createTRPCRouter({
 
             if (row.severity === 'critical') {
                 criticalUnread += count;
+                criticalByScope[row.scope] += count;
             }
 
             if (row.latestCreatedAt && (!latestCreatedAt || row.latestCreatedAt > latestCreatedAt)) {
@@ -63,6 +65,7 @@ export const notificationRouter = createTRPCRouter({
             totalUnread,
             criticalUnread,
             byScope,
+            criticalByScope,
             latestCreatedAt,
         };
     }),

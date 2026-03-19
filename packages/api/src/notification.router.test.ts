@@ -298,6 +298,13 @@ test('notification router returns unread summary aggregates and the filtered inb
             deliveries: 0,
             platform: 0,
         },
+        criticalByScope: {
+            inventory: 0,
+            sales: 0,
+            orders: 1,
+            deliveries: 0,
+            platform: 0,
+        },
         latestCreatedAt: new Date('2026-03-18T11:00:00.000Z'),
     });
     assert.equal(inbox.length, 1);

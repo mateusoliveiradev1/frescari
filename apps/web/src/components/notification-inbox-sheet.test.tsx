@@ -16,6 +16,13 @@ type SummaryData = {
         deliveries: number;
         platform: number;
     };
+    criticalByScope: {
+        inventory: number;
+        sales: number;
+        orders: number;
+        deliveries: number;
+        platform: number;
+    };
     latestCreatedAt: Date | null;
 };
 
@@ -41,8 +48,10 @@ const trpcState = {
     inboxLoading: false,
     lastSummaryOptions: null as Record<string, unknown> | null,
     lastInboxInput: null as Record<string, unknown> | null,
+    lastInboxOptions: null as Record<string, unknown> | null,
     markReadCalls: [] as Array<{ ids: string[] }>,
     markAllReadCalls: [] as Array<{ scope?: string }>,
+    prefetchCalls: [] as Array<Record<string, unknown>>,
     invalidations: {
         summary: 0,
         inbox: 0,
@@ -57,10 +66,32 @@ const trpcMock = {
                     invalidate: async () => {
                         trpcState.invalidations.summary += 1;
                     },
+                    cancel: async () => {},
+                    setData: (_input: unknown, updater: (current: SummaryData | null) => SummaryData | null) => {
+                        trpcState.summaryData = updater(trpcState.summaryData);
+                    },
                 },
                 listInbox: {
                     invalidate: async () => {
                         trpcState.invalidations.inbox += 1;
+                    },
+                    cancel: async () => {},
+                    prefetch: async (input: Record<string, unknown>) => {
+                        trpcState.prefetchCalls.push(input);
+                    },
+                    setData: (
+                        input: Record<string, unknown>,
+                        updater: (current: InboxNotification[]) => InboxNotification[],
+                    ) => {
+                        const currentScope = trpcState.lastInboxInput?.scope;
+                        const currentUnreadOnly = trpcState.lastInboxInput?.unreadOnly ?? false;
+
+                        if (
+                            input.scope === currentScope
+                            && (input.unreadOnly ?? false) === currentUnreadOnly
+                        ) {
+                            trpcState.inboxData = updater(trpcState.inboxData);
+                        }
                     },
                 },
             },
@@ -78,8 +109,9 @@ const trpcMock = {
             },
         },
         listInbox: {
-            useQuery: (input: Record<string, unknown>) => {
+            useQuery: (input: Record<string, unknown>, options?: Record<string, unknown>) => {
                 trpcState.lastInboxInput = input;
+                trpcState.lastInboxOptions = options ?? null;
 
                 return {
                     data: trpcState.inboxData,
@@ -88,21 +120,29 @@ const trpcMock = {
             },
         },
         markRead: {
-            useMutation: (options?: { onSuccess?: () => Promise<unknown> | unknown }) => ({
+            useMutation: (options?: {
+                onMutate?: (input: { ids: string[] }) => Promise<unknown> | unknown;
+                onSettled?: () => Promise<unknown> | unknown;
+            }) => ({
                 isPending: false,
                 mutateAsync: async (input: { ids: string[] }) => {
                     trpcState.markReadCalls.push(input);
-                    await options?.onSuccess?.();
+                    await options?.onMutate?.(input);
+                    await options?.onSettled?.();
                     return { updatedCount: input.ids.length };
                 },
             }),
         },
         markAllRead: {
-            useMutation: (options?: { onSuccess?: () => Promise<unknown> | unknown }) => ({
+            useMutation: (options?: {
+                onMutate?: (input: { scope?: string }) => Promise<unknown> | unknown;
+                onSettled?: () => Promise<unknown> | unknown;
+            }) => ({
                 isPending: false,
                 mutateAsync: async (input: { scope?: string }) => {
                     trpcState.markAllReadCalls.push(input);
-                    await options?.onSuccess?.();
+                    await options?.onMutate?.(input);
+                    await options?.onSettled?.();
                     return { updatedCount: 1 };
                 },
             }),
@@ -123,6 +163,13 @@ function resetTrpcState() {
             sales: 0,
             orders: 1,
             deliveries: 1,
+            platform: 0,
+        },
+        criticalByScope: {
+            inventory: 0,
+            sales: 0,
+            orders: 1,
+            deliveries: 0,
             platform: 0,
         },
         latestCreatedAt: new Date("2026-03-18T11:00:00.000Z"),
@@ -161,8 +208,10 @@ function resetTrpcState() {
     trpcState.inboxLoading = false;
     trpcState.lastSummaryOptions = null;
     trpcState.lastInboxInput = null;
+    trpcState.lastInboxOptions = null;
     trpcState.markReadCalls = [];
     trpcState.markAllReadCalls = [];
+    trpcState.prefetchCalls = [];
     trpcState.invalidations.summary = 0;
     trpcState.invalidations.inbox = 0;
 }
@@ -230,6 +279,11 @@ before(() => {
         }
 
         if (request === "@frescari/ui") {
+            const SheetContext = React.createContext<{
+                open: boolean;
+                onOpenChange?: (open: boolean) => void;
+            } | null>(null);
+
             return {
                 Badge: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
                 Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
@@ -237,12 +291,52 @@ before(() => {
                         {children}
                     </button>
                 ),
-                Sheet: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-                SheetContent: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+                Sheet: ({
+                    children,
+                    open = false,
+                    onOpenChange,
+                }: {
+                    children: React.ReactNode;
+                    open?: boolean;
+                    onOpenChange?: (open: boolean) => void;
+                }) => (
+                    <SheetContext.Provider value={{ open, onOpenChange }}>
+                        <div>{children}</div>
+                    </SheetContext.Provider>
+                ),
+                SheetContent: ({ children }: { children: React.ReactNode }) => {
+                    const sheet = React.useContext(SheetContext);
+
+                    if (!sheet?.open) {
+                        return null;
+                    }
+
+                    return <section>{children}</section>;
+                },
                 SheetDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
                 SheetHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
                 SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-                SheetTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+                SheetTrigger: ({ children }: { children: React.ReactNode }) => {
+                    const sheet = React.useContext(SheetContext);
+
+                    if (!React.isValidElement(children)) {
+                        return <>{children}</>;
+                    }
+
+                    const child = children as React.ReactElement<{
+                        onClick?: (event: React.MouseEvent<HTMLElement>) => void;
+                    }>;
+
+                    return React.cloneElement(
+                        child,
+                        {
+                            onClick: (event: React.MouseEvent<HTMLElement>) => {
+                                child.props.onClick?.(event);
+                                sheet?.onOpenChange?.(true);
+                            },
+                        },
+                    );
+                },
             };
         }
 
@@ -260,10 +354,10 @@ beforeEach(() => {
     resetTrpcState();
 });
 
-test("polling helper only enables the 30 second interval for visible tabs", async () => {
+test("polling helper only enables the 15 second interval for visible tabs", async () => {
     const { getNotificationPollingInterval } = await import("./notification-inbox-sheet");
 
-    assert.equal(getNotificationPollingInterval(true), 30_000);
+    assert.equal(getNotificationPollingInterval(true), 15_000);
     assert.equal(getNotificationPollingInterval(false), false);
 });
 
@@ -286,19 +380,30 @@ test("renders the inbox, applies filters, and wires read mutations to query inva
         root.render(<NotificationInboxSheet />);
     });
 
-    assert.equal(trpcState.lastSummaryOptions?.refetchInterval, 30_000);
+    assert.equal(trpcState.lastSummaryOptions?.refetchInterval, 15_000);
     assert.equal(trpcState.lastInboxInput?.scope, undefined);
     assert.equal(trpcState.lastInboxInput?.unreadOnly, false);
+    assert.equal(trpcState.lastInboxOptions?.enabled, false);
+    assert.deepEqual(trpcState.prefetchCalls, [
+        { limit: 20, unreadOnly: false, scope: undefined },
+    ]);
 
     const bellButton = window.document.querySelector("[data-testid='notification-bell']");
     assert.ok(bellButton);
 
     await act(async () => {
+        bellButton.dispatchEvent(new window.MouseEvent("mouseenter", { bubbles: true }));
         clickElement(bellButton, window.MouseEvent as unknown as typeof MouseEvent);
         await Promise.resolve();
         await Promise.resolve();
     });
 
+    assert.equal(trpcState.lastInboxOptions?.enabled, true);
+    assert.equal(trpcState.lastInboxOptions?.refetchInterval, 15_000);
+    assert.deepEqual(trpcState.prefetchCalls, [
+        { limit: 20, unreadOnly: false, scope: undefined },
+        { limit: 20, unreadOnly: false, scope: undefined },
+    ]);
     assert.match(window.document.body.textContent ?? "", /Notificacoes/);
     assert.match(window.document.body.textContent ?? "", /3 nao lidas/);
 

@@ -34,4 +34,4 @@
 
 - [x] A control tower entrega explicacao operacional, risco, proxima acao, consolidacao de wave, contexto de mapa e degradacao elegante de sinais externos.
 - [x] Override manual e refresh convivem sem conflito de UX ou perda de auditoria.
-- [x] O item de IA operacional em `docs/MVP_CLOSURE_PLAN.md` permanece parcial apenas se ainda faltar notificacoes ou hardening externos a esta frente.
+- [x] O item de IA operacional em `docs/MVP_CLOSURE_PLAN.md` permanece parcial apenas se ainda faltar hardening ou verificacao final externos a esta frente.
