@@ -1,6 +1,8 @@
 {
     "$schema": "https://turbo.build/schema.json",
     "globalEnv": [
+        "DATABASE_ADMIN_URL",
+        "DATABASE_URL",
         "UPLOADTHING_TOKEN"
     ],
     "tasks": {

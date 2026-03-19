@@ -107,6 +107,16 @@ Prova minima:
 - tentativa manual de IDOR/horizontal access em rotas e procedures criticas
 - confirmacao de RLS e filtros de tenant nas entidades mais sensiveis
 
+Status parcial desta rodada (2026-03-19):
+
+- [PASS] Enforcement server-side centralizado: `packages/api/src/trpc.ts` aplica `protectedProcedure`, `tenantProcedure`, `producerProcedure` e `buyerProcedure`, com transacao autenticada e binding de `userId`/`tenantId` no contexto.
+- [PASS] Isolamento vertical revisado nas procedures criticas auditadas: `packages/api/src/routers/farm.ts`, `packages/api/src/routers/addresses.ts`, `packages/api/src/routers/order.ts`, `packages/api/src/routers/logistics.ts` e `packages/api/src/routers/admin.ts` exigem role correta e filtram recursos do fluxo principal pelo tenant do usuario.
+- [PASS] RLS estrutural esta ativo e validado nas entidades core multi-tenant. As tabelas `products`, `product_lots`, `orders`, `farms` e `addresses` agora possuem `ENABLE/FORCE ROW LEVEL SECURITY`, policies de `SELECT`/`INSERT`/`UPDATE`/`DELETE` e prova automatizada de bloqueio cross-tenant no proprio PostgreSQL.
+- [PASS] `packages/api/src/routers/lot.ts` agora exige `tenantId` tambem no fallback por `products.id` dentro de `create`, impedindo que um produtor vincule um lote proprio a um produto de outro tenant apenas com um UUID valido.
+- [PASS] Evidencia automatizada: `pnpm --filter @frescari/api test` passou em 2026-03-19 com `75/75`, incluindo a regressao negativa de `lot.create` para tentativa cross-tenant.
+- [PASS] Existe regressao automatizada cobrindo tentativa cross-tenant em `lot.create`, validando que a mutation retorna erro e nao chega a inserir o lote quando o produto pertence a outro tenant.
+- [PASS] Decisao da secao 2: o isolamento estrutural multi-tenant por RLS foi comprovado, incluindo o uso de role de runtime sem `BYPASSRLS` em `DATABASE_URL` e role administrativa separada em `DATABASE_ADMIN_URL`.
+
 ## 3. Input and output validation
 
 - [ ] Confirmar que input de tRPC usa schema runtime nas procedures expostas.

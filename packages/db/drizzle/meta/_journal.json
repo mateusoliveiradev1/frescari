@@ -57,6 +57,13 @@
       "when": 1773596255923,
       "tag": "0007_parched_drax",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1773899400000,
+      "tag": "0008_iron_tenant_barrier",
+      "breakpoints": true
     }
   ]
 }
