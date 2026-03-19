@@ -191,6 +191,17 @@ Why this state exists:
 7. orders move to `Em transito`
 8. final confirmation moves orders to `Entregue`
 
+### UI Action Guardrails
+
+The delivery card must mirror the same transition contract enforced by the backend.
+
+- `payment_authorized`, `confirmed`, and `picking` only expose `Confirmar saida`
+- `ready_for_dispatch` exposes `Saiu para entrega` and may expose `Entregue` as an operator shortcut
+- `in_transit` exposes only `Confirmar entrega`
+- `delivered` and `cancelled` expose no forward action
+
+This keeps the control tower from inviting invalid transitions before dispatch confirmation and preserves `ready_for_dispatch` as the operational gate between picking and real departure.
+
 ## UI Composition
 
 ### Page Hierarchy

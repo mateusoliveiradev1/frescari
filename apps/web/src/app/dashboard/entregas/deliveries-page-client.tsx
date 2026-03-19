@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import { trpc } from "@/trpc/react";
 import { getSaleUnitLabel, isWeighableSaleUnit } from "@/lib/sale-units";
 
+import { canMarkDelivered, getDeliveryPrimaryAction } from "./delivery-actions";
 import { DeliveryMap } from "./delivery-map";
 import type { DispatchWaveCandidate, PendingDelivery } from "./delivery-map.types";
 import { useDeliveryControlRefresh } from "./use-delivery-control-refresh";
@@ -242,21 +243,14 @@ function DeliveryCard({
         && delivery.origin?.longitude !== null
         && delivery.destination?.latitude !== null
         && delivery.destination?.longitude !== null;
-    const hasDispatchPlan = delivery.dispatch !== null || delivery.status === "ready_for_dispatch";
-    const primaryAction = hasDispatchPlan
-        ? {
-            icon: Truck,
-            label: "Saiu para entrega",
-            intent: "status" as const,
-            nextStatus: "in_transit" as const,
-        }
-        : {
-            icon: Sparkles,
-            label: "Confirmar saida",
-            intent: "dispatch" as const,
-            nextStatus: "ready_for_dispatch" as const,
-        };
-    const PrimaryActionIcon = primaryAction.icon;
+    const primaryAction = getDeliveryPrimaryAction(delivery.status);
+    const showDeliveredShortcut = canMarkDelivered(delivery.status)
+        && !(primaryAction?.kind === "status" && primaryAction.nextStatus === "delivered");
+    const PrimaryActionIcon = primaryAction?.kind === "dispatch"
+        ? Sparkles
+        : primaryAction?.nextStatus === "delivered"
+            ? CheckCircle2
+            : Truck;
     const handleCardSelect = () => onSelect();
     const suggestedVehicleLabel =
         delivery.recommendation.suggestedVehicle?.label
@@ -476,39 +470,45 @@ function DeliveryCard({
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-3 border-t border-soil/8 pt-5 sm:flex-row">
-                        <Button
-                            className="flex-1 justify-center gap-2"
-                            isPending={isPrimaryPending}
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                if (primaryAction.intent === "dispatch") {
-                                    onConfirmDispatch();
-                                    return;
-                                }
+                    {primaryAction || showDeliveredShortcut ? (
+                        <div className="flex flex-col gap-3 border-t border-soil/8 pt-5 sm:flex-row">
+                            {primaryAction ? (
+                                <Button
+                                    className="flex-1 justify-center gap-2"
+                                    isPending={isPrimaryPending}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        if (primaryAction.kind === "dispatch") {
+                                            onConfirmDispatch();
+                                            return;
+                                        }
 
-                                onUpdateStatus(primaryAction.nextStatus);
-                            }}
-                            type="button"
-                            variant="primary"
-                        >
-                            <PrimaryActionIcon className="h-4 w-4" />
-                            {primaryAction.label}
-                        </Button>
-                        <Button
-                            className="flex-1 justify-center gap-2"
-                            isPending={isDeliveredPending}
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onUpdateStatus("delivered");
-                            }}
-                            type="button"
-                            variant="secondary"
-                        >
-                            <CheckCircle2 className="h-4 w-4" />
-                            Entregue
-                        </Button>
-                    </div>
+                                        onUpdateStatus(primaryAction.nextStatus);
+                                    }}
+                                    type="button"
+                                    variant="primary"
+                                >
+                                    <PrimaryActionIcon className="h-4 w-4" />
+                                    {primaryAction.label}
+                                </Button>
+                            ) : null}
+                            {showDeliveredShortcut ? (
+                                <Button
+                                    className="flex-1 justify-center gap-2"
+                                    isPending={isDeliveredPending}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onUpdateStatus("delivered");
+                                    }}
+                                    type="button"
+                                    variant="secondary"
+                                >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Entregue
+                                </Button>
+                            ) : null}
+                        </div>
+                    ) : null}
 
                     <div className="grid gap-3 sm:grid-cols-2">
                         <Button
