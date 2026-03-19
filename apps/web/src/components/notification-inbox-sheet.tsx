@@ -300,7 +300,9 @@ export function NotificationInboxSheet({
             return;
         }
 
-        void prefetchInbox();
+        void utils.notification.listInbox.prefetch(getDefaultInboxInput(), {
+            staleTime: NOTIFICATION_POLLING_INTERVAL_MS,
+        });
     }, [
         isPageVisible,
         unreadSummaryQuery.data?.latestCreatedAt,
