@@ -64,8 +64,8 @@ const isWeightBasedItem = (item: {
 const allowedProducerStatusTransitions: Record<string, ReadonlyArray<string>> = {
     awaiting_weight: ['confirmed', 'cancelled'],
     payment_authorized: ['confirmed', 'cancelled'],
-    confirmed: ['picking', 'ready_for_dispatch', 'in_transit', 'delivered', 'cancelled'],
-    picking: ['ready_for_dispatch', 'in_transit', 'delivered', 'cancelled'],
+    confirmed: ['picking', 'ready_for_dispatch', 'cancelled'],
+    picking: ['ready_for_dispatch', 'cancelled'],
     ready_for_dispatch: ['in_transit', 'delivered', 'cancelled'],
     in_transit: ['delivered'],
     delivered: [],
