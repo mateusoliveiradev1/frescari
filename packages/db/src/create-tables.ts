@@ -1,23 +1,39 @@
-import { neon } from '@neondatabase/serverless';
-import { config } from 'dotenv';
-config({ path: '../../.env' });
+import { neon } from "@neondatabase/serverless";
+import { config } from "dotenv";
+config({ path: "../../.env" });
 
 async function main() {
-    const sql = neon(process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL!);
-    console.log('Creating tables via raw SQL...');
-    try {
-        // Enums
-        await sql`CREATE TYPE "plan" AS ENUM('free', 'pro', 'enterprise');`.catch(() => { });
-        await sql`CREATE TYPE "role" AS ENUM('producer', 'distributor', 'buyer', 'admin');`.catch(() => { });
-        await sql`CREATE TYPE "sale_unit" AS ENUM('kg', 'g', 'unit', 'box', 'dozen', 'bunch');`.catch(() => { });
-        await sql`CREATE TYPE "order_status" AS ENUM('draft', 'confirmed', 'payment_authorized', 'awaiting_weight', 'picking', 'ready_for_dispatch', 'in_transit', 'delivered', 'cancelled');`.catch(() => { });
-        await sql`CREATE TYPE "notification_type" AS ENUM('lot_expiring_soon', 'lot_expired', 'order_awaiting_weight', 'order_confirmed', 'order_cancelled', 'order_ready_for_dispatch', 'delivery_in_transit', 'delivery_delayed', 'delivery_delivered');`.catch(() => { });
-        await sql`CREATE TYPE "notification_scope" AS ENUM('inventory', 'sales', 'orders', 'deliveries', 'platform');`.catch(() => { });
-        await sql`CREATE TYPE "notification_severity" AS ENUM('info', 'warning', 'critical');`.catch(() => { });
-        await sql`CREATE TYPE "notification_entity_type" AS ENUM('lot', 'order');`.catch(() => { });
+  const sql = neon(process.env.DATABASE_ADMIN_URL || process.env.DATABASE_URL!);
+  console.log("Creating tables via raw SQL...");
+  try {
+    // Enums
+    await sql`CREATE TYPE "plan" AS ENUM('free', 'pro', 'enterprise');`.catch(
+      () => {},
+    );
+    await sql`CREATE TYPE "role" AS ENUM('producer', 'distributor', 'buyer', 'admin');`.catch(
+      () => {},
+    );
+    await sql`CREATE TYPE "sale_unit" AS ENUM('kg', 'g', 'unit', 'box', 'dozen', 'bunch');`.catch(
+      () => {},
+    );
+    await sql`CREATE TYPE "order_status" AS ENUM('draft', 'confirmed', 'payment_authorized', 'awaiting_weight', 'picking', 'ready_for_dispatch', 'in_transit', 'delivered', 'cancelled');`.catch(
+      () => {},
+    );
+    await sql`CREATE TYPE "notification_type" AS ENUM('lot_expiring_soon', 'lot_expired', 'order_awaiting_weight', 'order_confirmed', 'order_cancelled', 'order_ready_for_dispatch', 'delivery_in_transit', 'delivery_delayed', 'delivery_delivered');`.catch(
+      () => {},
+    );
+    await sql`CREATE TYPE "notification_scope" AS ENUM('inventory', 'sales', 'orders', 'deliveries', 'platform');`.catch(
+      () => {},
+    );
+    await sql`CREATE TYPE "notification_severity" AS ENUM('info', 'warning', 'critical');`.catch(
+      () => {},
+    );
+    await sql`CREATE TYPE "notification_entity_type" AS ENUM('lot', 'order');`.catch(
+      () => {},
+    );
 
-        // Tables
-        await sql`
+    // Tables
+    await sql`
             CREATE TABLE IF NOT EXISTS "tenants" (
                 "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
                 "slug" text UNIQUE NOT NULL,
@@ -28,7 +44,7 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE TABLE IF NOT EXISTS "user" (
                 "id" text PRIMARY KEY,
                 "tenant_id" uuid REFERENCES "tenants"("id"),
@@ -42,7 +58,7 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE TABLE IF NOT EXISTS "session" (
                 "id" text PRIMARY KEY,
                 "expiresAt" timestamp NOT NULL,
@@ -55,7 +71,7 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE TABLE IF NOT EXISTS "account" (
                 "id" text PRIMARY KEY,
                 "accountId" text NOT NULL,
@@ -73,7 +89,7 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE TABLE IF NOT EXISTS "verification" (
                 "id" text PRIMARY KEY,
                 "identifier" text NOT NULL,
@@ -84,7 +100,7 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE TABLE IF NOT EXISTS "farms" (
                 "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
                 "tenant_id" uuid NOT NULL REFERENCES "tenants"("id"),
@@ -98,7 +114,7 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE TABLE IF NOT EXISTS "product_categories" (
                 "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
                 "slug" text UNIQUE NOT NULL,
@@ -109,7 +125,7 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE TABLE IF NOT EXISTS "products" (
                 "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
                 "tenant_id" uuid NOT NULL REFERENCES "tenants"("id"),
@@ -128,7 +144,7 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE TABLE IF NOT EXISTS "product_lots" (
                 "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
                 "product_id" uuid NOT NULL REFERENCES "products"("id"),
@@ -145,7 +161,7 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE TABLE IF NOT EXISTS "notifications" (
                 "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
                 "tenant_id" uuid NOT NULL REFERENCES "tenants"("id"),
@@ -166,31 +182,31 @@ async function main() {
             );
         `;
 
-        await sql`
+    await sql`
             CREATE INDEX IF NOT EXISTS "notifications_user_created_idx"
             ON "notifications" ("user_id", "created_at" DESC);
         `;
-        await sql`
+    await sql`
             CREATE INDEX IF NOT EXISTS "notifications_user_unread_idx"
             ON "notifications" ("user_id", "read_at", "created_at" DESC);
         `;
-        await sql`
+    await sql`
             CREATE INDEX IF NOT EXISTS "notifications_tenant_role_created_idx"
             ON "notifications" ("tenant_id", "recipient_role", "created_at" DESC);
         `;
-        await sql`
+    await sql`
             CREATE UNIQUE INDEX IF NOT EXISTS "notifications_user_dedupe_unique"
             ON "notifications" ("user_id", "dedupe_key");
         `;
 
-        await sql`
+    await sql`
             ALTER TABLE "notifications" ENABLE ROW LEVEL SECURITY;
-        `.catch(() => { });
-        await sql`
+        `.catch(() => {});
+    await sql`
             ALTER TABLE "notifications" FORCE ROW LEVEL SECURITY;
-        `.catch(() => { });
+        `.catch(() => {});
 
-        await sql`
+    await sql`
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -214,7 +230,7 @@ async function main() {
             $$;
         `;
 
-        await sql`
+    await sql`
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -235,7 +251,7 @@ async function main() {
             $$;
         `;
 
-        await sql`
+    await sql`
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -266,7 +282,7 @@ async function main() {
             $$;
         `;
 
-        await sql`
+    await sql`
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -284,11 +300,429 @@ async function main() {
             $$;
         `;
 
-        console.log('Tables created successfully!');
-    } catch (e) {
-        console.error('Failed to create tables:', e);
-        process.exit(1);
-    }
+    // Legacy bootstrap hardening: if the modern tenant-scoped tables already
+    // exist, keep their RLS barrier explicit here as well. Drizzle migrations
+    // remain the authoritative source of truth for the current schema.
+    await sql`ALTER TABLE IF EXISTS "farms" ENABLE ROW LEVEL SECURITY;`;
+    await sql`ALTER TABLE IF EXISTS "farms" FORCE ROW LEVEL SECURITY;`;
+    await sql`ALTER TABLE IF EXISTS "addresses" ENABLE ROW LEVEL SECURITY;`;
+    await sql`ALTER TABLE IF EXISTS "addresses" FORCE ROW LEVEL SECURITY;`;
+    await sql`ALTER TABLE IF EXISTS "products" ENABLE ROW LEVEL SECURITY;`;
+    await sql`ALTER TABLE IF EXISTS "products" FORCE ROW LEVEL SECURITY;`;
+    await sql`ALTER TABLE IF EXISTS "product_lots" ENABLE ROW LEVEL SECURITY;`;
+    await sql`ALTER TABLE IF EXISTS "product_lots" FORCE ROW LEVEL SECURITY;`;
+    await sql`ALTER TABLE IF EXISTS "orders" ENABLE ROW LEVEL SECURITY;`;
+    await sql`ALTER TABLE IF EXISTS "orders" FORCE ROW LEVEL SECURITY;`;
+
+    await sql`
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'farms'
+                      AND column_name = 'tenant_id'
+                ) THEN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'farms'
+                          AND policyname = 'farms_select_policy'
+                    ) THEN
+                        CREATE POLICY "farms_select_policy" ON "farms"
+                            FOR SELECT
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR current_setting('app.allow_catalog_public_read', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'farms'
+                          AND policyname = 'farms_insert_policy'
+                    ) THEN
+                        CREATE POLICY "farms_insert_policy" ON "farms"
+                            FOR INSERT
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'farms'
+                          AND policyname = 'farms_update_policy'
+                    ) THEN
+                        CREATE POLICY "farms_update_policy" ON "farms"
+                            FOR UPDATE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            )
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'farms'
+                          AND policyname = 'farms_delete_policy'
+                    ) THEN
+                        CREATE POLICY "farms_delete_policy" ON "farms"
+                            FOR DELETE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+                END IF;
+            END
+            $$;
+        `;
+
+    await sql`
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'addresses'
+                      AND column_name = 'tenant_id'
+                ) THEN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'addresses'
+                          AND policyname = 'addresses_select_policy'
+                    ) THEN
+                        CREATE POLICY "addresses_select_policy" ON "addresses"
+                            FOR SELECT
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'addresses'
+                          AND policyname = 'addresses_insert_policy'
+                    ) THEN
+                        CREATE POLICY "addresses_insert_policy" ON "addresses"
+                            FOR INSERT
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'addresses'
+                          AND policyname = 'addresses_update_policy'
+                    ) THEN
+                        CREATE POLICY "addresses_update_policy" ON "addresses"
+                            FOR UPDATE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            )
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'addresses'
+                          AND policyname = 'addresses_delete_policy'
+                    ) THEN
+                        CREATE POLICY "addresses_delete_policy" ON "addresses"
+                            FOR DELETE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+                END IF;
+            END
+            $$;
+        `;
+
+    await sql`
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'products'
+                      AND column_name = 'tenant_id'
+                ) THEN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'products'
+                          AND policyname = 'products_select_policy'
+                    ) THEN
+                        CREATE POLICY "products_select_policy" ON "products"
+                            FOR SELECT
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR current_setting('app.allow_catalog_public_read', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'products'
+                          AND policyname = 'products_insert_policy'
+                    ) THEN
+                        CREATE POLICY "products_insert_policy" ON "products"
+                            FOR INSERT
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'products'
+                          AND policyname = 'products_update_policy'
+                    ) THEN
+                        CREATE POLICY "products_update_policy" ON "products"
+                            FOR UPDATE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            )
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'products'
+                          AND policyname = 'products_delete_policy'
+                    ) THEN
+                        CREATE POLICY "products_delete_policy" ON "products"
+                            FOR DELETE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+                END IF;
+            END
+            $$;
+        `;
+
+    await sql`
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'product_lots'
+                      AND column_name = 'tenant_id'
+                ) THEN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'product_lots'
+                          AND policyname = 'product_lots_select_policy'
+                    ) THEN
+                        CREATE POLICY "product_lots_select_policy" ON "product_lots"
+                            FOR SELECT
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR current_setting('app.allow_product_lot_public_read', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'product_lots'
+                          AND policyname = 'product_lots_insert_policy'
+                    ) THEN
+                        CREATE POLICY "product_lots_insert_policy" ON "product_lots"
+                            FOR INSERT
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'product_lots'
+                          AND policyname = 'product_lots_update_policy'
+                    ) THEN
+                        CREATE POLICY "product_lots_update_policy" ON "product_lots"
+                            FOR UPDATE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            )
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'product_lots'
+                          AND policyname = 'product_lots_delete_policy'
+                    ) THEN
+                        CREATE POLICY "product_lots_delete_policy" ON "product_lots"
+                            FOR DELETE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+                END IF;
+            END
+            $$;
+        `;
+
+    await sql`
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'orders'
+                      AND column_name = 'buyer_tenant_id'
+                ) AND EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'orders'
+                      AND column_name = 'seller_tenant_id'
+                ) THEN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'orders'
+                          AND policyname = 'orders_select_policy'
+                    ) THEN
+                        CREATE POLICY "orders_select_policy" ON "orders"
+                            FOR SELECT
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "buyer_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                                OR "seller_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'orders'
+                          AND policyname = 'orders_insert_policy'
+                    ) THEN
+                        CREATE POLICY "orders_insert_policy" ON "orders"
+                            FOR INSERT
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "buyer_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                                OR "seller_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'orders'
+                          AND policyname = 'orders_update_policy'
+                    ) THEN
+                        CREATE POLICY "orders_update_policy" ON "orders"
+                            FOR UPDATE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "buyer_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                                OR "seller_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            )
+                            WITH CHECK (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "buyer_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                                OR "seller_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND tablename = 'orders'
+                          AND policyname = 'orders_delete_policy'
+                    ) THEN
+                        CREATE POLICY "orders_delete_policy" ON "orders"
+                            FOR DELETE
+                            USING (
+                                current_setting('app.bypass_rls', true) = 'on'
+                                OR "buyer_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                                OR "seller_tenant_id" = nullif(current_setting('app.current_tenant', true), '')::uuid
+                            );
+                    END IF;
+                END IF;
+            END
+            $$;
+        `;
+
+    console.log("Tables created successfully!");
+  } catch (e) {
+    console.error("Failed to create tables:", e);
+    process.exit(1);
+  }
 }
 
 main();

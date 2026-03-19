@@ -31,6 +31,11 @@ O sistema lida com 2 tipos de produtos:
 ## 3. Banco de Dados (Drizzle ORM + PostgreSQL)
 
 - **Multi-Tenant:** Todas as queries devem respeitar o isolamento de inquilinos (`seller_tenant_id` e `buyer_tenant_id`) usando **Row-Level Security (RLS)** no PostgreSQL.
+- **Isolamento Estrito (RLS):** Todas as tabelas core multi-tenant (`products`, `product_lots`, `orders`, `farms`, `addresses`) DEVEM ter Row-Level Security habilitado e validado no PostgreSQL.
+- **Policies Obrigatórias:** Policies de `SELECT`, `INSERT`, `UPDATE` e `DELETE` DEVEM checar a variável de contexto da transação `app.current_tenant`.
+- **Princípio do Menor Privilégio nas Conexões:** A aplicação em runtime NUNCA deve usar credenciais com permissão `BYPASSRLS`.
+- **Runtime Restrito:** `DATABASE_URL` DEVE apontar para uma role restrita de aplicação, sem `BYPASSRLS`, para que o próprio banco imponha a barreira física entre tenants.
+- **Admin Separado:** `DATABASE_ADMIN_URL` DEVE ser usado EXCLUSIVAMENTE para operações de infraestrutura, migrations e bootstrap (`drizzle-kit push`, etc.), por manter privilégios de owner/bypass.
 - **Rastreabilidade (No Hard Deletes):** Proibido apagar dados (Hard Delete). Usar apenas **Soft Deletes** (`ativo = false` ou `deleted_at`) e manter trilhas de auditoria para resolução de disputas financeiras e operacionais.
 
 ---
