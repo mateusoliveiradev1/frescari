@@ -92,7 +92,12 @@ export function buildSupplierRegionSummaries<T extends SupplierRegionLot>(
   return Array.from(regions.entries())
     .map(([key, regionLots]) => {
       const [stateSlug, citySlug] = key.split(":");
-      const firstLot = regionLots[0]!;
+      const firstLot = regionLots[0];
+
+      if (!stateSlug || !citySlug || !firstLot) {
+        return null;
+      }
+
       const cityName = normalizeCityName(firstLot.farmCity);
       const stateName = normalizeStateName(firstLot.farmState);
 
@@ -110,6 +115,7 @@ export function buildSupplierRegionSummaries<T extends SupplierRegionLot>(
         lowestPrice: Math.min(...regionLots.map((lot) => lot.finalPrice)),
       } satisfies CatalogSupplierRegionSummary;
     })
+    .filter((summary): summary is CatalogSupplierRegionSummary => summary !== null)
     .sort((left, right) => {
       if (left.stateName !== right.stateName) {
         return left.stateName.localeCompare(right.stateName, "pt-BR");

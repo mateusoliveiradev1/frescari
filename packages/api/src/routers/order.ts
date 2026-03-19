@@ -286,16 +286,17 @@ export const orderRouter = createTRPCRouter({
 
                     // Group by sellerTenantId
                     const ordersBySeller = processedItems.reduce((acc, item) => {
-                        if (!acc[item.sellerTenantId]) acc[item.sellerTenantId] = [];
-                        acc[item.sellerTenantId].push(item);
+                        const sellerItems =
+                            acc[item.sellerTenantId] ?? (acc[item.sellerTenantId] = []);
+
+                        sellerItems.push(item);
                         return acc;
                     }, {} as Record<string, typeof processedItems>);
 
                     // Insert Orders & OrderItems per Seller
-                    const createdOrders = [];
+                    const createdOrders: string[] = [];
 
-                    for (const sellerId in ordersBySeller) {
-                        const items = ordersBySeller[sellerId];
+                    for (const [sellerId, items] of Object.entries(ordersBySeller)) {
                         const itemsTotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
                         // Final formula: (sum of base_price * qty) + deliveryFee
                         const orderTotal = itemsTotal + input.deliveryFee;
@@ -317,6 +318,13 @@ export const orderRouter = createTRPCRouter({
                             totalAmount: orderTotal.toFixed(4),
                         }).returning();
 
+                        if (!newOrder) {
+                            throw new TRPCError({
+                                code: 'INTERNAL_SERVER_ERROR',
+                                message: 'Erro ao criar pedido para o produtor.',
+                            });
+                        }
+
                         // Create Order Items
                         await tx.insert(orderItems).values(
                             items.map(i => ({
@@ -331,7 +339,15 @@ export const orderRouter = createTRPCRouter({
 
                         // Deduce stock for each item
                         for (const i of items) {
-                            const currentLot = fetchedLots.find(l => l.lotId === i.lotId)!;
+                            const currentLot = fetchedLots.find((lot) => lot.lotId === i.lotId);
+
+                            if (!currentLot) {
+                                throw new TRPCError({
+                                    code: 'INTERNAL_SERVER_ERROR',
+                                    message: `Lote ${i.lotId} nao encontrado durante a atualizacao de estoque.`,
+                                });
+                            }
+
                             const newQty = (Number(currentLot.availableQty) - i.quantity).toString();
 
                             await tx.update(productLots)

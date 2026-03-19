@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+function requireArrayItem<T>(items: T[], index: number, message: string): T {
+    const item = items[index];
+    assert.ok(item !== undefined, message);
+    return item;
+}
+
 test("reconcileRecommendationQueue auto applies incoming recommendations when no manual override is active", async () => {
     const { reconcileRecommendationQueue } = await import("./delivery-control-refresh");
-    const visibleDeliveries = [
+    const visibleDeliveries: Parameters<typeof reconcileRecommendationQueue>[0]["visibleDeliveries"] = [
         {
             activeOverride: null,
             dispatch: null,
@@ -17,11 +23,12 @@ test("reconcileRecommendationQueue auto applies incoming recommendations when no
             status: "confirmed",
         },
     ];
-    const incomingDeliveries = [
+    const visibleDelivery = requireArrayItem(visibleDeliveries, 0, "expected visible delivery");
+    const incomingDeliveries: Parameters<typeof reconcileRecommendationQueue>[0]["incomingDeliveries"] = [
         {
-            ...visibleDeliveries[0],
+            ...visibleDelivery,
             recommendation: {
-                ...visibleDeliveries[0].recommendation,
+                ...visibleDelivery.recommendation,
                 priorityScore: 95,
             },
         },
@@ -39,7 +46,7 @@ test("reconcileRecommendationQueue auto applies incoming recommendations when no
 
 test("reconcileRecommendationQueue stages the incoming queue when a manual override is active", async () => {
     const { reconcileRecommendationQueue } = await import("./delivery-control-refresh");
-    const visibleDeliveries = [
+    const visibleDeliveries: Parameters<typeof reconcileRecommendationQueue>[0]["visibleDeliveries"] = [
         {
             activeOverride: { action: "pin_to_top" },
             dispatch: null,
@@ -65,7 +72,12 @@ test("reconcileRecommendationQueue stages the incoming queue when a manual overr
             status: "confirmed",
         },
     ];
-    const incomingDeliveries = [visibleDeliveries[1], visibleDeliveries[0]];
+    const firstVisibleDelivery = requireArrayItem(visibleDeliveries, 0, "expected first visible delivery");
+    const secondVisibleDelivery = requireArrayItem(visibleDeliveries, 1, "expected second visible delivery");
+    const incomingDeliveries: Parameters<typeof reconcileRecommendationQueue>[0]["incomingDeliveries"] = [
+        secondVisibleDelivery,
+        firstVisibleDelivery,
+    ];
 
     const result = reconcileRecommendationQueue({
         visibleDeliveries,
@@ -93,12 +105,13 @@ test("reconcileRecommendationQueue force applies the incoming queue after an ope
             status: "confirmed",
         },
     ];
+    const visibleDelivery = requireArrayItem(visibleDeliveries, 0, "expected visible delivery");
     const incomingDeliveries: Parameters<typeof reconcileRecommendationQueue>[0]["incomingDeliveries"] = [
         {
-            ...visibleDeliveries[0],
+            ...visibleDelivery,
             activeOverride: null,
             recommendation: {
-                ...visibleDeliveries[0].recommendation,
+                ...visibleDelivery.recommendation,
                 priorityScore: 88,
             },
         },
@@ -117,7 +130,7 @@ test("reconcileRecommendationQueue force applies the incoming queue after an ope
 
 test("reconcileRecommendationQueue stages incoming updates while the UI manual override lock is active", async () => {
     const { reconcileRecommendationQueue } = await import("./delivery-control-refresh");
-    const visibleDeliveries = [
+    const visibleDeliveries: Parameters<typeof reconcileRecommendationQueue>[0]["visibleDeliveries"] = [
         {
             activeOverride: null,
             dispatch: null,
@@ -143,7 +156,12 @@ test("reconcileRecommendationQueue stages incoming updates while the UI manual o
             status: "confirmed",
         },
     ];
-    const incomingDeliveries = [visibleDeliveries[1], visibleDeliveries[0]];
+    const firstVisibleDelivery = requireArrayItem(visibleDeliveries, 0, "expected first visible delivery");
+    const secondVisibleDelivery = requireArrayItem(visibleDeliveries, 1, "expected second visible delivery");
+    const incomingDeliveries: Parameters<typeof reconcileRecommendationQueue>[0]["incomingDeliveries"] = [
+        secondVisibleDelivery,
+        firstVisibleDelivery,
+    ];
 
     const result = reconcileRecommendationQueue({
         visibleDeliveries,

@@ -591,7 +591,7 @@ export function DeliveriesPageClient() {
             return selectedOrderId;
         }
 
-        return deliveries[0].orderId;
+        return deliveries[0]?.orderId ?? null;
     }, [deliveries, selectedOrderId]);
     const externalContext = deliveries[0]?.recommendation.externalContext ?? null;
     const selectedDelivery = useMemo(
