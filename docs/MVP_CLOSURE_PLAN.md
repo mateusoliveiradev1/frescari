@@ -11,9 +11,9 @@ O lancamento publico do MVP exige fechamento completo do escopo de produto e do 
 Status atual: regra de release ainda nao atendida.
 
 ## Status Summary
-- Concluido: 5
+- Concluido: 6
 - Parcial: 2
-- Pendente: 3
+- Pendente: 2
 
 ## Legend
 - `[x]` Concluido
@@ -41,9 +41,9 @@ Status atual: regra de release ainda nao atendida.
   Verify: o operador recebe analise clara de prioridades, risco e sugestao de sequenciamento/roteiro a partir dos pedidos pendentes.
   Status notes: a control tower ja entrega score heuristico, risco, confianca, sugestao de veiculo e explicacao operacional em `packages/api/src/delivery-control.ts`, com persistencia de override/wave em `packages/api/src/routers/logistics.ts` e `packages/db/src/schema.ts`. Em 2026-03-17 entrou o corte de `Proxima acao agora` e a confirmacao de wave multi-order no dashboard. Em 2026-03-18 o frontend fechou o refresh com override protegido em `apps/web/src/app/dashboard/entregas/use-delivery-control-refresh.ts` e passou a consumir o mapa contextual pronto do backend em `apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx`, `apps/web/src/app/dashboard/entregas/delivery-map-client.tsx` e `apps/web/src/app/dashboard/entregas/delivery-map-client.test.tsx`. Ainda em 2026-03-18 o backend passou a integrar sinais externos resilientes com fallback silencioso em `packages/api/src/delivery-control.ts`, `packages/api/src/external-risk-signals.ts` e `packages/api/src/routers/logistics.ts`, com cobertura para penalizacao por risco alto e fallback em erro/timeout em `packages/api/src/delivery-control.test.ts`.
 
-- [ ] Implementar o sistema de notificacoes do MVP web.
+- [x] Implementar o sistema de notificacoes do MVP web.
   Verify: eventos criticos de pedido, entrega e lote geram notificacao no painel e badge/estado visivel nas rotas relevantes.
-  Status notes: revisao do repositorio em 2026-03-16 nao encontrou schema, router, store ou UI de notificacoes web do MVP.
+  Status notes: concluido com schema e dedupe no banco em `packages/db/src/schema.ts`, emissao transacional via outbox em `packages/api/src/notifications/service.ts`, eventos de dominio em `packages/api/src/notifications/domain-events.ts`, router tRPC em `packages/api/src/routers/notification.ts` e inbox web com badge/centro de notificacoes em `apps/web/src/components/notification-bell.tsx` e `apps/web/src/components/notification-inbox-sheet.tsx`. Em 2026-03-18 entrou o refinamento de fluidez com prefetch do inbox, polling mais curto e updates otimistas de leitura.
 
 - [ ] Subir o hardening obrigatorio de go-live.
   Verify: `noUncheckedIndexedAccess`, Husky/lint-staged e Knip configurados e executando no projeto.
@@ -78,14 +78,13 @@ Status atual: regra de release ainda nao atendida.
 - [x] O operador de entregas consegue usar a camada de IA para entender prioridade, risco e ordem sugerida de saida.
   Status notes: a fila operacional agora expoe prioridade, risco, confianca, sugestao de veiculo, `Proxima acao agora`, refresh protegido por override manual, contexto de mapa por wave e sinais externos resilientes sem bloquear o despacho.
 
-- [ ] Os eventos principais do fluxo aparecem como notificacoes operacionais no web sem depender de aplicativo mobile.
-  Status notes: ainda nao implementado.
+- [x] Os eventos principais do fluxo aparecem como notificacoes operacionais no web sem depender de aplicativo mobile.
+  Status notes: pedidos, entregas e lotes agora alimentam notificacoes operacionais no web com inbox, badge, filtros e leitura otimista.
 
 - [-] O projeto passa pelos checks de qualidade e fica pronto para um primeiro go-live web serio.
   Status notes: os checks atuais de lint, typecheck, test e build estao rodando, mas o pacote completo de hardening, E2E core e verificacao final do MVP ainda nao foi fechado.
 
 ## Next Steps
-1. Criar o sistema de notificacoes web do MVP com leitura, badge e eventos operacionais.
-2. Aplicar o hardening de go-live: `noUncheckedIndexedAccess`, Husky, lint-staged e Knip.
-3. Rodar a varredura completa do core web com E2E e checklist manual das rotas criticas.
-4. Rodar a verificacao final do MVP web com `test`, `typecheck`, `lint`, `build`, E2E core e checklist basico de seguranca.
+1. Aplicar o hardening de go-live: `noUncheckedIndexedAccess`, Husky, lint-staged e Knip.
+2. Rodar a varredura completa do core web com E2E e checklist manual das rotas criticas.
+3. Rodar a verificacao final do MVP web com `test`, `typecheck`, `lint`, `build`, E2E core e checklist basico de seguranca.

@@ -641,7 +641,7 @@ test('logistics.getPendingDeliveries enriches queue items with AI recommendation
     assert.equal(result[0].orderId, 'order-pinned');
     assert.equal(result[0].activeOverride?.action, 'pin_to_top');
     assert.equal(result[0].dispatchSuggestion?.primaryDelivery.orderId, 'order-pinned');
-    assert.deepEqual(result[0].dispatchSuggestion?.orderIds, ['order-pinned']);
+    assert.deepEqual(result[0].dispatchSuggestion?.orderIds, ['order-pinned', 'order-priority']);
     assert.equal(result[0].dispatchSuggestion?.waveContext.kind, 'suggested');
     assert.deepEqual(
         result[0].dispatchSuggestion?.waveContext.stops.map((stop: { orderId: string; sequence: number }) => ({
@@ -650,6 +650,7 @@ test('logistics.getPendingDeliveries enriches queue items with AI recommendation
         })),
         [
             { orderId: 'order-pinned', sequence: 1 },
+            { orderId: 'order-priority', sequence: 2 },
         ],
     );
     assert.deepEqual(
@@ -657,6 +658,7 @@ test('logistics.getPendingDeliveries enriches queue items with AI recommendation
         [
             { latitude: -23.55, longitude: -46.63 },
             { latitude: -23.56, longitude: -46.61 },
+            { latitude: -23.57, longitude: -46.65 },
         ],
     );
     assert.equal(result[0].mapWaveContext?.primaryOrderId, 'order-pinned');

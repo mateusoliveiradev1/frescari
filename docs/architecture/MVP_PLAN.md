@@ -399,7 +399,7 @@ Itens que devem existir para o Frescari validar operacao comercial no web:
 - [x] Checkout seguro por fazenda: o fluxo web principal ja usa `checkout.createFarmCheckoutSession`, recalculo server-side e remocao por grupo no carrinho
 - [x] Pipeline de pedido de ponta a ponta: o webhook novo reconstrui por `address_snapshot`, e o caminho legado `createCheckoutSession` foi isolado para nao aceitar mais endereco bruto nem geocoding no fluxo publico
 - [x] IA operacional de entregas e rotas no dashboard web: a mesa operacional ja combina score heuristico, risco, confianca, sugestao de veiculo, override manual e persistencia de wave no backend; `Proxima acao agora`, refresh com lock de override, mapa contextual da wave e sinais externos resilientes com fallback silencioso estao entregues no web e no API
-- [ ] Sistema de notificacoes do MVP web: eventos criticos de pedido, entrega e lote precisam gerar notificacao operacional no painel e canal assinado para os atores corretos
+- [x] Sistema de notificacoes do MVP web: eventos criticos de pedido, entrega e lote agora geram notificacao operacional no painel para os atores corretos, com inbox, badge, filtros e leitura otimista no web
 
 #### Direcao tecnica da IA de rotas para o MVP
 
@@ -422,7 +422,7 @@ Como o primeiro marco continua web-first, o sistema de notificacoes do MVP deve 
 - badges e estados de atencao nas rotas criticas
 - envio assinado por evento para pedido confirmado, pedido em rota, pedido entregue e lote critico
 
-Push mobile continua fora do primeiro marco se depender de app nativo, mas notificacao operacional no web entra no MVP.
+Push mobile continua fora do primeiro marco se depender de app nativo, mas notificacao operacional no web ja esta entregue no MVP.
 
 #### Quando o 9.1 e considerado concluido
 
@@ -502,4 +502,4 @@ O plano anterior ficou desatualizado em alguns pontos. Estado correto do reposit
 
 ---
 
-> **Proximo Passo:** Fechar notificacoes web do MVP, hardening de go-live e verificacao profunda das rotas criticas. Mobile, offline e push nativo continuam fora do primeiro marco.
+> **Proximo Passo:** Fechar hardening de go-live e verificacao profunda das rotas criticas. Mobile, offline e push nativo continuam fora do primeiro marco.
