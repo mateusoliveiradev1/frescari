@@ -51,6 +51,9 @@ function getStripeClient() {
 const WEIGHT_SAFETY_MARGIN = 1.1;
 const PLATFORM_FEE_RATE = 0.1;
 const legacyDirectOrderMutationEnabled = process.env.ENABLE_LEGACY_DIRECT_ORDER_MUTATION === 'true';
+const STRIPE_CAPTURE_FINGERPRINT_METADATA_KEY = 'frescari_capture_fingerprint';
+const STRIPE_CAPTURE_TOTAL_AMOUNT_CENTS_METADATA_KEY =
+    'frescari_capture_total_amount_cents';
 
 const isWeightBasedItem = (item: {
     saleUnit?: string | null;
@@ -99,6 +102,22 @@ function resolveOrderNotificationType(nextStatus: string) {
         default:
             return null;
     }
+}
+
+function buildWeighedCaptureFingerprint(
+    weighedItems: ReadonlyArray<{
+        orderItemId: string;
+        finalWeight: number;
+    }>,
+) {
+    return weighedItems
+        .slice()
+        .sort((left, right) => left.orderItemId.localeCompare(right.orderItemId))
+        .map(
+            ({ orderItemId, finalWeight }) =>
+                `${orderItemId}:${finalWeight.toFixed(3)}`,
+        )
+        .join('|');
 }
 
 export const orderRouter = createTRPCRouter({
@@ -759,6 +778,15 @@ export const orderRouter = createTRPCRouter({
             const finalWeightsByItemId = new Map(
                 validatedPayload.data.weighedItems.map(({ orderItemId, finalWeight }) => [orderItemId, finalWeight])
             );
+            const captureFingerprint = buildWeighedCaptureFingerprint(
+                validatedPayload.data.weighedItems,
+            );
+            const persistedWeightFingerprint = buildWeighedCaptureFingerprint(
+                weightItems.map((item) => ({
+                    orderItemId: item.id,
+                    finalWeight: Number(item.qty),
+                })),
+            );
 
             const itemsTotalCents = items.reduce((sum, item) => {
                 const finalQty = finalWeightsByItemId.get(item.id) ?? Number(item.qty);
@@ -819,6 +847,8 @@ export const orderRouter = createTRPCRouter({
             }
 
             const alreadyCaptured = paymentIntent.status === 'succeeded';
+            const capturedWeightFingerprint =
+                paymentIntent.metadata?.[STRIPE_CAPTURE_FINGERPRINT_METADATA_KEY] ?? null;
 
             if (alreadyCaptured) {
                 if (paymentIntent.amount_received !== grossAmountCents) {
@@ -828,7 +858,34 @@ export const orderRouter = createTRPCRouter({
                     });
                 }
 
+                if (
+                    capturedWeightFingerprint
+                    && capturedWeightFingerprint !== captureFingerprint
+                ) {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message:
+                            'O pagamento ja foi capturado com pesos diferentes. Revise este pedido manualmente.',
+                    });
+                }
+
+                if (!capturedWeightFingerprint && targetOrder.status !== 'confirmed') {
+                    throw new TRPCError({
+                        code: 'BAD_REQUEST',
+                        message:
+                            'O pagamento ja foi capturado sem rastreabilidade de pesos. Revise este pedido manualmente.',
+                    });
+                }
+
                 if (targetOrder.status === 'confirmed') {
+                    if (persistedWeightFingerprint !== captureFingerprint) {
+                        throw new TRPCError({
+                            code: 'BAD_REQUEST',
+                            message:
+                                'O pedido ja foi confirmado com pesos diferentes. Revise este pedido manualmente.',
+                        });
+                    }
+
                     if (storedTotalCents !== grossAmountCents) {
                         throw new TRPCError({
                             code: 'BAD_REQUEST',
@@ -867,16 +924,18 @@ export const orderRouter = createTRPCRouter({
                     });
                 }
 
-                const captureFingerprint = validatedPayload.data.weighedItems
-                    .slice()
-                    .sort((left, right) => left.orderItemId.localeCompare(right.orderItemId))
-                    .map(({ orderItemId, finalWeight }) => `${orderItemId}:${finalWeight.toFixed(3)}`)
-                    .join('|');
                 const idempotencyKey = `capture-weighed-order:${targetOrder.id}:${createHash('sha256')
                     .update(captureFingerprint)
                     .digest('hex')}`;
                 const captureParams: Stripe.PaymentIntentCaptureParams = {
                     amount_to_capture: totalAmountCents,
+                    metadata: {
+                        ...paymentIntent.metadata,
+                        [STRIPE_CAPTURE_FINGERPRINT_METADATA_KEY]:
+                            captureFingerprint,
+                        [STRIPE_CAPTURE_TOTAL_AMOUNT_CENTS_METADATA_KEY]:
+                            totalAmountCents.toString(),
+                    },
                 };
 
                 if (paymentIntent.transfer_data?.destination) {
