@@ -28,7 +28,7 @@
 
 - [x] Task 4: Validar e sincronizar a documentacao final da IA operacional.
   Verify: testes focados, `pnpm check` e docs de status ficam coerentes com o comportamento entregue.
-  Status notes: concluido com a atualizacao de `docs/MVP_CLOSURE_PLAN.md`, `docs/architecture/MVP_PLAN.md` e deste plano, mantendo o estado da control tower coerente com a implementacao mergeavel.
+  Status notes: concluido com a atualizacao de `docs/MVP_CLOSURE_PLAN.md`, `docs/architecture/MVP_PLAN.md`, `docs/architecture/DELIVERIES_AI_CONTROL_TOWER_SPEC.md` e deste plano, mantendo o estado da control tower coerente com a implementacao mergeavel. Em 2026-03-19 entrou o alinhamento final da UI com as transicoes do backend via `apps/web/src/app/dashboard/entregas/delivery-actions.ts`, `apps/web/src/app/dashboard/entregas/delivery-actions.test.ts` e `apps/web/src/app/dashboard/entregas/deliveries-page-client.tsx`.
 
 ## Done When
 
