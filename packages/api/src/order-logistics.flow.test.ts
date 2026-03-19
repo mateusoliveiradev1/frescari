@@ -14,6 +14,7 @@ const stripeState = {
         amount_received: 1400,
         amount_capturable: 0,
         transfer_data: undefined as { destination: string } | undefined,
+        metadata: {} as Record<string, string>,
     },
 };
 
@@ -42,6 +43,14 @@ class StripeMock {
             if (stripeState.paymentIntent.status === 'succeeded') {
                 throw new Error('capture should not be called for already captured payments');
             }
+
+            stripeState.paymentIntent = {
+                ...stripeState.paymentIntent,
+                status: 'succeeded',
+                amount_received: Number(payload.amount_to_capture ?? 0),
+                amount_capturable: 0,
+                metadata: (payload.metadata as Record<string, string> | undefined) ?? {},
+            };
 
             return {
                 id: 'pi_mock_123',
@@ -74,6 +83,7 @@ beforeEach(() => {
         amount_received: 1400,
         amount_capturable: 0,
         transfer_data: undefined,
+        metadata: {},
     };
 });
 
@@ -363,6 +373,18 @@ async function createFlowCaller(state: FlowState) {
 }
 
 test('awaiting_weight -> confirmed -> /dashboard/entregas stays visible after captureWeighedOrder', async () => {
+    stripeState.paymentIntent = {
+        status: 'succeeded',
+        amount_received: 1400,
+        amount_capturable: 0,
+        transfer_data: undefined,
+        metadata: {
+            frescari_capture_fingerprint:
+                '22222222-2222-4222-8222-222222222222:1.100',
+            frescari_capture_total_amount_cents: '1400',
+        },
+    };
+
     const state: FlowState = {
         order: {
             id: '11111111-1111-4111-8111-111111111111',
@@ -457,6 +479,7 @@ test('captureWeighedOrder omits application_fee_amount when the PaymentIntent wa
         amount_received: 0,
         amount_capturable: 1400,
         transfer_data: undefined,
+        metadata: {},
     };
 
     const state: FlowState = {
@@ -514,7 +537,223 @@ test('captureWeighedOrder omits application_fee_amount when the PaymentIntent wa
     assert.equal(stripeState.captureCalls, 1);
     assert.deepEqual(stripeState.lastCapturePayload, {
         amount_to_capture: 1400,
+        metadata: {
+            frescari_capture_fingerprint:
+                '22222222-2222-4222-8222-222222222222:1.100',
+            frescari_capture_total_amount_cents: '1400',
+        },
     });
     assert.equal(state.order.status, 'confirmed');
     assert.equal(state.order.totalAmount, '14.0000');
+});
+
+test('captureWeighedOrder rejects conflicting retries when Stripe already captured a different weight fingerprint', async () => {
+    stripeState.paymentIntent = {
+        status: 'succeeded',
+        amount_received: 1520,
+        amount_capturable: 0,
+        transfer_data: undefined,
+        metadata: {
+            frescari_capture_fingerprint:
+                '22222222-2222-4222-8222-222222222222:1.200',
+            frescari_capture_total_amount_cents: '1520',
+        },
+    };
+
+    const state: FlowState = {
+        order: {
+            id: '11111111-1111-4111-8111-111111111111',
+            buyerTenantId: 'buyer-1',
+            sellerTenantId: 'tenant-1',
+            status: 'awaiting_weight',
+            totalAmount: '16.4000',
+            deliveryFee: '2.00',
+            paymentIntentId: 'pi_mock_123',
+            stripeSessionId: null,
+            createdAt: new Date('2026-03-13T13:00:00.000Z'),
+            deliveryStreet: 'Rua das Flores',
+            deliveryNumber: '45',
+            deliveryCep: '01010-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua das Flores, 45 - Sao Paulo/SP',
+            deliveryNotes: 'Entregar na doca 2',
+            deliveryWindowStart: new Date('2026-03-13T15:00:00.000Z'),
+            deliveryWindowEnd: new Date('2026-03-13T18:00:00.000Z'),
+        },
+        items: [
+            {
+                id: '22222222-2222-4222-8222-222222222222',
+                qty: '1.200',
+                unitPrice: '12.0000',
+                saleUnit: 'kg',
+                productId: 'product-1',
+                productName: 'Tomate Italiano',
+                pricingType: 'WEIGHT',
+                masterPricingType: null,
+                productSaleUnit: 'kg',
+                unitWeightG: null,
+            },
+        ],
+    };
+
+    const caller = await createFlowCaller(state);
+    const app = caller as Record<string, any>;
+
+    await assert.rejects(
+        () =>
+            app.order.captureWeighedOrder({
+                orderId: state.order.id,
+                weighedItems: [
+                    {
+                        orderItemId: state.items[0].id,
+                        finalWeight: 1.1,
+                    },
+                ],
+            }),
+        /capturado com pesos diferentes/i,
+    );
+
+    assert.equal(state.order.status, 'awaiting_weight');
+    assert.equal(state.order.totalAmount, '16.4000');
+    assert.equal(state.items[0].qty, '1.200');
+    assert.equal(stripeState.captureCalls, 0);
+});
+
+test('captureWeighedOrder rejects conflicting retries for already confirmed orders even without Stripe fingerprint metadata', async () => {
+    stripeState.paymentIntent = {
+        status: 'succeeded',
+        amount_received: 1500,
+        amount_capturable: 0,
+        transfer_data: undefined,
+        metadata: {},
+    };
+
+    const state: FlowState = {
+        order: {
+            id: '11111111-1111-4111-8111-111111111111',
+            buyerTenantId: 'buyer-1',
+            sellerTenantId: 'tenant-1',
+            status: 'confirmed',
+            totalAmount: '14.0000',
+            deliveryFee: '3.00',
+            paymentIntentId: 'pi_mock_123',
+            stripeSessionId: null,
+            createdAt: new Date('2026-03-13T13:00:00.000Z'),
+            deliveryStreet: 'Rua das Flores',
+            deliveryNumber: '45',
+            deliveryCep: '01010-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua das Flores, 45 - Sao Paulo/SP',
+            deliveryNotes: 'Entregar na doca 2',
+            deliveryWindowStart: new Date('2026-03-13T15:00:00.000Z'),
+            deliveryWindowEnd: new Date('2026-03-13T18:00:00.000Z'),
+        },
+        items: [
+            {
+                id: '22222222-2222-4222-8222-222222222222',
+                qty: '1.100',
+                unitPrice: '10.0000',
+                saleUnit: 'kg',
+                productId: 'product-1',
+                productName: 'Tomate Italiano',
+                pricingType: 'WEIGHT',
+                masterPricingType: null,
+                productSaleUnit: 'kg',
+                unitWeightG: null,
+            },
+        ],
+    };
+
+    const caller = await createFlowCaller(state);
+    const app = caller as Record<string, any>;
+
+    await assert.rejects(
+        () =>
+            app.order.captureWeighedOrder({
+                orderId: state.order.id,
+                weighedItems: [
+                    {
+                        orderItemId: state.items[0].id,
+                        finalWeight: 1.2,
+                    },
+                ],
+            }),
+        /confirmado com pesos diferentes/i,
+    );
+
+    assert.equal(state.order.status, 'confirmed');
+    assert.equal(state.order.totalAmount, '14.0000');
+    assert.equal(state.items[0].qty, '1.100');
+    assert.equal(stripeState.captureCalls, 0);
+});
+
+test('captureWeighedOrder requires fingerprint metadata to reconcile already-captured orders that are still awaiting local confirmation', async () => {
+    stripeState.paymentIntent = {
+        status: 'succeeded',
+        amount_received: 1520,
+        amount_capturable: 0,
+        transfer_data: undefined,
+        metadata: {},
+    };
+
+    const state: FlowState = {
+        order: {
+            id: '11111111-1111-4111-8111-111111111111',
+            buyerTenantId: 'buyer-1',
+            sellerTenantId: 'tenant-1',
+            status: 'awaiting_weight',
+            totalAmount: '13.0000',
+            deliveryFee: '2.00',
+            paymentIntentId: 'pi_mock_123',
+            stripeSessionId: null,
+            createdAt: new Date('2026-03-13T13:00:00.000Z'),
+            deliveryStreet: 'Rua das Flores',
+            deliveryNumber: '45',
+            deliveryCep: '01010-000',
+            deliveryCity: 'Sao Paulo',
+            deliveryState: 'SP',
+            deliveryAddress: 'Rua das Flores, 45 - Sao Paulo/SP',
+            deliveryNotes: 'Entregar na doca 2',
+            deliveryWindowStart: new Date('2026-03-13T15:00:00.000Z'),
+            deliveryWindowEnd: new Date('2026-03-13T18:00:00.000Z'),
+        },
+        items: [
+            {
+                id: '22222222-2222-4222-8222-222222222222',
+                qty: '1.000',
+                unitPrice: '12.0000',
+                saleUnit: 'kg',
+                productId: 'product-1',
+                productName: 'Tomate Italiano',
+                pricingType: 'WEIGHT',
+                masterPricingType: null,
+                productSaleUnit: 'kg',
+                unitWeightG: null,
+            },
+        ],
+    };
+
+    const caller = await createFlowCaller(state);
+    const app = caller as Record<string, any>;
+
+    await assert.rejects(
+        () =>
+            app.order.captureWeighedOrder({
+                orderId: state.order.id,
+                weighedItems: [
+                    {
+                        orderItemId: state.items[0].id,
+                        finalWeight: 1.1,
+                    },
+                ],
+            }),
+        /sem rastreabilidade de pesos/i,
+    );
+
+    assert.equal(state.order.status, 'awaiting_weight');
+    assert.equal(state.order.totalAmount, '13.0000');
+    assert.equal(state.items[0].qty, '1.000');
+    assert.equal(stripeState.captureCalls, 0);
 });
