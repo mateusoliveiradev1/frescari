@@ -567,7 +567,9 @@ export default function VendasPage() {
                                                 orderItemId: item.id,
                                                 finalWeight: weighingWeights[item.id],
                                             }))
-                                            .filter((item) => typeof item.finalWeight === "number" && item.finalWeight > 0);
+                                            .filter((item): item is { orderItemId: string; finalWeight: number } =>
+                                                typeof item.finalWeight === "number" && item.finalWeight > 0,
+                                            );
 
                                         captureWeight({
                                             orderId: weighingOrder.id,

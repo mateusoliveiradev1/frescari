@@ -12,8 +12,8 @@ Status atual: regra de release ainda nao atendida.
 
 ## Status Summary
 - Concluido: 6
-- Parcial: 2
-- Pendente: 2
+- Parcial: 3
+- Pendente: 1
 
 ## Legend
 - `[x]` Concluido
@@ -45,9 +45,9 @@ Status atual: regra de release ainda nao atendida.
   Verify: eventos criticos de pedido, entrega e lote geram notificacao no painel e badge/estado visivel nas rotas relevantes.
   Status notes: concluido com schema e dedupe no banco em `packages/db/src/schema.ts`, emissao transacional via outbox em `packages/api/src/notifications/service.ts`, eventos de dominio em `packages/api/src/notifications/domain-events.ts`, router tRPC em `packages/api/src/routers/notification.ts` e inbox web com badge/centro de notificacoes em `apps/web/src/components/notification-bell.tsx` e `apps/web/src/components/notification-inbox-sheet.tsx`. Em 2026-03-18 entrou o refinamento de fluidez com prefetch do inbox, polling mais curto e updates otimistas de leitura.
 
-- [ ] Subir o hardening obrigatorio de go-live.
+- [-] Subir o hardening obrigatorio de go-live.
   Verify: `noUncheckedIndexedAccess`, Husky/lint-staged e Knip configurados e executando no projeto.
-  Status notes: `tsconfig.json` ainda nao ativa `noUncheckedIndexedAccess` e o repositorio nao possui configuracao de Husky, lint-staged ou Knip.
+  Status notes: em 2026-03-18 o repositorio passou a operar com `noUncheckedIndexedAccess` ativo em `tsconfig.json`, `apps/web/tsconfig.json`, `packages/api/tsconfig.json`, `packages/ui/tsconfig.json` e `packages/validators/tsconfig.json`, com fallout resolvido no `api` e no `web`. A validacao fechou com `pnpm typecheck`, `pnpm --filter @frescari/api test` (`71/71`) e `pnpm --filter web test` (`37/37`). Husky/lint-staged e Knip seguem pendentes.
 
 - [-] Fechar polish do core flow.
   Verify: auditoria de teclado/formulario nas rotas principais e ajustes finais do drawer/dashboard aplicados.
@@ -59,7 +59,7 @@ Status atual: regra de release ainda nao atendida.
 
 - [-] Rodar verificacao final do MVP web.
   Verify: `test`, `typecheck`, `lint`, `build`, E2E web e checklist basico de seguranca concluidos.
-  Status notes: `pnpm check` e `pnpm build` foram validados no fechamento do checkout por fazenda, mas ainda faltam E2E do core web e a etapa basica de seguranca/hardening do plano.
+  Status notes: `pnpm typecheck` foi revalidado em 2026-03-18 ja com `noUncheckedIndexedAccess` ativo, e os testes focados de `api` e `web` seguem verdes, mas ainda faltam `lint`, `build`, E2E do core web e a etapa basica de seguranca/hardening do plano.
 
 ## Out of Scope
 - App mobile com Expo
@@ -82,9 +82,9 @@ Status atual: regra de release ainda nao atendida.
   Status notes: pedidos, entregas e lotes agora alimentam notificacoes operacionais no web com inbox, badge, filtros e leitura otimista.
 
 - [-] O projeto passa pelos checks de qualidade e fica pronto para um primeiro go-live web serio.
-  Status notes: os checks atuais de lint, typecheck, test e build estao rodando, mas o pacote completo de hardening, E2E core e verificacao final do MVP ainda nao foi fechado.
+  Status notes: o projeto agora opera com `noUncheckedIndexedAccess` ativo e `typecheck` global verde, mas o pacote completo de hardening, E2E core e verificacao final do MVP ainda nao foi fechado.
 
 ## Next Steps
-1. Aplicar o hardening de go-live: `noUncheckedIndexedAccess`, Husky, lint-staged e Knip.
+1. Concluir o hardening de go-live restante: Husky, lint-staged e Knip.
 2. Rodar a varredura completa do core web com E2E e checklist manual das rotas criticas.
 3. Rodar a verificacao final do MVP web com `test`, `typecheck`, `lint`, `build`, E2E core e checklist basico de seguranca.

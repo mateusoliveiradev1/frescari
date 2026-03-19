@@ -1225,6 +1225,13 @@ export const logisticsRouter = createTRPCRouter({
                     id: deliveryDispatchWaves.id,
                 });
 
+            if (!wave) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'Nao foi possivel criar a onda de despacho.',
+                });
+            }
+
             await ctx.db
                 .insert(deliveryDispatchWaveOrders)
                 .values(

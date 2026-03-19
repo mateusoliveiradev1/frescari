@@ -440,13 +440,15 @@ Itens obrigatorios antes do lancamento publico do MVP. Eles nao mudam o escopo c
 
 - [x] E2E web com Playwright
 - [x] Finalizar o contrato novo de checkout por fazenda e desativar o fluxo misto legado
-- [ ] Adicionar `noUncheckedIndexedAccess` ao TypeScript
+- [x] Adicionar `noUncheckedIndexedAccess` ao TypeScript
 - [ ] Configurar Husky + lint-staged
 - [ ] Configurar Knip para dead code e dependencias nao usadas
 - [ ] Rodar auditoria completa de teclado e formularios nas rotas de dashboard
 - [ ] Executar varredura completa do web core rota por rota
 - [ ] Rodar verificacao final do MVP web (`test`, `typecheck`, `lint`, `build`, E2E core e checklist basico de seguranca)
 - [ ] Rodar pentest basico e checklist final de seguranca operacional
+
+Em 2026-03-18 o repositorio passou a rodar com `noUncheckedIndexedAccess` ativo nos tsconfigs efetivos do monorepo, com fallout moderado resolvido no `api` e no `web`, seguido por `pnpm typecheck` global verde.
 
 #### Regra de lancamento
 
@@ -502,4 +504,4 @@ O plano anterior ficou desatualizado em alguns pontos. Estado correto do reposit
 
 ---
 
-> **Proximo Passo:** Fechar hardening de go-live e verificacao profunda das rotas criticas. Mobile, offline e push nativo continuam fora do primeiro marco.
+> **Proximo Passo:** Fechar o hardening restante de go-live (Husky, lint-staged e Knip) e a verificacao profunda das rotas criticas. Mobile, offline e push nativo continuam fora do primeiro marco.

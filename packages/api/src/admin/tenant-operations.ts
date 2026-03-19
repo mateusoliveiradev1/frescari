@@ -168,9 +168,10 @@ export function paginateByCreatedAtCursor<T>(
           )
         : sortedRows;
     const items = visibleRows.slice(0, args.limit);
+    const lastItem = items.at(-1);
     const nextCursor =
-        visibleRows.length > args.limit && items.length > 0
-            ? encodePaginationCursor(args.getCursorValue(items[items.length - 1]))
+        visibleRows.length > args.limit && lastItem
+            ? encodePaginationCursor(args.getCursorValue(lastItem))
             : null;
 
     return {

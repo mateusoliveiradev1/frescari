@@ -144,6 +144,13 @@ export const lotRouter = createTRPCRouter({
                             })
                             .returning();
 
+                        if (!newFarm) {
+                            throw new TRPCError({
+                                code: 'INTERNAL_SERVER_ERROR',
+                                message: 'Nao foi possivel criar a fazenda padrao do produtor.',
+                            });
+                        }
+
                         farm = newFarm;
                     }
 

@@ -42,6 +42,13 @@ export const onboardingRouter = createTRPCRouter({
                         type: input.type,
                     }).returning();
 
+                    if (!newTenant) {
+                        throw new TRPCError({
+                            code: 'INTERNAL_SERVER_ERROR',
+                            message: 'Falha ao criar a organizacao inicial.',
+                        });
+                    }
+
                     const newRole = input.type === 'PRODUCER' ? 'producer' : 'buyer';
                     await tx.update(users)
                         .set({ tenantId: newTenant.id, role: newRole })

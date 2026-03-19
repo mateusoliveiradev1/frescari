@@ -185,16 +185,17 @@ export async function POST(req: NextRequest) {
     // ── Handle events ────────────────────────────────────────────────
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object as Stripe.Checkout.Session;
+        const orderId = session.metadata?.orderId;
 
-        if (session.metadata?.orderId) {
+        if (orderId) {
             try {
                 await withWebhookBypass(async (database) => {
                     const targetOrder = await database.query.orders.findFirst({
-                        where: eq(orders.id, session.metadata!.orderId),
+                        where: eq(orders.id, orderId),
                     });
 
                     if (!targetOrder) {
-                        throw new Error(`Pedido ${session.metadata!.orderId} nao encontrado para atualizacao do webhook.`);
+                        throw new Error(`Pedido ${orderId} nao encontrado para atualizacao do webhook.`);
                     }
 
                     const paymentIntentId = typeof session.payment_intent === 'string'
@@ -202,10 +203,10 @@ export async function POST(req: NextRequest) {
                         : session.payment_intent?.id;
                     const nextStatus = resolveAuthorizedOrderStatus(targetOrder.status);
                     const parsedDeliveryPoint = parseDeliveryPointMetadata(
-                        session.metadata!.delivery_point ?? session.metadata!.deliveryPoint,
+                        session.metadata?.delivery_point ?? session.metadata?.deliveryPoint,
                     );
 
-                    console.log(`[WEBHOOK] Atualizando pedido existente: ${session.metadata!.orderId}`);
+                    console.log(`[WEBHOOK] Atualizando pedido existente: ${orderId}`);
                     await database
                         .update(orders)
                         .set({
@@ -216,11 +217,11 @@ export async function POST(req: NextRequest) {
                                 ? { deliveryPoint: toDeliveryPointGeoJson(parsedDeliveryPoint) }
                                 : {}),
                         })
-                        .where(eq(orders.id, session.metadata!.orderId));
-                    console.log(`[WEBHOOK] Pedido ${session.metadata!.orderId} atualizado para ${nextStatus}`);
+                        .where(eq(orders.id, orderId));
+                    console.log(`[WEBHOOK] Pedido ${orderId} atualizado para ${nextStatus}`);
                 });
             } catch (error) {
-                console.error(`[WEBHOOK ERROR] Falha ao atualizar pedido ${session.metadata.orderId}:`, error);
+                console.error(`[WEBHOOK ERROR] Falha ao atualizar pedido ${orderId}:`, error);
                 // Policy: Return 200 so Stripe doesn't retry infinitely on DB failure for existing order
                 return NextResponse.json(
                     { received: true, error: 'Database update failed for existing order' },

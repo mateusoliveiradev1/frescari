@@ -123,6 +123,40 @@ type FlowState = {
     insertedNotifications?: Array<Record<string, unknown>>;
 };
 
+type PendingDeliveryItem = {
+    orderItemId: string;
+    productId: string;
+    productName: string;
+    qty: string;
+    saleUnit: string;
+    productSaleUnit: string;
+    unitWeightG: number | null;
+    estimatedWeightKg: number | null;
+};
+
+type PendingDelivery = {
+    orderId: string;
+    status: string;
+    distanceKm: number | null;
+    origin: {
+        farmId: string;
+        farmName: string;
+        latitude: number | null;
+        longitude: number | null;
+    };
+    destination: {
+        latitude: number | null;
+        longitude: number | null;
+    };
+    items: PendingDeliveryItem[];
+};
+
+function requireArrayItem<T>(items: T[], index: number, message: string): T {
+    const item = items[index];
+    assert.ok(item !== undefined, message);
+    return item;
+}
+
 function createProducerContext(db: unknown): any {
     return {
         db,
@@ -332,8 +366,14 @@ async function createFlowCaller(state: FlowState) {
                         set(values: Record<string, unknown>) {
                             return {
                                 where: async () => {
+                                    const currentItem = requireArrayItem(
+                                        state.items,
+                                        0,
+                                        'expected mocked order item while updating transaction state',
+                                    );
+
                                     state.items[0] = {
-                                        ...state.items[0],
+                                        ...currentItem,
                                         qty: String(values.qty),
                                     };
                                 },
@@ -424,12 +464,13 @@ test('awaiting_weight -> confirmed -> /dashboard/entregas stays visible after ca
 
     const caller = await createFlowCaller(state);
     const app = caller as Record<string, any>;
+    const firstOrderItem = requireArrayItem(state.items, 0, 'expected first order item');
 
     const captureResult = await app.order.captureWeighedOrder({
         orderId: state.order.id,
         weighedItems: [
             {
-                orderItemId: state.items[0].id,
+                orderItemId: firstOrderItem.id,
                 finalWeight: 1.1,
             },
         ],
@@ -440,29 +481,38 @@ test('awaiting_weight -> confirmed -> /dashboard/entregas stays visible after ca
     assert.equal(captureResult.finalAmount, 14);
     assert.equal(state.order.status, 'confirmed');
     assert.equal(state.order.totalAmount, '14.0000');
-    assert.equal(state.items[0].qty, '1.1');
+    assert.equal(
+        requireArrayItem(state.items, 0, 'expected updated first order item').qty,
+        '1.1',
+    );
     assert.deepEqual(stripeState.retrievedPaymentIntentIds, ['pi_mock_123']);
     assert.equal(stripeState.captureCalls, 0);
 
-    const pendingDeliveries = await app.logistics.getPendingDeliveries();
+    const pendingDeliveries = (await app.logistics.getPendingDeliveries()) as PendingDelivery[];
+    const pendingDelivery = requireArrayItem(pendingDeliveries, 0, 'expected first pending delivery');
+    const pendingDeliveryItem = requireArrayItem(
+        pendingDelivery.items,
+        0,
+        'expected first pending delivery item',
+    );
 
     assert.equal(pendingDeliveries.length, 1);
-    assert.equal(pendingDeliveries[0].orderId, state.order.id);
-    assert.equal(pendingDeliveries[0].status, 'confirmed');
-    assert.equal(pendingDeliveries[0].distanceKm, 4.82);
-    assert.deepEqual(pendingDeliveries[0].origin, {
+    assert.equal(pendingDelivery.orderId, state.order.id);
+    assert.equal(pendingDelivery.status, 'confirmed');
+    assert.equal(pendingDelivery.distanceKm, 4.82);
+    assert.deepEqual(pendingDelivery.origin, {
         farmId: 'farm-1',
         farmName: 'Sitio Horizonte',
         latitude: -23.55,
         longitude: -46.63,
     });
-    assert.deepEqual(pendingDeliveries[0].destination, {
+    assert.deepEqual(pendingDelivery.destination, {
         latitude: -23.57,
         longitude: -46.65,
     });
-    assert.equal(pendingDeliveries[0].items.length, 1);
-    assert.deepEqual(pendingDeliveries[0].items[0], {
-        orderItemId: state.items[0].id,
+    assert.equal(pendingDelivery.items.length, 1);
+    assert.deepEqual(pendingDeliveryItem, {
+        orderItemId: firstOrderItem.id,
         productId: 'product-1',
         productName: 'Tomate Italiano',
         qty: '1.1',
@@ -521,12 +571,13 @@ test('captureWeighedOrder omits application_fee_amount when the PaymentIntent wa
 
     const caller = await createFlowCaller(state);
     const app = caller as Record<string, any>;
+    const firstOrderItem = requireArrayItem(state.items, 0, 'expected first order item');
 
     const captureResult = await app.order.captureWeighedOrder({
         orderId: state.order.id,
         weighedItems: [
             {
-                orderItemId: state.items[0].id,
+                orderItemId: firstOrderItem.id,
                 finalWeight: 1.1,
             },
         ],
@@ -599,6 +650,7 @@ test('captureWeighedOrder rejects conflicting retries when Stripe already captur
 
     const caller = await createFlowCaller(state);
     const app = caller as Record<string, any>;
+    const firstOrderItem = requireArrayItem(state.items, 0, 'expected first order item');
 
     await assert.rejects(
         () =>
@@ -606,7 +658,7 @@ test('captureWeighedOrder rejects conflicting retries when Stripe already captur
                 orderId: state.order.id,
                 weighedItems: [
                     {
-                        orderItemId: state.items[0].id,
+                        orderItemId: firstOrderItem.id,
                         finalWeight: 1.1,
                     },
                 ],
@@ -616,7 +668,7 @@ test('captureWeighedOrder rejects conflicting retries when Stripe already captur
 
     assert.equal(state.order.status, 'awaiting_weight');
     assert.equal(state.order.totalAmount, '16.4000');
-    assert.equal(state.items[0].qty, '1.200');
+    assert.equal(firstOrderItem.qty, '1.200');
     assert.equal(stripeState.captureCalls, 0);
 });
 
@@ -668,6 +720,7 @@ test('captureWeighedOrder rejects conflicting retries for already confirmed orde
 
     const caller = await createFlowCaller(state);
     const app = caller as Record<string, any>;
+    const firstOrderItem = requireArrayItem(state.items, 0, 'expected first order item');
 
     await assert.rejects(
         () =>
@@ -675,7 +728,7 @@ test('captureWeighedOrder rejects conflicting retries for already confirmed orde
                 orderId: state.order.id,
                 weighedItems: [
                     {
-                        orderItemId: state.items[0].id,
+                        orderItemId: firstOrderItem.id,
                         finalWeight: 1.2,
                     },
                 ],
@@ -685,7 +738,7 @@ test('captureWeighedOrder rejects conflicting retries for already confirmed orde
 
     assert.equal(state.order.status, 'confirmed');
     assert.equal(state.order.totalAmount, '14.0000');
-    assert.equal(state.items[0].qty, '1.100');
+    assert.equal(firstOrderItem.qty, '1.100');
     assert.equal(stripeState.captureCalls, 0);
 });
 
@@ -737,6 +790,7 @@ test('captureWeighedOrder requires fingerprint metadata to reconcile already-cap
 
     const caller = await createFlowCaller(state);
     const app = caller as Record<string, any>;
+    const firstOrderItem = requireArrayItem(state.items, 0, 'expected first order item');
 
     await assert.rejects(
         () =>
@@ -744,7 +798,7 @@ test('captureWeighedOrder requires fingerprint metadata to reconcile already-cap
                 orderId: state.order.id,
                 weighedItems: [
                     {
-                        orderItemId: state.items[0].id,
+                        orderItemId: firstOrderItem.id,
                         finalWeight: 1.1,
                     },
                 ],
@@ -754,6 +808,6 @@ test('captureWeighedOrder requires fingerprint metadata to reconcile already-cap
 
     assert.equal(state.order.status, 'awaiting_weight');
     assert.equal(state.order.totalAmount, '13.0000');
-    assert.equal(state.items[0].qty, '1.000');
+    assert.equal(firstOrderItem.qty, '1.000');
     assert.equal(stripeState.captureCalls, 0);
 });

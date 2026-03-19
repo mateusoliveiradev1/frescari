@@ -32,6 +32,12 @@ function createDelivery(overrides: Partial<DeliveryControlBaseDelivery>): Delive
     };
 }
 
+function requireArrayItem<T>(items: T[], index: number, message: string): T {
+    const item = items[index];
+    assert.ok(item !== undefined, message);
+    return item;
+}
+
 test('buildDispatchControlQueue applies manual overrides before AI ordering and chooses a matching vehicle', () => {
     const now = new Date('2026-03-16T09:30:00.000Z');
     const operationDate = getOperationDate(now);
@@ -114,11 +120,15 @@ test('buildDispatchControlQueue applies manual overrides before AI ordering and 
         ['order-pinned', 'order-priority', 'order-delayed'],
     );
 
-    assert.equal(result[1].recommendation.suggestedVehicleType, 'refrigerated_van');
-    assert.equal(result[1].recommendation.suggestedVehicle?.id, 'vehicle-fridge');
-    assert.equal(result[1].recommendation.riskLevel, 'high');
-    assert.equal(result[0].activeOverride?.action, 'pin_to_top');
-    assert.equal(result[2].activeOverride?.action, 'delay');
+    const pinnedDelivery = requireArrayItem(result, 0, 'expected pinned delivery');
+    const priorityDelivery = requireArrayItem(result, 1, 'expected priority delivery');
+    const delayedDelivery = requireArrayItem(result, 2, 'expected delayed delivery');
+
+    assert.equal(priorityDelivery.recommendation.suggestedVehicleType, 'refrigerated_van');
+    assert.equal(priorityDelivery.recommendation.suggestedVehicle?.id, 'vehicle-fridge');
+    assert.equal(priorityDelivery.recommendation.riskLevel, 'high');
+    assert.equal(pinnedDelivery.activeOverride?.action, 'pin_to_top');
+    assert.equal(delayedDelivery.activeOverride?.action, 'delay');
 });
 
 test('buildDispatchControlQueue lowers confidence when key operational signals are missing', () => {
@@ -143,8 +153,10 @@ test('buildDispatchControlQueue lowers confidence when key operational signals a
         },
     );
 
-    assert.equal(result[0].recommendation.confidence, 'low');
-    assert.match(result[0].recommendation.explanation, /revisao humana/i);
+    const queuedDelivery = requireArrayItem(result, 0, 'expected queued delivery');
+
+    assert.equal(queuedDelivery.recommendation.confidence, 'low');
+    assert.match(queuedDelivery.recommendation.explanation, /revisao humana/i);
 });
 
 test('buildDispatchControlQueueWithExternalRiskSignals penalizes priority when external risk is critical', async () => {
@@ -180,11 +192,14 @@ test('buildDispatchControlQueueWithExternalRiskSignals penalizes priority when e
         ],
     });
 
+    const baselineDelivery = requireArrayItem(baseline, 0, 'expected baseline delivery');
+    const queuedDelivery = requireArrayItem(result, 0, 'expected delivery with external signals');
+
     assert.equal(
-        result[0].recommendation.priorityScore,
-        baseline[0].recommendation.priorityScore - 12,
+        queuedDelivery.recommendation.priorityScore,
+        baselineDelivery.recommendation.priorityScore - 12,
     );
-    assert.match(result[0].recommendation.externalContext.summary, /tempestade severa/i);
+    assert.match(queuedDelivery.recommendation.externalContext.summary, /tempestade severa/i);
 });
 
 test('buildDispatchControlQueueWithExternalRiskSignals falls back to base scoring and logs a warning when the provider throws', async () => {
@@ -222,9 +237,12 @@ test('buildDispatchControlQueueWithExternalRiskSignals falls back to base scorin
             },
         });
 
-        assert.equal(result[0].recommendation.priorityScore, baseline[0].recommendation.priorityScore);
-        assert.equal(result[0].recommendation.riskLevel, baseline[0].recommendation.riskLevel);
-        assert.equal(result[0].recommendation.externalContext.status, baseline[0].recommendation.externalContext.status);
+        const baselineDelivery = requireArrayItem(baseline, 0, 'expected baseline delivery');
+        const queuedDelivery = requireArrayItem(result, 0, 'expected fallback delivery');
+
+        assert.equal(queuedDelivery.recommendation.priorityScore, baselineDelivery.recommendation.priorityScore);
+        assert.equal(queuedDelivery.recommendation.riskLevel, baselineDelivery.recommendation.riskLevel);
+        assert.equal(queuedDelivery.recommendation.externalContext.status, baselineDelivery.recommendation.externalContext.status);
         assert.equal(warnings.length, 1);
         assert.match(String(warnings[0]?.[0] ?? ''), /external risk signals/i);
     } finally {
@@ -269,8 +287,11 @@ test('buildDispatchControlQueueWithExternalRiskSignals falls back to base scorin
             },
         });
 
-        assert.equal(result[0].recommendation.priorityScore, baseline[0].recommendation.priorityScore);
-        assert.equal(result[0].recommendation.riskLevel, baseline[0].recommendation.riskLevel);
+        const baselineDelivery = requireArrayItem(baseline, 0, 'expected baseline delivery');
+        const queuedDelivery = requireArrayItem(result, 0, 'expected timeout fallback delivery');
+
+        assert.equal(queuedDelivery.recommendation.priorityScore, baselineDelivery.recommendation.priorityScore);
+        assert.equal(queuedDelivery.recommendation.riskLevel, baselineDelivery.recommendation.riskLevel);
         assert.equal(warnings.length, 1);
         assert.match(String(warnings[0]?.[0] ?? ''), /timed out/i);
     } finally {

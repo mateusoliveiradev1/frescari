@@ -202,7 +202,13 @@ function MapViewport({
         }
 
         if (focusPoints.length === 1) {
-            map.setView(focusPoints[0], SINGLE_POINT_ZOOM, {
+            const [focusPoint] = focusPoints;
+
+            if (!focusPoint) {
+                return;
+            }
+
+            map.setView(focusPoint, SINGLE_POINT_ZOOM, {
                 animate: true,
             });
             return;
