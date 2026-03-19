@@ -13,14 +13,23 @@
     "worker:lot-freshness": "powershell -ExecutionPolicy Bypass -File scripts/start-lot-freshness-worker.ps1",
     "worker:lot-freshness:run-once": "powershell -ExecutionPolicy Bypass -File scripts/start-lot-freshness-worker.ps1 -RunOnce",
     "worker:notifications": "pnpm --filter @frescari/api run worker:notifications",
-    "worker:notifications:run-once": "pnpm --filter @frescari/api run worker:notifications:run-once"
+    "worker:notifications:run-once": "pnpm --filter @frescari/api run worker:notifications:run-once",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.3",
     "@types/node": "^25.3.3",
     "drizzle-kit": "0.31.9",
-    "typescript": "^5.9.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.1",
     "tsx": "^4.21.0",
-    "turbo": "^2.8.14"
+    "turbo": "^2.8.14",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.57.1"
   },
   "packageManager": "pnpm@9.0.0",
   "dependencies": {
