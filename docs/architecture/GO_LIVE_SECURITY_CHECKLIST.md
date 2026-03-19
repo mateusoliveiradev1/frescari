@@ -115,7 +115,9 @@ Status parcial desta rodada (2026-03-19):
 - [PASS] `packages/api/src/routers/lot.ts` agora exige `tenantId` tambem no fallback por `products.id` dentro de `create`, impedindo que um produtor vincule um lote proprio a um produto de outro tenant apenas com um UUID valido.
 - [PASS] Evidencia automatizada: `pnpm --filter @frescari/api test` passou em 2026-03-19 com `75/75`, incluindo a regressao negativa de `lot.create` para tentativa cross-tenant.
 - [PASS] Existe regressao automatizada cobrindo tentativa cross-tenant em `lot.create`, validando que a mutation retorna erro e nao chega a inserir o lote quando o produto pertence a outro tenant.
-- [PASS] Decisao da secao 2: o isolamento estrutural multi-tenant por RLS foi comprovado, incluindo o uso de role de runtime sem `BYPASSRLS` em `DATABASE_URL` e role administrativa separada em `DATABASE_ADMIN_URL`.
+- [PASS] `packages/db/src/index.ts` agora força os runtimes `db` e `authDb` a usarem `DATABASE_URL`, preservando a mesma role restrita da aplicacao nos fluxos de auth e webhook.
+- [PASS] `packages/db/src/rls.integration.test.ts` valida que `authDb` usa a mesma role de runtime de `db` e que essa role continua sem `BYPASSRLS`.
+- [PASS] Decisao da secao 2: o isolamento estrutural multi-tenant por RLS foi comprovado no codigo, com `DATABASE_ADMIN_URL` reservado para migrations/bootstrap e `DATABASE_URL` reservado para runtime.
 
 ## 3. Input and output validation
 
@@ -295,6 +297,14 @@ Prova minima:
 - [ ] Confirmar que Stripe keys, auth secrets e tokens de integracao estao fora do repo e fora do client.
 - [ ] Confirmar estrategia minima de rotacao e revogacao para segredos criticos.
 - [ ] Confirmar que ambientes de preview, staging e prod nao compartilham segredos indevidamente.
+
+Status parcial desta rodada (2026-03-19):
+
+- [PASS] O split de credenciais do banco foi consolidado no codigo: `DATABASE_URL` fica como credencial restrita de runtime e `DATABASE_ADMIN_URL` fica reservado para migrations/bootstrap.
+- [PASS] O workspace local foi alinhado para essa separacao, incluindo o `.env` raiz e o `.env.local` usado pelo app web.
+- [PASS] O runbook operacional do rollout remoto foi registrado em `docs/architecture/RLS_ROLLOUT_RUNBOOK.md`.
+- [OPEN] Ainda nao existe evidencia de `staging`, `production`, secrets remotos ou target de deploy configurado no repo/workspace atual.
+- [OPEN] A validacao final desta secao continua dependente da configuracao remota e da checagem de bundles/logs no ambiente real de deploy.
 
 Prova minima:
 
