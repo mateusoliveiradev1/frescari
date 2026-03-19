@@ -132,6 +132,10 @@ function buildLineItems(
     const productLines: Stripe.Checkout.SessionCreateParams.LineItem[] =
         items.map((item) => {
             const isWeighable = isWeighableSaleUnit(item.productSaleUnit);
+            const unitAmount = isWeighable
+                ? toStripeCents(item.unitPrice * item.quantity, true)
+                : toStripeCents(item.unitPrice, false);
+            const quantity = isWeighable ? 1 : item.quantity;
 
             return {
                 price_data: {
@@ -140,9 +144,9 @@ function buildLineItems(
                         name: item.productName,
                         ...(item.imageUrl ? { images: [item.imageUrl] } : {}),
                     },
-                    unit_amount: toStripeCents(item.unitPrice, isWeighable),
+                    unit_amount: unitAmount,
                 },
-                quantity: item.quantity,
+                quantity,
             };
         });
 

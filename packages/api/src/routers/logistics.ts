@@ -252,8 +252,8 @@ type DispatchWaveAssignmentRow = {
 function assertDeliveryTransition(currentStatus: string, nextStatus: DeliveryMutationStatus) {
     const allowedTransitions: Record<string, DeliveryMutationStatus[]> = {
         payment_authorized: ['ready_for_dispatch'],
-        confirmed: ['ready_for_dispatch', 'in_transit', 'delivered'],
-        picking: ['ready_for_dispatch', 'in_transit', 'delivered'],
+        confirmed: ['ready_for_dispatch'],
+        picking: ['ready_for_dispatch'],
         ready_for_dispatch: ['in_transit', 'delivered'],
         in_transit: ['delivered'],
     };

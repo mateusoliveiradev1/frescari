@@ -276,6 +276,63 @@ test('checkout.createFarmCheckoutSession recalculates freight on the server and 
     assert.equal(payload.payment_intent_data?.transfer_data?.destination, 'acct_producer_123');
 });
 
+test('checkout.createFarmCheckoutSession normalizes weighable items to a single Stripe line item quantity', async () => {
+    let selectCallCount = 0;
+
+    const db = withRlsMockDb({
+        select() {
+            selectCallCount += 1;
+
+            switch (selectCallCount) {
+                case 1:
+                    return createTenantSelectChain('BUYER');
+                case 2:
+                    return createAddressSelectChain();
+                case 3:
+                    return createFarmSelectChain();
+                case 4:
+                    return createDistanceSelectChain(5000);
+                case 5:
+                    return createLotSelectChain({
+                        dbPricingType: 'WEIGHT',
+                        lotUnit: 'kg',
+                        productSaleUnit: 'kg',
+                        masterPricingType: 'WEIGHT',
+                        pricePerUnit: 30,
+                    });
+                default:
+                    throw new Error(`Unexpected select call #${selectCallCount}`);
+            }
+        },
+    });
+
+    const caller = await createCheckoutCaller(db);
+    const result = await (caller as Record<string, any>).checkout.createFarmCheckoutSession({
+        farmId: '22222222-2222-4222-8222-222222222222',
+        addressId: '11111111-1111-4111-8111-111111111111',
+        items: [
+            {
+                lotId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+                quantity: 1.25,
+            },
+        ],
+    });
+
+    assert.deepEqual(result, { url: 'https://stripe.example/checkout/session' });
+    assert.ok(stripeState.createdSessionPayload);
+
+    const payload = stripeState.createdSessionPayload!;
+    const weighableLineItem = payload.line_items[0];
+    const metadataItems = JSON.parse(payload.metadata.items) as Array<Record<string, unknown>>;
+
+    assert.equal(payload.line_items.length, 2);
+    assert.equal(weighableLineItem?.quantity, 1);
+    assert.equal(weighableLineItem?.price_data?.unit_amount, 4125);
+    assert.equal(payload.line_items[1]?.price_data?.unit_amount, 1800);
+    assert.equal(metadataItems[0]?.qty, 1.25);
+    assert.equal(payload.payment_intent_data?.capture_method, 'manual');
+});
+
 test('checkout.createCheckoutSession rejects the legacy mixed checkout path', async () => {
     const db = withRlsMockDb({
         select() {

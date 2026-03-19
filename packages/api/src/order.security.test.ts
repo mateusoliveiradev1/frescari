@@ -126,3 +126,55 @@ test('order.updateOrderStatus blocks invalid backwards transitions', async () =>
 
     assert.equal(state.updatedStatus, null);
 });
+
+test('order.updateOrderStatus blocks skipping dispatch before delivery transitions', async () => {
+    const state = {
+        order: {
+            id: '33333333-3333-4333-8333-333333333333',
+            buyerTenantId: 'buyer-tenant-1',
+            sellerTenantId: 'producer-tenant-1',
+            status: 'confirmed',
+        },
+        updatedStatus: null as string | null,
+    };
+
+    const db = withRlsMockDb({
+        select() {
+            return createTenantSelectChain('PRODUCER');
+        },
+        query: {
+            orders: {
+                findFirst: async () => state.order,
+            },
+        },
+        update() {
+            return {
+                set(values: Record<string, unknown>) {
+                    return {
+                        where: async () => {
+                            state.updatedStatus = String(values.status);
+                        },
+                    };
+                },
+            };
+        },
+    });
+
+    const caller = await createOrderCaller(db, {
+        id: 'producer-user-1',
+        tenantId: 'producer-tenant-1',
+        role: 'producer',
+        name: 'Produtor Teste',
+    });
+
+    await assert.rejects(
+        () =>
+            (caller as Record<string, any>).order.updateOrderStatus({
+                orderId: state.order.id,
+                status: 'in_transit',
+            }),
+        /Nao e possivel/i,
+    );
+
+    assert.equal(state.updatedStatus, null);
+});

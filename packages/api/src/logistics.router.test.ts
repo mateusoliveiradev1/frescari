@@ -509,6 +509,75 @@ test('logistics.updateDeliveryStatus advances producer orders through ready_for_
     assert.deepEqual(state.updatedStatuses, ['ready_for_dispatch', 'in_transit']);
 });
 
+test('logistics.updateDeliveryStatus blocks skipping dispatch confirmation before transit', async () => {
+    const orderId = '33333333-3333-4333-8333-333333333333';
+
+    const state = {
+        order: {
+            id: orderId,
+            buyerTenantId: 'buyer-1',
+            sellerTenantId: 'tenant-1',
+            status: 'confirmed',
+        },
+        updatedStatuses: [] as string[],
+    };
+
+    const db = withRlsMockDb({
+        select(selection: Record<string, unknown>) {
+            if ('userId' in selection) {
+                return createSupplementalSelectChain([
+                    { userId: 'buyer-user-1' },
+                ]);
+            }
+
+            return createTenantSelectChain();
+        },
+        insert() {
+            return {
+                values(values: Record<string, unknown>[]) {
+                    return createNotificationInsertChain(values);
+                },
+            };
+        },
+        query: {
+            orders: {
+                findFirst: async () => state.order,
+            },
+        },
+        update() {
+            return {
+                set(values: Record<string, unknown>) {
+                    return {
+                        where: async () => {
+                            const nextStatus = String(values.status);
+                            state.updatedStatuses.push(nextStatus);
+                            state.order = {
+                                ...state.order,
+                                status: nextStatus,
+                            };
+                        },
+                    };
+                },
+            };
+        },
+    });
+
+    const caller = await createLogisticsCaller(db);
+    const logisticsNamespace = (caller as Record<string, any>).logistics;
+
+    await assert.rejects(
+        () =>
+            logisticsNamespace.updateDeliveryStatus({
+                orderId,
+                status: 'in_transit',
+            }),
+        /Nao e possivel avancar/i,
+    );
+
+    assert.equal(state.order.status, 'confirmed');
+    assert.deepEqual(state.updatedStatuses, []);
+});
+
 test('logistics.getPendingDeliveries enriches queue items with AI recommendation and persistent override', async () => {
     const operationDate = new Date().toISOString().slice(0, 10);
     const deliveryRows: DeliveryRow[] = [
