@@ -1,39 +1,24 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "ignoreBinaries": ["lint-staged", "powershell", "stripe"],
+  "ignoreBinaries": ["powershell", "stripe"],
   "ignoreExportsUsedInFile": true,
   "ignoreIssues": {
     "packages/validators/src/index.ts": ["duplicates"]
   },
   "workspaces": {
     ".": {
-      "entry": [
-        "package.json",
-        "eslint.config.mjs",
-        ".lintstagedrc.cjs",
-        ".husky/pre-commit",
-        "scripts/**/*.ps1"
-      ],
+      "entry": ["package.json", ".husky/pre-commit", "scripts/**/*.ps1"],
       "project": [
         "package.json",
         "pnpm-workspace.yaml",
         "turbo.json",
-        "*.cjs",
         "*.mjs",
         ".husky/*",
         "scripts/**/*.ps1"
-      ],
-      "ignore": [".agents/**"]
+      ]
     },
     "apps/web": {
-      "entry": [
-        "next.config.ts",
-        "playwright.config.ts",
-        "postcss.config.mjs",
-        "e2e/**/*.spec.ts",
-        "src/**/*.test.ts",
-        "src/**/*.test.tsx"
-      ],
+      "entry": ["e2e/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.test.tsx"],
       "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts", "*.config.{ts,mjs,cjs}"]
     },
     "packages/api": {
@@ -41,13 +26,11 @@
     },
     "packages/db": {
       "entry": [
-        "migrate.ts",
-        "src/seed.ts",
-        "src/seed-master.ts",
+        "src/add-*.ts",
         "src/create-tables.ts",
         "src/enable-postgis.ts",
         "src/raw_migration.ts",
-        "src/add-*.ts"
+        "src/seed-master.ts"
       ],
       "ignoreDependencies": ["bufferutil", "ws"]
     }
