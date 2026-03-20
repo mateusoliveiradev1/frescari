@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getAppUrl, getVercelDeploymentUrl } from "./app-url";
+import { getAppUrl, getConfiguredUrl, getVercelDeploymentUrl } from "./app-url";
 
 const env = process.env as Record<string, string | undefined>;
 
@@ -31,6 +31,13 @@ test("getVercelDeploymentUrl normalizes preview hostnames", () => {
   assert.equal(
     getVercelDeploymentUrl(),
     "https://frescari-git-feature-preview.vercel.app",
+  );
+});
+
+test("getConfiguredUrl trims preview values pulled with CRLF", () => {
+  assert.equal(
+    getConfiguredUrl("https://frescari-staging-git-feature.vercel.app\r\n"),
+    "https://frescari-staging-git-feature.vercel.app",
   );
 });
 

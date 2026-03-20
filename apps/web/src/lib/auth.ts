@@ -3,15 +3,15 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { authDb } from "@frescari/db";
 import * as schema from "@frescari/db";
 
-import { getAppUrl } from "@/lib/app-url";
+import { getAppUrl, getConfiguredUrl } from "@/lib/app-url";
 
 export const auth = betterAuth({
   secret:
     process.env.BETTER_AUTH_SECRET || "dummy-secret-for-build-time-only-123",
   baseURL:
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
+    getConfiguredUrl(process.env.BETTER_AUTH_URL) ||
+    getConfiguredUrl(process.env.NEXT_PUBLIC_BETTER_AUTH_URL) ||
+    getConfiguredUrl(process.env.NEXT_PUBLIC_APP_URL) ||
     getAppUrl(),
   database: drizzleAdapter(authDb, {
     provider: "pg",

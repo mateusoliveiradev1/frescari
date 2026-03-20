@@ -1,7 +1,7 @@
 "use client";
 import { createAuthClient } from "better-auth/react";
 
-import { getAppUrl } from "./app-url";
+import { getAppUrl, getConfiguredUrl } from "./app-url";
 
 /**
  * Better Auth client.
@@ -14,8 +14,8 @@ const getAuthBaseURL = () => {
   }
 
   return (
-    process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
+    getConfiguredUrl(process.env.NEXT_PUBLIC_BETTER_AUTH_URL) ||
+    getConfiguredUrl(process.env.NEXT_PUBLIC_APP_URL) ||
     getAppUrl()
   );
 };
