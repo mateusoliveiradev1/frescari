@@ -1,3 +1,5 @@
+import { getAppUrl } from "./app-url";
+
 const HTML_TAG_PATTERN = /<[^>]+>/g;
 const SCRIPT_TAG_PATTERN = /<script[\s\S]*?>[\s\S]*?<\/script>/gi;
 const STYLE_TAG_PATTERN = /<style[\s\S]*?>[\s\S]*?<\/style>/gi;
@@ -7,15 +9,7 @@ const EDGE_HYPHENS_PATTERN = /^-+|-+$/g;
 const NON_ALPHANUMERIC_PATTERN = /[^a-z0-9]+/g;
 
 export function getSiteUrl(): string {
-  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-
-  if (configuredUrl) {
-    return configuredUrl.replace(/\/+$/, "");
-  }
-
-  return process.env.NODE_ENV === "production"
-    ? "https://frescari.com.br"
-    : "http://localhost:3000";
+  return getAppUrl();
 }
 
 export function slugifySegment(value: string): string {
@@ -27,7 +21,10 @@ export function slugifySegment(value: string): string {
     .replace(EDGE_HYPHENS_PATTERN, "");
 }
 
-export function sanitizeText(value: string | null | undefined, maxLength?: number): string {
+export function sanitizeText(
+  value: string | null | undefined,
+  maxLength?: number,
+): string {
   const sanitized = String(value ?? "")
     .replace(SCRIPT_TAG_PATTERN, " ")
     .replace(STYLE_TAG_PATTERN, " ")
@@ -56,6 +53,9 @@ export function buildCategoryPath(categorySlug: string): string {
   return `/catalogo/${categorySlug}`;
 }
 
-export function buildProductPath(categorySlug: string, productSlug: string): string {
+export function buildProductPath(
+  categorySlug: string,
+  productSlug: string,
+): string {
   return `${buildCategoryPath(categorySlug)}/${productSlug}`;
 }

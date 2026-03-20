@@ -1,57 +1,55 @@
-'use client';
+"use client";
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { trpc } from './react';
-import { httpBatchLink } from '@trpc/client';
-import superjson from 'superjson';
-import { useState } from 'react';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { trpc } from "./react";
+import { httpBatchLink } from "@trpc/client";
+import superjson from "superjson";
+import { useState } from "react";
+
+import { getAppUrl } from "@/lib/app-url";
 
 const withTrpcPath = (value: string) => {
-    const normalizedValue = value.replace(/\/+$/, '');
+  const normalizedValue = value.replace(/\/+$/, "");
 
-    return normalizedValue.endsWith('/api/trpc')
-        ? normalizedValue
-        : `${normalizedValue}/api/trpc`;
+  return normalizedValue.endsWith("/api/trpc")
+    ? normalizedValue
+    : `${normalizedValue}/api/trpc`;
 };
 
 const getTrpcUrl = () => {
-    if (typeof window !== 'undefined') {
-        return `${window.location.origin}/api/trpc`;
-    }
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/api/trpc`;
+  }
 
-    return withTrpcPath(
-        process.env.NEXT_PUBLIC_TRPC_URL ||
-        process.env.NEXT_PUBLIC_APP_URL ||
-        process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
-        'http://localhost:3000',
-    );
+  return withTrpcPath(process.env.NEXT_PUBLIC_TRPC_URL || getAppUrl());
 };
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
-    const [queryClient] = useState(() => new QueryClient({
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
         defaultOptions: {
-            queries: {
-                staleTime: 1000 * 60 * 5, // 5 minutes cache
-            }
-        }
-    }));
+          queries: {
+            staleTime: 1000 * 60 * 5, // 5 minutes cache
+          },
+        },
+      }),
+  );
 
-    const [trpcClient] = useState(() =>
-        trpc.createClient({
-            links: [
-                httpBatchLink({
-                    url: getTrpcUrl(),
-                    transformer: superjson,
-                }),
-            ],
+  const [trpcClient] = useState(() =>
+    trpc.createClient({
+      links: [
+        httpBatchLink({
+          url: getTrpcUrl(),
+          transformer: superjson,
         }),
-    );
+      ],
+    }),
+  );
 
-    return (
-        <trpc.Provider client={trpcClient} queryClient={queryClient}>
-            <QueryClientProvider client={queryClient}>
-                {children}
-            </QueryClientProvider>
-        </trpc.Provider>
-    );
+  return (
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </trpc.Provider>
+  );
 }
