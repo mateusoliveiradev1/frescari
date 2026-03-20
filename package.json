@@ -7,6 +7,7 @@
     "ci": "pnpm check",
     "dev": "turbo dev",
     "knip": "knip",
+    "lint-staged": "lint-staged",
     "lint": "turbo lint",
     "test": "turbo test",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
