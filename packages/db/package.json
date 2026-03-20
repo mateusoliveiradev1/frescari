@@ -8,6 +8,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx migrate.ts",
     "db:push": "drizzle-kit push",
+    "db:apply-rls": "tsx src/apply-rls.ts",
+    "db:deploy": "drizzle-kit push --force && tsx src/apply-rls.ts",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

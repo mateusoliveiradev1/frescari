@@ -133,6 +133,204 @@ after(async () => {
 });
 
 test(
+  "postgres keeps auth infrastructure globally reachable without tenant context",
+  { skip: !hasDatabaseConfig },
+  async () => {
+    assert.ok(adminDb, "DATABASE_ADMIN_URL or DATABASE_URL is required");
+    assert.ok(appDb, "DATABASE_URL is required");
+
+    const userId = `rls-auth-user-${randomUUID()}`;
+    const sessionId = `rls-auth-session-${randomUUID()}`;
+    const accountId = `rls-auth-account-${randomUUID()}`;
+    const verificationId = `rls-auth-verification-${randomUUID()}`;
+    const email = `rls-auth-${fixtureTag}-${randomUUID()}@example.com`;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
+
+    try {
+      const rlsState = await adminDb.execute(sql`
+                select
+                    relname,
+                    relforcerowsecurity,
+                    relrowsecurity
+                from pg_class
+                where relname in ('user', 'session', 'account', 'verification')
+                order by relname
+            `);
+
+      const tableState = new Map(
+        rlsState.rows.map((row) => [
+          String(row.relname),
+          {
+            force: readPgBool(row.relforcerowsecurity),
+            enabled: readPgBool(row.relrowsecurity),
+          },
+        ]),
+      );
+
+      for (const tableName of ["account", "session", "user", "verification"]) {
+        assert.deepEqual(tableState.get(tableName), {
+          enabled: false,
+          force: false,
+        });
+      }
+
+      const policyState = await adminDb.execute(sql`
+                select tablename, policyname
+                from pg_policies
+                where schemaname = 'public'
+                  and tablename in ('user', 'session', 'account', 'verification')
+            `);
+
+      assert.equal(
+        policyState.rowCount,
+        0,
+        "auth infrastructure tables should not carry RLS policies after the fix",
+      );
+
+      await appDb.transaction(async (tx) => {
+        const userInsert = await tx.execute(sql`
+                    insert into "user" (
+                        "id",
+                        "name",
+                        "email",
+                        "emailVerified",
+                        "createdAt",
+                        "updatedAt",
+                        "role"
+                    )
+                    values (
+                        ${userId},
+                        'RLS Auth User',
+                        ${email},
+                        false,
+                        ${now},
+                        ${now},
+                        'buyer'
+                    )
+                `);
+
+        assert.equal(userInsert.rowCount, 1);
+
+        const accountInsert = await tx.execute(sql`
+                    insert into "account" (
+                        "id",
+                        "accountId",
+                        "providerId",
+                        "userId",
+                        "password",
+                        "createdAt",
+                        "updatedAt"
+                    )
+                    values (
+                        ${accountId},
+                        ${email},
+                        'credential',
+                        ${userId},
+                        'hashed-password',
+                        ${now},
+                        ${now}
+                    )
+                `);
+
+        assert.equal(accountInsert.rowCount, 1);
+
+        const sessionInsert = await tx.execute(sql`
+                    insert into "session" (
+                        "id",
+                        "expiresAt",
+                        "token",
+                        "createdAt",
+                        "updatedAt",
+                        "ipAddress",
+                        "userAgent",
+                        "userId"
+                    )
+                    values (
+                        ${sessionId},
+                        ${expiresAt},
+                        ${`token-${randomUUID()}`},
+                        ${now},
+                        ${now},
+                        '127.0.0.1',
+                        'rls-auth-test',
+                        ${userId}
+                    )
+                `);
+
+        assert.equal(sessionInsert.rowCount, 1);
+
+        const verificationInsert = await tx.execute(sql`
+                    insert into "verification" (
+                        "id",
+                        "identifier",
+                        "value",
+                        "expiresAt",
+                        "createdAt",
+                        "updatedAt"
+                    )
+                    values (
+                        ${verificationId},
+                        ${email},
+                        ${`verification-${randomUUID()}`},
+                        ${expiresAt},
+                        ${now},
+                        ${now}
+                    )
+                `);
+
+        assert.equal(verificationInsert.rowCount, 1);
+      });
+
+      await appDb.transaction(async (tx) => {
+        const userRead = await tx.execute(
+          sql`select "id" from "user" where "id" = ${userId}`,
+        );
+        const accountRead = await tx.execute(
+          sql`select "id" from "account" where "id" = ${accountId}`,
+        );
+        const sessionRead = await tx.execute(
+          sql`select "id" from "session" where "id" = ${sessionId}`,
+        );
+        const verificationRead = await tx.execute(
+          sql`select "id" from "verification" where "id" = ${verificationId}`,
+        );
+
+        assert.equal(userRead.rowCount, 1);
+        assert.equal(accountRead.rowCount, 1);
+        assert.equal(sessionRead.rowCount, 1);
+        assert.equal(verificationRead.rowCount, 1);
+
+        const userUpdate = await tx.execute(sql`
+                    update "user"
+                    set "updatedAt" = ${expiresAt}
+                    where "id" = ${userId}
+                `);
+        const sessionUpdate = await tx.execute(sql`
+                    update "session"
+                    set "userAgent" = 'rls-auth-test-updated'
+                    where "id" = ${sessionId}
+                `);
+
+        assert.equal(userUpdate.rowCount, 1);
+        assert.equal(sessionUpdate.rowCount, 1);
+      });
+    } finally {
+      await adminDb.transaction(async (tx) => {
+        await enableRlsBypassContext(tx);
+
+        await tx.execute(sql`delete from "session" where "id" = ${sessionId}`);
+        await tx.execute(sql`delete from "account" where "id" = ${accountId}`);
+        await tx.execute(
+          sql`delete from "verification" where "id" = ${verificationId}`,
+        );
+        await tx.execute(sql`delete from "user" where "id" = ${userId}`);
+      });
+    }
+  },
+);
+
+test(
   "postgres RLS blocks raw cross-tenant access for core multi-tenant tables",
   { skip: !hasDatabaseConfig },
   async () => {

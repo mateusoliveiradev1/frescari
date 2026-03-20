@@ -1,0 +1,53 @@
+name: Deploy Staging DB
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/db/**"
+      - ".github/workflows/deploy-staging.yml"
+
+concurrency:
+  group: deploy-staging-db
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging-db:
+    name: Push schema and reapply RLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    permissions:
+      contents: read
+    env:
+      DATABASE_ADMIN_URL: ${{ secrets.DATABASE_ADMIN_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate DATABASE_ADMIN_URL
+        run: |
+          if [ -z "${DATABASE_ADMIN_URL}" ]; then
+            echo "DATABASE_ADMIN_URL secret is not configured." >&2
+            exit 1
+          fi
+
+      - name: Deploy staging database changes
+        run: pnpm --filter @frescari/db run db:deploy

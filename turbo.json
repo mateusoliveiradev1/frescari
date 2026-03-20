@@ -3,7 +3,15 @@
     "globalEnv": [
         "DATABASE_ADMIN_URL",
         "DATABASE_URL",
-        "UPLOADTHING_TOKEN"
+        "UPLOADTHING_TOKEN",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_BETTER_AUTH_URL",
+        "NEXT_PUBLIC_TRPC_URL",
+        "STRIPE_CONNECT_MODE",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET"
     ],
     "tasks": {
         "build": {

@@ -64,6 +64,13 @@
       "when": 1773899400000,
       "tag": "0008_iron_tenant_barrier",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1773921600000,
+      "tag": "0009_fix_auth_rls",
+      "breakpoints": true
     }
   ]
 }
