@@ -1,3 +1,5 @@
+import { sanitizeEnvValue } from "./env";
+
 const stripTrailingSlashes = (value: string) => value.replace(/\/+$/, "");
 
 export const normalizeUrl = (value: string): string => {
@@ -15,18 +17,21 @@ export const normalizeUrl = (value: string): string => {
 };
 
 export function getConfiguredUrl(value: string | undefined): string | null {
-  if (!value) {
+  const sanitizedValue = sanitizeEnvValue(value);
+
+  if (!sanitizedValue) {
     return null;
   }
 
-  const normalized = normalizeUrl(value);
+  const normalized = normalizeUrl(sanitizedValue);
 
   return normalized || null;
 }
 
 export function getVercelDeploymentUrl(): string | null {
   const candidate =
-    process.env.VERCEL_BRANCH_URL?.trim() || process.env.VERCEL_URL?.trim();
+    sanitizeEnvValue(process.env.VERCEL_BRANCH_URL) ||
+    sanitizeEnvValue(process.env.VERCEL_URL);
 
   if (!candidate) {
     return null;

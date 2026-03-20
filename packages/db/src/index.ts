@@ -1,24 +1,27 @@
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as schema from "./schema";
+import { sanitizeEnvValue } from "./env";
+
+const databaseUrl = sanitizeEnvValue(process.env.DATABASE_URL);
+const databaseAdminUrl = sanitizeEnvValue(process.env.DATABASE_ADMIN_URL);
+
 export const connectionString =
-  process.env.DATABASE_URL ||
+  databaseUrl ||
   "postgres://mock:mock@ep-mock-123456.us-east-2.aws.neon.tech/neondb";
 export const adminConnectionString =
-  process.env.DATABASE_ADMIN_URL ||
-  process.env.DATABASE_URL ||
-  connectionString;
-const authConnectionString = process.env.DATABASE_URL || connectionString;
+  databaseAdminUrl || databaseUrl || connectionString;
+const authConnectionString = databaseUrl || connectionString;
 
 // Neon requires legitimate postgres format. Provide a mock proxy pattern for static builds.
 const connectionUrl =
-  process.env.NODE_ENV === "production" && !process.env.DATABASE_URL
+  process.env.NODE_ENV === "production" && !databaseUrl
     ? "postgres://mock:mock@ep-mock-123456.us-east-2.aws.neon.tech/neondb"
     : connectionString;
 // Runtime auth flows must use the same restricted role as the application.
 // DATABASE_ADMIN_URL stays reserved for migrations/bootstrap only.
 const authConnectionUrl =
-  process.env.NODE_ENV === "production" && !process.env.DATABASE_URL
+  process.env.NODE_ENV === "production" && !databaseUrl
     ? "postgres://mock:mock@ep-mock-123456.us-east-2.aws.neon.tech/neondb"
     : authConnectionString;
 
