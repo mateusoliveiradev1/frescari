@@ -1,5 +1,7 @@
 "use client";
-import { createAuthClient } from "better-auth/react"
+import { createAuthClient } from "better-auth/react";
+
+import { getAppUrl } from "./app-url";
 
 /**
  * Better Auth client.
@@ -7,17 +9,17 @@ import { createAuthClient } from "better-auth/react"
  * On the server/build, fall back to configured public URLs, then localhost for local dev.
  */
 const getAuthBaseURL = () => {
-    if (typeof window !== "undefined") {
-        return window.location.origin
-    }
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
 
-    return (
-        process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
-        process.env.NEXT_PUBLIC_APP_URL ||
-        "http://localhost:3000"
-    )
-}
+  return (
+    process.env.NEXT_PUBLIC_BETTER_AUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    getAppUrl()
+  );
+};
 
 export const authClient = createAuthClient({
-    baseURL: getAuthBaseURL(),
-})
+  baseURL: getAuthBaseURL(),
+});
