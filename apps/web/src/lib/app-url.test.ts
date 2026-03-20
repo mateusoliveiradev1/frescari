@@ -41,6 +41,13 @@ test("getConfiguredUrl trims preview values pulled with CRLF", () => {
   );
 });
 
+test("getConfiguredUrl unwraps quoted preview values before normalizing", () => {
+  assert.equal(
+    getConfiguredUrl('"https://frescari-staging-git-feature.vercel.app"\r\n'),
+    "https://frescari-staging-git-feature.vercel.app",
+  );
+});
+
 test("getAppUrl falls back to the current Vercel deployment in production", () => {
   env.NODE_ENV = "production";
   env.VERCEL_URL = "frescari-staging-preview.vercel.app";

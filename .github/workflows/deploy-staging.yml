@@ -42,12 +42,22 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate DATABASE_ADMIN_URL
+      - name: Check DATABASE_ADMIN_URL
+        id: database_admin_url
         run: |
           if [ -z "${DATABASE_ADMIN_URL}" ]; then
-            echo "DATABASE_ADMIN_URL secret is not configured." >&2
-            exit 1
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::DATABASE_ADMIN_URL secret is not configured in the staging environment. Skipping staging database deploy."
+            {
+              echo "### Staging database deploy skipped"
+              echo ""
+              echo "- \`DATABASE_ADMIN_URL\` is not configured in the \`staging\` environment secrets."
+              echo "- Application deployment can still succeed, but this workflow did not apply database migrations or re-run the final RLS script."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Deploy staging database changes
+        if: steps.database_admin_url.outputs.configured == 'true'
         run: pnpm --filter @frescari/db run db:deploy

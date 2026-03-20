@@ -3,11 +3,13 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { authDb } from "@frescari/db";
 import * as schema from "@frescari/db";
 
+import { sanitizeEnvValue } from "@/lib/env";
 import { getAppUrl, getConfiguredUrl } from "@/lib/app-url";
 
 export const auth = betterAuth({
   secret:
-    process.env.BETTER_AUTH_SECRET || "dummy-secret-for-build-time-only-123",
+    sanitizeEnvValue(process.env.BETTER_AUTH_SECRET) ||
+    "dummy-secret-for-build-time-only-123",
   baseURL:
     getConfiguredUrl(process.env.BETTER_AUTH_URL) ||
     getConfiguredUrl(process.env.NEXT_PUBLIC_BETTER_AUTH_URL) ||

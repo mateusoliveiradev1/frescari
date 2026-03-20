@@ -37,8 +37,9 @@ import {
 import { buildFreightQuote } from "../freight-quote";
 import { calculateLotPriceAndStatus } from "../utils/lot-status";
 import { emitOrderNotifications } from "../notifications/domain-events";
+import { sanitizeEnvValue } from "../env";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripeSecretKey = sanitizeEnvValue(process.env.STRIPE_SECRET_KEY);
 let stripeClient: Stripe | null = null;
 
 function getStripeClient() {
@@ -56,7 +57,7 @@ function getStripeClient() {
 const WEIGHT_SAFETY_MARGIN = 1.1;
 const PLATFORM_FEE_RATE = 0.1;
 const legacyDirectOrderMutationEnabled =
-  process.env.ENABLE_LEGACY_DIRECT_ORDER_MUTATION === "true";
+  sanitizeEnvValue(process.env.ENABLE_LEGACY_DIRECT_ORDER_MUTATION) === "true";
 const STRIPE_CAPTURE_FINGERPRINT_METADATA_KEY = "frescari_capture_fingerprint";
 const STRIPE_CAPTURE_TOTAL_AMOUNT_CENTS_METADATA_KEY =
   "frescari_capture_total_amount_cents";

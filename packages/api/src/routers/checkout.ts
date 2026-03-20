@@ -21,9 +21,10 @@ import {
   buildDeliveryAddressLine,
   serializeDeliveryPointMetadata,
 } from "../geocoding";
+import { sanitizeEnvValue } from "../env";
 import { isPlatformOnlyStripeMode } from "../stripe-connect-mode";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripeSecretKey = sanitizeEnvValue(process.env.STRIPE_SECRET_KEY);
 
 if (!stripeSecretKey) {
   console.warn(
@@ -46,7 +47,8 @@ function getStripeClient() {
 }
 
 const WEIGHT_SAFETY_MARGIN = 1.1;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL =
+  sanitizeEnvValue(process.env.NEXT_PUBLIC_APP_URL) ?? "http://localhost:3000";
 const PLATFORM_FEE_RATE = 0.1;
 
 const checkoutItemSchema = z

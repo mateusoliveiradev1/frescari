@@ -26,16 +26,17 @@ import {
   resolveAuthorizedOrderStatus,
   type OrderStatus,
 } from "./resolve-order-status";
+import { sanitizeEnvValue } from "@/lib/env";
 
 // ── Stripe SDK ───────────────────────────────────────────────────────
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const webhookSecret = sanitizeEnvValue(process.env.STRIPE_WEBHOOK_SECRET);
 const useLegacyCheckoutWebhookFlow =
-  process.env.ENABLE_LEGACY_CHECKOUT_WEBHOOK_FLOW === "true";
+  sanitizeEnvValue(process.env.ENABLE_LEGACY_CHECKOUT_WEBHOOK_FLOW) === "true";
 
 let stripeClient: Stripe | null = null;
 
 function getStripeClient() {
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const stripeSecretKey = sanitizeEnvValue(process.env.STRIPE_SECRET_KEY);
 
   if (!stripeSecretKey) {
     throw new Error("STRIPE_SECRET_KEY is not configured.");
