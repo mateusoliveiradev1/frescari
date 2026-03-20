@@ -8,7 +8,7 @@ const contentSecurityPolicy = [
   "font-src 'self' data: https:",
   "form-action 'self' https://checkout.stripe.com",
   "frame-ancestors 'none'",
-  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
+  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://vercel.live",
   "img-src 'self' data: blob: https:",
   "object-src 'none'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://js.stripe.com https://vercel.live`,

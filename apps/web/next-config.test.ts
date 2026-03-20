@@ -100,6 +100,10 @@ test("content security policy allows the required Stripe and UploadThing surface
 
   assert.match(csp, /default-src 'self'/);
   assert.match(csp, /frame-ancestors 'none'/);
+  assert.match(
+    csp,
+    /frame-src 'self' https:\/\/js\.stripe\.com https:\/\/hooks\.stripe\.com https:\/\/checkout\.stripe\.com https:\/\/vercel\.live/,
+  );
   assert.match(csp, /object-src 'none'/);
   assert.match(csp, /https:\/\/js\.stripe\.com/);
   assert.match(csp, /https:\/\/vercel\.live/);
