@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   deploy-staging-db:
-    name: Push schema and reapply RLS
+    name: Apply tracked migrations and final RLS
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: staging
@@ -58,6 +58,6 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy staging database changes
+      - name: Apply staging database migrations
         if: steps.database_admin_url.outputs.configured == 'true'
-        run: pnpm --filter @frescari/db run db:deploy
+        run: pnpm --filter @frescari/db run db:migrate
