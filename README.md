@@ -117,6 +117,7 @@ pnpm stripe:listen
 ## Documentos de referencia
 
 - `docs/architecture/MVP_PLAN.md`
+- `docs/architecture/LAUNCH_V1_MASTER_PLAN.md`
 - `docs/MVP_CLOSURE_PLAN.md`
 - `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`
 - `docs/architecture/RLS_ROLLOUT_RUNBOOK.md`

@@ -20,7 +20,6 @@ const targets = args.has("--production-only")
   : ["production", "preview"];
 
 const envFiles = [
-  resolve(repoRoot, "apps", "web", ".vercel", ".env.production.local"),
   resolve(repoRoot, "apps", "web", ".env.local"),
   resolve(repoRoot, ".env.local"),
   resolve(repoRoot, ".env"),
@@ -258,17 +257,21 @@ function readProductionValue(key) {
     return explicitOverride;
   }
 
-  const sharedValue = readSharedValue(key);
+  for (const source of parsedEnvFiles) {
+    const value = sanitizeValue(source.values[key]);
 
-  if (!sharedValue) {
-    return null;
+    if (!value) {
+      continue;
+    }
+
+    if (/localhost|127\.0\.0\.1/i.test(value)) {
+      continue;
+    }
+
+    return value;
   }
 
-  if (/localhost|127\.0\.0\.1/i.test(sharedValue)) {
-    return null;
-  }
-
-  return sharedValue;
+  return null;
 }
 
 function generateCronSecret() {

@@ -73,7 +73,9 @@ const stripeState = {
   createdSessionPayload: null as StripeSessionPayload | null,
   createSessionError: null as Error | null,
   createdAccountPayload: null as StripeAccountPayload | null,
+  createAccountError: null as Error | null,
   createdAccountLinkPayload: null as StripeAccountLinkPayload | null,
+  createLoginLinkError: null as Error | null,
   loginLinkAccountId: null as string | null,
 };
 
@@ -125,6 +127,10 @@ class StripeMock {
 
   accounts = {
     create: async (payload: StripeAccountPayload) => {
+      if (stripeState.createAccountError) {
+        throw stripeState.createAccountError;
+      }
+
       stripeState.createdAccountPayload = payload;
 
       return {
@@ -132,6 +138,10 @@ class StripeMock {
       };
     },
     createLoginLink: async (accountId: string) => {
+      if (stripeState.createLoginLinkError) {
+        throw stripeState.createLoginLinkError;
+      }
+
       stripeState.loginLinkAccountId = accountId;
 
       return {
@@ -187,7 +197,9 @@ beforeEach(() => {
   stripeState.createdSessionPayload = null;
   stripeState.createSessionError = null;
   stripeState.createdAccountPayload = null;
+  stripeState.createAccountError = null;
   stripeState.createdAccountLinkPayload = null;
+  stripeState.createLoginLinkError = null;
   stripeState.loginLinkAccountId = null;
 });
 
@@ -319,6 +331,36 @@ function createInvalidStripeDestinationError() {
       param: "payment_intent_data[transfer_data][destination]",
       message: "No such destination: 'acct_invalid_destination'",
     },
+  });
+
+  return error;
+}
+
+function createStripePlatformLossesConfigurationError() {
+  const error = new Error(
+    "Please review the responsibilities of managing losses for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile.",
+  );
+
+  Object.assign(error, {
+    type: "StripeInvalidRequestError",
+    rawType: "invalid_request_error",
+    statusCode: 400,
+    requestId: "req_platform_profile_pending",
+  });
+
+  return error;
+}
+
+function createIncompleteStripeOnboardingLoginLinkError() {
+  const error = new Error(
+    "Cannot create a login link for an account that has not completed onboarding.",
+  );
+
+  Object.assign(error, {
+    type: "StripeInvalidRequestError",
+    rawType: "invalid_request_error",
+    statusCode: 400,
+    requestId: "req_incomplete_onboarding_login_link",
   });
 
   return error;
@@ -777,4 +819,94 @@ test("stripe.createStripeConnect uses NEXT_PUBLIC_APP_URL for business profile u
     return_url: "https://app.example.com/dashboard/vendas",
     type: "account_onboarding",
   });
+});
+
+test("stripe.createStripeConnect resumes incomplete onboarding with a fresh account link when login link is unavailable", async () => {
+  let selectCallCount = 0;
+  stripeState.createLoginLinkError =
+    createIncompleteStripeOnboardingLoginLinkError();
+
+  const db = withRlsMockDb({
+    select() {
+      selectCallCount += 1;
+
+      switch (selectCallCount) {
+        case 1:
+          return createTenantSelectChain("PRODUCER");
+        case 2:
+          return createThenableChain([
+            {
+              tenant: {
+                id: "producer-tenant-1",
+                name: "Fazenda Boa Terra",
+                stripeAccountId: "acct_existing_incomplete",
+              },
+              email: "produtor@example.com",
+              name: "Maria da Silva",
+            },
+          ]);
+        default:
+          throw new Error(`Unexpected select call #${selectCallCount}`);
+      }
+    },
+  });
+
+  const caller = await createStripeCaller(db);
+  const result = await (caller as StripeCaller).stripe.createStripeConnect({});
+
+  assert.deepEqual(result, {
+    url: "https://stripe.example/account-onboarding",
+  });
+  assert.equal(stripeState.loginLinkAccountId, null);
+  assert.equal(stripeState.createdAccountPayload, null);
+  assert.deepEqual(stripeState.createdAccountLinkPayload, {
+    account: "acct_existing_incomplete",
+    refresh_url: "https://app.example.com/dashboard/vendas",
+    return_url: "https://app.example.com/dashboard/vendas",
+    type: "account_onboarding",
+  });
+});
+
+test("stripe.createStripeConnect surfaces pending Stripe platform profile setup as a precondition failure", async () => {
+  let selectCallCount = 0;
+  stripeState.createAccountError =
+    createStripePlatformLossesConfigurationError();
+
+  const db = withRlsMockDb({
+    select() {
+      selectCallCount += 1;
+
+      switch (selectCallCount) {
+        case 1:
+          return createTenantSelectChain("PRODUCER");
+        case 2:
+          return createThenableChain([
+            {
+              tenant: {
+                id: "producer-tenant-1",
+                name: "Fazenda Boa Terra",
+                stripeAccountId: null,
+              },
+              email: "produtor@example.com",
+              name: "Maria da Silva",
+            },
+          ]);
+        default:
+          throw new Error(`Unexpected select call #${selectCallCount}`);
+      }
+    },
+    update() {
+      return createUpdateChain(() => undefined);
+    },
+  });
+
+  const caller = await createStripeCaller(db);
+
+  await assert.rejects(
+    () => (caller as StripeCaller).stripe.createStripeConnect({}),
+    /perfil da plataforma|responsabilidades por perdas/i,
+  );
+
+  assert.equal(stripeState.createdAccountPayload, null);
+  assert.equal(stripeState.createdAccountLinkPayload, null);
 });
