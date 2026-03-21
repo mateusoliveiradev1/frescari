@@ -5,6 +5,7 @@ import Module from "node:module";
 import { withRlsMockDb } from "./test-db";
 
 process.env.STRIPE_SECRET_KEY ??= "sk_test_mocked";
+process.env.NEXT_PUBLIC_APP_URL ??= "https://app.example.com";
 
 type StripeSessionPayload = {
   metadata: Record<string, string>;
@@ -22,6 +23,23 @@ type StripeSessionPayload = {
     application_fee_amount?: number;
     metadata?: Record<string, string>;
   };
+};
+
+type StripeAccountPayload = {
+  type?: string;
+  business_type?: string;
+  email?: string;
+  business_profile?: {
+    name?: string;
+    url?: string;
+  };
+};
+
+type StripeAccountLinkPayload = {
+  account: string;
+  refresh_url?: string;
+  return_url?: string;
+  type?: string;
 };
 
 type TestContextUser = {
@@ -54,6 +72,9 @@ type StripeCaller = {
 const stripeState = {
   createdSessionPayload: null as StripeSessionPayload | null,
   createSessionError: null as Error | null,
+  createdAccountPayload: null as StripeAccountPayload | null,
+  createdAccountLinkPayload: null as StripeAccountLinkPayload | null,
+  loginLinkAccountId: null as string | null,
 };
 
 function createThenableChain(result: unknown) {
@@ -101,6 +122,33 @@ class StripeMock {
       },
     },
   };
+
+  accounts = {
+    create: async (payload: StripeAccountPayload) => {
+      stripeState.createdAccountPayload = payload;
+
+      return {
+        id: "acct_test_mocked",
+      };
+    },
+    createLoginLink: async (accountId: string) => {
+      stripeState.loginLinkAccountId = accountId;
+
+      return {
+        url: "https://stripe.example/login-link",
+      };
+    },
+  };
+
+  accountLinks = {
+    create: async (payload: StripeAccountLinkPayload) => {
+      stripeState.createdAccountLinkPayload = payload;
+
+      return {
+        url: "https://stripe.example/account-onboarding",
+      };
+    },
+  };
 }
 
 const originalModuleLoad = (
@@ -138,6 +186,9 @@ after(() => {
 beforeEach(() => {
   stripeState.createdSessionPayload = null;
   stripeState.createSessionError = null;
+  stripeState.createdAccountPayload = null;
+  stripeState.createdAccountLinkPayload = null;
+  stripeState.loginLinkAccountId = null;
 });
 
 function createBuyerContext(db: unknown): TestTrpcContext {
@@ -271,6 +322,20 @@ function createInvalidStripeDestinationError() {
   });
 
   return error;
+}
+
+function createUpdateChain(onSet?: (values: Record<string, unknown>) => void) {
+  const chain = {
+    set(values: Record<string, unknown>) {
+      onSet?.(values);
+      return chain;
+    },
+    where() {
+      return Promise.resolve();
+    },
+  };
+
+  return chain;
 }
 
 test("checkout.createFarmCheckoutSession rejects unexpected legacy financial fields", async () => {
@@ -655,4 +720,61 @@ test("stripe.createStripeConnect fails fast when platform-only Stripe mode is en
       process.env.STRIPE_CONNECT_MODE = previousMode;
     }
   }
+});
+
+test("stripe.createStripeConnect uses NEXT_PUBLIC_APP_URL for business profile url and persists the created Stripe account id", async () => {
+  let updatedStripeAccountId: string | null = null;
+  let selectCallCount = 0;
+
+  const db = withRlsMockDb({
+    select() {
+      selectCallCount += 1;
+
+      switch (selectCallCount) {
+        case 1:
+          return createTenantSelectChain("PRODUCER");
+        case 2:
+          return createThenableChain([
+            {
+              tenant: {
+                id: "producer-tenant-1",
+                name: "Fazenda Boa Terra",
+                stripeAccountId: null,
+              },
+              email: "produtor@example.com",
+              name: "Maria da Silva",
+            },
+          ]);
+        default:
+          throw new Error(`Unexpected select call #${selectCallCount}`);
+      }
+    },
+    update() {
+      return createUpdateChain((values) => {
+        updatedStripeAccountId =
+          typeof values.stripeAccountId === "string"
+            ? values.stripeAccountId
+            : null;
+      });
+    },
+  });
+
+  const caller = await createStripeCaller(db);
+  const result = await (caller as StripeCaller).stripe.createStripeConnect({});
+
+  assert.deepEqual(result, {
+    url: "https://stripe.example/account-onboarding",
+  });
+  assert.equal(updatedStripeAccountId, "acct_test_mocked");
+  assert.equal(
+    stripeState.createdAccountPayload?.business_profile?.url,
+    "https://app.example.com",
+  );
+  assert.equal(stripeState.createdAccountPayload?.business_type, "individual");
+  assert.deepEqual(stripeState.createdAccountLinkPayload, {
+    account: "acct_test_mocked",
+    refresh_url: "https://app.example.com/dashboard/vendas",
+    return_url: "https://app.example.com/dashboard/vendas",
+    type: "account_onboarding",
+  });
 });

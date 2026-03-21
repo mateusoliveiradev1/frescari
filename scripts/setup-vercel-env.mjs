@@ -13,6 +13,8 @@ const vercelCwd = resolve(repoRoot, "apps", "web");
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
+const overwriteExisting =
+  args.has("--overwrite-existing") || args.has("--sync-existing");
 const targets = args.has("--production-only")
   ? ["production"]
   : ["production", "preview"];
@@ -93,7 +95,9 @@ async function main() {
     }
 
     for (const target of targets) {
-      if (existingByTarget.get(target)?.has(config.key)) {
+      const existsRemotely = existingByTarget.get(target)?.has(config.key);
+
+      if (existsRemotely && !overwriteExisting) {
         logStep(`Skipping existing ${config.key} in ${target}`);
         continue;
       }
@@ -103,12 +107,15 @@ async function main() {
         value,
         target,
         sensitive: config.sensitive,
+        overwrite: existsRemotely,
       });
     }
   }
 
   for (const config of productionOnlyConfigs) {
-    if (existingByTarget.get("production")?.has(config.key)) {
+    const existsRemotely = existingByTarget.get("production")?.has(config.key);
+
+    if (existsRemotely && !overwriteExisting) {
       logStep(`Skipping existing ${config.key} in production`);
       continue;
     }
@@ -125,6 +132,7 @@ async function main() {
       value,
       target: "production",
       sensitive: config.sensitive,
+      overwrite: existsRemotely,
     });
   }
 
@@ -150,7 +158,9 @@ async function main() {
       continue;
     }
 
-    if (existingByTarget.get("preview")?.has(mapping.targetKey)) {
+    const existsRemotely = existingByTarget.get("preview")?.has(mapping.targetKey);
+
+    if (existsRemotely && !overwriteExisting) {
       logStep(`Skipping existing ${mapping.targetKey} in preview`);
       continue;
     }
@@ -166,6 +176,7 @@ async function main() {
       value,
       target: "preview",
       sensitive: false,
+      overwrite: existsRemotely,
     });
   }
 
@@ -284,8 +295,11 @@ async function listRemoteEnvKeys(target) {
   return keys;
 }
 
-async function upsertEnvVar({ key, value, target, sensitive }) {
-  logStep(`${dryRun ? "Would set" : "Setting"} ${key} in ${target}`);
+async function upsertEnvVar({ key, value, target, sensitive, overwrite = false }) {
+  const action = overwrite ? "update" : "set";
+  logStep(
+    `${dryRun ? "Would " : ""}${action === "update" ? "update" : "set"} ${key} in ${target}`,
+  );
 
   if (dryRun) {
     return;

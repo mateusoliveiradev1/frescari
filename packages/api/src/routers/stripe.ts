@@ -35,6 +35,21 @@ function getStripeClient() {
 const APP_URL =
   sanitizeEnvValue(process.env.NEXT_PUBLIC_APP_URL) ?? "http://localhost:3000";
 
+function getStripeBusinessProfileUrl(appUrl: string) {
+  try {
+    return new URL(appUrl).origin;
+  } catch {
+    return appUrl;
+  }
+}
+
+function resolveProducerStripeBusinessType(): "individual" | "company" {
+  // TODO(stripe-connect): persist CPF/CNPJ or an explicit legal entity type
+  // for producer tenants during onboarding/tenant setup. When that data exists,
+  // map CPF => "individual" and CNPJ => "company" here.
+  return "individual";
+}
+
 export const stripeRouter = createTRPCRouter({
   createStripeConnect: producerProcedure
     .input(z.object({}))
@@ -94,7 +109,7 @@ export const stripeRouter = createTRPCRouter({
         // Se não possuir conta Stripe
         const account = await getStripeClient().accounts.create({
           type: "express",
-          business_type: "individual",
+          business_type: resolveProducerStripeBusinessType(),
           email: userEmail,
           capabilities: {
             // Contas BR precisam de transfers e card_payments explicitamente.
@@ -108,7 +123,7 @@ export const stripeRouter = createTRPCRouter({
           },
           business_profile: {
             name: tenant.name,
-            url: "https://frescari.com.br",
+            url: getStripeBusinessProfileUrl(APP_URL),
           },
           metadata: {
             tenant_id: tenant.id,
