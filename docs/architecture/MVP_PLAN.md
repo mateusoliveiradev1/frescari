@@ -2,7 +2,7 @@
 
 > Documento vivo alinhado ao estado real do repositorio em 2026-03-20.
 > Escopo atual: `apps/web` + `packages/*`.
-> Status: MVP web-first em fechamento.
+> Status: MVP web-first com codigo selado e validacao operacional final em andamento.
 
 ## 1. Visao do produto
 
@@ -113,11 +113,13 @@ O baseline tecnico atual do MVP depende destas decisoes:
 - IA operacional de entregas/rotas no painel
 - RLS como barreira estrutural multi-tenant
 - baseline de qualidade com Husky, lint-staged, Knip e `pnpm check`
+- cobertura E2E suficiente do core web, incluindo comprador, fazenda e entregas no fluxo do MVP
 
 ### Ainda aberto antes do go-live
 
-- completar a cobertura E2E rota por rota do core web
+- o codigo do MVP esta selado; o que resta e readiness operacional antes do go-live
 - rodar `build` final do release candidate
+- iniciar a configuracao de variaveis de ambiente e segredos na nuvem para a rodada final
 - executar a checklist operacional de seguranca
 - validar ambientes remotos, segredos e evidencia de recovery
 

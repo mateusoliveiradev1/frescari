@@ -2,12 +2,12 @@
 
 > Checklist operacional definitiva do go-live web do Frescari.
 > Atualizado em 2026-03-20.
-> Status do codigo: FECHADO.
+> Status do codigo: SELADO.
 > Status operacional do go-live: ABERTO.
 
 ## 0. Leitura correta do status
 
-### O que "Status do codigo: FECHADO" significa
+### O que "Status do codigo: SELADO" significa
 
 - [x] O runtime principal usa `DATABASE_URL` restrita e nao depende de role com `BYPASSRLS`.
 - [x] O runtime de auth/webhook foi alinhado para a mesma role restrita de runtime.
@@ -15,12 +15,13 @@
 - [x] O workflow `.github/workflows/ci.yml` executa `lint`, `typecheck`, `test` e `knip`.
 - [x] O workflow `.github/workflows/deploy-staging.yml` faz push de schema + reaplicacao de RLS em staging e falha de forma segura quando `DATABASE_ADMIN_URL` nao esta configurada.
 - [x] O baseline local de qualidade foi restaurado em 2026-03-20 e `pnpm check` esta verde.
+- [x] A malha E2E do core web cobre comprador, fazenda e entregas com `pnpm --filter web test:e2e` verde.
 - [x] Os cron jobs operacionais do app web estao versionados em `vercel.json`.
 
 ### O que continua aberto antes de dizer GO
 
-- [ ] fechar a cobertura E2E do core web rota por rota
 - [ ] rodar o `build` final do release candidate
+- [ ] iniciar a configuracao das variaveis de ambiente e segredos na nuvem
 - [ ] validar segredos e ambientes remotos
 - [ ] executar a rodada ofensiva proporcional ao MVP
 - [ ] registrar evidencia de backup, restore e recovery operacional
@@ -224,6 +225,8 @@ Codigo ja fechado:
 - [ ] Confirmar que upload e webhook nao ficam expostos sem controles minimos.
 
 ## 15. Secrets and configuration
+
+Proxima acao operacional imediata: iniciar o preenchimento assistido das variaveis de ambiente na nuvem para Auth, Banco, Stripe e Vercel, sem registrar segredos no repositorio.
 
 - [ ] Validar segredos em preview, staging e production.
 - [ ] Confirmar ausencia de segredo em bundle client, logs e respostas publicas.

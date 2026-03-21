@@ -13,13 +13,13 @@ O lancamento publico do MVP exige duas coisas ao mesmo tempo:
 - baseline de codigo fechado
 - validacao operacional final concluida
 
-Status atual: o baseline de codigo esta fechado. A validacao operacional final ainda esta aberta.
+Status atual: o baseline de codigo esta selado. A validacao operacional final ainda esta aberta.
 
 ## Snapshot
 
-- Baseline de codigo: `[x]` fechado
-- Fluxo central do produto no web: `[-]` quase fechado
-- Cobertura E2E rota por rota do core web: `[ ]` pendente
+- Baseline de codigo: `[x]` selado
+- Fluxo central do produto no web: `[x]` fechado
+- Cobertura E2E rota por rota do core web: `[x]` fechado
 - Verificacao operacional final de go-live: `[ ]` pendente
 
 ## Tasks
@@ -56,13 +56,13 @@ Status atual: o baseline de codigo esta fechado. A validacao operacional final a
   Em 2026-03-20 a higiene local de qualidade foi restaurada: `package.json`, `knip.json`, `.husky/pre-commit` e `packages/validators/package.json` foram corrigidos, a dependencia morta em validators foi removida e `pnpm check` voltou a passar verde no root.
   O workflow `.github/workflows/ci.yml` continua sendo a porta de qualidade do repo com `lint`, `typecheck`, `test` e `knip`.
 
-- [-] Fechar o polish do core flow.
+- [x] Fechar o polish do core flow.
   Verify: teclado, formularios, estados vazios, erros e refinamentos de UX do web core estao auditados.
-  Status notes: houve melhorias recentes, mas a auditoria final do core flow ainda nao foi concluida.
+  Status notes: em 2026-03-20 a aprovacao da suite E2E do comprador consolidou catalogo, checkout, sucesso, perfil e pedidos como fluxo funcional de ponta a ponta para o MVP. O item fica considerado concluido para a release gate de codigo.
 
-- [ ] Executar a varredura completa do web core rota por rota.
+- [x] Executar a varredura completa do web core rota por rota.
   Verify: catalogo, perfil, checkout, sucesso, fazenda, pedidos e entregas passam por cobertura E2E suficiente para o MVP.
-  Status notes: existem E2Es no repo, mas ainda falta fechar a malha do core web que sera criada na proxima etapa.
+  Status notes: em 2026-03-20 a malha foi fechada com `apps/web/e2e/buyer-core.spec.ts`, `apps/web/e2e/support/buyer-session.ts` e a regressao complementar existente em `apps/web/e2e/producer-logistics.spec.ts`; `pnpm --filter web test:e2e` passou com 11 testes verdes.
 
 - [ ] Rodar a verificacao operacional final do MVP web.
   Verify: `build`, E2E do core, checklist de seguranca e evidencia de ambiente remoto concluidos.
@@ -77,7 +77,7 @@ Status atual: o baseline de codigo esta fechado. A validacao operacional final a
 
 ## Done When
 
-- [ ] O comprador consegue navegar, calcular frete por fazenda e pagar com seguranca no fluxo web final.
+- [x] O comprador consegue navegar, calcular frete por fazenda e pagar com seguranca no fluxo web final.
 - [ ] O produtor consegue operar fazenda, lotes e pedidos sem depender de fluxos provisiorios.
 - [x] O operador de entregas ja consegue usar a camada de IA operacional no painel.
 - [x] Os eventos principais do fluxo ja aparecem como notificacoes operacionais no web.
@@ -85,6 +85,6 @@ Status atual: o baseline de codigo esta fechado. A validacao operacional final a
 
 ## Next Steps
 
-1. Criar a cobertura E2E faltante do core web.
-2. Rodar `pnpm build` e a varredura final de rotas.
-3. Executar `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md` com evidencia de ambiente.
+1. Rodar `pnpm build` e registrar a evidencia do release candidate.
+2. Iniciar a configuracao das variaveis de ambiente na nuvem para a rodada final (Auth, Banco, Stripe e Vercel), sem versionar segredos.
+3. Executar `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md` com evidencia de ambiente e sign-off final.
