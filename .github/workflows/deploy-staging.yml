@@ -23,6 +23,7 @@ jobs:
       contents: read
     env:
       DATABASE_ADMIN_URL: ${{ secrets.DATABASE_ADMIN_URL }}
+      EXPECTED_STAGING_NEON_BRANCH_ID: ${{ vars.EXPECTED_STAGING_NEON_BRANCH_ID }}
 
     steps:
       - name: Checkout
@@ -57,6 +58,19 @@ jobs:
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Inspect staging Neon target
+        if: steps.database_admin_url.outputs.configured == 'true'
+        run: |
+          inspect_output="$(DATABASE_ADMIN_URL="${DATABASE_ADMIN_URL}" EXPECTED_NEON_BRANCH_ID="${EXPECTED_STAGING_NEON_BRANCH_ID}" pnpm --filter @frescari/db run db:inspect-target)"
+          echo "${inspect_output}"
+          {
+            echo "### Staging Neon target"
+            echo ""
+            echo '```text'
+            echo "${inspect_output}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply staging database migrations
         if: steps.database_admin_url.outputs.configured == 'true'
