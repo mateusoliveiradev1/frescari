@@ -20,8 +20,8 @@
 
 ### O que continua aberto antes de dizer GO
 
-- [ ] rodar o `build` final do release candidate
-- [ ] iniciar a configuracao das variaveis de ambiente e segredos na nuvem
+- [x] rodar o `build` final do release candidate
+- [ ] concluir a configuracao das variaveis de ambiente e segredos na nuvem
 - [ ] validar segredos e ambientes remotos
 - [ ] executar a rodada ofensiva proporcional ao MVP
 - [ ] registrar evidencia de backup, restore e recovery operacional
@@ -107,6 +107,11 @@ Evidencia minima:
 - captura de headers/cookies em preview ou staging
 - walkthrough manual de login/logout
 - nota curta sobre redirects e mensagens de erro
+
+Evidencia parcial ja coletada em 2026-03-20:
+
+- GET anonimo em `/auth/login` retornou `200` com `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Permissions-Policy` e `Referrer-Policy`.
+- A validacao de cookies de sessao permanece pendente porque ainda falta walkthrough com login real.
 
 ## 5. Authorization, RBAC and tenant isolation
 
@@ -226,7 +231,20 @@ Codigo ja fechado:
 
 ## 15. Secrets and configuration
 
-Proxima acao operacional imediata: iniciar o preenchimento assistido das variaveis de ambiente na nuvem para Auth, Banco, Stripe e Vercel, sem registrar segredos no repositorio.
+Proxima acao operacional imediata: concluir a validacao final remota e decidir se `preview` recebera URLs publicas explicitas ou se o fallback atual por `VERCEL_URL` sera mantido como padrao operacional.
+
+Snapshot remoto consolidado em 2026-03-21:
+
+- [x] `production` no Vercel ja tem a base critica de configuracao para auth, banco, Stripe, UploadThing e URLs publicas do app.
+- [x] O ambiente `staging` no GitHub Actions ja tem `DATABASE_ADMIN_URL` para o workflow de deploy de schema com RLS.
+- [ ] `preview` ainda nao tem URLs publicas explicitas para auth/app/tRPC; hoje o runtime depende de fallback por `VERCEL_URL` e isso ainda precisa de alinhamento intencional.
+- [x] `CRON_SECRET` foi gerado automaticamente e injetado via CLI no Vercel para `production` e `preview`, sem uso de painel manual.
+- [x] O runtime efetivo do deploy de producao foi alinhado para Node.js `22.x` por override em `package.json`; o log da Vercel invalidou o cache ao detectar a troca de `24.x` para `22.x`.
+
+Evidencia coletada:
+
+- Em 2026-03-20, GET remoto em `/api/cron/freshness` retornou `500` com payload `CRON_SECRET is not configured.`.
+- Em 2026-03-21, apos bootstrap zero-touch + novo deploy, GET remoto em `/api/cron/freshness` retornou `401` com payload `Unauthorized cron invocation.`, confirmando que o segredo passou a estar carregado no runtime.
 
 - [ ] Validar segredos em preview, staging e production.
 - [ ] Confirmar ausencia de segredo em bundle client, logs e respostas publicas.
@@ -241,11 +259,12 @@ Codigo ja fechado:
 ## 16. Dependencies, CI and supply chain
 
 - [ ] Rodar auditoria de dependencias proporcional ao release candidate.
-- [ ] Confirmar branch protection e required checks no remoto.
+- [x] Confirmar branch protection e required checks no remoto.
 - [ ] Confirmar que caches, logs e tokens de automacao seguem privilegio minimo.
 
 Codigo ja fechado:
 
+- [x] `main` exige o check remoto `quality` com branch protection estrita e `enforce_admins` habilitado.
 - [x] `ci.yml` padroniza a porta de qualidade do monorepo
 - [x] `pnpm check` cobre lint, typecheck, test e Knip
 - [x] Husky e lint-staged estao restaurados no baseline local
