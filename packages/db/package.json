@@ -6,6 +6,7 @@
   "scripts": {
     "db:seed": "tsx src/seed.ts",
     "db:generate": "drizzle-kit generate",
+    "db:inspect-target": "tsx src/inspect-neon-target.ts",
     "db:migrate": "tsx migrate.ts",
     "db:push": "drizzle-kit push",
     "db:apply-rls": "tsx src/apply-rls.ts",

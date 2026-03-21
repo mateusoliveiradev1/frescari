@@ -19,19 +19,27 @@ const targets = args.has("--production-only")
   ? ["production"]
   : ["production", "preview"];
 
-const envFiles = [
+const previewEnvFiles = [
   resolve(repoRoot, "apps", "web", ".env.local"),
   resolve(repoRoot, ".env.local"),
   resolve(repoRoot, ".env"),
+];
+
+const productionEnvFile = resolve(repoRoot, ".env.vercel.production");
+
+const envFiles = [
+  ...previewEnvFiles,
   resolve(repoRoot, ".env.vercel.production"),
 ];
 
 const parsedEnvFiles = envFiles.flatMap((filePath) =>
   existsSync(filePath) ? [{ filePath, values: parseEnvFile(filePath) }] : [],
 );
+const parsedEnvFileMap = new Map(
+  parsedEnvFiles.map(({ filePath, values }) => [filePath, values]),
+);
 
 const sharedConfigs = [
-  { key: "DATABASE_URL", sensitive: true },
   { key: "BETTER_AUTH_SECRET", sensitive: true },
   { key: "STRIPE_SECRET_KEY", sensitive: true },
   { key: "STRIPE_WEBHOOK_SECRET", sensitive: true },
@@ -108,6 +116,51 @@ async function main() {
         sensitive: config.sensitive,
         overwrite: existsRemotely,
       });
+    }
+  }
+
+  // Database URLs must stay environment-specific.
+  if (targets.includes("preview")) {
+    const existsRemotely = existingByTarget.get("preview")?.has("DATABASE_URL");
+
+    if (existsRemotely && !overwriteExisting) {
+      logStep("Skipping existing DATABASE_URL in preview");
+    } else {
+      const value = readPreviewValue("DATABASE_URL");
+
+      if (value) {
+        await upsertEnvVar({
+          key: "DATABASE_URL",
+          value,
+          target: "preview",
+          sensitive: true,
+          overwrite: existsRemotely,
+        });
+      }
+    }
+  }
+
+  if (targets.includes("production")) {
+    const existsRemotely = existingByTarget.get("production")?.has("DATABASE_URL");
+
+    if (existsRemotely && !overwriteExisting) {
+      logStep("Skipping existing DATABASE_URL in production");
+    } else {
+      const value = readProductionDatabaseValue();
+
+      if (!value) {
+        logStep(
+          "No production source found for DATABASE_URL; skipping production database configuration",
+        );
+      } else {
+        await upsertEnvVar({
+          key: "DATABASE_URL",
+          value,
+          target: "production",
+          sensitive: true,
+          overwrite: existsRemotely,
+        });
+      }
     }
   }
 
@@ -248,6 +301,32 @@ function readSharedValue(key) {
   return null;
 }
 
+function readPreviewValue(key) {
+  const explicitOverride = sanitizeValue(process.env[`VERCEL_PREVIEW_${key}`]);
+
+  if (explicitOverride) {
+    return explicitOverride;
+  }
+
+  const directValue = sanitizeValue(process.env[key]);
+
+  if (directValue) {
+    return directValue;
+  }
+
+  return readValueFromFiles(key, previewEnvFiles);
+}
+
+function readProductionDatabaseValue() {
+  const explicitOverride = sanitizeValue(process.env.VERCEL_PRODUCTION_DATABASE_URL);
+
+  if (explicitOverride) {
+    return explicitOverride;
+  }
+
+  return readValueFromFiles("DATABASE_URL", [productionEnvFile]);
+}
+
 function readProductionValue(key) {
   const explicitOverride = sanitizeValue(
     process.env[`VERCEL_PRODUCTION_${key}`],
@@ -257,14 +336,29 @@ function readProductionValue(key) {
     return explicitOverride;
   }
 
-  for (const source of parsedEnvFiles) {
-    const value = sanitizeValue(source.values[key]);
+  const productionValue = readValueFromFiles(key, [productionEnvFile], {
+    skipLocalhost: true,
+  });
+
+  if (productionValue) {
+    return productionValue;
+  }
+
+  return readValueFromFiles(key, previewEnvFiles, { skipLocalhost: true });
+}
+
+function readValueFromFiles(key, filePaths, options = {}) {
+  const { skipLocalhost = false } = options;
+
+  for (const filePath of filePaths) {
+    const values = parsedEnvFileMap.get(filePath);
+    const value = sanitizeValue(values?.[key]);
 
     if (!value) {
       continue;
     }
 
-    if (/localhost|127\.0\.0\.1/i.test(value)) {
+    if (skipLocalhost && /localhost|127\.0\.0\.1/i.test(value)) {
       continue;
     }
 
