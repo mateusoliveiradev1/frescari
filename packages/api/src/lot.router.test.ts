@@ -17,6 +17,7 @@ type ProducerContextUser = {
 type LotCaller = {
   lot: {
     create: (input: unknown) => Promise<unknown>;
+    getAvailableLots: (input: unknown) => Promise<Array<{ id: string }>>;
   };
 };
 
@@ -124,4 +125,112 @@ test("lot.create rejects cross-tenant product references", async () => {
   );
 
   assert.equal(insertAttempts, 0);
+});
+
+test("lot.getAvailableLots hides sellers without Stripe Connect when connect mode is enabled", async () => {
+  const originalStripeConnectMode = process.env.STRIPE_CONNECT_MODE;
+  process.env.STRIPE_CONNECT_MODE = "connect";
+
+  const mockRows = [
+    {
+      lot: {
+        id: "lot-with-connect",
+        lotCode: "LOT-CONNECT",
+        availableQty: "12",
+        expiryDate: "2026-03-30",
+        harvestDate: "2026-03-20",
+        freshnessScore: 82,
+        imageUrl: null,
+        priceOverride: null,
+        pricingType: "UNIT",
+        unit: "kg",
+      },
+      product: {
+        id: "product-1",
+        farmId: "farm-1",
+        isActive: true,
+        name: "Tomate",
+        saleUnit: "kg",
+        images: [],
+        pricePerUnit: "14.90",
+        pricingType: "UNIT",
+      },
+      farmName: "Fazenda Conectada",
+      farmAddress: { city: "Sao Paulo", state: "SP" },
+      farmLocation: null,
+      deliveryRadiusKm: 120,
+      categorySlug: "legumes",
+      categoryName: "Legumes",
+      categoryDescription: null,
+      sellerStripeAccountId: "acct_connected_123",
+    },
+    {
+      lot: {
+        id: "lot-without-connect",
+        lotCode: "LOT-NOCONNECT",
+        availableQty: "9",
+        expiryDate: "2026-03-28",
+        harvestDate: "2026-03-18",
+        freshnessScore: 79,
+        imageUrl: null,
+        priceOverride: null,
+        pricingType: "UNIT",
+        unit: "kg",
+      },
+      product: {
+        id: "product-2",
+        farmId: "farm-2",
+        isActive: true,
+        name: "Cebola",
+        saleUnit: "kg",
+        images: [],
+        pricePerUnit: "9.90",
+        pricingType: "UNIT",
+      },
+      farmName: "Fazenda Sem Connect",
+      farmAddress: { city: "Campinas", state: "SP" },
+      farmLocation: null,
+      deliveryRadiusKm: 80,
+      categorySlug: "hortifruti",
+      categoryName: "Hortifruti",
+      categoryDescription: null,
+      sellerStripeAccountId: null,
+    },
+  ];
+
+  const db = withRlsMockDb({
+    transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        execute: async () => [],
+        select() {
+          const chain = {
+            from() {
+              return chain;
+            },
+            leftJoin() {
+              return chain;
+            },
+            where: async () => mockRows,
+          };
+
+          return chain;
+        },
+      }),
+  });
+
+  try {
+    const caller = await createLotCaller(db);
+    const result = await (caller as LotCaller).lot.getAvailableLots({});
+
+    assert.deepEqual(
+      result.map((lot) => lot.id),
+      ["lot-with-connect"],
+    );
+  } finally {
+    if (originalStripeConnectMode === undefined) {
+      delete process.env.STRIPE_CONNECT_MODE;
+    } else {
+      process.env.STRIPE_CONNECT_MODE = originalStripeConnectMode;
+    }
+  }
 });

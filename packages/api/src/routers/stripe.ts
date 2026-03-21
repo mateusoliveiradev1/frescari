@@ -50,6 +50,62 @@ function resolveProducerStripeBusinessType(): "individual" | "company" {
   return "individual";
 }
 
+function getStripeConnectSetupErrorMessage(error: unknown): string | null {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message
+      : "";
+
+  if (/responsibilities of managing losses/i.test(message)) {
+    return "O Stripe Connect da plataforma ainda nao esta liberado no modo live. No Dashboard da Stripe, acesse Configuracoes > Connect > Perfil da plataforma e revise as responsabilidades por perdas antes de tentar novamente.";
+  }
+
+  return null;
+}
+
+function isIncompleteStripeOnboardingLoginLinkError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message
+      : "";
+
+  return /cannot create a login link for an account that has not completed onboarding/i.test(
+    message,
+  );
+}
+
+async function createStripeAccountOnboardingLink(accountId: string) {
+  return getStripeClient().accountLinks.create({
+    account: accountId,
+    refresh_url: `${APP_URL}/dashboard/vendas`,
+    return_url: `${APP_URL}/dashboard/vendas`,
+    type: "account_onboarding",
+  });
+}
+
+async function createStripeResumeUrlForAccount(accountId: string) {
+  try {
+    const loginLink =
+      await getStripeClient().accounts.createLoginLink(accountId);
+    return loginLink.url;
+  } catch (error) {
+    if (!isIncompleteStripeOnboardingLoginLinkError(error)) {
+      throw error;
+    }
+
+    const onboardingLink = await createStripeAccountOnboardingLink(accountId);
+    return onboardingLink.url;
+  }
+}
+
 export const stripeRouter = createTRPCRouter({
   createStripeConnect: producerProcedure
     .input(z.object({}))
@@ -100,10 +156,9 @@ export const stripeRouter = createTRPCRouter({
 
         // Se já possuir uma conta conectada
         if (tenant.stripeAccountId) {
-          const loginLink = await getStripeClient().accounts.createLoginLink(
-            tenant.stripeAccountId,
-          );
-          return { url: loginLink.url };
+          return {
+            url: await createStripeResumeUrlForAccount(tenant.stripeAccountId),
+          };
         }
 
         // Se não possuir conta Stripe
@@ -136,16 +191,21 @@ export const stripeRouter = createTRPCRouter({
           .set({ stripeAccountId: account.id })
           .where(eq(tenants.id, tenantId));
 
-        const accountLink = await getStripeClient().accountLinks.create({
-          account: account.id,
-          refresh_url: `${APP_URL}/dashboard/vendas`,
-          return_url: `${APP_URL}/dashboard/vendas`,
-          type: "account_onboarding",
-        });
+        const accountLink = await createStripeAccountOnboardingLink(account.id);
 
         return { url: accountLink.url };
       } catch (error) {
         if (error instanceof TRPCError) throw error;
+
+        const stripeSetupMessage = getStripeConnectSetupErrorMessage(error);
+        if (stripeSetupMessage) {
+          console.error("[STRIPE_DEBUG]", error);
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: stripeSetupMessage,
+            cause: error,
+          });
+        }
 
         console.error("[STRIPE_DEBUG]", error);
         throw new TRPCError({

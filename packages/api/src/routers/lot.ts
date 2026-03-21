@@ -13,6 +13,7 @@ import {
   productCategories,
   productLots,
   products,
+  tenants,
 } from "@frescari/db";
 import { and, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -21,6 +22,7 @@ import { z } from "zod";
 import { safeRevalidatePath } from "../cache";
 import { calculateLotPriceAndStatus } from "../utils/lot-status";
 import { resolveEffectiveSaleUnit } from "../sale-units";
+import { isPlatformOnlyStripeMode } from "../stripe-connect-mode";
 
 const formatDateOnly = (value: string | Date) => {
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -268,10 +270,12 @@ export const lotRouter = createTRPCRouter({
               categorySlug: productCategories.slug,
               categoryName: productCategories.name,
               categoryDescription: productCategories.seoDescription,
+              sellerStripeAccountId: tenants.stripeAccountId,
             })
             .from(productLots)
             .leftJoin(products, eq(productLots.productId, products.id))
             .leftJoin(farms, eq(products.farmId, farms.id))
+            .leftJoin(tenants, eq(productLots.tenantId, tenants.id))
             .leftJoin(
               productCategories,
               eq(products.categoryId, productCategories.id),
@@ -284,7 +288,14 @@ export const lotRouter = createTRPCRouter({
             : baseQuery.where(activeProductLotWhere());
         });
 
+        const requiresConnectedProducer = !isPlatformOnlyStripeMode();
+
         return results
+          .filter((row) =>
+            requiresConnectedProducer
+              ? Boolean(row.sellerStripeAccountId)
+              : true,
+          )
           .filter((row) => row.product?.isActive !== false)
           .map((row) => buildCatalogLot(row))
           .filter(
