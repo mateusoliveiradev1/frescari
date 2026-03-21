@@ -12,11 +12,15 @@
     "test": "turbo test",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
     "typecheck": "turbo typecheck",
+    "vercel:env:setup": "node scripts/setup-vercel-env.mjs",
     "worker:lot-freshness": "powershell -ExecutionPolicy Bypass -File scripts/start-lot-freshness-worker.ps1",
     "worker:lot-freshness:run-once": "powershell -ExecutionPolicy Bypass -File scripts/start-lot-freshness-worker.ps1 -RunOnce",
     "worker:notifications": "pnpm --filter @frescari/api run worker:notifications",
     "worker:notifications:run-once": "pnpm --filter @frescari/api run worker:notifications:run-once",
     "prepare": "husky"
+  },
+  "engines": {
+    "node": "22.x"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.3",

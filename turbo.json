@@ -3,6 +3,7 @@
     "globalEnv": [
         "DATABASE_ADMIN_URL",
         "DATABASE_URL",
+        "CRON_SECRET",
         "UPLOADTHING_TOKEN",
         "BETTER_AUTH_SECRET",
         "BETTER_AUTH_URL",

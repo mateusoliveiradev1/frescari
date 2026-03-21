@@ -11,6 +11,9 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.5.3",
     "@frescari/api": "workspace:^",
