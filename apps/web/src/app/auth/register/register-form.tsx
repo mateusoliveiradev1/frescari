@@ -74,6 +74,8 @@ function StatusAlert({
 
 export function RegisterForm() {
   const router = useRouter();
+  const genericRegisterError =
+    "Nao foi possivel concluir o cadastro agora. Revise os dados e tente novamente.";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -119,31 +121,23 @@ export function RegisterForm() {
         onError: (context) => {
           const code = context.error.code ?? "";
           const messageMap: Record<string, string> = {
-            USER_ALREADY_EXISTS:
-              "Este email ja esta cadastrado. Tente entrar com sua conta atual.",
             INVALID_EMAIL: "Use um email valido para continuar.",
             PASSWORD_TOO_SHORT: "A senha precisa ter pelo menos 6 caracteres.",
             WEAK_PASSWORD:
               "Use uma senha mais forte, combinando letras e numeros.",
+            TOO_MANY_REQUESTS:
+              "Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente.",
             [LEGAL_CONSENT_REQUIRED_CODE]:
               "Para criar a conta, aceite os documentos juridicos da plataforma.",
             [LEGAL_VERSION_MISMATCH_CODE]:
               "Os documentos juridicos foram atualizados. Recarregue a pagina e confirme novamente.",
           };
 
-          setError(
-            messageMap[code] ||
-              context.error.message ||
-              "Nao foi possivel concluir o cadastro.",
-          );
+          setError(messageMap[code] || genericRegisterError);
         },
       });
-    } catch (caughtError: unknown) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Erro inesperado ao criar a conta.",
-      );
+    } catch {
+      setError(genericRegisterError);
     } finally {
       setLoading(false);
     }

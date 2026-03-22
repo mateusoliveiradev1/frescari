@@ -54,6 +54,8 @@ function ErrorAlert({ message }: { message: string }) {
 }
 
 export function LoginForm() {
+  const genericLoginError =
+    "Nao foi possivel entrar. Revise suas credenciais e tente novamente.";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -85,21 +87,14 @@ export function LoginForm() {
                 window.location.href = "/dashboard";
               });
           },
-          onError: (context) => {
-            setError(
-              context.error.message ||
-                "Nao foi possivel entrar. Revise email e senha e tente novamente.",
-            );
+          onError: () => {
+            setError(genericLoginError);
             setLoading(false);
           },
         },
       );
-    } catch (caughtError: unknown) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Erro inesperado ao iniciar a sessao.",
-      );
+    } catch {
+      setError(genericLoginError);
       setLoading(false);
     }
   };

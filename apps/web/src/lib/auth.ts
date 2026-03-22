@@ -15,15 +15,47 @@ import {
 } from "@/lib/legal-consent";
 import { LEGAL_VERSION } from "@/lib/legal-documents";
 
+const isProduction = process.env.NODE_ENV === "production";
+const authBaseUrl =
+  getConfiguredUrl(process.env.BETTER_AUTH_URL) ||
+  getConfiguredUrl(process.env.NEXT_PUBLIC_BETTER_AUTH_URL) ||
+  getConfiguredUrl(process.env.NEXT_PUBLIC_APP_URL) ||
+  getAppUrl();
+const localTrustedOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
+
+function toUniqueValues(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter(Boolean) as string[]));
+}
+
+function getRequestOrigin(request?: Request): string | null {
+  if (!request) {
+    return null;
+  }
+
+  try {
+    return new URL(request.url).origin;
+  } catch {
+    return null;
+  }
+}
+
+function getTrustedOrigins(request?: Request) {
+  return toUniqueValues([
+    authBaseUrl,
+    getConfiguredUrl(process.env.BETTER_AUTH_URL),
+    getConfiguredUrl(process.env.NEXT_PUBLIC_BETTER_AUTH_URL),
+    getConfiguredUrl(process.env.NEXT_PUBLIC_APP_URL),
+    getRequestOrigin(request),
+    ...(isProduction ? [] : localTrustedOrigins),
+  ]);
+}
+
 export const auth = betterAuth({
   secret:
     sanitizeEnvValue(process.env.BETTER_AUTH_SECRET) ||
     "dummy-secret-for-build-time-only-123",
-  baseURL:
-    getConfiguredUrl(process.env.BETTER_AUTH_URL) ||
-    getConfiguredUrl(process.env.NEXT_PUBLIC_BETTER_AUTH_URL) ||
-    getConfiguredUrl(process.env.NEXT_PUBLIC_APP_URL) ||
-    getAppUrl(),
+  baseURL: authBaseUrl,
+  trustedOrigins: (request) => getTrustedOrigins(request),
   database: drizzleAdapter(authDb, {
     provider: "pg",
     usePlural: true,
@@ -49,6 +81,30 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+  },
+  rateLimit: {
+    enabled: isProduction,
+    window: 60,
+    max: 30,
+    customRules: {
+      "/sign-in/email": {
+        window: 60,
+        max: 5,
+      },
+      "/sign-up/email": {
+        window: 600,
+        max: 5,
+      },
+    },
+  },
+  advanced: {
+    useSecureCookies: isProduction,
+  },
+  defaultCookieAttributes: {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: isProduction,
   },
   databaseHooks: {
     user: {

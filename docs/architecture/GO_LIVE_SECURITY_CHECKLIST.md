@@ -1,11 +1,20 @@
 # Go-Live Security Checklist
 
-> Checklist operacional definitiva do go-live web do Frescari.
-> Atualizado em 2026-03-20.
+> Checklist operacional de seguranca do go-live web do Frescari.
+> Atualizado em 2026-03-22.
 > Status do codigo: SELADO.
 > Status operacional do go-live: ABERTO.
+> Decisao atual: NO-GO ate fechar exposicao publica final, rodada ofensiva proporcional e confirmacao final do backup gerenciado na Neon.
 
-## 0. Leitura correta do status
+## 0. Papel deste documento e leitura correta do status
+
+### Papel documental
+
+- [x] Este arquivo consolida a trilha de seguranca, as evidencias e a decisao operacional desta frente de go-live.
+- [x] Este arquivo nao substitui planos mestres, runbooks ou docs funcionais como fonte unica de verdade do produto.
+- [x] `docs/MVP_CLOSURE_PLAN.md` continua como resumo de fechamento do MVP.
+- [x] `docs/architecture/LAUNCH_V1_MASTER_PLAN.md` continua como plano estrategico e nao redefine a regra de release desta fase.
+- [x] A decisao de `GO`, `GO WITH FIXES SCHEDULED` ou `NO-GO` desta frente de seguranca fica registrada aqui.
 
 ### O que "Status do codigo: SELADO" significa
 
@@ -17,14 +26,28 @@
 - [x] O baseline local de qualidade foi restaurado em 2026-03-20 e `pnpm check` esta verde.
 - [x] A malha E2E do core web cobre comprador, fazenda e entregas com `pnpm --filter web test:e2e` verde.
 - [x] Os cron jobs operacionais do app web estao versionados em `vercel.json`.
+- [x] `apps/web/src/lib/auth.ts` agora aplica `trustedOrigins`, atributos seguros de cookie e rate limit dedicado para auth.
+- [x] `apps/web/src/app/auth/login/login-form.tsx` e `apps/web/src/app/auth/register/register-form.tsx` ocultam detalhes sensiveis do backend no cliente.
+- [x] `apps/web/src/app/api/auth/[...all]/route.ts` mascara cadastro duplicado para evitar enumeracao no nivel da API.
+- [x] `apps/web/src/app/api/auth/[...all]/route.ts` remove o `token` do corpo JSON de `sign-in/email` e `sign-up/email`, preservando a sessao apenas no cookie `HttpOnly`.
 
 ### O que continua aberto antes de dizer GO
 
 - [x] rodar o `build` final do release candidate
-- [ ] concluir a configuracao das variaveis de ambiente e segredos na nuvem
-- [ ] validar segredos e ambientes remotos
+- [x] concluir a configuracao das variaveis de ambiente e segredos na nuvem
+- [ ] validar o comportamento remoto final no custom domain publico, com HTTPS, sem bypass e sem abrir os aliases atuais
 - [ ] executar a rodada ofensiva proporcional ao MVP
-- [ ] registrar evidencia de backup, restore e recovery operacional
+- [ ] confirmar o backup gerenciado do provedor e registrar a evidencia final do restore window/snapshots
+
+### Situacao consolidada em 2026-03-22
+
+- [x] O fix de catalogo publico para `STRIPE_CONNECT_MODE=connect` foi merged no PR `#45`.
+- [x] `pnpm build` passou localmente na rodada final de release candidate em 2026-03-22.
+- [x] `pnpm --filter web test:e2e` passou com `11/11` na mesma rodada.
+- [x] Os checks remotos de `quality` e Vercel passaram no PR `#45` antes do merge.
+- [x] A validacao remota de auth foi executada em preview protegido com bypass controlado no deploy `https://frescari-staging-jpo85t3f0-mateusoliveiradev1s-projects.vercel.app`.
+- [ ] A validacao remota final do app em URL publica ainda nao foi encerrada porque a estrategia escolhida e manter a protection nos aliases atuais e abrir apenas o futuro custom domain.
+- [ ] A rodada ofensiva proporcional e a confirmacao final do backup gerenciado da Neon seguem sem registro final.
 
 ## 1. Objective
 
@@ -95,11 +118,16 @@ O go-live web so pode acontecer quando:
 
 ## 4. Auth, session and cookies
 
-- [ ] Confirmar expiracao de sessao, logout, revogacao e comportamento apos troca de tenant ou role.
-- [ ] Confirmar que cookies de sessao usam `HttpOnly`, `Secure` em producao e `SameSite` intencional.
-- [ ] Confirmar que login, register e callbacks nao permitem open redirect.
-- [ ] Confirmar que erros de autenticacao nao enumeram conta, tenant ou estado interno.
-- [ ] Confirmar rate limit e throttling nas entradas de auth e nos callbacks publicos.
+- [x] Confirmar criacao de sessao, login e logout remoto com `Origin` legitima.
+- [ ] Confirmar expiracao, revogacao e comportamento apos troca de tenant ou role.
+- [x] Confirmar que cookies de sessao usam `HttpOnly`, `Secure` em producao e `SameSite` intencional.
+- [x] O fluxo exposto desta rodada e apenas email/senha, sem OAuth, magic link ou redirect param controlado pelo cliente no caminho principal.
+- [ ] Revalidar open redirect se callbacks ou provedores externos forem adicionados antes da abertura publica.
+- [x] Confirmar que login e register nao enumeram existencia de conta nos cenarios exercitados.
+- [x] O corpo JSON de `sign-in/email` e `sign-up/email` nao expõe mais o token de sessao em respostas de sucesso.
+- [ ] Confirmar que callbacks e demais erros de auth nao vazam tenant, role ou estado interno adicional.
+- [x] Confirmar rate limit e throttling nas entradas de auth.
+- [ ] Confirmar throttling nos callbacks publicos.
 - [ ] Confirmar que nenhuma rota protegida depende apenas de hide/show na UI.
 
 Evidencia minima:
@@ -108,10 +136,16 @@ Evidencia minima:
 - walkthrough manual de login/logout
 - nota curta sobre redirects e mensagens de erro
 
-Evidencia parcial ja coletada em 2026-03-20:
+Evidencia remota consolidada em 2026-03-22:
 
-- GET anonimo em `/auth/login` retornou `200` com `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Permissions-Policy` e `Referrer-Policy`.
-- A validacao de cookies de sessao permanece pendente porque ainda falta walkthrough com login real.
+- GET anonimo em `/auth/login` no preview endurecido retornou `200` com `Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Permissions-Policy`, `Referrer-Policy` e `X-Robots-Tag: noindex`.
+- POST invalido em `/api/auth/sign-in/email` retornou mensagem generica `Invalid email or password`, sem distinguir existencia de conta.
+- Em 2026-03-22, a suite `pnpm --filter web test` passou com regressao cobrindo a remocao do `token` do corpo de `sign-in/email` e `sign-up/email` sem perder `set-cookie`.
+- Repeticao rapida de POST invalido em `/api/auth/sign-in/email` passou a responder `Too many requests. Please try again later.`, confirmando throttling real na superficie de login.
+- POST valido em `/api/auth/sign-up/email` com `acceptedLegalVersion=2026-03-21-v1` retornou `200` e `Set-Cookie: __Secure-better-auth.session_token=...; HttpOnly; Secure; SameSite=Lax`.
+- POST duplicado em `/api/auth/sign-up/email` no preview corrigido agora retorna `{"message":"Nao foi possivel concluir o cadastro agora. Revise os dados e tente novamente.","code":"SIGN_UP_FAILED"}`, sem vazar existencia de conta.
+- POST em `/api/auth/sign-out` sem `Origin` retornou `403` com `MISSING_OR_NULL_ORIGIN`; com `Origin` legitima do proprio deployment retornou `200` e limpou `__Secure-better-auth.session_token`, `__Secure-better-auth.session_data` e `__Secure-better-auth.dont_remember` com `Max-Age=0`.
+- O runtime de sucesso de `sign-up/sign-in` continua retornando `token` no JSON alem do cookie `HttpOnly`; tratar esse comportamento como parte da revisao residual de frontend/XSS antes do go-live publico.
 
 ## 5. Authorization, RBAC and tenant isolation
 
@@ -126,6 +160,7 @@ Codigo ja fechado:
 - [x] As tabelas core multi-tenant operam com RLS ativa e forcada.
 - [x] O runtime principal e o runtime de auth/webhook usam a mesma role restrita.
 - [x] Existe cobertura automatizada para regressao cross-tenant nas entidades sensiveis do fluxo principal.
+- [x] Em 2026-03-22 a regressao do catalogo publico em Connect foi corrigida sem reabrir bypass amplo de leitura no runtime.
 
 Evidencia minima:
 
@@ -231,22 +266,46 @@ Codigo ja fechado:
 
 ## 15. Secrets and configuration
 
-Proxima acao operacional imediata: concluir a validacao final remota e decidir se `preview` recebera URLs publicas explicitas ou se o fallback atual por `VERCEL_URL` sera mantido como padrao operacional.
+Decisao operacional assumida em 2026-03-22: manter a deployment protection nos aliases `*.vercel.app` e expor o app apenas pelo custom domain oficial quando ele for comprado e configurado.
 
-Snapshot remoto consolidado em 2026-03-21:
+Snapshot remoto consolidado em 2026-03-22:
 
 - [x] `production` no Vercel ja tem a base critica de configuracao para auth, banco, Stripe, UploadThing e URLs publicas do app.
+- [x] `preview` no Vercel ja tem `DATABASE_URL`, `BETTER_AUTH_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `UPLOADTHING_TOKEN`, `STRIPE_CONNECT_MODE` e `CRON_SECRET`.
 - [x] O ambiente `staging` no GitHub Actions ja tem `DATABASE_ADMIN_URL` para o workflow de deploy de schema com RLS.
-- [ ] `preview` ainda nao tem URLs publicas explicitas para auth/app/tRPC; hoje o runtime depende de fallback por `VERCEL_URL` e isso ainda precisa de alinhamento intencional.
+- [x] O ambiente `staging` no GitHub Actions ja tem `EXPECTED_STAGING_NEON_BRANCH_ID` para inspecao do target correto.
+- [ ] O projeto ainda nao tem custom domains configurados; com `ssoProtection.deploymentType = all_except_custom_domains`, todos os aliases atuais permanecem protegidos fora do bypass controlado.
+- [x] O app ja tem fallback por `VERCEL_URL` para app/auth/tRPC em `apps/web/src/lib/app-url.ts`, `apps/web/src/lib/auth.ts`, `apps/web/src/lib/auth-client.ts` e `apps/web/src/trpc/Provider.tsx`.
 - [x] `CRON_SECRET` foi gerado automaticamente e injetado via CLI no Vercel para `production` e `preview`, sem uso de painel manual.
-- [x] O runtime efetivo do deploy de producao foi alinhado para Node.js `22.x` por override em `package.json`; o log da Vercel invalidou o cache ao detectar a troca de `24.x` para `22.x`.
+- [x] O projeto Vercel `frescari-staging` foi alinhado para `Node.js 22.x` em 2026-03-22 por configuracao remota.
+- [x] O preview endurecido `https://frescari-staging-jpo85t3f0-mateusoliveiradev1s-projects.vercel.app` foi usado com `vercel curl` para validacao remota de headers e auth.
+
+Regras operacionais definidas para exposicao publica:
+
+- [x] Nao remover a protection atual dos aliases `*.vercel.app`.
+- [x] Nao tratar preview protegido como URL publica definitiva.
+- [x] Usar o custom domain oficial como unica superficie publica do go-live.
+- [x] Reexecutar a rodada final de validacao publica apenas depois que o custom domain estiver ativo com HTTPS funcional.
 
 Evidencia coletada:
 
 - Em 2026-03-20, GET remoto em `/api/cron/freshness` retornou `500` com payload `CRON_SECRET is not configured.`.
 - Em 2026-03-21, apos bootstrap zero-touch + novo deploy, GET remoto em `/api/cron/freshness` retornou `401` com payload `Unauthorized cron invocation.`, confirmando que o segredo passou a estar carregado no runtime.
+- Em 2026-03-22, `vercel env ls` confirmou a presenca dos segredos criticos em `preview` e `production`.
+- Em 2026-03-22, `gh secret list --env staging` confirmou `DATABASE_ADMIN_URL` e `gh variable list --env staging` confirmou `EXPECTED_STAGING_NEON_BRANCH_ID`.
+- Em 2026-03-22, `vercel project inspect` e a API de projeto confirmaram `nodeVersion=22.x`.
+- Em 2026-03-22, a API de projeto confirmou `ssoProtection.deploymentType=all_except_custom_domains` e a API de dominios retornou `domains=[]`.
 
-- [ ] Validar segredos em preview, staging e production.
+Runbook quando o dominio for comprado:
+
+1. Adicionar o custom domain ao projeto Vercel `frescari-staging`.
+2. Apontar DNS, esperar validacao e confirmar HTTPS ativo no dominio final.
+3. Alinhar `BETTER_AUTH_URL`, `NEXT_PUBLIC_BETTER_AUTH_URL` e `NEXT_PUBLIC_APP_URL` para o custom domain.
+4. Fazer novo deploy e repetir walkthrough publico de `/`, `/catalogo`, `/auth/login`, `/auth/register`, checkout e logout no dominio final.
+5. So depois dessa rodada reavaliar a decisao de `GO` desta checklist.
+
+- [x] Inventariar segredos e variaveis criticas em `preview`, `staging` e `production`.
+- [ ] Validar o comportamento remoto final desses ambientes no custom domain publico, sem bypass e sem abrir os aliases protegidos.
 - [ ] Confirmar ausencia de segredo em bundle client, logs e respostas publicas.
 - [ ] Confirmar estrategia minima de rotacao para segredos criticos.
 
@@ -277,10 +336,16 @@ Codigo ja fechado:
 
 ## 18. Data protection, backup and recovery
 
-- [ ] Confirmar backup de banco e assets criticos.
-- [ ] Confirmar restore testado ou procedimento de restore ensaiado.
-- [ ] Confirmar estrategia de rollback operacional para auth, checkout e webhook.
+- [ ] Confirmar backup gerenciado de banco e assets criticos no provedor.
+- [x] Confirmar restore testado ou procedimento de restore ensaiado.
+- [x] Confirmar estrategia de rollback operacional para auth, checkout e webhook.
 - [ ] Confirmar recovery de pedidos, pagamentos e notificacoes apos incidente.
+
+Evidencia coletada em 2026-03-22:
+
+- [x] `docs/operations/BACKUP_RESTORE_RECOVERY_RUNBOOK.md` versiona o procedimento minimo de backup, restore e rollback.
+- [x] `pnpm --filter @frescari/db db:recovery-rehearsal` executou com `exit 0`, criou um schema isolado temporario e reconciliou as contagens das tabelas criticas sem tocar no schema `public`.
+- [ ] A captura do restore window/snapshots da Neon ainda depende de acesso ao console do provedor e nao foi anexada nesta rodada.
 
 ## 19. Proportional offensive validation
 
@@ -306,3 +371,14 @@ Registrar ao final:
 - evidencias coletadas
 - bloqueadores encontrados
 - decisao final: `GO`, `GO WITH FIXES SCHEDULED` ou `NO-GO`
+
+Regra de fechamento:
+
+- enquanto este bloco final nao for atualizado com uma decisao nova, este documento continua sendo o registro vigente da decisao de seguranca do go-live
+- nenhum resumo paralelo deve sobrescrever a decisao de seguranca registrada aqui
+
+### Status do momento em 2026-03-22
+
+- Decisao atual: `NO-GO`
+- Frentes ja fechadas nesta rodada: baseline de codigo; hardening de auth com `trustedOrigins`, cookies seguros e rate limit; mascara anti-enumeracao em cadastro; remoção do `token` do corpo de `sign-in/sign-up`; validacao remota de sign-up/sign-in/sign-out em preview endurecido; fix do catalogo Connect; inventario de segredos; checks remotos do PR `#45`; ensaio versionado de restore/recovery com `db:recovery-rehearsal`; decisao operacional de manter aliases protegidos e publicar apenas no custom domain.
+- Bloqueadores operacionais remanescentes: custom domain ainda nao configurado e sem walkthrough publico final; rodada ofensiva proporcional ao MVP; confirmacao do backup gerenciado e restore window na Neon; revisao residual de callbacks publicos.
