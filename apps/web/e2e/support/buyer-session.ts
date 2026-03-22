@@ -164,6 +164,7 @@ function isoDateOffset(days) {
         slug: \`\${makeSlug(sellerName)}-\${suffix}\`,
         type: "PRODUCER",
         plan: "pro",
+        stripeAccountId: \`acct_e2e_primary_\${suffix}\`,
       })
       .returning({ id: tenants.id });
 
@@ -174,6 +175,7 @@ function isoDateOffset(days) {
         slug: \`\${makeSlug(secondarySellerName)}-\${suffix}\`,
         type: "PRODUCER",
         plan: "pro",
+        stripeAccountId: \`acct_e2e_secondary_\${suffix}\`,
       })
       .returning({ id: tenants.id });
 
