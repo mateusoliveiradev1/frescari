@@ -97,7 +97,7 @@ export interface SupplierRegionPageData {
   lots: PublicCatalogLot[];
 }
 
-const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> => {
+async function loadAllAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
   const trpc = await getServerTrpc();
   const rows = await trpc.lot.getAvailableLots({});
 
@@ -113,7 +113,10 @@ const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> =
       const productPath = buildProductPath(categorySlug, productSlug);
       const supplierRegionPath =
         farmCity && farmState
-          ? buildSupplierRegionPath(slugifySegment(farmState), slugifySegment(farmCity))
+          ? buildSupplierRegionPath(
+              slugifySegment(farmState),
+              slugifySegment(farmCity),
+            )
           : null;
 
       return {
@@ -123,15 +126,18 @@ const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> =
         farmCity: farmCity || null,
         farmState: farmState || null,
         farmLatitude:
-          typeof row.farmLatitude === "number" && Number.isFinite(row.farmLatitude)
+          typeof row.farmLatitude === "number" &&
+          Number.isFinite(row.farmLatitude)
             ? row.farmLatitude
             : null,
         farmLongitude:
-          typeof row.farmLongitude === "number" && Number.isFinite(row.farmLongitude)
+          typeof row.farmLongitude === "number" &&
+          Number.isFinite(row.farmLongitude)
             ? row.farmLongitude
             : null,
         deliveryRadiusKm:
-          typeof row.deliveryRadiusKm === "number" && Number.isFinite(row.deliveryRadiusKm)
+          typeof row.deliveryRadiusKm === "number" &&
+          Number.isFinite(row.deliveryRadiusKm)
             ? row.deliveryRadiusKm
             : null,
         harvestDate: row.harvestDate,
@@ -170,18 +176,35 @@ const getAllAvailableCatalogLots = cache(async (): Promise<PublicCatalogLot[]> =
 
       return left.finalPrice - right.finalPrice;
     });
-});
+}
+
+const getAllAvailableCatalogLotsCached = cache(loadAllAvailableCatalogLots);
+
+async function getAllAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
+  // In next dev and Playwright runs, the fixture seeds lots after the server
+  // has already booted. Bypassing React cache outside production keeps the
+  // public catalog aligned with the latest DB state without affecting prod.
+  if (process.env.NODE_ENV !== "production") {
+    return loadAllAvailableCatalogLots();
+  }
+
+  return getAllAvailableCatalogLotsCached();
+}
 
 export async function getAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
   return getAllAvailableCatalogLots();
 }
 
-export async function getCategoryStaticParams(): Promise<Array<{ categoria: string }>> {
+export async function getCategoryStaticParams(): Promise<
+  Array<{ categoria: string }>
+> {
   const categories = buildCategorySummaries(await getAllAvailableCatalogLots());
   return categories.map((category) => ({ categoria: category.slug }));
 }
 
-export async function getProductStaticParams(): Promise<Array<{ categoria: string; produto: string }>> {
+export async function getProductStaticParams(): Promise<
+  Array<{ categoria: string; produto: string }>
+> {
   const products = buildProductSummaries(await getAllAvailableCatalogLots());
   return products.map((product) => ({
     categoria: product.categorySlug,
@@ -192,7 +215,9 @@ export async function getProductStaticParams(): Promise<Array<{ categoria: strin
 export async function getSupplierRegionStaticParams(): Promise<
   Array<{ estado: string; cidade: string }>
 > {
-  const regions = buildSupplierRegionSummaries(await getAllAvailableCatalogLots());
+  const regions = buildSupplierRegionSummaries(
+    await getAllAvailableCatalogLots(),
+  );
 
   return regions.map((region) => ({
     estado: region.stateSlug,
@@ -200,7 +225,9 @@ export async function getSupplierRegionStaticParams(): Promise<
   }));
 }
 
-export async function getCategoryPageData(categorySlug: string): Promise<CategoryPageData | null> {
+export async function getCategoryPageData(
+  categorySlug: string,
+): Promise<CategoryPageData | null> {
   const filteredLots = (await getAllAvailableCatalogLots()).filter(
     (lot) => lot.categorySlug === categorySlug,
   );
@@ -228,7 +255,8 @@ export async function getProductPageData(
   productSlug: string,
 ): Promise<ProductPageData | null> {
   const filteredLots = (await getAllAvailableCatalogLots()).filter(
-    (lot) => lot.categorySlug === categorySlug && lot.productSlug === productSlug,
+    (lot) =>
+      lot.categorySlug === categorySlug && lot.productSlug === productSlug,
   );
 
   if (filteredLots.length === 0) {
@@ -282,7 +310,9 @@ export async function getSupplierRegionPageData(
   };
 }
 
-export function buildCategorySummaries(lots: PublicCatalogLot[]): CatalogCategorySummary[] {
+export function buildCategorySummaries(
+  lots: PublicCatalogLot[],
+): CatalogCategorySummary[] {
   const categories = new Map<string, PublicCatalogLot[]>();
 
   for (const lot of lots) {
@@ -304,14 +334,17 @@ export function buildCategorySummaries(lots: PublicCatalogLot[]): CatalogCategor
           categoryLots,
         ),
         path: firstLot.categoryPath,
-        productCount: new Set(categoryLots.map((entry) => entry.productSlug)).size,
+        productCount: new Set(categoryLots.map((entry) => entry.productSlug))
+          .size,
         lotCount: categoryLots.length,
       } satisfies CatalogCategorySummary;
     })
     .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
 }
 
-export function buildProductSummaries(lots: PublicCatalogLot[]): CatalogProductSummary[] {
+export function buildProductSummaries(
+  lots: PublicCatalogLot[],
+): CatalogProductSummary[] {
   const productsBySlug = new Map<string, PublicCatalogLot[]>();
 
   for (const lot of lots) {
@@ -341,7 +374,9 @@ export function buildProductSummaries(lots: PublicCatalogLot[]): CatalogProductS
         lowestPrice: Math.min(...productLots.map((entry) => entry.finalPrice)),
         highestPrice: Math.max(...productLots.map((entry) => entry.finalPrice)),
         offerCount: productLots.length,
-        farmNames: Array.from(new Set(productLots.map((entry) => entry.farmName))),
+        farmNames: Array.from(
+          new Set(productLots.map((entry) => entry.farmName)),
+        ),
       } satisfies CatalogProductSummary;
     })
     .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));

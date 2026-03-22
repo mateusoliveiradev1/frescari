@@ -45,6 +45,7 @@ BEGIN
                 FOR SELECT
                 USING (
                     current_setting('app.bypass_rls', true) = 'on'
+                    OR current_setting('app.allow_catalog_public_read', true) = 'on'
                     OR "id" = nullif(current_setting('app.current_tenant', true), '')::uuid
                     OR EXISTS (
                         SELECT 1
