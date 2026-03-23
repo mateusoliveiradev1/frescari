@@ -1,0 +1,39 @@
+{
+  "categories": [
+    {
+      "slug": "frutas",
+      "name": "Frutas",
+      "seoDescription": "Linha oficial de frutas frescas do catalogo mestre."
+    },
+    {
+      "slug": "folhas",
+      "name": "Folhas",
+      "seoDescription": "Folhas e verduras de alta rotatividade."
+    },
+    {
+      "slug": "raizes",
+      "name": "Raizes",
+      "seoDescription": "Raizes e tuberculos para operacao recorrente."
+    }
+  ],
+  "masterProducts": [
+    {
+      "name": "Banana Prata",
+      "categorySlug": "frutas",
+      "pricingType": "UNIT",
+      "defaultImageUrl": "https://cdn.frescari.com/catalog/banana-prata.png"
+    },
+    {
+      "name": "Alface Crespa",
+      "categorySlug": "folhas",
+      "pricingType": "UNIT",
+      "defaultImageUrl": "https://cdn.frescari.com/catalog/alface-crespa.png"
+    },
+    {
+      "name": "Cenoura Extra",
+      "categorySlug": "raizes",
+      "pricingType": "WEIGHT",
+      "defaultImageUrl": "https://cdn.frescari.com/catalog/cenoura-extra.png"
+    }
+  ]
+}

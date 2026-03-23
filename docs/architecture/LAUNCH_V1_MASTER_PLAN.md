@@ -43,6 +43,9 @@ Em `2026-03-23`, o pacote inicial de endurecimento juridico, auth e onboarding d
 - o checkout deixa de depender apenas de `stripeAccountId` e valida o estado operacional real do produtor antes de abrir pagamento
 - o catalogo ganhou compatibilidade temporaria para produtores legados com `stripeAccountId` e sem primeiro sync, evitando regressao antes do backfill
 - foi criado um CLI operacional para backfill/sync em lote de contas Stripe antigas, com limite, filtro por tenant e relatorio de sucesso/falha
+- foi criado um CLI versionado para promover admin raiz e aplicar bootstrap idempotente de categorias/produtos mestres a partir de manifesto
+- foi criado um CLI de auditoria para medir o legado Stripe ainda sem primeiro sync antes de remover o fallback temporario
+- foi criado um runbook operacional de bootstrap com manifesto exemplo para a carga oficial da base
 - o email de verificacao ganhou fallback visual inline com monograma da marca, evitando dependencia de logo remoto no corpo da mensagem
 - o contrato de ambiente de email passou a declarar tambem `AUTH_EMAIL_FROM_NAME`
 - a regressao de onboarding agora cobre explicitamente que conta nova nasce `buyer` e so vira `producer` por escolha explicita no fluxo
@@ -55,6 +58,8 @@ Pendencias que continuam fora do codigo:
 - configurar `RESEND_API_KEY`, `AUTH_EMAIL_FROM` e `AUTH_EMAIL_FROM_NAME` no ambiente alvo para entrega real dos emails de verificacao
 - validar envio real, callback e reenvio da verificacao de email em `staging` antes de promover
 - rodar o backfill de Stripe Connect no `staging` e validar o resultado antes de promover
+- executar o bootstrap oficial com `launch:bootstrap` no ambiente alvo usando conta verificada e manifesto real
+- rodar a auditoria `stripe:connect:audit-legacy -- --fail-on-legacy` no ambiente alvo antes de remover o fallback legado
 - validar o pacote juridico com revisao de advogado antes do go-live
 - repetir o rollout no ambiente de producao quando a branch final for promovida
 
@@ -66,7 +71,7 @@ Pendencias que continuam fora do codigo:
 - `Fase 3 - Fechada em codigo`: o onboarding do produtor distingue `PF/PJ`, persiste dados minimos reais e sustenta prefill coerente para Stripe; a V1 passa a tratar a prontidao operacional pelo snapshot real do Stripe Connect, sem introduzir um estado interno paralelo extra nesta rodada.
 - `Fase 4 - Fechada em codigo`: o app coleta dados minimos antes da Stripe, cria connected account com prefill coerente, retoma onboarding incompleto sem erro e expoe o estado correto da configuracao no dashboard principal.
 - `Fase 5 - Parcial forte`: checkout, dashboard principal e catalogo ja estao protegidos por estado real ou fallback legado controlado; ainda falta executar o backfill das contas antigas em ambiente real e remover a compatibilidade temporaria quando a base estiver sincronizada.
-- `Fase 6 - Parcial`: admin, categorias e produtos mestres existem, mas o bootstrap real da base oficial continua sendo tarefa operacional.
+- `Fase 6 - Parcial forte`: o caminho versionado de bootstrap ja existe em codigo com CLI, manifesto e runbook; a execucao real da base oficial continua pendente no ambiente alvo.
 - `Fase 7 - Aberta`: revisao juridica, abertura de dominio publico e checklist final seguem em `NO-GO` operacional.
 
 ## 0.3 Etapa atual
@@ -96,7 +101,7 @@ Para fechar todas as fases da V1 sem ambiguidade, a leitura operacional passa a 
 - `Fase 3`: fechada em codigo em `2026-03-23`; para esta V1, a prontidao do produtor fica ancorada em onboarding minimo + snapshot Stripe Connect, sem criar um estado interno paralelo adicional
 - `Fase 4`: fechada em codigo em `2026-03-23`; a validacao manual final do fluxo Frescari -> Stripe -> retorno segue no checklist operacional
 - `Fase 5`: segue aberta; fecha quando o backfill das contas Stripe antigas rodar no ambiente real e a compatibilidade temporaria para contas legadas sem sync puder ser removida
-- `Fase 6`: segue aberta; fecha quando a base oficial tiver admin raiz real, categorias reais e produtos mestres reais criados manualmente
+- `Fase 6`: segue aberta; fecha quando a base oficial tiver admin raiz real, categorias reais e produtos mestres reais aplicados pelo runbook versionado
 - `Fase 7`: segue aberta; fecha quando houver revisao juridica aplicada, custom domain pronto para abertura controlada e checklist final de go-live assinado
 
 ## 1. Objetivo
@@ -151,7 +156,7 @@ Construir a primeira versao realmente pronta para operacao do Frescari, com:
 - prefill de Stripe Connect
 - status operacional real para recebimentos
 - dashboard com travas de compliance
-- bootstrap manual de admin, categorias e produtos mestres
+- bootstrap versionado de admin, categorias e produtos mestres
 
 ### Nao entra nesta V1
 
@@ -336,27 +341,31 @@ Impedir que o sistema trate conta incompleta como conta pronta.
 
 #### Objetivo
 
-Subir a base real de administracao e catalogo sem seeds de teste.
+Subir a base real de administracao e catalogo sem seeds de teste, usando caminho versionado e repetivel.
 
 #### Ordem
 
 1. criar sua conta real
-2. promover sua conta para `admin`
-3. criar categorias manualmente
-4. criar produtos mestres manualmente
-5. so depois abrir cadastro operacional real
+2. verificar email dessa conta
+3. promover sua conta para `admin` via `pnpm --filter @frescari/db launch:bootstrap -- --admin-only ...`
+4. revisar e preencher o manifesto oficial de catalogo
+5. aplicar categorias e produtos mestres via `pnpm --filter @frescari/db launch:bootstrap -- --manifest ...`
+6. rodar `pnpm --filter @frescari/api stripe:connect:audit-legacy -- --fail-on-legacy`
+7. so depois abrir cadastro operacional real
 
 #### Regras
 
 - nada de reaproveitar catalogo de teste
 - categorias antes de produtos mestres
 - taxonomia definida antes do volume operacional
+- toda execucao precisa passar pelo runbook `docs/operations/LAUNCH_BOOTSTRAP_RUNBOOK.md`
 
 #### Regra de saida
 
 - admin raiz operacional pronto
 - categorias reais prontas
 - produtos mestres reais prontos
+- auditoria do legado Stripe executada e registrada
 
 ### Fase 7. Revisao juridica e abertura controlada
 

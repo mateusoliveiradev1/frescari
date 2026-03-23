@@ -14,6 +14,7 @@
 - [x] Este arquivo nao substitui planos mestres, runbooks ou docs funcionais como fonte unica de verdade do produto.
 - [x] `docs/MVP_CLOSURE_PLAN.md` continua como resumo de fechamento do MVP.
 - [x] `docs/architecture/LAUNCH_V1_MASTER_PLAN.md` continua como plano estrategico e nao redefine a regra de release desta fase.
+- [x] `docs/operations/LAUNCH_BOOTSTRAP_RUNBOOK.md` passa a ser o caminho versionado para bootstrap de admin/catalogo e auditoria do legado Stripe.
 - [x] A decisao de `GO`, `GO WITH FIXES SCHEDULED` ou `NO-GO` desta frente de seguranca fica registrada aqui.
 
 ### O que "Status do codigo: SELADO" significa
