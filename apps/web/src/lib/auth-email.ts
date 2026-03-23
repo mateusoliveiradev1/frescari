@@ -1,0 +1,147 @@
+import { sanitizeEnvValue } from "@/lib/env";
+
+const RESEND_API_URL = "https://api.resend.com/emails";
+
+type VerificationEmailUser = {
+  email: string;
+  name: string;
+};
+
+type SendAuthVerificationEmailInput = {
+  user: VerificationEmailUser;
+  url: string;
+};
+
+type AuthVerificationEmailContent = {
+  html: string;
+  subject: string;
+  text: string;
+};
+
+function isProductionEnvironment() {
+  return process.env.NODE_ENV === "production";
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function getResendConfig() {
+  return {
+    apiKey: sanitizeEnvValue(process.env.RESEND_API_KEY),
+    from: sanitizeEnvValue(process.env.AUTH_EMAIL_FROM),
+    fromName: sanitizeEnvValue(process.env.AUTH_EMAIL_FROM_NAME) || "Frescari",
+    replyTo: sanitizeEnvValue(process.env.AUTH_EMAIL_REPLY_TO),
+  };
+}
+
+function formatSenderAddress(from: string, fromName: string) {
+  if (from.includes("<")) {
+    return from;
+  }
+
+  return `${fromName} <${from}>`;
+}
+
+export function buildAuthVerificationEmail({
+  user,
+  url,
+}: SendAuthVerificationEmailInput): AuthVerificationEmailContent {
+  const safeName = escapeHtml(user.name);
+  const safeUrl = escapeHtml(url);
+
+  return {
+    subject: "Confirme seu email para entrar na Frescari",
+    text: [
+      `Oi ${user.name},`,
+      "",
+      "Recebemos um pedido para confirmar o email da sua conta na Frescari.",
+      `Abra este link para liberar seu acesso: ${url}`,
+      "",
+      "Se voce nao reconhece este cadastro, pode ignorar esta mensagem.",
+    ].join("\n"),
+    html: `
+      <div style="background:#f9f6f0;padding:32px;font-family:Arial,sans-serif;color:#231f1b;">
+        <div style="margin:0 auto;max-width:560px;border-radius:24px;background:#ffffff;padding:32px;border:1px solid rgba(35,31,27,0.08);">
+          <p style="margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#0d3321;">
+            Frescari
+          </p>
+          <h1 style="margin:0 0 16px;font-size:32px;line-height:1.05;color:#0d3321;">
+            Confirme seu email
+          </h1>
+          <p style="margin:0 0 12px;font-size:16px;line-height:1.7;">
+            Oi ${safeName},
+          </p>
+          <p style="margin:0 0 24px;font-size:16px;line-height:1.7;">
+            Recebemos um pedido para liberar seu acesso na Frescari. Clique no botao abaixo para confirmar o email da sua conta.
+          </p>
+          <a
+            href="${safeUrl}"
+            style="display:inline-block;border-radius:16px;background:#0d3321;color:#f9f6f0;padding:14px 22px;font-size:15px;font-weight:700;text-decoration:none;"
+          >
+            Confirmar email
+          </a>
+          <p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#5d5248;">
+            Se preferir, copie e cole este link no navegador:<br />
+            <a href="${safeUrl}" style="color:#0d3321;word-break:break-all;">${safeUrl}</a>
+          </p>
+          <p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#5d5248;">
+            Se voce nao reconhece este cadastro, pode ignorar esta mensagem.
+          </p>
+        </div>
+      </div>
+    `.trim(),
+  };
+}
+
+export async function sendAuthVerificationEmail(
+  input: SendAuthVerificationEmailInput,
+) {
+  const { apiKey, from, fromName, replyTo } = getResendConfig();
+
+  if (!apiKey || !from) {
+    if (!isProductionEnvironment()) {
+      console.info(
+        `[auth-email] Verification link for ${input.user.email}: ${input.url}`,
+      );
+      return;
+    }
+
+    throw new Error(
+      "Verification email delivery is not configured. Set RESEND_API_KEY and AUTH_EMAIL_FROM.",
+    );
+  }
+
+  const email = buildAuthVerificationEmail(input);
+  const response = await fetch(RESEND_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: formatSenderAddress(from, fromName),
+      to: [input.user.email],
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+    }),
+  });
+
+  if (response.ok) {
+    return;
+  }
+
+  const errorDetails = await response.text().catch(() => "");
+  const suffix = errorDetails ? `: ${errorDetails}` : "";
+
+  throw new Error(
+    `Failed to send verification email (${response.status} ${response.statusText})${suffix}`,
+  );
+}

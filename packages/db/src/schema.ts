@@ -108,6 +108,10 @@ export const orderStatusEnum = pgEnum("order_status", [
   "cancelled",
 ]);
 export const tenantTypeEnum = pgEnum("tenant_type", ["PRODUCER", "BUYER"]);
+export const producerLegalEntityTypeEnum = pgEnum(
+  "producer_legal_entity_type",
+  ["PF", "PJ"],
+);
 export const pricingTypeEnum = pgEnum("pricing_type", [
   "UNIT",
   "WEIGHT",
@@ -201,9 +205,33 @@ export const tenants = pgTable("tenants", {
   slug: text("slug").unique().notNull(),
   name: text("name").notNull(),
   type: tenantTypeEnum("type"),
+  producerLegalEntityType: producerLegalEntityTypeEnum(
+    "producer_legal_entity_type",
+  ),
+  producerDocumentId: text("producer_document_id"),
+  producerLegalName: text("producer_legal_name"),
+  producerContactName: text("producer_contact_name"),
+  producerPhone: text("producer_phone"),
+  producerProfileCompletedAt: timestamp("producer_profile_completed_at", {
+    withTimezone: true,
+  }),
   plan: planEnum("plan").notNull().default("free"),
   geoRegion: geometry("geo_region"),
   stripeAccountId: text("stripe_account_id"),
+  stripeDetailsSubmitted: boolean("stripe_details_submitted"),
+  stripeChargesEnabled: boolean("stripe_charges_enabled"),
+  stripePayoutsEnabled: boolean("stripe_payouts_enabled"),
+  stripeRequirementsCurrentlyDue: text(
+    "stripe_requirements_currently_due",
+  ).array(),
+  stripeRequirementsEventuallyDue: text(
+    "stripe_requirements_eventually_due",
+  ).array(),
+  stripeRequirementsPastDue: text("stripe_requirements_past_due").array(),
+  stripeRequirementsDisabledReason: text("stripe_requirements_disabled_reason"),
+  stripeStatusSyncedAt: timestamp("stripe_status_synced_at", {
+    withTimezone: true,
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

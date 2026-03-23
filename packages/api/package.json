@@ -6,6 +6,7 @@
     "scripts": {
         "test": "tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\"",
         "test:worker": "tsx --test src/workers/*.test.ts",
+        "stripe:connect:backfill": "tsx src/workers/stripe-connect-backfill-cli.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "worker:lot-freshness": "tsx src/workers/lot-freshness-cli.ts",
         "worker:lot-freshness:run-once": "tsx src/workers/lot-freshness-cli.ts --run-once",

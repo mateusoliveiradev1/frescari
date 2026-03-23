@@ -22,7 +22,9 @@ import {
   serializeDeliveryPointMetadata,
 } from "../geocoding";
 import { sanitizeEnvValue } from "../env";
+import { syncTenantStripeConnectStatus } from "../stripe-connect";
 import { isPlatformOnlyStripeMode } from "../stripe-connect-mode";
+import { deriveStripeConnectStatus } from "../utils/stripe-connect-status";
 
 const stripeSecretKey = sanitizeEnvValue(process.env.STRIPE_SECRET_KEY);
 
@@ -454,6 +456,17 @@ export const checkoutRouter = createTRPCRouter({
               lotImageUrl: productLots.imageUrl,
               lotUnit: productLots.unit,
               stripeAccountId: tenants.stripeAccountId,
+              stripeChargesEnabled: tenants.stripeChargesEnabled,
+              stripeDetailsSubmitted: tenants.stripeDetailsSubmitted,
+              stripePayoutsEnabled: tenants.stripePayoutsEnabled,
+              stripeRequirementsCurrentlyDue:
+                tenants.stripeRequirementsCurrentlyDue,
+              stripeRequirementsDisabledReason:
+                tenants.stripeRequirementsDisabledReason,
+              stripeRequirementsEventuallyDue:
+                tenants.stripeRequirementsEventuallyDue,
+              stripeRequirementsPastDue: tenants.stripeRequirementsPastDue,
+              stripeStatusSyncedAt: tenants.stripeStatusSyncedAt,
               productName: products.name,
               productSaleUnit: products.saleUnit,
               pricePerUnit: products.pricePerUnit,
@@ -507,6 +520,54 @@ export const checkoutRouter = createTRPCRouter({
       }
 
       const producerTenantId = lotDataForStripe[0]?.sellerTenantId;
+      let producerStripeStatus = deriveStripeConnectStatus({
+        stripeAccountId: producerStripeAccountId ?? null,
+        stripeChargesEnabled: lotDataForStripe[0]?.stripeChargesEnabled ?? null,
+        stripeDetailsSubmitted:
+          lotDataForStripe[0]?.stripeDetailsSubmitted ?? null,
+        stripePayoutsEnabled: lotDataForStripe[0]?.stripePayoutsEnabled ?? null,
+        stripeRequirementsCurrentlyDue:
+          lotDataForStripe[0]?.stripeRequirementsCurrentlyDue ?? null,
+        stripeRequirementsDisabledReason:
+          lotDataForStripe[0]?.stripeRequirementsDisabledReason ?? null,
+        stripeRequirementsEventuallyDue:
+          lotDataForStripe[0]?.stripeRequirementsEventuallyDue ?? null,
+        stripeRequirementsPastDue:
+          lotDataForStripe[0]?.stripeRequirementsPastDue ?? null,
+        stripeStatusSyncedAt: lotDataForStripe[0]?.stripeStatusSyncedAt ?? null,
+      });
+
+      if (
+        !isPlatformOnlyStripeMode() &&
+        producerStripeAccountId &&
+        producerTenantId &&
+        !producerStripeStatus.canReceivePayments
+      ) {
+        try {
+          const syncedStripeState = await syncTenantStripeConnectStatus(
+            ctx.db,
+            {
+              accountId: producerStripeAccountId,
+              tenantId: producerTenantId,
+            },
+          );
+
+          producerStripeStatus = syncedStripeState.status;
+        } catch (error) {
+          console.error("[STRIPE_CONNECT_STATUS_SYNC_ERROR]", error);
+        }
+      }
+
+      if (
+        !isPlatformOnlyStripeMode() &&
+        !producerStripeStatus.canReceivePayments
+      ) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: producerStripeStatus.description,
+        });
+      }
+
       const mixedSellers = lotDataForStripe.some(
         (lot) => lot.sellerTenantId !== producerTenantId,
       );

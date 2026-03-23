@@ -7,6 +7,10 @@ import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { authClient } from "@/lib/auth-client";
 import {
+  buildVerifyEmailPendingPath,
+  EMAIL_VERIFICATION_CALLBACK_PATH,
+} from "@/lib/email-verification";
+import {
   LEGAL_CONSENT_REQUIRED_CODE,
   LEGAL_VERSION_MISMATCH_CODE,
 } from "@/lib/legal-consent";
@@ -81,13 +85,11 @@ export function RegisterForm() {
   const [password, setPassword] = useState("");
   const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    setSuccess("");
 
     if (!acceptedLegal) {
       setError(
@@ -106,17 +108,18 @@ export function RegisterForm() {
         acceptedLegal: true,
         acceptedLegalVersion: LEGAL_VERSION,
         acceptedLegalSource: "auth_register_page",
+        callbackURL: EMAIL_VERIFICATION_CALLBACK_PATH,
       } as Parameters<typeof authClient.signUp.email>[0];
 
       await authClient.signUp.email(signUpPayload, {
         onSuccess: () => {
-          setSuccess(
-            "Conta criada com sucesso. Estamos preparando seu onboarding.",
-          );
           router.refresh();
-          window.setTimeout(() => {
-            router.push("/onboarding");
-          }, 800);
+          router.replace(
+            buildVerifyEmailPendingPath({
+              email,
+              intent: "signup",
+            }),
+          );
         },
         onError: (context) => {
           const code = context.error.code ?? "";
@@ -175,8 +178,8 @@ export function RegisterForm() {
                     "Campos, estados e mensagens escritos para contexto B2B.",
                   ],
                   [
-                    "Entrada pronta",
-                    "Depois do cadastro o usuario ja entra no onboarding certo.",
+                    "Confirmacao segura",
+                    "Antes do primeiro acesso, o email precisa ser validado.",
                   ],
                 ].map(([title, copy]) => (
                   <div
@@ -229,9 +232,9 @@ export function RegisterForm() {
                   Criar conta
                 </h1>
                 <p className="max-w-xl font-sans text-sm leading-6 text-bark/76">
-                  Abra seu acesso e siga direto para configurar perfil,
-                  enderecos e preferencia de compra ou venda sem ruido
-                  desnecessario.
+                  Abra seu acesso e receba um link de confirmacao para liberar o
+                  onboarding de perfil, enderecos e preferencia de compra ou
+                  venda sem ruido desnecessario.
                 </p>
               </div>
 
@@ -257,9 +260,6 @@ export function RegisterForm() {
 
               <div className="mt-8 space-y-5">
                 {error ? <StatusAlert message={error} tone="error" /> : null}
-                {success ? (
-                  <StatusAlert message={success} tone="success" />
-                ) : null}
 
                 <form
                   className="space-y-5"
@@ -363,7 +363,9 @@ export function RegisterForm() {
                     type="submit"
                     variant="primary"
                   >
-                    {loading ? "Criando conta..." : "Criar conta e continuar"}
+                    {loading
+                      ? "Criando conta..."
+                      : "Criar conta e receber link"}
                   </Button>
                 </form>
               </div>

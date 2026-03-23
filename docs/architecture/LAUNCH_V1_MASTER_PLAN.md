@@ -1,9 +1,10 @@
 # Launch V1 Master Plan
 
 > Plano mestre do pre-lancamento fechado do Frescari.
-> Atualizado em 2026-03-21.
-> Status: DRAFT PARA EXECUCAO.
+> Atualizado em 2026-03-22.
+> Status: EM EXECUCAO; FASE 2 FECHADA EM CODIGO E REPOSITORIO NO FIM DA FASE 5.
 > Escopo desta versao: base juridica, operacional e tecnica para liberar o dominio publico com seguranca.
+> Referencia operacional final de go-live: `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`.
 
 ## 0. Decisao do momento
 
@@ -21,7 +22,7 @@ Regra pratica desta fase:
 
 ## 0.1 Status implementado em codigo
 
-Em `2026-03-21`, o pacote inicial de endurecimento juridico e de auth ficou pronto no repositorio:
+Em `2026-03-22`, o pacote inicial de endurecimento juridico, auth e onboarding de produtor ficou pronto no repositorio:
 
 - paginas juridicas V1 publicadas no app para `Termos de Uso`, `Aviso de Privacidade`, `Termos do Marketplace` e `Pagamentos, Comissoes e Repasses`
 - versao juridica centralizada em `LEGAL_VERSION`
@@ -29,13 +30,58 @@ Em `2026-03-21`, o pacote inicial de endurecimento juridico e de auth ficou pron
 - trilha de auditoria preparada com persistencia versionada em `user_legal_acceptances`
 - redirecionamento server-side para impedir usuario autenticado de abrir `/auth/login` e `/auth/register`
 - regra de pos-auth centralizada para encaminhar o usuario para `admin`, `dashboard` ou `onboarding`
+- a verificacao real de email foi implementada no auth, com `requireEmailVerification` e jornada dedicada de pendencia/confirmacao
+- cadastro agora envia o usuario para a etapa de confirmacao de email antes do onboarding
+- login com email nao verificado passa a redirecionar para a jornada de verificacao, com reenvio de link
+- entrega de email de verificacao ganhou helper dedicado e contrato de ambiente para provedor real
 - workflow de staging ajustado para aplicar migracoes versionadas com `db:migrate`, evitando `push --force`
+- onboarding de produtor agora coleta `PF/PJ`, documento, nome legal, nome publico, contato principal e telefone
+- o tenant do produtor passa a persistir o perfil basico necessario para onboarding financeiro
+- a criacao de conta Stripe Connect agora deriva `business_type` de `PF/PJ` e preenche nome legal/comercial de forma coerente
+- o app passa a sincronizar e persistir um snapshot do status real do Stripe Connect (`details_submitted`, `charges_enabled`, `payouts_enabled` e `requirements`)
+- o dashboard do produtor ganhou feedback orientado por estado real da conta Stripe, com CTA coerente para iniciar, retomar, revisar ou operar
+- o checkout deixa de depender apenas de `stripeAccountId` e valida o estado operacional real do produtor antes de abrir pagamento
+- o catalogo ganhou compatibilidade temporaria para produtores legados com `stripeAccountId` e sem primeiro sync, evitando regressao antes do backfill
+- foi criado um CLI operacional para backfill/sync em lote de contas Stripe antigas, com limite, filtro por tenant e relatorio de sucesso/falha
 
 Pendencias que continuam fora do codigo:
 
 - executar a migracao `0010_user_legal_acceptances` no banco real do ambiente alvo
+- executar a migracao `0011_producer_profile_fields` no banco real do ambiente alvo
+- executar a migracao `0012_stripe_connect_status_fields` no banco real do ambiente alvo
+- configurar `RESEND_API_KEY` e `AUTH_EMAIL_FROM` no ambiente alvo para entrega real dos emails de verificacao
+- validar envio real, callback e reenvio da verificacao de email em `staging` antes de promover
+- rodar o backfill de Stripe Connect no `staging` e validar o resultado antes de promover
 - validar o pacote juridico com revisao de advogado antes do go-live
 - repetir o rollout no ambiente de producao quando a branch final for promovida
+
+## 0.2 Status real do repositorio em 2026-03-22
+
+- `Fase 0 - Parcial`: migrations, RLS e rehearsal de recovery estao versionados, mas banco limpo de producao, snapshots gerenciados e evidencia operacional continuam fora do repositorio.
+- `Fase 1 - Parcial forte`: pacote juridico base esta publicado e versionado, mas ainda faltam politica de cancelamento/chargeback, cookies se aplicavel e revisao juridica final.
+- `Fase 2 - Fechada em codigo`: aceite versionado, trilha auditavel, verificacao real de email, callback e reenvio estao prontos; falta apenas configuracao/env e validacao operacional em ambiente alvo.
+- `Fase 3 - Parcial`: o onboarding do produtor agora distingue `PF/PJ` e persiste dados minimos reais; ainda faltam estados internos completos de compliance.
+- `Fase 4 - Parcial forte`: o app coleta dados minimos antes da Stripe, faz prefill coerente e agora orienta retomada pelo estado real da conta; ainda falta ampliar esse feedback para outros pontos operacionais do produto.
+- `Fase 5 - Parcial forte`: checkout, dashboard principal e catalogo ja estao protegidos por estado real ou fallback legado controlado; ainda falta executar o backfill das contas antigas em ambiente real e remover a compatibilidade temporaria quando a base estiver sincronizada.
+- `Fase 6 - Parcial`: admin, categorias e produtos mestres existem, mas o bootstrap real da base oficial continua sendo tarefa operacional.
+- `Fase 7 - Aberta`: revisao juridica, abertura de dominio publico e checklist final seguem em `NO-GO` operacional.
+
+## 0.3 Etapa atual
+
+Marco pratico em `2026-03-22`:
+
+- em codigo, o repositorio esta no fim da `Fase 5`
+- em operacao real, ainda nao viramos a `Fase 6`
+
+Motivo:
+
+- as travas principais de auth, onboarding e Stripe ja existem no produto
+- ainda faltam tarefas operacionais reais para consolidar a base oficial: migracoes no ambiente alvo, configuracao real do envio de email, backfill de Stripe Connect, bootstrap manual da base e revisao juridica final
+
+Leitura curta:
+
+- `produto/repositorio`: entre `Fase 5` e pre-`Fase 6`
+- `go-live real`: ainda em `NO-GO`, porque as pendencias operacionais e juridicas continuam abertas
 
 ## 1. Objetivo
 

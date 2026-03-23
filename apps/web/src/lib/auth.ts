@@ -5,6 +5,7 @@ import * as schema from "@frescari/db";
 
 import { sanitizeEnvValue } from "@/lib/env";
 import { getAppUrl, getConfiguredUrl } from "@/lib/app-url";
+import { sendAuthVerificationEmail } from "@/lib/auth-email";
 import {
   extractIpAddress,
   extractLegalConsentPayload,
@@ -81,6 +82,22 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
+  },
+  emailVerification: {
+    autoSignInAfterVerification: true,
+    expiresIn: 60 * 60 * 24,
+    sendOnSignIn: true,
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendAuthVerificationEmail({
+        user: {
+          email: user.email,
+          name: user.name || "cliente Frescari",
+        },
+        url,
+      });
+    },
   },
   rateLimit: {
     enabled: isProduction,

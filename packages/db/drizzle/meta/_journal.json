@@ -78,6 +78,20 @@
       "when": 1774051200000,
       "tag": "0010_user_legal_acceptances",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1774137600000,
+      "tag": "0011_producer_profile_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1774224000000,
+      "tag": "0012_stripe_connect_status_fields",
+      "breakpoints": true
     }
   ]
 }
