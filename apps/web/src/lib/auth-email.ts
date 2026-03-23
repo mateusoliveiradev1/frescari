@@ -68,6 +68,13 @@ export function buildAuthVerificationEmail({
     html: `
       <div style="background:#f9f6f0;padding:32px;font-family:Arial,sans-serif;color:#231f1b;">
         <div style="margin:0 auto;max-width:560px;border-radius:24px;background:#ffffff;padding:32px;border:1px solid rgba(35,31,27,0.08);">
+          <div style="margin:0 0 18px;">
+            <span
+              style="display:inline-block;min-width:44px;height:44px;line-height:44px;border-radius:14px;background:#0d3321;color:#f9f6f0;text-align:center;font-size:20px;font-weight:700;"
+            >
+              F
+            </span>
+          </div>
           <p style="margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#0d3321;">
             Frescari
           </p>
