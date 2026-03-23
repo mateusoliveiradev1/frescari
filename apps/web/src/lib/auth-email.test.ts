@@ -64,6 +64,7 @@ test("buildAuthVerificationEmail includes the recipient name and verification ur
   assert.match(email.text, /abc123/);
   assert.match(email.html, /Confirmar email/);
   assert.match(email.html, /Comprador Frescari/);
+  assert.match(email.html, />\s*F\s*</);
 });
 
 test("sendAuthVerificationEmail logs the verification link outside production when delivery is not configured", async () => {
