@@ -23,6 +23,7 @@ import { safeRevalidatePath } from "../cache";
 import { calculateLotPriceAndStatus } from "../utils/lot-status";
 import { resolveEffectiveSaleUnit } from "../sale-units";
 import { isPlatformOnlyStripeMode } from "../stripe-connect-mode";
+import { isStripeConnectCatalogEligible } from "../utils/stripe-connect-status";
 
 const formatDateOnly = (value: string | Date) => {
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -271,6 +272,18 @@ export const lotRouter = createTRPCRouter({
               categoryName: productCategories.name,
               categoryDescription: productCategories.seoDescription,
               sellerStripeAccountId: tenants.stripeAccountId,
+              sellerStripeChargesEnabled: tenants.stripeChargesEnabled,
+              sellerStripeDetailsSubmitted: tenants.stripeDetailsSubmitted,
+              sellerStripePayoutsEnabled: tenants.stripePayoutsEnabled,
+              sellerStripeRequirementsCurrentlyDue:
+                tenants.stripeRequirementsCurrentlyDue,
+              sellerStripeRequirementsDisabledReason:
+                tenants.stripeRequirementsDisabledReason,
+              sellerStripeRequirementsEventuallyDue:
+                tenants.stripeRequirementsEventuallyDue,
+              sellerStripeRequirementsPastDue:
+                tenants.stripeRequirementsPastDue,
+              sellerStripeStatusSyncedAt: tenants.stripeStatusSyncedAt,
             })
             .from(productLots)
             .leftJoin(products, eq(productLots.productId, products.id))
@@ -293,7 +306,21 @@ export const lotRouter = createTRPCRouter({
         return results
           .filter((row) =>
             requiresConnectedProducer
-              ? Boolean(row.sellerStripeAccountId)
+              ? isStripeConnectCatalogEligible({
+                  stripeAccountId: row.sellerStripeAccountId,
+                  stripeChargesEnabled: row.sellerStripeChargesEnabled,
+                  stripeDetailsSubmitted: row.sellerStripeDetailsSubmitted,
+                  stripePayoutsEnabled: row.sellerStripePayoutsEnabled,
+                  stripeRequirementsCurrentlyDue:
+                    row.sellerStripeRequirementsCurrentlyDue,
+                  stripeRequirementsDisabledReason:
+                    row.sellerStripeRequirementsDisabledReason,
+                  stripeRequirementsEventuallyDue:
+                    row.sellerStripeRequirementsEventuallyDue,
+                  stripeRequirementsPastDue:
+                    row.sellerStripeRequirementsPastDue,
+                  stripeStatusSyncedAt: row.sellerStripeStatusSyncedAt,
+                })
               : true,
           )
           .filter((row) => row.product?.isActive !== false)

@@ -1,36 +1,24 @@
-import { z } from "zod";
 import Stripe from "stripe";
-import { createTRPCRouter, producerProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { tenants, users } from "@frescari/db";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
+
+import { tenants, users } from "@frescari/db";
+
+import { sanitizeEnvValue } from "../env";
+import {
+  buildStripeConnectSnapshot,
+  buildStripeTenantStatusUpdate,
+  getStripeClient,
+  syncTenantStripeConnectStatus,
+} from "../stripe-connect";
 import {
   getStripeConnectOnboardingDisabledMessage,
   isPlatformOnlyStripeMode,
 } from "../stripe-connect-mode";
-import { sanitizeEnvValue } from "../env";
-
-const stripeSecretKey = sanitizeEnvValue(process.env.STRIPE_SECRET_KEY);
-
-if (!stripeSecretKey) {
-  console.warn(
-    "[STRIPE] STRIPE_SECRET_KEY is not set. Connect Onboarding will fail at runtime.",
-  );
-}
-
-let stripeClient: Stripe | null = null;
-
-function getStripeClient() {
-  if (!stripeSecretKey) {
-    throw new Error("STRIPE_SECRET_KEY is not set.");
-  }
-
-  if (!stripeClient) {
-    stripeClient = new Stripe(stripeSecretKey);
-  }
-
-  return stripeClient;
-}
+import { createTRPCRouter, producerProcedure } from "../trpc";
+import { splitFullName } from "../utils/producer-profile";
+import { deriveStripeConnectStatus } from "../utils/stripe-connect-status";
 
 const APP_URL =
   sanitizeEnvValue(process.env.NEXT_PUBLIC_APP_URL) ?? "http://localhost:3000";
@@ -43,11 +31,43 @@ function getStripeBusinessProfileUrl(appUrl: string) {
   }
 }
 
-function resolveProducerStripeBusinessType(): "individual" | "company" {
-  // TODO(stripe-connect): persist CPF/CNPJ or an explicit legal entity type
-  // for producer tenants during onboarding/tenant setup. When that data exists,
-  // map CPF => "individual" and CNPJ => "company" here.
-  return "individual";
+function resolveProducerStripeBusinessType(tenant: {
+  producerLegalEntityType: "PF" | "PJ" | null;
+}): "individual" | "company" {
+  return tenant.producerLegalEntityType === "PJ" ? "company" : "individual";
+}
+
+function buildStripeAccountProfilePrefill(args: {
+  businessType: "individual" | "company";
+  fallbackUserName: string;
+  tenant: {
+    name: string;
+    producerContactName: string | null;
+    producerLegalName: string | null;
+  };
+  userEmail: string;
+}) {
+  if (args.businessType === "company") {
+    return {
+      company: {
+        name: args.tenant.producerLegalName ?? args.tenant.name,
+      },
+    } satisfies Pick<Stripe.AccountCreateParams, "company">;
+  }
+
+  const preferredName =
+    args.tenant.producerLegalName ??
+    args.tenant.producerContactName ??
+    args.fallbackUserName;
+  const { firstName, lastName } = splitFullName(preferredName);
+
+  return {
+    individual: {
+      email: args.userEmail,
+      first_name: firstName,
+      last_name: lastName,
+    },
+  } satisfies Pick<Stripe.AccountCreateParams, "individual">;
 }
 
 function getStripeConnectSetupErrorMessage(error: unknown): string | null {
@@ -85,8 +105,8 @@ function isIncompleteStripeOnboardingLoginLinkError(error: unknown) {
 async function createStripeAccountOnboardingLink(accountId: string) {
   return getStripeClient().accountLinks.create({
     account: accountId,
-    refresh_url: `${APP_URL}/dashboard/vendas`,
-    return_url: `${APP_URL}/dashboard/vendas`,
+    refresh_url: `${APP_URL}/dashboard`,
+    return_url: `${APP_URL}/dashboard`,
     type: "account_onboarding",
   });
 }
@@ -107,17 +127,40 @@ async function createStripeResumeUrlForAccount(accountId: string) {
 }
 
 export const stripeRouter = createTRPCRouter({
+  getConnectStatus: producerProcedure.query(async ({ ctx }) => {
+    const [tenant] = await ctx.db
+      .select()
+      .from(tenants)
+      .where(eq(tenants.id, ctx.tenantId))
+      .limit(1);
+
+    if (!tenant) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Organizacao nao encontrada.",
+      });
+    }
+
+    if (!tenant.stripeAccountId) {
+      return deriveStripeConnectStatus(tenant);
+    }
+
+    try {
+      const { status } = await syncTenantStripeConnectStatus(ctx.db, {
+        accountId: tenant.stripeAccountId,
+        tenantId: tenant.id,
+      });
+
+      return status;
+    } catch (error) {
+      console.error("[STRIPE_CONNECT_STATUS_SYNC_ERROR]", error);
+      return deriveStripeConnectStatus(tenant);
+    }
+  }),
   createStripeConnect: producerProcedure
     .input(z.object({}))
     .mutation(async ({ ctx }) => {
       const { db, tenantId } = ctx;
-
-      if (!stripeSecretKey) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Stripe secret key não configurada.",
-        });
-      }
 
       if (isPlatformOnlyStripeMode()) {
         throw new TRPCError({
@@ -127,12 +170,11 @@ export const stripeRouter = createTRPCRouter({
       }
 
       try {
-        // Busca o tenant de forma idempotente e obtém o email e nome do usuário.
         const [dbInfo] = await db
           .select({
-            tenant: tenants,
             email: users.email,
             name: users.name,
+            tenant: tenants,
           })
           .from(tenants)
           .innerJoin(users, eq(users.tenantId, tenants.id))
@@ -142,7 +184,7 @@ export const stripeRouter = createTRPCRouter({
         if (!dbInfo || !dbInfo.tenant) {
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Organização não encontrada.",
+            message: "Organizacao nao encontrada.",
           });
         }
 
@@ -150,52 +192,66 @@ export const stripeRouter = createTRPCRouter({
         const userEmail = dbInfo.email;
         const userName = dbInfo.name || "";
 
-        const nameParts = userName.trim().split(" ");
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || firstName;
-
-        // Se já possuir uma conta conectada
         if (tenant.stripeAccountId) {
+          await syncTenantStripeConnectStatus(db, {
+            accountId: tenant.stripeAccountId,
+            tenantId: tenant.id,
+          });
+
           return {
             url: await createStripeResumeUrlForAccount(tenant.stripeAccountId),
           };
         }
 
-        // Se não possuir conta Stripe
+        const businessType = resolveProducerStripeBusinessType(tenant);
+        const accountProfilePrefill = buildStripeAccountProfilePrefill({
+          businessType,
+          fallbackUserName: userName,
+          tenant,
+          userEmail,
+        });
         const account = await getStripeClient().accounts.create({
           type: "express",
-          business_type: resolveProducerStripeBusinessType(),
+          business_type: businessType,
           email: userEmail,
           capabilities: {
-            // Contas BR precisam de transfers e card_payments explicitamente.
             card_payments: { requested: true },
             transfers: { requested: true },
           },
-          individual: {
-            first_name: firstName,
-            last_name: lastName,
-            email: userEmail,
-          },
+          ...accountProfilePrefill,
           business_profile: {
             name: tenant.name,
             url: getStripeBusinessProfileUrl(APP_URL),
           },
           metadata: {
+            producer_legal_entity_type:
+              tenant.producerLegalEntityType ?? "unset",
             tenant_id: tenant.id,
           },
         });
 
-        // Salva o ID gerado para manter a criação idempotente nas próximas chamadas.
+        const stripeStatusUpdate = buildStripeTenantStatusUpdate(account);
+
         await db
           .update(tenants)
-          .set({ stripeAccountId: account.id })
+          .set({
+            stripeAccountId: account.id,
+            ...stripeStatusUpdate,
+          })
           .where(eq(tenants.id, tenantId));
 
         const accountLink = await createStripeAccountOnboardingLink(account.id);
 
-        return { url: accountLink.url };
+        return {
+          status: deriveStripeConnectStatus(
+            buildStripeConnectSnapshot(account.id, stripeStatusUpdate),
+          ),
+          url: accountLink.url,
+        };
       } catch (error) {
-        if (error instanceof TRPCError) throw error;
+        if (error instanceof TRPCError) {
+          throw error;
+        }
 
         const stripeSetupMessage = getStripeConnectSetupErrorMessage(error);
         if (stripeSetupMessage) {

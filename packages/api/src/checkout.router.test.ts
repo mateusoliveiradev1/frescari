@@ -35,6 +35,19 @@ type StripeAccountPayload = {
   };
 };
 
+type StripeRetrievedAccount = {
+  id: string;
+  charges_enabled: boolean;
+  details_submitted: boolean;
+  payouts_enabled: boolean;
+  requirements?: {
+    currently_due?: string[];
+    disabled_reason?: string | null;
+    eventually_due?: string[];
+    past_due?: string[];
+  };
+};
+
 type StripeAccountLinkPayload = {
   account: string;
   refresh_url?: string;
@@ -77,6 +90,8 @@ const stripeState = {
   createdAccountLinkPayload: null as StripeAccountLinkPayload | null,
   createLoginLinkError: null as Error | null,
   loginLinkAccountId: null as string | null,
+  retrieveAccountError: null as Error | null,
+  retrievedAccount: null as StripeRetrievedAccount | null,
 };
 
 function createThenableChain(result: unknown) {
@@ -148,6 +163,26 @@ class StripeMock {
         url: "https://stripe.example/login-link",
       };
     },
+    retrieve: async (accountId: string) => {
+      if (stripeState.retrieveAccountError) {
+        throw stripeState.retrieveAccountError;
+      }
+
+      return (
+        stripeState.retrievedAccount ?? {
+          id: accountId,
+          charges_enabled: true,
+          details_submitted: true,
+          payouts_enabled: true,
+          requirements: {
+            currently_due: [],
+            disabled_reason: null,
+            eventually_due: [],
+            past_due: [],
+          },
+        }
+      );
+    },
   };
 
   accountLinks = {
@@ -201,6 +236,8 @@ beforeEach(() => {
   stripeState.createdAccountLinkPayload = null;
   stripeState.createLoginLinkError = null;
   stripeState.loginLinkAccountId = null;
+  stripeState.retrieveAccountError = null;
+  stripeState.retrievedAccount = null;
 });
 
 function createBuyerContext(db: unknown): TestTrpcContext {
@@ -428,6 +465,9 @@ test("checkout.createFarmCheckoutSession recalculates freight on the server and 
           throw new Error(`Unexpected select call #${selectCallCount}`);
       }
     },
+    update() {
+      return createUpdateChain(() => undefined);
+    },
   });
 
   const caller = await createCheckoutCaller(db);
@@ -507,6 +547,9 @@ test("checkout.createFarmCheckoutSession normalizes weighable items to a single 
         default:
           throw new Error(`Unexpected select call #${selectCallCount}`);
       }
+    },
+    update() {
+      return createUpdateChain(() => undefined);
     },
   });
 
@@ -646,6 +689,9 @@ test("checkout.createFarmCheckoutSession surfaces invalid producer Stripe destin
         default:
           throw new Error(`Unexpected select call #${selectCallCount}`);
       }
+    },
+    update() {
+      return createUpdateChain(() => undefined);
     },
   });
 
@@ -804,9 +850,10 @@ test("stripe.createStripeConnect uses NEXT_PUBLIC_APP_URL for business profile u
   const caller = await createStripeCaller(db);
   const result = await (caller as StripeCaller).stripe.createStripeConnect({});
 
-  assert.deepEqual(result, {
-    url: "https://stripe.example/account-onboarding",
-  });
+  assert.equal(
+    (result as { url?: string }).url,
+    "https://stripe.example/account-onboarding",
+  );
   assert.equal(updatedStripeAccountId, "acct_test_mocked");
   assert.equal(
     stripeState.createdAccountPayload?.business_profile?.url,
@@ -815,8 +862,8 @@ test("stripe.createStripeConnect uses NEXT_PUBLIC_APP_URL for business profile u
   assert.equal(stripeState.createdAccountPayload?.business_type, "individual");
   assert.deepEqual(stripeState.createdAccountLinkPayload, {
     account: "acct_test_mocked",
-    refresh_url: "https://app.example.com/dashboard/vendas",
-    return_url: "https://app.example.com/dashboard/vendas",
+    refresh_url: "https://app.example.com/dashboard",
+    return_url: "https://app.example.com/dashboard",
     type: "account_onboarding",
   });
 });
@@ -849,20 +896,24 @@ test("stripe.createStripeConnect resumes incomplete onboarding with a fresh acco
           throw new Error(`Unexpected select call #${selectCallCount}`);
       }
     },
+    update() {
+      return createUpdateChain(() => undefined);
+    },
   });
 
   const caller = await createStripeCaller(db);
   const result = await (caller as StripeCaller).stripe.createStripeConnect({});
 
-  assert.deepEqual(result, {
-    url: "https://stripe.example/account-onboarding",
-  });
+  assert.equal(
+    (result as { url?: string }).url,
+    "https://stripe.example/account-onboarding",
+  );
   assert.equal(stripeState.loginLinkAccountId, null);
   assert.equal(stripeState.createdAccountPayload, null);
   assert.deepEqual(stripeState.createdAccountLinkPayload, {
     account: "acct_existing_incomplete",
-    refresh_url: "https://app.example.com/dashboard/vendas",
-    return_url: "https://app.example.com/dashboard/vendas",
+    refresh_url: "https://app.example.com/dashboard",
+    return_url: "https://app.example.com/dashboard",
     type: "account_onboarding",
   });
 });

@@ -2,9 +2,14 @@
 
 import { useState, type FormEvent, type InputHTMLAttributes } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { authClient } from "@/lib/auth-client";
+import {
+  buildVerifyEmailPendingPath,
+  EMAIL_VERIFICATION_CALLBACK_PATH,
+} from "@/lib/email-verification";
 import { legalDocumentLinks } from "@/lib/legal-documents";
 import { getPostAuthRedirectPath } from "@/lib/post-auth-redirect";
 import { Button } from "@frescari/ui";
@@ -54,6 +59,7 @@ function ErrorAlert({ message }: { message: string }) {
 }
 
 export function LoginForm() {
+  const router = useRouter();
   const genericLoginError =
     "Nao foi possivel entrar. Revise suas credenciais e tente novamente.";
   const [email, setEmail] = useState("");
@@ -68,17 +74,26 @@ export function LoginForm() {
 
     try {
       await authClient.signIn.email(
-        { email, password },
+        {
+          email,
+          password,
+          callbackURL: EMAIL_VERIFICATION_CALLBACK_PATH,
+        },
         {
           onSuccess: () => {
             void authClient
               .getSession()
               .then((sessionResponse) => {
                 const user = sessionResponse.data?.user as
-                  | { role?: string | null; tenantId?: string | null }
+                  | {
+                      emailVerified?: boolean | null;
+                      role?: string | null;
+                      tenantId?: string | null;
+                    }
                   | undefined;
 
                 window.location.href = getPostAuthRedirectPath({
+                  emailVerified: user?.emailVerified,
                   role: user?.role,
                   tenantId: user?.tenantId,
                 });
@@ -87,8 +102,29 @@ export function LoginForm() {
                 window.location.href = "/dashboard";
               });
           },
-          onError: () => {
-            setError(genericLoginError);
+          onError: (context) => {
+            const code = context.error.code ?? "";
+
+            if (code === "EMAIL_NOT_VERIFIED") {
+              setLoading(false);
+              router.replace(
+                buildVerifyEmailPendingPath({
+                  email,
+                  intent: "signin",
+                }),
+              );
+              return;
+            }
+
+            const messageMap: Record<string, string> = {
+              INVALID_EMAIL: "Use um email valido para continuar.",
+              INVALID_EMAIL_OR_PASSWORD:
+                "Email ou senha invalidos. Revise as credenciais e tente novamente.",
+              TOO_MANY_REQUESTS:
+                "Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente.",
+            };
+
+            setError(messageMap[code] || genericLoginError);
             setLoading(false);
           },
         },
