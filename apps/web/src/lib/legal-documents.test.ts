@@ -8,8 +8,18 @@ import {
 } from "@/lib/legal-documents";
 
 test("legal registry exposes the current V1 documents", () => {
-  assert.equal(LEGAL_VERSION, "2026-03-21-v1");
-  assert.equal(legalDocumentLinks.length, 4);
+  assert.equal(LEGAL_VERSION, "2026-03-23-v1");
+  assert.deepEqual(
+    legalDocumentLinks.map((entry) => entry.slug),
+    [
+      "termos",
+      "privacidade",
+      "marketplace",
+      "pagamentos-e-repasses",
+      "cancelamento-estorno-e-chargeback",
+      "cookies",
+    ],
+  );
 
   for (const entry of legalDocumentLinks) {
     const document = getLegalDocument(entry.slug);

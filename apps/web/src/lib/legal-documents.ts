@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 
-export const LEGAL_VERSION = "2026-03-21-v1";
+export const LEGAL_VERSION = "2026-03-23-v1";
 
 export type LegalDocumentSlug =
   | "termos"
   | "privacidade"
   | "marketplace"
-  | "pagamentos-e-repasses";
+  | "pagamentos-e-repasses"
+  | "cancelamento-estorno-e-chargeback"
+  | "cookies";
 
 type LegalSection = {
   title: string;
@@ -258,6 +260,117 @@ const legalDocuments = {
       },
     ],
   },
+  "cancelamento-estorno-e-chargeback": {
+    slug: "cancelamento-estorno-e-chargeback",
+    title: "Politica de Cancelamento, Estorno e Chargeback",
+    eyebrow: "Excecoes financeiras e operacionais",
+    description:
+      "Regras de tratamento para cancelamentos, estornos, contestacoes e chargebacks dentro da operacao Frescari.",
+    summary:
+      "Esta politica organiza os criterios minimos para cancelamento de operacoes, estorno de valores, tratamento de chargebacks e medidas preventivas de integridade financeira no marketplace.",
+    status: "Versao interna V1 para revisao juridica",
+    effectiveDate: "23 de marco de 2026",
+    updatedAt: "23 de marco de 2026",
+    reviewNote:
+      "Documento publicado para separar as regras de excecao financeira do restante da politica comercial e facilitar a revisao juridica do go-live.",
+    sections: [
+      {
+        title: "1. Escopo e aplicacao",
+        paragraphs: [
+          "Esta politica complementa os Termos do Marketplace e a Politica de Pagamentos, Comissoes e Repasses, detalhando como a Frescari podera tratar eventos de cancelamento, estorno, contestacao e chargeback.",
+          "A aplicacao concreta dependera da etapa da operacao, dos registros disponiveis, da responsabilidade identificada entre as partes e das regras do parceiro financeiro utilizado no fluxo.",
+        ],
+      },
+      {
+        title: "2. Cancelamentos de operacao",
+        paragraphs: [
+          "Pedidos poderao ser cancelados quando houver indisponibilidade material do item, divergencia relevante de informacoes, falha de pagamento, suspeita de fraude, impossibilidade operacional comprovada ou acordo valido entre as partes.",
+          "A Frescari podera suspender temporariamente a continuidade do pedido enquanto apura documentos, historico de comunicacao, comprovacoes logisticas e demais evidencias necessarias para decidir sobre a manutencao ou cancelamento da operacao.",
+        ],
+        bullets: [
+          "Cancelamentos antes da confirmacao financeira podem resultar apenas em encerramento do pedido sem repasse.",
+          "Cancelamentos apos confirmacao financeira poderao exigir estorno, ajuste de saldo, retencao temporaria ou compensacao posterior.",
+        ],
+      },
+      {
+        title: "3. Estornos e ajustes",
+        paragraphs: [
+          "Quando houver devolucao de valor ao comprador, a plataforma podera realizar estorno integral ou parcial conforme a natureza do evento, a extensao do prejuizo identificado e as limitacoes do parceiro de pagamento.",
+          "Custos de intermediacao, taxas de terceiros, despesas operacionais e outros encargos associados ao evento poderao compor o calculo final de ajuste quando isso estiver alinhado com a regra comercial vigente e com a responsabilidade apurada.",
+        ],
+      },
+      {
+        title: "4. Chargebacks e contestacoes",
+        paragraphs: [
+          "Chargebacks, contestacoes bancarias ou disputas abertas junto ao parceiro financeiro poderao levar a bloqueio preventivo de repasses, reserva de saldo, solicitacao de documentos e restricao temporaria de funcionalidades da conta envolvida.",
+          "A Frescari podera consolidar comprovantes, historico transacional, registros de entrega e evidencias operacionais para subsidiar a defesa da transacao ou reconhecer a necessidade de ajuste financeiro.",
+        ],
+      },
+      {
+        title: "5. Medidas de integridade financeira",
+        paragraphs: [
+          "Sempre que houver risco razoavel de perda, fraude, reincidencia ou inconsistencias materiais, a plataforma podera reter valores, interromper novos recebimentos, exigir regularizacao documental ou limitar saques e repasses ate a conclusao da analise.",
+          "Essas medidas poderao ser adotadas mesmo antes da definicao final da disputa quando forem necessarias para proteger compradores, produtores, a propria operacao da Frescari e o equilibrio financeiro do marketplace.",
+        ],
+      },
+      {
+        title: "6. Cooperacao das partes",
+        paragraphs: [
+          "Compradores e produtores devem colaborar com a apuracao, apresentando informacoes verdadeiras, documentos solicitados e historico suficiente para conciliacao da ocorrencia em prazo razoavel.",
+          "A omissao de dados, a apresentacao de informacoes inveridicas ou a recusa injustificada em cooperar poderao influenciar a decisao operacional da plataforma e a manutencao das medidas preventivas aplicadas.",
+        ],
+      },
+    ],
+  },
+  cookies: {
+    slug: "cookies",
+    title: "Politica de Cookies",
+    eyebrow: "Sessao, autenticacao e seguranca",
+    description:
+      "Como a Frescari utiliza cookies estritamente necessarios para autenticacao, continuidade da sessao e protecao basica da operacao.",
+    summary:
+      "Na versao atual da Frescari, o uso de cookies esta concentrado em autenticacao, continuidade de sessao e seguranca operacional. Nao ha, nesta etapa, ativacao de cookies de publicidade ou analytics nao essenciais no app web.",
+    status: "Versao interna V1 para revisao juridica",
+    effectiveDate: "23 de marco de 2026",
+    updatedAt: "23 de marco de 2026",
+    reviewNote:
+      "Documento preparado para registrar o estado atual do produto. Se a Frescari vier a ativar cookies nao essenciais, esta politica e os fluxos de consentimento deverao ser revisitados antes da publicacao.",
+    sections: [
+      {
+        title: "1. O que sao cookies",
+        paragraphs: [
+          "Cookies sao pequenos arquivos ou identificadores associados ao navegador para viabilizar funcionalidades tecnicas, lembrar estados de navegacao e reforcar controles de seguranca.",
+          "No contexto atual da Frescari, eles sao usados de forma restrita para manter a experiencia autenticada e proteger fluxos sensiveis do produto.",
+        ],
+      },
+      {
+        title: "2. Cookies atualmente utilizados",
+        paragraphs: [
+          "A aplicacao web utiliza cookies estritamente necessarios para autenticar o usuario, manter a sessao ativa, encerrar o acesso com seguranca e apoiar controles basicos contra abuso do fluxo autenticado.",
+          "Esses cookies nao sao usados, nesta versao do produto, para publicidade comportamental, remarketing ou analytics nao essenciais no front-end publico da aplicacao.",
+        ],
+        bullets: [
+          "cookies de sessao e autenticacao para manter o usuario conectado",
+          "cookies tecnicos para continuidade do login e encerramento seguro da sessao",
+          "cookies relacionados a seguranca operacional do fluxo autenticado, quando aplicavel",
+        ],
+      },
+      {
+        title: "3. Base e finalidade de uso",
+        paragraphs: [
+          "O uso desses cookies e justificado pela necessidade tecnica de prestar o servico solicitado pelo usuario, viabilizar acesso autenticado a areas restritas e preservar a seguranca minima da operacao.",
+          "Sem esses cookies, funcionalidades como entrar na conta, permanecer autenticado, concluir verificacoes de acesso e navegar por areas protegidas podem deixar de funcionar corretamente.",
+        ],
+      },
+      {
+        title: "4. Preferencias futuras e atualizacoes",
+        paragraphs: [
+          "Caso a Frescari venha a introduzir cookies nao estritamente necessarios, como mensuracao, analytics, personalizacao opcional ou publicidade, a politica devera ser atualizada com transparencia antes da ativacao desses recursos.",
+          "Mudancas materiais nesta politica poderao ser destacadas no produto ou em canais oficiais, especialmente quando exigirem novo mecanismo de consentimento ou configuracao de preferencias.",
+        ],
+      },
+    ],
+  },
 } satisfies Record<LegalDocumentSlug, LegalDocument>;
 
 export const legalDocumentLinks = [
@@ -268,6 +381,16 @@ export const legalDocumentLinks = [
     href: "/pagamentos-e-repasses",
     label: "Pagamentos, Comissoes e Repasses",
     slug: "pagamentos-e-repasses",
+  },
+  {
+    href: "/cancelamento-estorno-e-chargeback",
+    label: "Cancelamento, Estorno e Chargeback",
+    slug: "cancelamento-estorno-e-chargeback",
+  },
+  {
+    href: "/cookies",
+    label: "Politica de Cookies",
+    slug: "cookies",
   },
 ] as const;
 

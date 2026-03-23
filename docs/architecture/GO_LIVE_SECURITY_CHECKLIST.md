@@ -1,7 +1,7 @@
 # Go-Live Security Checklist
 
 > Checklist operacional de seguranca do go-live web do Frescari.
-> Atualizado em 2026-03-22.
+> Atualizado em 2026-03-23.
 > Status do codigo: SELADO.
 > Status operacional do go-live: ABERTO.
 > Decisao atual: NO-GO ate fechar exposicao publica final, rodada ofensiva proporcional e confirmacao final do backup gerenciado na Neon.
@@ -39,13 +39,14 @@
 - [ ] executar a rodada ofensiva proporcional ao MVP
 - [ ] confirmar o backup gerenciado do provedor e registrar a evidencia final do restore window/snapshots
 
-### Situacao consolidada em 2026-03-22
+### Situacao consolidada em 2026-03-23
 
 - [x] O fix de catalogo publico para `STRIPE_CONNECT_MODE=connect` foi merged no PR `#45`.
 - [x] `pnpm build` passou localmente na rodada final de release candidate em 2026-03-22.
 - [x] `pnpm --filter web test:e2e` passou com `11/11` na mesma rodada.
 - [x] Os checks remotos de `quality` e Vercel passaram no PR `#45` antes do merge.
 - [x] A validacao remota de auth foi executada em preview protegido com bypass controlado no deploy `https://frescari-staging-jpo85t3f0-mateusoliveiradev1s-projects.vercel.app`.
+- [x] O PR `#48` passou com `quality` e Vercel verdes antes do merge, consolidando o fallback visual do email de verificacao e a regressao de onboarding para contas novas.
 - [ ] A validacao remota final do app em URL publica ainda nao foi encerrada porque a estrategia escolhida e manter a protection nos aliases atuais e abrir apenas o futuro custom domain.
 - [ ] A rodada ofensiva proporcional e a confirmacao final do backup gerenciado da Neon seguem sem registro final.
 
@@ -142,10 +143,10 @@ Evidencia remota consolidada em 2026-03-22:
 - POST invalido em `/api/auth/sign-in/email` retornou mensagem generica `Invalid email or password`, sem distinguir existencia de conta.
 - Em 2026-03-22, a suite `pnpm --filter web test` passou com regressao cobrindo a remocao do `token` do corpo de `sign-in/email` e `sign-up/email` sem perder `set-cookie`.
 - Repeticao rapida de POST invalido em `/api/auth/sign-in/email` passou a responder `Too many requests. Please try again later.`, confirmando throttling real na superficie de login.
-- POST valido em `/api/auth/sign-up/email` com `acceptedLegalVersion=2026-03-21-v1` retornou `200` e `Set-Cookie: __Secure-better-auth.session_token=...; HttpOnly; Secure; SameSite=Lax`.
+- POST valido em `/api/auth/sign-up/email` com `acceptedLegalVersion=2026-03-23-v1` retornou `200` e `Set-Cookie: __Secure-better-auth.session_token=...; HttpOnly; Secure; SameSite=Lax`.
 - POST duplicado em `/api/auth/sign-up/email` no preview corrigido agora retorna `{"message":"Nao foi possivel concluir o cadastro agora. Revise os dados e tente novamente.","code":"SIGN_UP_FAILED"}`, sem vazar existencia de conta.
 - POST em `/api/auth/sign-out` sem `Origin` retornou `403` com `MISSING_OR_NULL_ORIGIN`; com `Origin` legitima do proprio deployment retornou `200` e limpou `__Secure-better-auth.session_token`, `__Secure-better-auth.session_data` e `__Secure-better-auth.dont_remember` com `Max-Age=0`.
-- O runtime de sucesso de `sign-up/sign-in` continua retornando `token` no JSON alem do cookie `HttpOnly`; tratar esse comportamento como parte da revisao residual de frontend/XSS antes do go-live publico.
+- A nota residual anterior sobre `token` no JSON fica encerrada: a regressao atual do route handler exige `payload.token === null` em `sign-in/email` e `sign-up/email`, preservando a sessao apenas no cookie `HttpOnly`.
 
 ## 5. Authorization, RBAC and tenant isolation
 
@@ -377,8 +378,8 @@ Regra de fechamento:
 - enquanto este bloco final nao for atualizado com uma decisao nova, este documento continua sendo o registro vigente da decisao de seguranca do go-live
 - nenhum resumo paralelo deve sobrescrever a decisao de seguranca registrada aqui
 
-### Status do momento em 2026-03-22
+### Status do momento em 2026-03-23
 
 - Decisao atual: `NO-GO`
-- Frentes ja fechadas nesta rodada: baseline de codigo; hardening de auth com `trustedOrigins`, cookies seguros e rate limit; mascara anti-enumeracao em cadastro; remoção do `token` do corpo de `sign-in/sign-up`; validacao remota de sign-up/sign-in/sign-out em preview endurecido; fix do catalogo Connect; inventario de segredos; checks remotos do PR `#45`; ensaio versionado de restore/recovery com `db:recovery-rehearsal`; decisao operacional de manter aliases protegidos e publicar apenas no custom domain.
+- Frentes ja fechadas nesta rodada: baseline de codigo; hardening de auth com `trustedOrigins`, cookies seguros e rate limit; mascara anti-enumeracao em cadastro; remocao do `token` do corpo de `sign-in/sign-up`; validacao remota de sign-up/sign-in/sign-out em preview endurecido; fix do catalogo Connect; inventario de segredos; checks remotos dos PRs `#45` e `#48`; ensaio versionado de restore/recovery com `db:recovery-rehearsal`; decisao operacional de manter aliases protegidos e publicar apenas no custom domain.
 - Bloqueadores operacionais remanescentes: custom domain ainda nao configurado e sem walkthrough publico final; rodada ofensiva proporcional ao MVP; confirmacao do backup gerenciado e restore window na Neon; revisao residual de callbacks publicos.
