@@ -2,10 +2,6 @@ import { z } from "zod";
 
 export const producerLegalEntityTypeSchema = z.enum(["PF", "PJ"]);
 
-export type ProducerLegalEntityType = z.infer<
-  typeof producerLegalEntityTypeSchema
->;
-
 function normalizeWhitespace(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
@@ -186,5 +182,3 @@ export const onboardingSetupSchema = baseOnboardingSetupSchema.superRefine(
     }
   },
 );
-
-export type OnboardingSetupInput = z.infer<typeof onboardingSetupSchema>;
