@@ -13,12 +13,12 @@ test("reads legal consent payload from a signup body", () => {
   assert.deepEqual(
     extractLegalConsentPayload({
       acceptedLegal: true,
-      acceptedLegalVersion: "2026-03-21-v1",
+      acceptedLegalVersion: "2026-03-23-v1",
       acceptedLegalSource: "register_screen",
     }),
     {
       acceptedLegal: true,
-      acceptedLegalVersion: "2026-03-21-v1",
+      acceptedLegalVersion: "2026-03-23-v1",
       acceptedLegalSource: "register_screen",
     },
   );
