@@ -2,10 +2,10 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { Pool } from "@neondatabase/serverless";
 import { config } from "dotenv";
 import { inArray } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
 
 import {
   adminConnectionString,
@@ -166,7 +166,7 @@ function assertUrlOrNull(value: unknown, fieldName: string) {
 }
 
 function printHelp() {
-  console.info(`Usage: pnpm --filter @frescari/db launch:bootstrap -- [options]
+  console.info(`Usage: pnpm --filter @frescari/db launch:bootstrap [options]
 
 Options:
   --manifest <path>      JSON manifest with categories and master products.
@@ -561,8 +561,8 @@ export async function runLaunchBootstrapCli(argv = process.argv.slice(2)) {
     args.adminOnly || !args.manifestPath
       ? { categories: [], masterProducts: [] }
       : await loadLaunchBootstrapManifest(args.manifestPath);
-  const queryClient = neon(adminConnectionString);
-  const database = drizzle(queryClient);
+  const adminPool = new Pool({ connectionString: adminConnectionString });
+  const database = drizzle(adminPool);
   const requestedAdminEmails = args.catalogOnly ? [] : args.adminEmails;
   const categorySlugs = args.adminOnly
     ? []
@@ -571,120 +571,124 @@ export async function runLaunchBootstrapCli(argv = process.argv.slice(2)) {
     ? []
     : manifest.masterProducts.map((product) => product.name);
 
-  const [existingUsers, existingCategories, existingMasterProducts] =
-    await Promise.all([
-      requestedAdminEmails.length > 0
-        ? database
-            .select({
-              email: users.email,
-              id: users.id,
-              role: users.role,
-            })
-            .from(users)
-            .where(inArray(users.email, requestedAdminEmails))
-        : Promise.resolve([]),
-      categorySlugs.length > 0
-        ? database
-            .select({
-              id: productCategories.id,
-              name: productCategories.name,
-              seoDescription: productCategories.seoDescription,
-              slug: productCategories.slug,
-            })
-            .from(productCategories)
-            .where(inArray(productCategories.slug, categorySlugs))
-        : Promise.resolve([]),
-      masterProductNames.length > 0
-        ? database
-            .select({
-              category: masterProducts.category,
-              defaultImageUrl: masterProducts.defaultImageUrl,
-              id: masterProducts.id,
-              name: masterProducts.name,
-              pricingType: masterProducts.pricingType,
-            })
-            .from(masterProducts)
-            .where(inArray(masterProducts.name, masterProductNames))
-        : Promise.resolve([]),
-    ]);
+  try {
+    const [existingUsers, existingCategories, existingMasterProducts] =
+      await Promise.all([
+        requestedAdminEmails.length > 0
+          ? database
+              .select({
+                email: users.email,
+                id: users.id,
+                role: users.role,
+              })
+              .from(users)
+              .where(inArray(users.email, requestedAdminEmails))
+          : Promise.resolve([]),
+        categorySlugs.length > 0
+          ? database
+              .select({
+                id: productCategories.id,
+                name: productCategories.name,
+                seoDescription: productCategories.seoDescription,
+                slug: productCategories.slug,
+              })
+              .from(productCategories)
+              .where(inArray(productCategories.slug, categorySlugs))
+          : Promise.resolve([]),
+        masterProductNames.length > 0
+          ? database
+              .select({
+                category: masterProducts.category,
+                defaultImageUrl: masterProducts.defaultImageUrl,
+                id: masterProducts.id,
+                name: masterProducts.name,
+                pricingType: masterProducts.pricingType,
+              })
+              .from(masterProducts)
+              .where(inArray(masterProducts.name, masterProductNames))
+          : Promise.resolve([]),
+      ]);
 
-  const plan = buildLaunchBootstrapPlan({
-    existingCategories,
-    existingMasterProducts,
-    existingUsers,
-    manifest,
-    requestedAdminEmails,
-  });
+    const plan = buildLaunchBootstrapPlan({
+      existingCategories,
+      existingMasterProducts,
+      existingUsers,
+      manifest,
+      requestedAdminEmails,
+    });
 
-  console.info("[launch-bootstrap] plan summary:");
-  console.info(JSON.stringify(formatPlanSummary(plan), null, 2));
+    console.info("[launch-bootstrap] plan summary:");
+    console.info(JSON.stringify(formatPlanSummary(plan), null, 2));
 
-  if (plan.summary.adminMissing > 0) {
-    const missingEmails = plan.adminActions
-      .filter((item) => item.action === "missing")
-      .map((item) => item.email);
+    if (plan.summary.adminMissing > 0) {
+      const missingEmails = plan.adminActions
+        .filter((item) => item.action === "missing")
+        .map((item) => item.email);
 
-    throw new Error(
-      `Missing admin users: ${missingEmails.join(", ")}. Create and verify these accounts before promotion.`,
-    );
-  }
-
-  if (args.dryRun) {
-    console.info(
-      "[launch-bootstrap] dry-run enabled. No database writes were performed.",
-    );
-    return;
-  }
-
-  await database.transaction(async (tx) => {
-    for (const adminAction of plan.adminActions) {
-      if (adminAction.action !== "promote" || !adminAction.userId) {
-        continue;
-      }
-
-      await tx
-        .update(users)
-        .set({ role: "admin" })
-        .where(inArray(users.id, [adminAction.userId]));
+      throw new Error(
+        `Missing admin users: ${missingEmails.join(", ")}. Create and verify these accounts before promotion.`,
+      );
     }
 
-    for (const categoryAction of plan.categoryActions) {
-      if (categoryAction.action === "create") {
-        await tx.insert(productCategories).values({
-          name: categoryAction.desired.name,
-          seoDescription: categoryAction.desired.seoDescription,
-          slug: categoryAction.desired.slug,
-        });
-        continue;
+    if (args.dryRun) {
+      console.info(
+        "[launch-bootstrap] dry-run enabled. No database writes were performed.",
+      );
+      return;
+    }
+
+    await database.transaction(async (tx) => {
+      for (const adminAction of plan.adminActions) {
+        if (adminAction.action !== "promote" || !adminAction.userId) {
+          continue;
+        }
+
+        await tx
+          .update(users)
+          .set({ role: "admin" })
+          .where(inArray(users.id, [adminAction.userId]));
       }
 
-      if (categoryAction.action === "update" && categoryAction.id) {
-        await tx
-          .update(productCategories)
-          .set({
+      for (const categoryAction of plan.categoryActions) {
+        if (categoryAction.action === "create") {
+          await tx.insert(productCategories).values({
             name: categoryAction.desired.name,
             seoDescription: categoryAction.desired.seoDescription,
-          })
-          .where(inArray(productCategories.id, [categoryAction.id]));
-      }
-    }
+            slug: categoryAction.desired.slug,
+          });
+          continue;
+        }
 
-    for (const masterProductAction of plan.masterProductActions) {
-      if (masterProductAction.action === "create") {
-        await tx.insert(masterProducts).values(masterProductAction.desired);
-        continue;
+        if (categoryAction.action === "update" && categoryAction.id) {
+          await tx
+            .update(productCategories)
+            .set({
+              name: categoryAction.desired.name,
+              seoDescription: categoryAction.desired.seoDescription,
+            })
+            .where(inArray(productCategories.id, [categoryAction.id]));
+        }
       }
 
-      if (masterProductAction.action === "update" && masterProductAction.id) {
-        await tx
-          .update(masterProducts)
-          .set(masterProductAction.desired)
-          .where(inArray(masterProducts.id, [masterProductAction.id]));
-      }
-    }
-  });
+      for (const masterProductAction of plan.masterProductActions) {
+        if (masterProductAction.action === "create") {
+          await tx.insert(masterProducts).values(masterProductAction.desired);
+          continue;
+        }
 
-  console.info("[launch-bootstrap] bootstrap completed.");
+        if (masterProductAction.action === "update" && masterProductAction.id) {
+          await tx
+            .update(masterProducts)
+            .set(masterProductAction.desired)
+            .where(inArray(masterProducts.id, [masterProductAction.id]));
+        }
+      }
+    });
+
+    console.info("[launch-bootstrap] bootstrap completed.");
+  } finally {
+    await adminPool.end();
+  }
 }
 
 export function isLaunchBootstrapCliEntryPoint(

@@ -1,7 +1,7 @@
 # Launch V1 Master Plan
 
 > Plano mestre do pre-lancamento fechado do Frescari.
-> Atualizado em 2026-03-23.
+> Atualizado em 2026-03-24.
 > Status: EM EXECUCAO; FASE 2 FECHADA EM CODIGO, REPOSITORIO NO FIM DA FASE 5 E GO-LIVE REAL AINDA EM NO-GO.
 > Escopo desta versao: base juridica, operacional e tecnica para liberar o dominio publico com seguranca.
 > Referencia operacional final de go-live: `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`.
@@ -43,35 +43,34 @@ Em `2026-03-23`, o pacote inicial de endurecimento juridico, auth e onboarding d
 - o checkout deixa de depender apenas de `stripeAccountId` e valida o estado operacional real do produtor antes de abrir pagamento
 - o catalogo ganhou compatibilidade temporaria para produtores legados com `stripeAccountId` e sem primeiro sync, evitando regressao antes do backfill
 - foi criado um CLI operacional para backfill/sync em lote de contas Stripe antigas, com limite, filtro por tenant e relatorio de sucesso/falha
-- foi criado um CLI versionado para promover admin raiz e aplicar bootstrap idempotente de categorias/produtos mestres a partir de manifesto
+- foi criado um CLI versionado para promover admin raiz e, se necessario no futuro, aplicar bootstrap idempotente de categorias/produtos mestres a partir de manifesto
 - foi criado um CLI de auditoria para medir o legado Stripe ainda sem primeiro sync antes de remover o fallback temporario
-- foi criado um runbook operacional de bootstrap com manifesto exemplo para a carga oficial da base
+- foi criado um runbook operacional para promover admin raiz, orientar o catalogo inicial sem seed e manter a carga por manifesto apenas como opcao
 - o email de verificacao ganhou fallback visual inline com monograma da marca, evitando dependencia de logo remoto no corpo da mensagem
 - o contrato de ambiente de email passou a declarar tambem `AUTH_EMAIL_FROM_NAME`
 - a regressao de onboarding agora cobre explicitamente que conta nova nasce `buyer` e so vira `producer` por escolha explicita no fluxo
 
 Pendencias que continuam fora do codigo:
 
-- executar a migracao `0010_user_legal_acceptances` no banco real do ambiente alvo
-- executar a migracao `0011_producer_profile_fields` no banco real do ambiente alvo
-- executar a migracao `0012_stripe_connect_status_fields` no banco real do ambiente alvo
-- configurar `RESEND_API_KEY`, `AUTH_EMAIL_FROM` e `AUTH_EMAIL_FROM_NAME` no ambiente alvo para entrega real dos emails de verificacao
-- validar envio real, callback e reenvio da verificacao de email em `staging` antes de promover
-- rodar o backfill de Stripe Connect no `staging` e validar o resultado antes de promover
-- executar o bootstrap oficial com `launch:bootstrap` no ambiente alvo usando conta verificada e manifesto real
-- rodar a auditoria `stripe:connect:audit-legacy -- --fail-on-legacy` no ambiente alvo antes de remover o fallback legado
+- preservar a evidencia de schema do `staging`: em `2026-03-23`, o `DATABASE_URL` de `preview` do projeto `frescari-staging` foi inspecionado com `db:inspect-target`, confirmou `NEON_BRANCH_ID=br-polished-term-aiqe9nkj` e a mesma branch ja expunha os objetos esperados de `0010`, `0011` e `0012`; na promocao final, repetir a checagem no ambiente de producao
+- confirmar e manter `RESEND_API_KEY`, `AUTH_EMAIL_FROM` e `AUTH_EMAIL_FROM_NAME` no runtime alvo do app; em `2026-03-24`, o preview mais recente de `frescari-staging` confirmou envio real, reenvio, callback e login pos-verificacao de ponta a ponta para `warface01031999@gmail.com`
+- registrar que a branch Neon esperada de `staging` estava vazia em `2026-03-23` (`tenants=0`) e que a auditoria `stripe:connect:audit-legacy --json --limit 200` retornou `total=0` e `legacyUnsynced=0`; repetir a auditoria se a base receber carga real antes da promocao
+- executar o bootstrap oficial da conta admin no ambiente alvo com `launch:bootstrap --admin-only`; em `2026-03-24`, essa etapa ja foi validada em `staging` com `noop=1` e execucao real concluida
+- abrir uma branch Neon oficial realmente limpa para producao; em `2026-03-24`, a branch local de producao candidata (`br-blue-pond-ai3k7tdq`) foi inspecionada e nao serve para go-live porque ainda continha `user=154`, `product_categories=75` e `master_products=75`
+- configurar o environment `production` do GitHub Actions com `DATABASE_ADMIN_URL` da branch limpa oficial e `EXPECTED_PRODUCTION_NEON_BRANCH_ID`, depois disparar `.github/workflows/deploy-production.yml`
+- rodar a auditoria `stripe:connect:audit-legacy --fail-on-legacy` no ambiente alvo antes de remover o fallback legado
 - validar o pacote juridico com revisao de advogado antes do go-live
 - repetir o rollout no ambiente de producao quando a branch final for promovida
 
 ## 0.2 Status real do repositorio em 2026-03-23
 
-- `Fase 0 - Parcial`: migrations, RLS e rehearsal de recovery estao versionados, mas banco limpo de producao, snapshots gerenciados e evidencia operacional continuam fora do repositorio.
+- `Fase 0 - Parcial`: migrations, RLS e rehearsal de recovery estao versionados; em `2026-03-23`, a branch Neon esperada de `staging` ja refletia `0010`, `0011` e `0012`, mas banco limpo de producao, snapshots gerenciados e evidencia operacional final continuam fora do repositorio.
 - `Fase 1 - Fechada em codigo`: pacote juridico V1 esta publicado e versionado com documentos dedicados para cancelamento/chargeback e cookies; a revisao juridica final permanece como trava operacional da `Fase 7`.
-- `Fase 2 - Fechada em codigo`: aceite versionado, trilha auditavel, verificacao real de email, callback e reenvio estao prontos; falta apenas configuracao/env e validacao operacional em ambiente alvo.
+- `Fase 2 - Fechada em codigo`: aceite versionado, trilha auditavel, verificacao real de email, callback e reenvio estao prontos; o projeto Vercel `frescari-staging` ja tem as vars de runtime de email confirmadas, faltando a evidencia operacional ponta a ponta em ambiente alvo.
 - `Fase 3 - Fechada em codigo`: o onboarding do produtor distingue `PF/PJ`, persiste dados minimos reais e sustenta prefill coerente para Stripe; a V1 passa a tratar a prontidao operacional pelo snapshot real do Stripe Connect, sem introduzir um estado interno paralelo extra nesta rodada.
 - `Fase 4 - Fechada em codigo`: o app coleta dados minimos antes da Stripe, cria connected account com prefill coerente, retoma onboarding incompleto sem erro e expoe o estado correto da configuracao no dashboard principal.
-- `Fase 5 - Parcial forte`: checkout, dashboard principal e catalogo ja estao protegidos por estado real ou fallback legado controlado; ainda falta executar o backfill das contas antigas em ambiente real e remover a compatibilidade temporaria quando a base estiver sincronizada.
-- `Fase 6 - Parcial forte`: o caminho versionado de bootstrap ja existe em codigo com CLI, manifesto e runbook; a execucao real da base oficial continua pendente no ambiente alvo.
+- `Fase 5 - Parcial forte`: checkout, dashboard principal e catalogo ja estao protegidos por estado real ou fallback legado controlado; a branch Neon esperada de `staging` estava vazia em `2026-03-23` e a auditoria do legado retornou `total=0`, entao o backfill segue como requisito apenas para bases que realmente tenham produtores legados antes da remocao do fallback.
+- `Fase 6 - Parcial forte`: o caminho versionado de bootstrap ja existe em codigo com CLI e runbook; a promocao de admin foi validada em `staging`, e o catalogo inicial da producao real deve ser criado manualmente no painel, sem `seed`.
 - `Fase 7 - Aberta`: revisao juridica, abertura de dominio publico e checklist final seguem em `NO-GO` operacional.
 
 ## 0.3 Etapa atual
@@ -84,12 +83,33 @@ Marco pratico em `2026-03-23`:
 Motivo:
 
 - as travas principais de auth, onboarding e Stripe ja existem no produto
-- ainda faltam tarefas operacionais reais para consolidar a base oficial: migracoes no ambiente alvo, configuracao real do envio de email, backfill de Stripe Connect, bootstrap manual da base e revisao juridica final
+- o `staging` esperado ja tem schema alinhado, vars de email confirmadas e nenhuma carga legada Stripe nesta data
+- ainda faltam tarefas operacionais reais para consolidar a base oficial: abertura da branch/base oficial limpa, criacao manual do catalogo inicial pelo painel admin, revisao juridica final e repeticao do rollout no ambiente promovido
+- o environment `production` atual da Vercel ainda nao esta ligado a essa base oficial limpa; em `2026-03-24`, o `DATABASE_URL` remoto de `production` foi encontrado vazio e a sincronizacao ficou bloqueada ate existir a branch Neon final correta
 
 Leitura curta:
 
 - `produto/repositorio`: entre `Fase 5` e pre-`Fase 6`
 - `go-live real`: ainda em `NO-GO`, porque as pendencias operacionais e juridicas continuam abertas
+
+### Proximo passo operacional imediato
+
+Para evitar ambiguidade, a proxima execucao pratica do plano nao e abrir branch de producao nem promover release final.
+
+A ordem certa agora e:
+
+1. registrar a evidencia operacional ja confirmada em `staging`: branch Neon esperada `br-polished-term-aiqe9nkj`, schema de `0010/0011/0012` presente, email verificado ponta a ponta validado e etapa `--admin-only` do `launch:bootstrap` concluida
+2. abrir a branch/base oficial de producao limpa, sem `seed`
+3. configurar `DATABASE_ADMIN_URL` e `EXPECTED_PRODUCTION_NEON_BRANCH_ID` no environment `production` do GitHub e disparar `.github/workflows/deploy-production.yml`
+4. sincronizar a Vercel `production` com a branch limpa oficial
+5. promover a conta real para `admin` no ambiente oficial
+6. criar categorias e produtos iniciais manualmente no painel admin
+7. rerodar `pnpm --filter @frescari/api stripe:connect:audit-legacy --fail-on-legacy` antes de remover o fallback legado ou promover o ambiente final
+
+Regra pratica:
+
+- enquanto esse bloco operacional de producao nao estiver fechado, o trabalho ainda e de preparacao operacional
+- a promocao de branch final e a repeticao do rollout em producao acontecem depois da `Fase 6` e antes do fechamento da `Fase 7`
 
 ## 0.4 Fechamento fase a fase em 2026-03-23
 
@@ -97,11 +117,11 @@ Para fechar todas as fases da V1 sem ambiguidade, a leitura operacional passa a 
 
 - `Fase 0`: segue aberta; fecha quando a base oficial estiver limpa no ambiente alvo, com migrations aplicadas, RLS reaplicada e evidencia minima de recovery/restore registrada
 - `Fase 1`: fechada em codigo em `2026-03-23`; a trava remanescente do pacote juridico migra para revisao final dentro da `Fase 7`
-- `Fase 2`: fechada em codigo; falta a validacao operacional de `staging` com envio real de verificacao, callback e reenvio de ponta a ponta
+- `Fase 2`: fechada operacionalmente em `2026-03-24`; `staging` confirmou reenvio real, callback consumido, `emailVerified=true` no banco e login subsequente bem-sucedido
 - `Fase 3`: fechada em codigo em `2026-03-23`; para esta V1, a prontidao do produtor fica ancorada em onboarding minimo + snapshot Stripe Connect, sem criar um estado interno paralelo adicional
 - `Fase 4`: fechada em codigo em `2026-03-23`; a validacao manual final do fluxo Frescari -> Stripe -> retorno segue no checklist operacional
-- `Fase 5`: segue aberta; fecha quando o backfill das contas Stripe antigas rodar no ambiente real e a compatibilidade temporaria para contas legadas sem sync puder ser removida
-- `Fase 6`: segue aberta; fecha quando a base oficial tiver admin raiz real, categorias reais e produtos mestres reais aplicados pelo runbook versionado
+- `Fase 5`: segue aberta; fecha quando a auditoria do ambiente real confirmar ausencia de legado pendente, ou quando eventual backfill necessario terminar, e a compatibilidade temporaria para contas legadas sem sync puder ser removida
+- `Fase 6`: segue aberta; a etapa de admin raiz foi validada em `staging` em `2026-03-24`, o repositório agora tambem tem workflow manual `.github/workflows/deploy-production.yml` para inspecao e migracao da base oficial, e o bloqueio remanescente e abrir a branch Neon limpa e cadastrar o catalogo inicial manualmente no painel
 - `Fase 7`: segue aberta; fecha quando houver revisao juridica aplicada, custom domain pronto para abertura controlada e checklist final de go-live assinado
 
 ## 1. Objetivo
@@ -156,7 +176,8 @@ Construir a primeira versao realmente pronta para operacao do Frescari, com:
 - prefill de Stripe Connect
 - status operacional real para recebimentos
 - dashboard com travas de compliance
-- bootstrap versionado de admin, categorias e produtos mestres
+- bootstrap versionado de admin
+- catalogo inicial criado manualmente pela interface admin, sem `seed`
 
 ### Nao entra nesta V1
 
@@ -185,7 +206,7 @@ Criar a base oficial de producao com a mesma estrutura tecnica do projeto, sem h
 
 - schema de producao bate com o estado esperado do repositorio
 - nao existe dado de teste operacional
-- ambiente de producao esta pronto para bootstrap real
+- ambiente de producao esta pronto para a conta admin real e cadastro manual do catalogo
 
 ### Fase 1. Pacote juridico V1
 
@@ -341,22 +362,30 @@ Impedir que o sistema trate conta incompleta como conta pronta.
 
 #### Objetivo
 
-Subir a base real de administracao e catalogo sem seeds de teste, usando caminho versionado e repetivel.
+Subir a base real de administracao e catalogo sem seeds de teste, com conta admin promovida por script e catalogo inicial criado manualmente no painel.
+
+#### Pre-condicoes para entrar na fase
+
+- branch/base alvo com schema de `0010`, `0011` e `0012` verificado
+- entrega real do email de verificacao validada ou com evidencia registrada em `staging`
+- callback e reenvio de verificacao validados ou com evidencia registrada em `staging`
+- auditoria de legado Stripe revisada em `staging`; se a base estiver vazia ou sem produtores legados, registrar o resultado e seguir
 
 #### Ordem
 
 1. criar sua conta real
 2. verificar email dessa conta
-3. promover sua conta para `admin` via `pnpm --filter @frescari/db launch:bootstrap -- --admin-only ...`
-4. revisar e preencher o manifesto oficial de catalogo
-5. aplicar categorias e produtos mestres via `pnpm --filter @frescari/db launch:bootstrap -- --manifest ...`
-6. rodar `pnpm --filter @frescari/api stripe:connect:audit-legacy -- --fail-on-legacy`
+3. promover sua conta para `admin` via `pnpm --filter @frescari/db launch:bootstrap --admin-only ...`
+4. criar categorias manualmente no painel admin
+5. criar produtos manualmente no painel admin
+6. rodar `pnpm --filter @frescari/api stripe:connect:audit-legacy --fail-on-legacy`
 7. so depois abrir cadastro operacional real
 
 #### Regras
 
 - nada de reaproveitar catalogo de teste
-- categorias antes de produtos mestres
+- nada de aplicar `seed` na base oficial
+- categorias antes de produtos
 - taxonomia definida antes do volume operacional
 - toda execucao precisa passar pelo runbook `docs/operations/LAUNCH_BOOTSTRAP_RUNBOOK.md`
 
@@ -364,8 +393,9 @@ Subir a base real de administracao e catalogo sem seeds de teste, usando caminho
 
 - admin raiz operacional pronto
 - categorias reais prontas
-- produtos mestres reais prontos
+- produtos reais prontos
 - auditoria do legado Stripe executada e registrada
+- ambiente pronto para repetir o rollout na branch final promovida para producao
 
 ### Fase 7. Revisao juridica e abertura controlada
 
