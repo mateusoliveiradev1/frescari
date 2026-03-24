@@ -24,7 +24,7 @@ function readArgValue(argv: string[], index: number, flag: string) {
 }
 
 function printHelp() {
-  console.info(`Usage: pnpm --filter @frescari/api stripe:connect:backfill -- [options]
+  console.info(`Usage: pnpm --filter @frescari/api stripe:connect:backfill [options]
 
 Options:
   --limit <n>            Maximum number of tenants to sync in the current run.

@@ -1,7 +1,7 @@
 # Go-Live Security Checklist
 
 > Checklist operacional de seguranca do go-live web do Frescari.
-> Atualizado em 2026-03-23.
+> Atualizado em 2026-03-24.
 > Status do codigo: SELADO.
 > Status operacional do go-live: ABERTO.
 > Decisao atual: NO-GO ate fechar exposicao publica final, rodada ofensiva proporcional e confirmacao final do backup gerenciado na Neon.
@@ -14,7 +14,7 @@
 - [x] Este arquivo nao substitui planos mestres, runbooks ou docs funcionais como fonte unica de verdade do produto.
 - [x] `docs/MVP_CLOSURE_PLAN.md` continua como resumo de fechamento do MVP.
 - [x] `docs/architecture/LAUNCH_V1_MASTER_PLAN.md` continua como plano estrategico e nao redefine a regra de release desta fase.
-- [x] `docs/operations/LAUNCH_BOOTSTRAP_RUNBOOK.md` passa a ser o caminho versionado para bootstrap de admin/catalogo e auditoria do legado Stripe.
+- [x] `docs/operations/LAUNCH_BOOTSTRAP_RUNBOOK.md` passa a ser o caminho versionado para bootstrap de admin, cadastro manual do catalogo inicial e auditoria do legado Stripe.
 - [x] A decisao de `GO`, `GO WITH FIXES SCHEDULED` ou `NO-GO` desta frente de seguranca fica registrada aqui.
 
 ### O que "Status do codigo: SELADO" significa
@@ -24,6 +24,7 @@
 - [x] O estado final de RLS pode ser reaplicado via `pnpm --filter @frescari/db db:deploy`.
 - [x] O workflow `.github/workflows/ci.yml` executa `lint`, `typecheck`, `test` e `knip`.
 - [x] O workflow `.github/workflows/deploy-staging.yml` faz push de schema + reaplicacao de RLS em staging e falha de forma segura quando `DATABASE_ADMIN_URL` nao esta configurada.
+- [x] O repositório passou a ter tambem `.github/workflows/deploy-production.yml`, com disparo manual, inspecao do alvo Neon e aplicacao versionada de migracoes para a base oficial quando a branch limpa existir.
 - [x] O baseline local de qualidade foi restaurado em 2026-03-20 e `pnpm check` esta verde.
 - [x] A malha E2E do core web cobre comprador, fazenda e entregas com `pnpm --filter web test:e2e` verde.
 - [x] Os cron jobs operacionais do app web estao versionados em `vercel.json`.
@@ -39,6 +40,7 @@
 - [ ] validar o comportamento remoto final no custom domain publico, com HTTPS, sem bypass e sem abrir os aliases atuais
 - [ ] executar a rodada ofensiva proporcional ao MVP
 - [ ] confirmar o backup gerenciado do provedor e registrar a evidencia final do restore window/snapshots
+- [ ] criar a branch Neon oficial limpa de producao, configurar `DATABASE_ADMIN_URL` e `EXPECTED_PRODUCTION_NEON_BRANCH_ID` no environment `production` do GitHub Actions, e disparar `.github/workflows/deploy-production.yml`
 
 ### Situacao consolidada em 2026-03-23
 
@@ -48,8 +50,10 @@
 - [x] Os checks remotos de `quality` e Vercel passaram no PR `#45` antes do merge.
 - [x] A validacao remota de auth foi executada em preview protegido com bypass controlado no deploy `https://frescari-staging-jpo85t3f0-mateusoliveiradev1s-projects.vercel.app`.
 - [x] O PR `#48` passou com `quality` e Vercel verdes antes do merge, consolidando o fallback visual do email de verificacao e a regressao de onboarding para contas novas.
+- [x] Em `2026-03-24`, a validacao operacional do email verificado foi concluida no preview `frescari-staging-git-codex-119eac-mateusoliveiradev1s-projects.vercel.app`: o login real respondeu `EMAIL_NOT_VERIFIED`, o email da Resend foi entregue, o callback foi consumido, o banco passou a registrar `emailVerified=true` e o login seguinte retornou sucesso com redirecionamento para `/auth/verified`.
 - [ ] A validacao remota final do app em URL publica ainda nao foi encerrada porque a estrategia escolhida e manter a protection nos aliases atuais e abrir apenas o futuro custom domain.
 - [ ] A rodada ofensiva proporcional e a confirmacao final do backup gerenciado da Neon seguem sem registro final.
+- [ ] Em `2026-03-24`, o `production` da Vercel ainda nao apontava para a base oficial final: o `DATABASE_URL` remoto do ambiente estava vazio, e o alvo local de producao inspecionado (`br-blue-pond-ai3k7tdq`) nao estava limpo para go-live.
 
 ## 1. Objective
 
@@ -295,6 +299,9 @@ Evidencia coletada:
 - Em 2026-03-21, apos bootstrap zero-touch + novo deploy, GET remoto em `/api/cron/freshness` retornou `401` com payload `Unauthorized cron invocation.`, confirmando que o segredo passou a estar carregado no runtime.
 - Em 2026-03-22, `vercel env ls` confirmou a presenca dos segredos criticos em `preview` e `production`.
 - Em 2026-03-22, `gh secret list --env staging` confirmou `DATABASE_ADMIN_URL` e `gh variable list --env staging` confirmou `EXPECTED_STAGING_NEON_BRANCH_ID`.
+- Em 2026-03-23, `vercel env pull --environment=preview` + `pnpm --filter @frescari/db run db:inspect-target` confirmaram que o `DATABASE_URL` usado pelo preview do projeto `frescari-staging` aponta para `NEON_BRANCH_ID=br-polished-term-aiqe9nkj`, exatamente igual ao `EXPECTED_STAGING_NEON_BRANCH_ID`.
+- Em 2026-03-23, a mesma branch Neon de `staging` respondeu com os objetos esperados de `0010_user_legal_acceptances`, `0011_producer_profile_fields` e `0012_stripe_connect_status_fields`, confirmando schema alinhado no ambiente inspecionado.
+- Em 2026-03-23, `pnpm --filter @frescari/api stripe:connect:audit-legacy --json --limit 200` retornou `summary.total=0` e `legacyUnsynced=0`, e uma consulta SQL direta em `tenants` retornou `total=0`; nesta data, a base de `staging` inspecionada estava vazia, sem legado Stripe pendente para backfill.
 - Em 2026-03-22, `vercel project inspect` e a API de projeto confirmaram `nodeVersion=22.x`.
 - Em 2026-03-22, a API de projeto confirmou `ssoProtection.deploymentType=all_except_custom_domains` e a API de dominios retornou `domains=[]`.
 

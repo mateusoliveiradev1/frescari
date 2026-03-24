@@ -1,0 +1,71 @@
+name: Deploy Production DB
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production-db
+  cancel-in-progress: false
+
+jobs:
+  deploy-production-db:
+    name: Apply tracked migrations and final RLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+    env:
+      DATABASE_ADMIN_URL: ${{ secrets.DATABASE_ADMIN_URL }}
+      EXPECTED_PRODUCTION_NEON_BRANCH_ID: ${{ vars.EXPECTED_PRODUCTION_NEON_BRANCH_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check DATABASE_ADMIN_URL
+        id: database_admin_url
+        run: |
+          if [ -z "${DATABASE_ADMIN_URL}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::DATABASE_ADMIN_URL secret is not configured in the production environment. Skipping production database deploy."
+            {
+              echo "### Production database deploy skipped"
+              echo ""
+              echo "- \`DATABASE_ADMIN_URL\` is not configured in the \`production\` environment secrets."
+              echo "- Configure the clean production Neon branch first, then rerun this workflow."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Inspect production Neon target
+        if: steps.database_admin_url.outputs.configured == 'true'
+        run: |
+          inspect_output="$(DATABASE_ADMIN_URL="${DATABASE_ADMIN_URL}" EXPECTED_NEON_BRANCH_ID="${EXPECTED_PRODUCTION_NEON_BRANCH_ID}" pnpm --filter @frescari/db run db:inspect-target)"
+          echo "${inspect_output}"
+          {
+            echo "### Production Neon target"
+            echo ""
+            echo '```text'
+            echo "${inspect_output}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply production database migrations
+        if: steps.database_admin_url.outputs.configured == 'true'
+        run: pnpm --filter @frescari/db run db:migrate

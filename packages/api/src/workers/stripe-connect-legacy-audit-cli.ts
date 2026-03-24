@@ -61,7 +61,7 @@ function readArgValue(argv: string[], index: number, flag: string) {
 }
 
 function printHelp() {
-  console.info(`Usage: pnpm --filter @frescari/api stripe:connect:audit-legacy -- [options]
+  console.info(`Usage: pnpm --filter @frescari/api stripe:connect:audit-legacy [options]
 
 Options:
   --limit <n>            Maximum number of producer tenants to inspect.
