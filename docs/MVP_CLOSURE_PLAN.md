@@ -1,6 +1,6 @@
 # MVP Closure Plan
 
-> Status review atualizado em 2026-03-20 com base no estado atual do repositorio.
+> Status review atualizado em 2026-03-24 com base no estado atual do repositorio.
 
 ## Goal
 
@@ -19,6 +19,7 @@ Status atual: o baseline de codigo esta selado. A validacao operacional final ai
 
 - Baseline de codigo: `[x]` selado
 - Fluxo central do produto no web: `[x]` fechado
+- Catalogo mestre inicial do admin: `[x]` estruturado
 - Cobertura E2E rota por rota do core web: `[x]` fechado
 - Verificacao operacional final de go-live: `[ ]` pendente
 
@@ -64,6 +65,10 @@ Status atual: o baseline de codigo esta selado. A validacao operacional final ai
   Verify: catalogo, perfil, checkout, sucesso, fazenda, pedidos e entregas passam por cobertura E2E suficiente para o MVP.
   Status notes: em 2026-03-20 a malha foi fechada com `apps/web/e2e/buyer-core.spec.ts`, `apps/web/e2e/support/buyer-session.ts` e a regressao complementar existente em `apps/web/e2e/producer-logistics.spec.ts`; `pnpm --filter web test:e2e` passou com 11 testes verdes.
 
+- [x] Consolidar o catalogo mestre inicial do admin.
+  Verify: categorias e produtos-base existem no painel admin sem depender de `seed`.
+  Status notes: em 2026-03-24 a taxonomia inicial e os produtos-base foram cadastrados manualmente no painel admin; o fluxo esperado agora e o produtor publicar lotes vinculados a esse catalogo.
+
 - [ ] Rodar a verificacao operacional final do MVP web.
   Verify: `build`, E2E do core, checklist de seguranca e evidencia de ambiente remoto concluidos.
   Status notes: `pnpm check` ja esta verde, mas isso ainda nao substitui a rodada final de build, E2E completo e execucao da checklist operacional.
@@ -79,6 +84,7 @@ Status atual: o baseline de codigo esta selado. A validacao operacional final ai
 
 - [x] O comprador consegue navegar, calcular frete por fazenda e pagar com seguranca no fluxo web final.
 - [ ] O produtor consegue operar fazenda, lotes e pedidos sem depender de fluxos provisiorios.
+- [x] O admin consegue manter o catalogo mestre base sem depender de `seed`.
 - [x] O operador de entregas ja consegue usar a camada de IA operacional no painel.
 - [x] Os eventos principais do fluxo ja aparecem como notificacoes operacionais no web.
 - [ ] O projeto passa por `build`, E2E do core, checklist operacional e sign-off final de go-live.

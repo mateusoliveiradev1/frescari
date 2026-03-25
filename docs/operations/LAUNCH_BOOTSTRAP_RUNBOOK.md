@@ -2,7 +2,7 @@
 
 > Runbook operacional para bootstrap da base oficial do Frescari.
 > Atualizado em 2026-03-24.
-> Escopo: promover admin raiz, orientar o cadastro manual do catalogo inicial e auditar o legado Stripe antes de remover o fallback temporario.
+> Escopo: promover admin raiz, orientar o cadastro manual do catalogo inicial, consolidar o modelo admin -> catalogo mestre -> lotes do produtor e auditar o legado Stripe antes de remover o fallback temporario.
 
 ## 1. Pre-requisitos
 
@@ -44,9 +44,19 @@ Checklist operacional:
 - slugs finais de categorias definidos antes da carga
 - nomes oficiais de categorias aprovados
 - produtos iniciais sem duplicidade
-- `pricingType` coerente com o uso operacional
+- `pricingType` do produto mestre coerente com o uso operacional, sem conflitar com a unidade real que o produtor escolhe no lote
 - imagens padrao apontando para URLs definitivas ou ficando nulas
 - nada de reaproveitar `seed` ou catalogo de teste
+
+## 3.1 Modelo operacional depois do bootstrap
+
+Depois que o catalogo mestre inicial estiver pronto, a operacao esperada do Frescari fica assim:
+
+- o `admin` cuida das categorias e dos produtos-base em `/admin/catalogo`
+- o `producer` registra lotes vinculando sua oferta a um produto-base existente
+- cada lote define a oferta comercial real do produtor: quantidade, preco, unidade, foto, colheita e validade
+- na versao atual do produto, a unidade escolhida no lote/produto e a referencia efetiva para catalogo, carrinho e checkout
+- itens vendidos por peso continuam aptos a fluxo de autorizacao e captura manual no Stripe depois da pesagem final
 
 ## 4. Carga por manifesto em lote (opcional)
 
@@ -110,7 +120,7 @@ pnpm --filter @frescari/api stripe:connect:backfill --limit 25
 - o banco passou a registrar `emailVerified=true` para a conta validada
 - `pnpm --filter @frescari/db launch:bootstrap --admin-only --admin-email warface01031999@gmail.com --dry-run` retornou `noop=1`
 - a execucao real do mesmo comando completou sem escrita adicional depois do ajuste do CLI para driver transacional
-- o proximo passo operacional desta frente, no fluxo recomendado, e criar categorias e produtos manualmente no painel quando a branch/base oficial de producao estiver pronta
+- o catalogo mestre inicial ja foi criado manualmente no painel admin; o proximo passo operacional desta frente passa a ser validar o uso desse catalogo pelos produtores e concluir o rollout do ambiente oficial
 
 ## 6. Criterio de saida desta frente
 

@@ -22,6 +22,14 @@ Nao existe `apps/api` no estado atual do projeto. O backend do MVP vive como pac
 - Stripe
 - Turborepo + pnpm
 
+## Modelo operacional atual
+
+- O `admin` mantém o catalogo mestre em `/admin/catalogo`, com categorias e produtos-base.
+- O `producer` nao cria uma taxonomia paralela; ele seleciona um item do catalogo mestre ao registrar um lote em `/dashboard/inventario`.
+- O lote e a oferta comercial real do produtor: foto, quantidade, preco, colheita, validade e unidade de venda.
+- Na versao atual, a unidade escolhida no lote/produto (`kg`, `un`, `cx`, `maco`) guia a experiencia efetiva de catalogo, carrinho e checkout.
+- Itens vendidos por peso continuam suportando autorizacao e captura manual no Stripe depois da pesagem final.
+
 ## Requisitos
 
 - Node.js 22 recomendado
