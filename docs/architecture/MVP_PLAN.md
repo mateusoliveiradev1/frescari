@@ -1,6 +1,6 @@
 # Frescari - Plano de Arquitetura do MVP
 
-> Documento vivo alinhado ao estado real do repositorio em 2026-03-20.
+> Documento vivo alinhado ao estado real do repositorio em 2026-03-24.
 > Escopo atual: `apps/web` + `packages/*`.
 > Status: MVP web-first com codigo selado e validacao operacional final em andamento.
 
@@ -9,8 +9,9 @@
 Frescari e um marketplace de hortifruti com operacao web para:
 
 - publicar catalogo indexavel e orientado a SEO
+- manter um catalogo mestre centralizado por categorias e produtos-base
 - permitir compra por fazenda com checkout seguro
-- operar fazenda, produtos, lotes e pedidos no painel web
+- operar fazenda, lotes e pedidos no painel web, com oferta comercial definida pelo produtor
 - apoiar despacho e entregas com heuristicas operacionais
 - manter notificacoes criticas do fluxo dentro do proprio painel
 
@@ -72,8 +73,11 @@ Essa arquitetura e deliberadamente enxuta: um unico app em producao, com package
 
 ### Catalogo e descoberta
 
+- catalogo mestre centralizado em categorias e produtos-base mantidos pelo admin
 - catalogo publico indexavel
 - paginas por categoria, produto e fornecedores
+- cadastro de lotes do produtor sempre vinculado ao catalogo mestre
+- unidade e preco finais definidos no lote do produtor
 - metadados e superficie SEO no app web
 
 ### Compra e pagamento
@@ -82,6 +86,7 @@ Essa arquitetura e deliberadamente enxuta: um unico app em producao, com package
 - checkout por fazenda
 - recalculo server-side de itens e frete
 - Stripe Checkout
+- autorizacao/captura manual para itens vendidos por peso
 - webhook com idempotencia e reconstrucao do pedido no servidor
 
 ### Operacao

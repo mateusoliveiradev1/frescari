@@ -2,7 +2,7 @@
 
 > Plano mestre do pre-lancamento fechado do Frescari.
 > Atualizado em 2026-03-24.
-> Status: EM EXECUCAO; FASE 2 FECHADA EM CODIGO, REPOSITORIO NO FIM DA FASE 5 E GO-LIVE REAL AINDA EM NO-GO.
+> Status: EM EXECUCAO; FASE 6 PARCIALMENTE FECHADA — branch `production-v1-clean` criada, admin promovido, categorias e produtos cadastrados; pendente configurar env vars de producao (GitHub Actions + Vercel) e rodar deploy-production.yml.
 > Escopo desta versao: base juridica, operacional e tecnica para liberar o dominio publico com seguranca.
 > Referencia operacional final de go-live: `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`.
 
@@ -75,53 +75,51 @@ Pendencias que continuam fora do codigo:
 
 ## 0.3 Etapa atual
 
-Marco pratico em `2026-03-23`:
+Marco pratico em `2026-03-24`:
 
 - em codigo, o repositorio esta no fim da `Fase 5`
-- em operacao real, ainda nao viramos a `Fase 6`
+- em operacao real, a `Fase 6` esta parcialmente fechada
 
-Motivo:
+O que ja foi executado em producao:
 
-- as travas principais de auth, onboarding e Stripe ja existem no produto
-- o `staging` esperado ja tem schema alinhado, vars de email confirmadas e nenhuma carga legada Stripe nesta data
-- ainda faltam tarefas operacionais reais para consolidar a base oficial: abertura da branch/base oficial limpa, criacao manual do catalogo inicial pelo painel admin, revisao juridica final e repeticao do rollout no ambiente promovido
-- o environment `production` atual da Vercel ainda nao esta ligado a essa base oficial limpa; em `2026-03-24`, o `DATABASE_URL` remoto de `production` foi encontrado vazio e a sincronizacao ficou bloqueada ate existir a branch Neon final correta
+- branch `production-v1-clean` criada no Neon, limpa e sem dados de teste
+- conta admin promovida via `launch:bootstrap --admin-only` nessa branch
+- 8 categorias criadas manualmente no painel admin (Cogumelos, Legumes, Frutas, Raizes e Tuberculos, Flores Comestiveis, Brotos e Microverdes, Folhosas, Ervas e Temperos)
+- produtos-base criados manualmente no painel admin
+- modelo operacional definido: o admin mantem o catalogo mestre e o produtor publica lotes vinculados a ele, escolhendo unidade, preco, quantidade e foto da propria oferta
+
+O que ainda falta para fechar a `Fase 6` e entrar na `Fase 7`:
+
+- configurar `DATABASE_ADMIN_URL` e `EXPECTED_PRODUCTION_NEON_BRANCH_ID` da branch `production-v1-clean` no environment `production` do GitHub Actions
+- configurar `DATABASE_URL` da branch `production-v1-clean` no environment `production` da Vercel
+- disparar `.github/workflows/deploy-production.yml` para aplicar migrations e RLS na branch oficial
+- rerodar `pnpm --filter @frescari/api stripe:connect:audit-legacy --fail-on-legacy` no ambiente alvo
+- configurar dominio customizado e validar HTTPS
 
 Leitura curta:
 
-- `produto/repositorio`: entre `Fase 5` e pre-`Fase 6`
-- `go-live real`: ainda em `NO-GO`, porque as pendencias operacionais e juridicas continuam abertas
+- `produto/repositorio`: Fase 6 em execucao, bootstrap e catalogo concluidos
+- `go-live real`: ainda em `NO-GO`, pendente configuracao de ambiente e dominio
 
 ### Proximo passo operacional imediato
 
-Para evitar ambiguidade, a proxima execucao pratica do plano nao e abrir branch de producao nem promover release final.
-
-A ordem certa agora e:
-
-1. registrar a evidencia operacional ja confirmada em `staging`: branch Neon esperada `br-polished-term-aiqe9nkj`, schema de `0010/0011/0012` presente, email verificado ponta a ponta validado e etapa `--admin-only` do `launch:bootstrap` concluida
-2. abrir a branch/base oficial de producao limpa, sem `seed`
-3. configurar `DATABASE_ADMIN_URL` e `EXPECTED_PRODUCTION_NEON_BRANCH_ID` no environment `production` do GitHub e disparar `.github/workflows/deploy-production.yml`
-4. sincronizar a Vercel `production` com a branch limpa oficial
-5. promover a conta real para `admin` no ambiente oficial
-6. criar categorias e produtos iniciais manualmente no painel admin
-7. rerodar `pnpm --filter @frescari/api stripe:connect:audit-legacy --fail-on-legacy` antes de remover o fallback legado ou promover o ambiente final
-
-Regra pratica:
-
-- enquanto esse bloco operacional de producao nao estiver fechado, o trabalho ainda e de preparacao operacional
-- a promocao de branch final e a repeticao do rollout em producao acontecem depois da `Fase 6` e antes do fechamento da `Fase 7`
+1. configurar `DATABASE_ADMIN_URL` e `EXPECTED_PRODUCTION_NEON_BRANCH_ID` no environment `production` do GitHub
+2. configurar `DATABASE_URL` da branch `production-v1-clean` no environment `production` da Vercel
+3. disparar `.github/workflows/deploy-production.yml`
+4. rerodar `stripe:connect:audit-legacy --fail-on-legacy` no ambiente alvo
+5. configurar dominio customizado e validar HTTPS ponta a ponta
 
 ## 0.4 Fechamento fase a fase em 2026-03-23
 
 Para fechar todas as fases da V1 sem ambiguidade, a leitura operacional passa a ser:
 
-- `Fase 0`: segue aberta; fecha quando a base oficial estiver limpa no ambiente alvo, com migrations aplicadas, RLS reaplicada e evidencia minima de recovery/restore registrada
+- `Fase 0`: parcialmente fechada; branch `production-v1-clean` criada e limpa em `2026-03-24`; fecha definitivamente quando migrations e RLS forem aplicadas via `deploy-production.yml` e evidencia minima de recovery/restore for registrada
 - `Fase 1`: fechada em codigo em `2026-03-23`; a trava remanescente do pacote juridico migra para revisao final dentro da `Fase 7`
 - `Fase 2`: fechada operacionalmente em `2026-03-24`; `staging` confirmou reenvio real, callback consumido, `emailVerified=true` no banco e login subsequente bem-sucedido
 - `Fase 3`: fechada em codigo em `2026-03-23`; para esta V1, a prontidao do produtor fica ancorada em onboarding minimo + snapshot Stripe Connect, sem criar um estado interno paralelo adicional
 - `Fase 4`: fechada em codigo em `2026-03-23`; a validacao manual final do fluxo Frescari -> Stripe -> retorno segue no checklist operacional
 - `Fase 5`: segue aberta; fecha quando a auditoria do ambiente real confirmar ausencia de legado pendente, ou quando eventual backfill necessario terminar, e a compatibilidade temporaria para contas legadas sem sync puder ser removida
-- `Fase 6`: segue aberta; a etapa de admin raiz foi validada em `staging` em `2026-03-24`, o repositório agora tambem tem workflow manual `.github/workflows/deploy-production.yml` para inspecao e migracao da base oficial, e o bloqueio remanescente e abrir a branch Neon limpa e cadastrar o catalogo inicial manualmente no painel
+- `Fase 6`: parcialmente fechada em `2026-03-24`; branch `production-v1-clean` criada, admin promovido, 8 categorias e produtos criados manualmente no painel; pendente: configurar env vars de producao (GitHub Actions + Vercel), rodar `deploy-production.yml` e auditoria Stripe `--fail-on-legacy`
 - `Fase 7`: segue aberta; fecha quando houver revisao juridica aplicada, custom domain pronto para abertura controlada e checklist final de go-live assinado
 
 ## 1. Objetivo
@@ -162,6 +160,7 @@ Construir a primeira versao realmente pronta para operacao do Frescari, com:
 - producao nasce limpa
 - nada de usuarios, pedidos, produtos ou contas Stripe herdadas de testes
 - categorias e produtos mestres reais entram depois via admin
+- a venda real continua sendo do produtor, no lote, mesmo quando o item nasce do catalogo mestre
 
 ## 3. Escopo da V1
 
@@ -178,6 +177,7 @@ Construir a primeira versao realmente pronta para operacao do Frescari, com:
 - dashboard com travas de compliance
 - bootstrap versionado de admin
 - catalogo inicial criado manualmente pela interface admin, sem `seed`
+- liberdade do produtor para definir a oferta final no lote, sem quebrar a referencia comum do catalogo mestre
 
 ### Nao entra nesta V1
 
@@ -378,8 +378,9 @@ Subir a base real de administracao e catalogo sem seeds de teste, com conta admi
 3. promover sua conta para `admin` via `pnpm --filter @frescari/db launch:bootstrap --admin-only ...`
 4. criar categorias manualmente no painel admin
 5. criar produtos manualmente no painel admin
-6. rodar `pnpm --filter @frescari/api stripe:connect:audit-legacy --fail-on-legacy`
-7. so depois abrir cadastro operacional real
+6. validar que o fluxo de inventario do produtor usa esse catalogo mestre para publicar lotes, escolhendo unidade e preco no proprio painel
+7. rodar `pnpm --filter @frescari/api stripe:connect:audit-legacy --fail-on-legacy`
+8. so depois abrir cadastro operacional real
 
 #### Regras
 
@@ -387,6 +388,7 @@ Subir a base real de administracao e catalogo sem seeds de teste, com conta admi
 - nada de aplicar `seed` na base oficial
 - categorias antes de produtos
 - taxonomia definida antes do volume operacional
+- o catalogo mestre define a referencia comum; a oferta final continua sendo montada pelo produtor no lote
 - toda execucao precisa passar pelo runbook `docs/operations/LAUNCH_BOOTSTRAP_RUNBOOK.md`
 
 #### Regra de saida
