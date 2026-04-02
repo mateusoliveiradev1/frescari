@@ -1,13 +1,14 @@
-name: CI
+name: Security Audit
 
 on:
-  pull_request:
-  push:
+  schedule:
+    - cron: "0 9 * * 1" # every Monday 09:00 UTC (06:00 Brasilia)
+  workflow_dispatch:
 
 jobs:
-  quality:
+  audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -27,17 +28,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
+      - name: Full audit report
+        run: pnpm audit || true
 
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        run: pnpm test
-
-      - name: Knip
-        run: pnpm knip
-
-      - name: Security audit (block on high/critical in runtime deps)
+      - name: Fail on critical vulnerabilities
         run: pnpm audit --audit-level=critical
