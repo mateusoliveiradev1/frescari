@@ -117,15 +117,16 @@ pnpm stripe:listen
 
 ## Banco e seguranca
 
-- `DATABASE_URL` deve ser a credencial restrita de runtime
+- `DATABASE_URL` deve ser a credencial restrita de runtime (sem BYPASSRLS)
 - `DATABASE_ADMIN_URL` deve ficar reservada para migration, bootstrap e tarefas administrativas
 - O estado final de RLS fica versionado em `packages/db`
-- O checklist operacional de go-live esta em `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`
+- O checklist operacional de go-live esta em `docs/operations/security-checklist.md`
 
-## Documentos de referencia
+## Documentacao
 
-- `docs/architecture/MVP_PLAN.md`
-- `docs/architecture/LAUNCH_V1_MASTER_PLAN.md`
-- `docs/MVP_CLOSURE_PLAN.md`
-- `docs/architecture/GO_LIVE_SECURITY_CHECKLIST.md`
-- `docs/architecture/RLS_ROLLOUT_RUNBOOK.md`
+| Documento | Descricao |
+|-----------|-----------|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | SDD central: arquitetura, diagramas C4, ERD, fluxos |
+| [`docs/adr/`](docs/adr/README.md) | Architecture Decision Records (9 ADRs) |
+| [`docs/guides/`](docs/guides/) | Guias de features: logistica, UI/UX, SEO |
+| [`docs/operations/`](docs/operations/) | Runbooks operacionais: bootstrap, RLS, Stripe, backup |
