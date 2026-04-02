@@ -7,8 +7,8 @@ import {
   legalDocumentLinks,
 } from "@/lib/legal-documents";
 
-test("legal registry exposes the current V1 documents", () => {
-  assert.equal(LEGAL_VERSION, "2026-03-23-v1");
+test("legal registry exposes the current V2 documents", () => {
+  assert.equal(LEGAL_VERSION, "2026-04-02-v2");
   assert.deepEqual(
     legalDocumentLinks.map((entry) => entry.slug),
     [
@@ -30,7 +30,7 @@ test("legal registry exposes the current V1 documents", () => {
     assert.ok(document.title.length > 0);
     assert.ok(document.sections.length > 0);
     assert.ok(robots && typeof robots !== "string");
-    assert.equal(robots.index, false);
-    assert.equal(robots.follow, false);
+    assert.equal(robots.index, true);
+    assert.equal(robots.follow, true);
   }
 });
