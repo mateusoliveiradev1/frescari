@@ -1,7 +1,44 @@
 import { auth } from "@/lib/auth";
+import { checkRateLimit, extractClientIp } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
+
+/** 10 attempts per minute per IP per auth endpoint. */
+const AUTH_RATE_LIMIT = { limit: 10, windowMs: 60_000 } as const;
+
+const RATE_LIMITED_PATHS = [
+  "/sign-in/email",
+  "/sign-up/email",
+  "/forget-password",
+] as const;
+
+function isRateLimitedAuthPath(request: NextRequest): boolean {
+  const pathname = request.nextUrl.pathname;
+  return (
+    request.method === "POST" &&
+    RATE_LIMITED_PATHS.some((p) => pathname.endsWith(p))
+  );
+}
+
+function buildRateLimitedResponse(resetAt: number): Response {
+  const retryAfterSec = Math.ceil((resetAt - Date.now()) / 1000);
+  return Response.json(
+    {
+      message:
+        "Muitas tentativas consecutivas. Aguarde um momento antes de tentar novamente.",
+      code: "RATE_LIMITED",
+    },
+    {
+      status: 429,
+      headers: {
+        "Retry-After": String(Math.max(retryAfterSec, 1)),
+        "X-RateLimit-Limit": String(AUTH_RATE_LIMIT.limit),
+        "X-RateLimit-Remaining": "0",
+      },
+    },
+  );
+}
 
 const GENERIC_SIGN_UP_ERROR = {
   message:
@@ -45,6 +82,16 @@ function buildJsonResponse(response: Response, payload: unknown) {
 }
 
 async function handleAuthRequest(request: NextRequest) {
+  if (isRateLimitedAuthPath(request)) {
+    const ip = extractClientIp(request.headers);
+    const key = `auth:${ip}:${request.nextUrl.pathname}`;
+    const result = checkRateLimit(key, AUTH_RATE_LIMIT.limit, AUTH_RATE_LIMIT.windowMs);
+
+    if (!result.allowed) {
+      return buildRateLimitedResponse(result.resetAt);
+    }
+  }
+
   const response = await auth.handler(request);
 
   const contentType = response.headers.get("content-type") ?? "";

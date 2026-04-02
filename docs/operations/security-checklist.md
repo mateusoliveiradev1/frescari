@@ -1,10 +1,10 @@
 # Go-Live Security Checklist
 
 > Checklist operacional de seguranca do go-live web do Frescari.
-> Atualizado em 2026-03-24.
+> Atualizado em 2026-04-02.
 > Status do codigo: SELADO.
-> Status operacional do go-live: ABERTO.
-> Decisao atual: NO-GO ate fechar exposicao publica final, rodada ofensiva proporcional e confirmacao final do backup gerenciado na Neon.
+> Status operacional do go-live: PARCIALMENTE COMPLETO.
+> Decisao atual: NO-GO ate fechar dominio customizado, rodada ofensiva proporcional e confirmacao final do backup gerenciado na Neon.
 
 ## 0. Papel deste documento e leitura correta do status
 
@@ -40,7 +40,7 @@
 - [ ] validar o comportamento remoto final no custom domain publico, com HTTPS, sem bypass e sem abrir os aliases atuais
 - [ ] executar a rodada ofensiva proporcional ao MVP
 - [ ] confirmar o backup gerenciado do provedor e registrar a evidencia final do restore window/snapshots
-- [ ] criar a branch Neon oficial limpa de producao, configurar `DATABASE_ADMIN_URL` e `EXPECTED_PRODUCTION_NEON_BRANCH_ID` no environment `production` do GitHub Actions, e disparar `.github/workflows/deploy-production.yml`
+- [x] criar a branch Neon oficial limpa de producao, configurar `DATABASE_ADMIN_URL` e `EXPECTED_PRODUCTION_NEON_BRANCH_ID` no environment `production` do GitHub Actions, e disparar `.github/workflows/deploy-production.yml` — **CONCLUIDO em 2026-04-02, run #23882620205 passou em 18s**
 
 ### Situacao consolidada em 2026-03-23
 
@@ -53,7 +53,8 @@
 - [x] Em `2026-03-24`, a validacao operacional do email verificado foi concluida no preview `frescari-staging-git-codex-119eac-mateusoliveiradev1s-projects.vercel.app`: o login real respondeu `EMAIL_NOT_VERIFIED`, o email da Resend foi entregue, o callback foi consumido, o banco passou a registrar `emailVerified=true` e o login seguinte retornou sucesso com redirecionamento para `/auth/verified`.
 - [ ] A validacao remota final do app em URL publica ainda nao foi encerrada porque a estrategia escolhida e manter a protection nos aliases atuais e abrir apenas o futuro custom domain.
 - [ ] A rodada ofensiva proporcional e a confirmacao final do backup gerenciado da Neon seguem sem registro final.
-- [ ] Em `2026-03-24`, o `production` da Vercel ainda nao apontava para a base oficial final: o `DATABASE_URL` remoto do ambiente estava vazio, e o alvo local de producao inspecionado (`br-blue-pond-ai3k7tdq`) nao estava limpo para go-live.
+- [x] Em `2026-04-02`, todos os env vars necessarios foram confirmados no Vercel (production) e no GitHub Actions environment `production`. Schema e RLS aplicados em producao via `deploy-production.yml` (run #23882620205). Rate limiting de auth implementado em `apps/web/src/app/api/auth/[...all]/route.ts` (10 req/min por IP). Auditoria Stripe legacy pendente de execucao em ambiente de producao.
+- [ ] Em `2026-03-24`, o `production` da Vercel ainda nao apontava para a base oficial final: o `DATABASE_URL` remoto do ambiente estava vazio, e o alvo local de producao inspecionado (`br-blue-pond-ai3k7tdq`) nao estava limpo para go-live. Situacao resolvida em 2026-04-02.
 
 ## 1. Objective
 
