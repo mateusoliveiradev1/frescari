@@ -6,6 +6,7 @@ import * as schema from "@frescari/db";
 import { sanitizeEnvValue } from "@/lib/env";
 import { getAppUrl, getConfiguredUrl } from "@/lib/app-url";
 import { sendAuthVerificationEmail } from "@/lib/auth-email";
+import { getRequestOrigins } from "@/lib/auth-origin";
 import { createEmailAndPasswordConfig } from "@/lib/auth-password";
 import {
   extractIpAddress,
@@ -33,25 +34,13 @@ function toUniqueValues(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.filter(Boolean) as string[]));
 }
 
-function getRequestOrigin(request?: Request): string | null {
-  if (!request) {
-    return null;
-  }
-
-  try {
-    return new URL(request.url).origin;
-  } catch {
-    return null;
-  }
-}
-
 function getTrustedOrigins(request?: Request) {
   return toUniqueValues([
     authBaseUrl,
     getConfiguredUrl(process.env.BETTER_AUTH_URL),
     getConfiguredUrl(process.env.NEXT_PUBLIC_BETTER_AUTH_URL),
     getConfiguredUrl(process.env.NEXT_PUBLIC_APP_URL),
-    getRequestOrigin(request),
+    ...getRequestOrigins(request),
     ...(isProduction ? [] : localTrustedOrigins),
   ]);
 }
