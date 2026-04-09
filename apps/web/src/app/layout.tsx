@@ -1,39 +1,59 @@
 import type { Metadata } from "next";
-import { Playfair_Display, DM_Sans } from "next/font/google";
+import { DM_Sans, Playfair_Display } from "next/font/google";
 import { Toaster } from "sonner";
-import "./globals.css";
-import { TRPCProvider } from "@/trpc/Provider";
+
 import { GlobalNav } from "@/components/global-nav";
+import { sanitizeEnvValue } from "@/lib/env";
+import {
+  buildSeoMetadata,
+  SITE_DEFAULT_DESCRIPTION,
+  SITE_DEFAULT_TITLE,
+} from "@/lib/seo";
+import { TRPCProvider } from "@/trpc/Provider";
+
+import "./globals.css";
 
 const playfairDisplay = Playfair_Display({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["600", "700", "900"],
-  style: ["normal", "italic"],
   display: "swap",
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["600", "700", "900"],
 });
 
 const dmSans = DM_Sans({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-  style: ["normal", "italic"],
   display: "swap",
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  variable: "--font-sans",
+  weight: ["300", "400", "500", "600"],
+});
+
+const googleSiteVerification = sanitizeEnvValue(
+  process.env.GOOGLE_SITE_VERIFICATION,
+);
+
+const baseMetadata = buildSeoMetadata({
+  description: SITE_DEFAULT_DESCRIPTION,
+  path: "/",
+  title: SITE_DEFAULT_TITLE,
 });
 
 export const metadata: Metadata = {
-  title: "Frescari — Hortifruti Direto da Horta",
-  description:
-    "Produtos colhidos hoje em fazendas a menos de 50km de você. Apoie o produtor local e garanta o máximo de frescor.",
-  applicationName: "Frescari",
-  icons: {
-    icon: [{ url: "/icon", sizes: "64x64", type: "image/png" }],
-    shortcut: [{ url: "/icon", sizes: "64x64", type: "image/png" }],
-    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
-  },
+  ...baseMetadata,
   appleWebApp: {
     title: "Frescari",
   },
+  icons: {
+    apple: [{ sizes: "180x180", type: "image/png", url: "/apple-icon" }],
+    icon: [{ sizes: "64x64", type: "image/png", url: "/icon" }],
+    shortcut: [{ sizes: "64x64", type: "image/png", url: "/icon" }],
+  },
+  verification: googleSiteVerification
+    ? {
+        google: googleSiteVerification,
+      }
+    : undefined,
 };
 
 export default function RootLayout({
@@ -41,8 +61,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-    return (
-        <html data-scroll-behavior="smooth" lang="pt-BR">
+  return (
+    <html data-scroll-behavior="smooth" lang="pt-BR">
       <body
         className={`${playfairDisplay.variable} ${dmSans.variable} antialiased`}
       >

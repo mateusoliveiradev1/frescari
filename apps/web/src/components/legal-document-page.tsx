@@ -2,18 +2,26 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import {
   getLegalDocument,
+  getLegalDocumentJsonLd,
   legalDocumentLinks,
   type LegalDocumentSlug,
 } from "@/lib/legal-documents";
+import { serializeSeoJsonLd } from "@/lib/seo";
 
 export function LegalDocumentPage({ slug }: { slug: LegalDocumentSlug }) {
   const document = getLegalDocument(slug);
+  const structuredData = serializeSeoJsonLd(getLegalDocumentJsonLd(slug));
   const relatedDocuments = legalDocumentLinks.filter(
     (item) => item.slug !== slug,
   );
+  const hasReviewNote = document.reviewNote.trim().length > 0;
 
   return (
     <main className="min-h-screen bg-cream px-6 py-10 lg:px-12 lg:py-14">
+      <script
+        dangerouslySetInnerHTML={{ __html: structuredData }}
+        type="application/ld+json"
+      />
       <div className="mx-auto flex max-w-[76rem] flex-col gap-8">
         <div className="flex items-center justify-between gap-4">
           <BrandLogo size="sm" />
@@ -47,39 +55,52 @@ export function LegalDocumentPage({ slug }: { slug: LegalDocumentSlug }) {
               </div>
 
               <div className="grid gap-3 text-left sm:grid-cols-3">
-                {[
-                  ["Versao", "V1 interna para revisao"],
-                  ["Vigencia", document.effectiveDate],
-                  ["Atualizado em", document.updatedAt],
-                ].map(([label, value]) => (
-                  <div
-                    className="rounded-[20px] border border-white/12 bg-white/8 px-4 py-4 backdrop-blur-sm"
-                    key={label}
-                  >
-                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-sage/70">
-                      {label}
-                    </p>
-                    <p className="mt-2 font-sans text-sm font-semibold text-cream">
-                      {value}
-                    </p>
-                  </div>
-                ))}
+                <div className="rounded-[20px] border border-white/12 bg-white/8 px-4 py-4 backdrop-blur-sm">
+                  <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-sage/70">
+                    Versao
+                  </p>
+                  <p className="mt-2 font-sans text-sm font-semibold text-cream">
+                    {document.status}
+                  </p>
+                </div>
+                <div className="rounded-[20px] border border-white/12 bg-white/8 px-4 py-4 backdrop-blur-sm">
+                  <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-sage/70">
+                    Publicado em
+                  </p>
+                  <p className="mt-2 font-sans text-sm font-semibold text-cream">
+                    <time dateTime={document.effectiveDateIso}>
+                      {document.effectiveDate}
+                    </time>
+                  </p>
+                </div>
+                <div className="rounded-[20px] border border-white/12 bg-white/8 px-4 py-4 backdrop-blur-sm">
+                  <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-sage/70">
+                    Atualizado em
+                  </p>
+                  <p className="mt-2 font-sans text-sm font-semibold text-cream">
+                    <time dateTime={document.updatedAtIso}>
+                      {document.updatedAt}
+                    </time>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_19rem]">
             <article className="px-7 py-8 sm:px-10 sm:py-10">
-              <div className="rounded-[24px] border border-forest/10 bg-sage/26 px-5 py-5">
-                <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-                  Nota de revisao
-                </p>
-                <p className="mt-3 font-sans text-sm leading-6 text-bark/86">
-                  {document.reviewNote}
-                </p>
-              </div>
+              {hasReviewNote ? (
+                <div className="rounded-[24px] border border-forest/10 bg-sage/26 px-5 py-5">
+                  <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
+                    Nota de revisao
+                  </p>
+                  <p className="mt-3 font-sans text-sm leading-6 text-bark/86">
+                    {document.reviewNote}
+                  </p>
+                </div>
+              ) : null}
 
-              <div className="mt-8 space-y-8">
+              <div className={`${hasReviewNote ? "mt-8" : ""} space-y-8`}>
                 {document.sections.map((section) => (
                   <section className="space-y-4" key={section.title}>
                     <div className="space-y-2">
@@ -125,8 +146,9 @@ export function LegalDocumentPage({ slug }: { slug: LegalDocumentSlug }) {
                     Documentos relacionados
                   </p>
                   <p className="font-sans text-sm leading-6 text-bark/78">
-                    Esta V1 foi escrita para revisao juridica e alinhamento
-                    interno antes do go-live.
+                    Consulte tambem as politicas complementares que regem
+                    cadastro, privacidade, pagamentos e a operacao do
+                    marketplace.
                   </p>
                 </div>
 
@@ -153,9 +175,9 @@ export function LegalDocumentPage({ slug }: { slug: LegalDocumentSlug }) {
                     Proximo passo
                   </p>
                   <p className="mt-3 font-sans text-sm leading-6 text-bark/82">
-                    Depois da revisao juridica, esta estrutura pode evoluir para
-                    aceite versionado persistido e reaceite por mudanca
-                    material.
+                    Em caso de mudanca material nestes documentos, a Frescari
+                    pode solicitar novo aceite antes da continuidade do uso da
+                    plataforma.
                   </p>
                 </div>
               </div>

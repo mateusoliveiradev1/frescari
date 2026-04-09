@@ -11,6 +11,7 @@ import {
 } from "@/lib/catalog-public";
 import { buildOfferAreaServed } from "@/lib/catalog-pseo";
 import { getSiteUrl, sanitizeText, serializeJsonLd } from "@/lib/catalog-seo";
+import { buildSeoMetadata } from "@/lib/seo";
 
 export const revalidate = 3600;
 
@@ -41,29 +42,19 @@ export async function generateMetadata({
 
   const title = `${sanitizeText(data.product.name)} em ${sanitizeText(data.category.name)} | Frescari`;
   const description = sanitizeText(data.product.description, 160);
-  const canonical = `${getSiteUrl()}${data.product.path}`;
-
-  return {
-    title,
+  return buildSeoMetadata({
     description,
-    alternates: {
-      canonical,
-    },
-    openGraph: {
-      title,
-      description,
-      url: canonical,
-      type: "website",
-      images: data.product.imageUrl
-        ? [
-            {
-              url: data.product.imageUrl,
-              alt: data.product.name,
-            },
-          ]
-        : undefined,
-    },
-  };
+    images: data.product.imageUrl
+      ? [
+          {
+            alt: sanitizeText(data.product.name),
+            url: data.product.imageUrl,
+          },
+        ]
+      : undefined,
+    path: data.product.path,
+    title,
+  });
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
@@ -121,7 +112,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
             offerCount: data.product.offerCount,
             priceCurrency: "BRL",
             availability: "https://schema.org/InStock",
-            areaServed: uniqueAreasServed.length > 0 ? uniqueAreasServed : undefined,
+            areaServed:
+              uniqueAreasServed.length > 0 ? uniqueAreasServed : undefined,
             offers: data.lots.slice(0, 10).map((lot) => ({
               "@type": "Offer",
               priceCurrency: "BRL",
@@ -175,7 +167,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
       <div className="mx-auto flex max-w-[1400px] flex-col gap-12 px-6 py-16 lg:px-12">
         <nav className="flex flex-wrap items-center gap-2 text-sm text-bark/70">
-          <Link href="/catalogo" className="transition-colors hover:text-forest">
+          <Link
+            href="/catalogo"
+            className="transition-colors hover:text-forest"
+          >
             Catálogo
           </Link>
           <span>/</span>
@@ -227,7 +222,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 {formatCurrencyBRL(data.product.lowestPrice)}
               </p>
               <p className="mt-1 text-sm text-bark/70">
-                até {formatCurrencyBRL(data.product.highestPrice)}/{data.product.saleUnit}
+                até {formatCurrencyBRL(data.product.highestPrice)}/
+                {data.product.saleUnit}
               </p>
             </div>
 
