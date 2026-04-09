@@ -3,7 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatCurrencyBRL } from "@frescari/ui";
 
+import { CatalogCommercialSection } from "@/components/CatalogCommercialSection";
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
+import {
+  buildFaqPageJsonLd,
+  buildProductCommercialSnapshot,
+} from "@/lib/catalog-commercial";
 import {
   getProductPageData,
   getProductStaticParams,
@@ -153,6 +158,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
       },
     ],
   };
+  const commercialSnapshot = buildProductCommercialSnapshot(data.lots, {
+    productName: data.product.name,
+  });
+  const faqJsonLd = buildFaqPageJsonLd(commercialSnapshot.faqItems);
 
   return (
     <main className="min-h-screen bg-cream">
@@ -163,6 +172,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqJsonLd) }}
       />
 
       <div className="mx-auto flex max-w-[1400px] flex-col gap-12 px-6 py-16 lg:px-12">
@@ -248,6 +261,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </div>
           </aside>
         </header>
+
+        <CatalogCommercialSection
+          eyebrow="Intencao comercial"
+          faqItems={commercialSnapshot.faqItems}
+          intro={commercialSnapshot.intro}
+          metrics={commercialSnapshot.metrics}
+          title={`Leitura comercial de ${data.product.name}`}
+        />
 
         {data.productRegions.length > 0 ? (
           <section

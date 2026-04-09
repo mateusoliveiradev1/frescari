@@ -38,7 +38,12 @@ test("buildNoIndexMetadata disables indexing and link following", () => {
 
 test("getHomeJsonLd returns organization and website entities", () => {
   const jsonLd = getHomeJsonLd();
+  const organization = jsonLd[0] as { logo?: string };
 
   assert.equal(Array.isArray(jsonLd), true);
   assert.equal(jsonLd.length, 3);
+  assert.equal(
+    organization.logo,
+    "http://localhost:3000/web-app-manifest-512x512.png",
+  );
 });
