@@ -10,6 +10,8 @@ const AUTH_RATE_LIMIT = { limit: 10, windowMs: 60_000 } as const;
 const RATE_LIMITED_PATHS = [
   "/sign-in/email",
   "/sign-up/email",
+  "/request-password-reset",
+  // Keep the legacy path protected while the wrapper transitions to Better Auth's current endpoint naming.
   "/forget-password",
 ] as const;
 
@@ -85,7 +87,11 @@ async function handleAuthRequest(request: NextRequest) {
   if (isRateLimitedAuthPath(request)) {
     const ip = extractClientIp(request.headers);
     const key = `auth:${ip}:${request.nextUrl.pathname}`;
-    const result = checkRateLimit(key, AUTH_RATE_LIMIT.limit, AUTH_RATE_LIMIT.windowMs);
+    const result = checkRateLimit(
+      key,
+      AUTH_RATE_LIMIT.limit,
+      AUTH_RATE_LIMIT.windowMs,
+    );
 
     if (!result.allowed) {
       return buildRateLimitedResponse(result.resetAt);

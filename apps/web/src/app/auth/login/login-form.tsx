@@ -326,6 +326,15 @@ export function LoginForm() {
                     </p>
                   </div>
 
+                  <div className="flex justify-end">
+                    <Link
+                      className="font-sans text-sm font-bold text-forest underline-offset-4 transition-[color] hover:text-soil hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                      href="/auth/forgot-password"
+                    >
+                      Esqueci minha senha
+                    </Link>
+                  </div>
+
                   <Button
                     className="h-13 w-full rounded-[18px] text-sm shadow-[0_20px_42px_-24px_rgba(13,51,33,0.46)] disabled:border-soil/8 disabled:bg-soil/8 disabled:text-bark/48 disabled:shadow-none"
                     data-loading={loading}
