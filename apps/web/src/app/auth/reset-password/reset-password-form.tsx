@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent as ReactFormEvent } from "react";
 
 import { authClient } from "@/lib/auth-client";
 import {
@@ -70,16 +70,54 @@ function StatusCard({
 }
 
 function PasswordCriteriaList({ password }: { password: string }) {
-  const criteria = useMemo(() => getPasswordCriteria(password), [password]);
+  const criteria = getPasswordCriteria(password);
+
+  const items = [
+    {
+      key: "min-length",
+      label: `Minimo de ${PASSWORD_MIN_LENGTH} caracteres`,
+      met: criteria.hasMinLength,
+    },
+    {
+      key: "uppercase",
+      label: "Letra maiuscula",
+      met: criteria.hasUppercase,
+    },
+    {
+      key: "lowercase",
+      label: "Letra minuscula",
+      met: criteria.hasLowercase,
+    },
+    {
+      key: "number",
+      label: "Numero",
+      met: criteria.hasNumber,
+    },
+  ];
 
   return (
     <ul className="space-y-1.5 rounded-[18px] border border-soil/8 bg-white/65 px-4 py-4 font-sans text-sm leading-6 text-bark/66">
-      <li data-met={criteria.hasMinLength}>
-        Minimo de {PASSWORD_MIN_LENGTH} caracteres
-      </li>
-      <li data-met={criteria.hasUppercase}>Letra maiuscula</li>
-      <li data-met={criteria.hasLowercase}>Letra minuscula</li>
-      <li data-met={criteria.hasNumber}>Numero</li>
+      {items.map((item) => (
+        <li
+          className={`flex items-center gap-3 ${
+            item.met ? "font-semibold text-forest" : "text-bark/66"
+          }`}
+          data-met={item.met}
+          key={item.key}
+        >
+          <span
+            aria-hidden="true"
+            className={`inline-flex min-w-[2.1rem] items-center justify-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${
+              item.met
+                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                : "border-soil/12 bg-white text-bark/42"
+            }`}
+          >
+            {item.met ? "OK" : "--"}
+          </span>
+          <span>{item.label}</span>
+        </li>
+      ))}
     </ul>
   );
 }
@@ -90,6 +128,7 @@ export function ResetPasswordForm({
   resetPassword = authClient.resetPassword as ResetPasswordFn,
 }: ResetPasswordFormProps) {
   const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -97,9 +136,44 @@ export function ResetPasswordForm({
     error === "INVALID_TOKEN" || !token,
   );
 
-  const canSubmit = !loading && !invalidToken;
+  const passwordCriteria = getPasswordCriteria(password);
+  const isPasswordStrong =
+    passwordCriteria.hasMinLength &&
+    passwordCriteria.hasUppercase &&
+    passwordCriteria.hasLowercase &&
+    passwordCriteria.hasNumber;
+  const hasConfirmation = confirmation.trim().length > 0;
+  const passwordsMatch = hasConfirmation && password === confirmation;
+  const showConfirmationError = hasConfirmation && !passwordsMatch;
+  const confirmationMessage = !hasConfirmation
+    ? "Repita a senha exatamente como foi digitada acima."
+    : passwordsMatch
+      ? "As senhas coincidem."
+      : "As senhas precisam ser iguais.";
+  const canSubmit =
+    !loading &&
+    !invalidToken &&
+    isPasswordStrong &&
+    hasConfirmation &&
+    passwordsMatch;
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handlePasswordInput = (event: ReactFormEvent<HTMLInputElement>) => {
+    setPassword(event.currentTarget.value);
+
+    if (feedback) {
+      setFeedback("");
+    }
+  };
+
+  const handleConfirmationInput = (event: ReactFormEvent<HTMLInputElement>) => {
+    setConfirmation(event.currentTarget.value);
+
+    if (feedback) {
+      setFeedback("");
+    }
+  };
+
+  const handleSubmit = async (event: ReactFormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFeedback("");
 
@@ -256,10 +330,11 @@ export function ResetPasswordForm({
                   disabled={loading}
                   id="reset-password-new"
                   name="new-password"
-                  onChange={(event) => setPassword(event.target.value)}
+                  onInput={handlePasswordInput}
                   placeholder="Digite sua nova senha"
                   required
                   type="password"
+                  value={password}
                 />
               </div>
 
@@ -270,22 +345,44 @@ export function ResetPasswordForm({
                   Confirmar nova senha
                 </label>
                 <input
+                  aria-invalid={showConfirmationError}
                   autoComplete="new-password"
                   className={[
                     "input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil",
+                    showConfirmationError ? "border-red-300 bg-red-50/60" : "",
                     "placeholder:text-bark/42",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
                   ].join(" ")}
                   disabled={loading}
                   id="reset-password-confirm"
                   name="confirm-password"
+                  onInput={handleConfirmationInput}
                   placeholder="Repita sua nova senha"
                   required
                   type="password"
+                  value={confirmation}
                 />
               </div>
 
-              <p className="font-sans text-xs leading-5 text-bark/66">
+              <p
+                className={`font-sans text-xs leading-5 ${
+                  hasConfirmation
+                    ? passwordsMatch
+                      ? "text-emerald-700"
+                      : "text-red-700"
+                    : "text-bark/66"
+                }`}
+              >
+                {confirmationMessage}
+              </p>
+
+              <p
+                className={`font-sans text-xs leading-5 ${
+                  password.length > 0 && !isPasswordStrong
+                    ? "text-red-700"
+                    : "text-bark/66"
+                }`}
+              >
                 {PASSWORD_POLICY_MESSAGE}
               </p>
 
