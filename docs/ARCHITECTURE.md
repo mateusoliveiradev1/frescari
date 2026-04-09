@@ -1,7 +1,7 @@
 # Frescari — Arquitetura do Sistema
 
 > Documento central de arquitetura. Consolida as decisões de produto, engenharia e operação da plataforma.
-> Última atualização: 2026-04-02
+> Última atualização: 2026-04-09
 
 ---
 
@@ -37,7 +37,7 @@ C4Context
     System_Ext(stripe, "Stripe", "Processamento de pagamentos e repasses via Stripe Connect")
     System_Ext(neon, "Neon PostgreSQL", "Banco de dados gerenciado com suporte a PostGIS e RLS")
     System_Ext(uploadthing, "UploadThing", "Armazenamento e CDN de imagens de lotes")
-    System_Ext(resend, "Resend", "Envio de e-mails transacionais")
+    System_Ext(resend, "Resend", "Envio de e-mails transacionais e de autenticacao")
     System_Ext(nominatim, "Nominatim / OSM", "Geocodificação de endereços")
 
     Rel(buyer, frescari, "Navega catálogo, faz pedidos, acompanha entregas")
@@ -46,7 +46,7 @@ C4Context
     Rel(frescari, stripe, "Cria sessões de checkout, captura pagamentos, repassa ao produtor")
     Rel(frescari, neon, "Persiste e consulta todos os dados")
     Rel(frescari, uploadthing, "Upload e serve imagens de lotes")
-    Rel(frescari, resend, "Envia e-mails de verificação e transacionais")
+    Rel(frescari, resend, "Envia e-mails de verificacao, reset de senha e transacionais")
     Rel(frescari, nominatim, "Geocodifica endereços de fazendas e compradores")
 ```
 
@@ -308,9 +308,10 @@ erDiagram
 
 ### Stack de auth
 
-- **Better Auth v1.5.x** com adapter Drizzle
+- **Better Auth v1.6.1** com adapter Drizzle
 - Sessões em cookies `HttpOnly; Secure; SameSite=Lax`
 - Verificação de e-mail obrigatória antes de acesso completo
+- Reset de senha por e-mail com token de 1 hora e revogação de sessões após redefinição
 - Aceitação legal versionada (`userLegalAcceptances`) capturada no cadastro
 
 ### Fluxo de login/cadastro
@@ -336,7 +337,7 @@ sequenceDiagram
 
 - Token de sessão não retorna no JSON (apenas no cookie)
 - Erros de "usuário já existe" são mascarados com mensagem genérica (anti-enumeração)
-- Rate limiting: 10 tentativas por minuto por IP em `/sign-in/email`, `/sign-up/email`, `/forget-password`
+- Rate limiting: 10 tentativas por minuto por IP em `/sign-in/email`, `/sign-up/email`, `/request-password-reset` e no legado `/forget-password`
 
 ---
 

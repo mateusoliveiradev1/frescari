@@ -16,9 +16,10 @@ const originalModuleLoad = (
   }
 )._load;
 
-function createAuthRequest(pathname: string) {
+function createAuthRequest(pathname: string, headers?: HeadersInit) {
   return new NextRequest(`https://example.com${pathname}`, {
     method: "POST",
+    headers,
   });
 }
 
@@ -154,4 +155,52 @@ test("POST /api/auth/sign-up/email masks duplicate user errors", async () => {
     message:
       "Nao foi possivel concluir o cadastro agora. Revise os dados e tente novamente.",
   });
+});
+
+test("POST /api/auth/request-password-reset is rate limited after 10 attempts from the same IP", async () => {
+  const { POST } = await import("./route");
+  const headers = {
+    "x-forwarded-for": "203.0.113.10",
+  };
+
+  for (let index = 0; index < 10; index += 1) {
+    const response = await POST(
+      createAuthRequest("/api/auth/request-password-reset", headers),
+    );
+
+    assert.notEqual(response.status, 429);
+  }
+
+  const limitedResponse = await POST(
+    createAuthRequest("/api/auth/request-password-reset", headers),
+  );
+  const payload = await limitedResponse.json();
+
+  assert.equal(limitedResponse.status, 429);
+  assert.deepEqual(payload, {
+    code: "RATE_LIMITED",
+    message:
+      "Muitas tentativas consecutivas. Aguarde um momento antes de tentar novamente.",
+  });
+});
+
+test("POST /api/auth/forget-password remains rate limited for backward compatibility", async () => {
+  const { POST } = await import("./route");
+  const headers = {
+    "x-forwarded-for": "203.0.113.11",
+  };
+
+  for (let index = 0; index < 10; index += 1) {
+    const response = await POST(
+      createAuthRequest("/api/auth/forget-password", headers),
+    );
+
+    assert.notEqual(response.status, 429);
+  }
+
+  const limitedResponse = await POST(
+    createAuthRequest("/api/auth/forget-password", headers),
+  );
+
+  assert.equal(limitedResponse.status, 429);
 });

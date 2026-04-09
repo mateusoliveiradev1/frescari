@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3000;
+const PORT = 3100;
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${PORT}`;
 const shouldUseExternalServer = Boolean(process.env.PLAYWRIGHT_BASE_URL);
 
@@ -17,9 +17,9 @@ export default defineConfig({
   webServer: shouldUseExternalServer
     ? undefined
     : {
-        command: `pnpm exec next dev --hostname 127.0.0.1 --port ${PORT}`,
+        command: `pnpm build && pnpm exec next start --hostname 127.0.0.1 --port ${PORT}`,
         cwd: __dirname,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: false,
         timeout: 120_000,
         url: BASE_URL,
       },
