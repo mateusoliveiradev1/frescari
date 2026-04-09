@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
-export const LEGAL_VERSION = "2026-04-02-v2";
+import { sanitizeEnvValue } from "./env";
+import { buildCanonicalUrl, buildSeoMetadata } from "./seo";
+
+export const LEGAL_VERSION = "2026-04-08-v3";
 
 export type LegalDocumentSlug =
   | "termos"
@@ -24,10 +27,114 @@ export type LegalDocument = {
   summary: string;
   status: string;
   effectiveDate: string;
+  effectiveDateIso: string;
   updatedAt: string;
+  updatedAtIso: string;
   reviewNote: string;
   sections: LegalSection[];
 };
+
+type LegalDocumentDraft = Omit<
+  LegalDocument,
+  "effectiveDateIso" | "updatedAtIso"
+>;
+
+const LEGAL_PUBLICATION_DATE = "8 de abril de 2026";
+const LEGAL_PUBLICATION_DATE_ISO = "2026-04-08";
+const LEGAL_STATUS = "Versao vigente - V3";
+const LEGAL_OPERATOR_NAME =
+  sanitizeEnvValue(process.env.NEXT_PUBLIC_LEGAL_OPERATOR_NAME) ||
+  "Titular responsavel pela operacao Frescari";
+const LEGAL_OPERATOR_DOCUMENT_KIND =
+  sanitizeEnvValue(
+    process.env.NEXT_PUBLIC_LEGAL_OPERATOR_DOCUMENT_KIND,
+  )?.toUpperCase() === "CNPJ"
+    ? "CNPJ"
+    : "CPF";
+const LEGAL_OPERATOR_DOCUMENT = sanitizeEnvValue(
+  process.env.NEXT_PUBLIC_LEGAL_OPERATOR_DOCUMENT,
+);
+const LEGAL_OPERATOR_ADDRESS = sanitizeEnvValue(
+  process.env.NEXT_PUBLIC_LEGAL_OPERATOR_ADDRESS,
+);
+const LEGAL_SUPPORT_EMAIL =
+  sanitizeEnvValue(process.env.NEXT_PUBLIC_LEGAL_SUPPORT_EMAIL) ||
+  "suporte@frescari.com.br";
+const LEGAL_PRIVACY_EMAIL =
+  sanitizeEnvValue(process.env.NEXT_PUBLIC_LEGAL_PRIVACY_EMAIL) ||
+  LEGAL_SUPPORT_EMAIL;
+const LEGAL_OPERATOR_REGISTRY_LINE = LEGAL_OPERATOR_DOCUMENT
+  ? LEGAL_OPERATOR_DOCUMENT_KIND === "CNPJ"
+    ? `inscrita no CNPJ sob o numero ${LEGAL_OPERATOR_DOCUMENT}`
+    : `inscrito(a) no CPF sob o numero ${LEGAL_OPERATOR_DOCUMENT}`
+  : LEGAL_OPERATOR_DOCUMENT_KIND === "CNPJ"
+    ? "identificada pelo CNPJ informado nos canais oficiais de atendimento"
+    : "identificado(a) pelo CPF informado nos canais oficiais de atendimento";
+const LEGAL_OPERATOR_ADDRESS_LINE = LEGAL_OPERATOR_ADDRESS
+  ? `com endereco em ${LEGAL_OPERATOR_ADDRESS}`
+  : "com endereco comercial informado pelos canais oficiais de atendimento";
+const LEGAL_OPERATOR_LEGAL_LINE = `${LEGAL_OPERATOR_NAME}, ${LEGAL_OPERATOR_REGISTRY_LINE}, ${LEGAL_OPERATOR_ADDRESS_LINE}`;
+const LEGAL_DOCUMENT_FALLBACK = `${LEGAL_OPERATOR_DOCUMENT_KIND} informado nos canais oficiais de atendimento`;
+const CONSUMER_FORUM_PARAGRAPH =
+  "Sem prejuizo do foro especial previsto em lei para consumidores, eventuais controversias serao submetidas ao foro competente definido pela legislacao brasileira aplicavel.";
+const GENERAL_FORUM_PARAGRAPH =
+  "Eventuais controversias serao submetidas ao foro competente definido pela legislacao brasileira aplicavel.";
+
+function resolveLegalContent(value: string): string {
+  return value
+    .replaceAll(
+      "Para exercicio de direitos ou duvidas sobre privacidade, o titular pode entrar em contato com o encarregado de dados (DPO) pelo endeco de e-mail: [EMAIL DE PRIVACIDADE].",
+      `Para exercicio de direitos ou duvidas sobre privacidade, o titular pode entrar em contato pelo canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}.`,
+    )
+    .replaceAll(
+      "Solicitacoes relacionadas ao exercicio de direitos, duvidas sobre tratamento e reclamacoes de privacidade devem ser encaminhadas ao encarregado de dados da Frescari pelo e-mail: [EMAIL DE PRIVACIDADE]. A Frescari se compromete a responder dentro do prazo razoavel exigido pela LGPD.",
+      `Solicitacoes relacionadas ao exercicio de direitos, duvidas sobre tratamento e reclamacoes de privacidade devem ser encaminhadas ao canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}. A Frescari se compromete a responder dentro de prazo razoavel, observado o regime aplicavel da LGPD.`,
+    )
+    .replaceAll(
+      "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias oriundas deste instrumento, sem prejuizo da competencia de foro especial prevista em lei para consumidores.",
+      CONSUMER_FORUM_PARAGRAPH,
+    )
+    .replaceAll(
+      "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias, sem prejuizo do foro especial previsto em lei para consumidores.",
+      CONSUMER_FORUM_PARAGRAPH,
+    )
+    .replaceAll(
+      "Fica eleito o foro da comarca de [CIDADE/UF] para dirimir eventuais controversias, sem prejuizo do foro especial do consumidor.",
+      CONSUMER_FORUM_PARAGRAPH,
+    )
+    .replaceAll(
+      "O foro competente para eventuais controversias e o da comarca de [CIDADE/UF].",
+      GENERAL_FORUM_PARAGRAPH,
+    )
+    .replaceAll(
+      "Fica eleito o foro da comarca de [CIDADE/UF] para dirimir eventuais controversias.",
+      GENERAL_FORUM_PARAGRAPH,
+    )
+    .replaceAll(
+      "[RAZAO SOCIAL], inscrita no CNPJ sob o numero [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF]",
+      LEGAL_OPERATOR_LEGAL_LINE,
+    )
+    .replaceAll(
+      "[RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF]",
+      LEGAL_OPERATOR_LEGAL_LINE,
+    )
+    .replaceAll("[RAZAO SOCIAL]", LEGAL_OPERATOR_NAME)
+    .replaceAll(
+      "[ENDERECO COMPLETO, CIDADE/UF]",
+      LEGAL_OPERATOR_ADDRESS ||
+        "endereco comercial informado pelos canais oficiais de atendimento",
+    )
+    .replaceAll(
+      "[XX.XXX.XXX/XXXX-XX]",
+      LEGAL_OPERATOR_DOCUMENT || LEGAL_DOCUMENT_FALLBACK,
+    )
+    .replaceAll("[EMAIL DE SUPORTE]", LEGAL_SUPPORT_EMAIL)
+    .replaceAll("[EMAIL DE PRIVACIDADE]", LEGAL_PRIVACY_EMAIL)
+    .replaceAll(
+      "[CIDADE/UF]",
+      "localidade informada nos canais oficiais de atendimento",
+    );
+}
 
 const legalDocuments = {
   termos: {
@@ -472,7 +579,35 @@ const legalDocuments = {
       },
     ],
   },
-} satisfies Record<LegalDocumentSlug, LegalDocument>;
+} satisfies Record<LegalDocumentSlug, LegalDocumentDraft>;
+
+function resolveLegalSection(section: LegalSection): LegalSection {
+  const resolvedSection: LegalSection = {
+    ...section,
+    paragraphs: section.paragraphs.map(resolveLegalContent),
+  };
+
+  if (section.bullets) {
+    resolvedSection.bullets = section.bullets.map(resolveLegalContent);
+  }
+
+  return resolvedSection;
+}
+
+const resolvedLegalDocuments = Object.fromEntries(
+  Object.entries(legalDocuments).map(([slug, document]) => [
+    slug,
+    {
+      ...document,
+      status: LEGAL_STATUS,
+      effectiveDate: LEGAL_PUBLICATION_DATE,
+      effectiveDateIso: LEGAL_PUBLICATION_DATE_ISO,
+      updatedAt: LEGAL_PUBLICATION_DATE,
+      updatedAtIso: LEGAL_PUBLICATION_DATE_ISO,
+      sections: document.sections.map(resolveLegalSection),
+    },
+  ]),
+) as Record<LegalDocumentSlug, LegalDocument>;
 
 export const legalDocumentLinks = [
   { href: "/termos", label: "Termos de Uso", slug: "termos" },
@@ -496,18 +631,47 @@ export const legalDocumentLinks = [
 ] as const;
 
 export function getLegalDocument(slug: LegalDocumentSlug): LegalDocument {
-  return legalDocuments[slug];
+  return resolvedLegalDocuments[slug];
+}
+
+export function getLegalDocumentLastModifiedIso(
+  slug: LegalDocumentSlug,
+): string {
+  return getLegalDocument(slug).updatedAtIso;
+}
+
+export function getLegalDocumentJsonLd(slug: LegalDocumentSlug) {
+  const document = getLegalDocument(slug);
+  const url = buildCanonicalUrl(`/${slug}`);
+
+  return {
+    "@context": "https://schema.org",
+    "@id": `${url}#webpage`,
+    "@type": "WebPage",
+    about: {
+      "@id": `${buildCanonicalUrl("/")}#organization`,
+    },
+    dateModified: document.updatedAtIso,
+    datePublished: document.effectiveDateIso,
+    description: document.description,
+    inLanguage: "pt-BR",
+    isPartOf: {
+      "@id": `${buildCanonicalUrl("/")}#website`,
+    },
+    name: `${document.title} | Frescari`,
+    publisher: {
+      "@id": `${buildCanonicalUrl("/")}#organization`,
+    },
+    url,
+  };
 }
 
 export function createLegalMetadata(slug: LegalDocumentSlug): Metadata {
   const document = getLegalDocument(slug);
 
-  return {
-    title: `${document.title} | Frescari`,
+  return buildSeoMetadata({
     description: document.description,
-    robots: {
-      index: true,
-      follow: true,
-    },
-  };
+    path: `/${slug}`,
+    title: `${document.title} | Frescari`,
+  });
 }

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Button } from "@frescari/ui";
 import { ScrollReveal } from "../components/scroll-reveal";
 import { BrandLogo } from "@/components/brand-logo";
+import { getHomeJsonLd, serializeSeoJsonLd } from "@/lib/seo";
 import {
   DirectProducerIcon,
   HarvestSignalIllustration,
@@ -44,7 +45,14 @@ function MixedUnitsIcon({ className }: { className?: string }) {
         strokeWidth="2.5"
         strokeLinecap="round"
       />
-      <circle cx="42.5" cy="27.5" r="6.5" fill="#f9f6f0" stroke="#0d3321" strokeWidth="2.25" />
+      <circle
+        cx="42.5"
+        cy="27.5"
+        r="6.5"
+        fill="#f9f6f0"
+        stroke="#0d3321"
+        strokeWidth="2.25"
+      />
       <circle cx="42.5" cy="27.5" r="2.75" fill="#e84c1e" />
     </svg>
   );
@@ -131,7 +139,8 @@ const objections = [
       "A proposta faz mais sentido quando o negócio precisa de ritmo de abastecimento, leitura rápida de oferta e resposta local.",
   },
   {
-    question: "Como a plataforma lida com produtos vendidos por peso e por caixa?",
+    question:
+      "Como a plataforma lida com produtos vendidos por peso e por caixa?",
     answer:
       "Esse é um dos pontos centrais do Frescari: o ecossistema foi pensado para trabalhar peso, unidade e caixa no mesmo contexto comercial.",
   },
@@ -143,10 +152,18 @@ const objections = [
 ];
 
 const currentYear = new Date().getFullYear();
+const homeStructuredData = getHomeJsonLd();
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-cream selection:bg-forest/20 selection:text-forest">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeSeoJsonLd(homeStructuredData),
+        }}
+      />
+
       <section className="relative overflow-hidden bg-cream pb-24 pt-16 sm:pt-20">
         <div className="absolute inset-x-0 top-0 -z-10 h-[560px] bg-[radial-gradient(circle_at_top_right,rgba(191,214,181,0.55),transparent_45%),radial-gradient(circle_at_left,rgba(232,76,30,0.08),transparent_30%)]" />
         <div className="absolute right-0 top-0 -z-10 h-full w-[42%] bg-gradient-to-bl from-sage/70 via-sage/20 to-transparent" />
@@ -164,13 +181,13 @@ export default function Home() {
             <div className="space-y-5">
               <h1 className="font-display text-5xl font-black leading-[0.92] tracking-[-0.05em] text-soil sm:text-6xl lg:text-[78px]">
                 Abasteça seu negócio com{" "}
-                <span className="italic text-forest">hortifruti direto</span>{" "}
-                do produtor.
+                <span className="italic text-forest">hortifruti direto</span> do
+                produtor.
               </h1>
               <p className="max-w-2xl font-sans text-lg leading-relaxed text-bark">
-                A Frescari conecta compradores B2B a produtores locais com catálogo vivo,
-                leitura rápida de oferta e operação pensada para o ritmo real de restaurantes,
-                varejo e distribuição.
+                A Frescari conecta compradores B2B a produtores locais com
+                catálogo vivo, leitura rápida de oferta e operação pensada para
+                o ritmo real de restaurantes, varejo e distribuição.
               </p>
             </div>
 
@@ -196,7 +213,11 @@ export default function Home() {
                 </Button>
               </Link>
               <Link href="/auth/register" className="w-full sm:w-auto">
-                <Button variant="ghost" size="lg" className="h-14 w-full sm:h-12 sm:w-auto">
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  className="h-14 w-full sm:h-12 sm:w-auto"
+                >
                   Sou produtor
                 </Button>
               </Link>
@@ -204,8 +225,9 @@ export default function Home() {
 
             <div className="border-t border-soil/8 pt-5">
               <p className="max-w-xl font-sans text-sm leading-relaxed text-bark/78">
-                Para quem compra hortifruti com frequência, o que importa é oferta confiável,
-                resposta rápida e uma ponte comercial mais curta entre origem e pedido.
+                Para quem compra hortifruti com frequência, o que importa é
+                oferta confiável, resposta rápida e uma ponte comercial mais
+                curta entre origem e pedido.
               </p>
             </div>
           </ScrollReveal>
@@ -215,7 +237,8 @@ export default function Home() {
               <div
                 className="absolute inset-0 opacity-30"
                 style={{
-                  backgroundImage: "radial-gradient(#0d3321 1px, transparent 1px)",
+                  backgroundImage:
+                    "radial-gradient(#0d3321 1px, transparent 1px)",
                   backgroundSize: "18px 18px",
                 }}
               />
@@ -238,8 +261,9 @@ export default function Home() {
                         Oferta que responde ao lote.
                       </p>
                       <p className="max-w-xs font-sans text-sm leading-relaxed text-bark/80">
-                        A plataforma aproxima disponibilidade real, descoberta B2B e fechamento
-                        de pedido sem empurrar o produtor para uma operação pesada.
+                        A plataforma aproxima disponibilidade real, descoberta
+                        B2B e fechamento de pedido sem empurrar o produtor para
+                        uma operação pesada.
                       </p>
                     </div>
                   </div>
@@ -288,7 +312,8 @@ export default function Home() {
                 Direção do produto
               </p>
               <p className="mt-2 font-sans text-sm leading-relaxed text-bark/85">
-                Marketplace B2B para quem compra. Camada operacional para quem vende.
+                Marketplace B2B para quem compra. Camada operacional para quem
+                vende.
               </p>
             </div>
 
@@ -332,8 +357,9 @@ export default function Home() {
               Feita para quem compra hortifruti em ritmo profissional.
             </h2>
             <p className="font-sans text-base leading-relaxed text-bark/80">
-              Se o seu negócio depende de reposição ágil, melhor margem e oferta regional,
-              a Frescari foi desenhada para esse fluxo de abastecimento.
+              Se o seu negócio depende de reposição ágil, melhor margem e oferta
+              regional, a Frescari foi desenhada para esse fluxo de
+              abastecimento.
             </p>
           </ScrollReveal>
 
@@ -431,10 +457,21 @@ export default function Home() {
                   Um marketplace para abastecimento.
                 </h3>
                 <ul className="mt-6 space-y-3 font-sans text-sm leading-relaxed text-sage/78">
-                  <li>Oferta regional mais próxima do momento real da operação.</li>
-                  <li>Compra com linguagem comercial do hortifruti, não do varejo genérico.</li>
-                  <li>Mais clareza entre preço, unidade de venda e contexto de origem.</li>
-                  <li>Menos distância entre a necessidade do comprador e a resposta do produtor.</li>
+                  <li>
+                    Oferta regional mais próxima do momento real da operação.
+                  </li>
+                  <li>
+                    Compra com linguagem comercial do hortifruti, não do varejo
+                    genérico.
+                  </li>
+                  <li>
+                    Mais clareza entre preço, unidade de venda e contexto de
+                    origem.
+                  </li>
+                  <li>
+                    Menos distância entre a necessidade do comprador e a
+                    resposta do produtor.
+                  </li>
                 </ul>
               </div>
             </ScrollReveal>
@@ -448,10 +485,22 @@ export default function Home() {
                   Uma camada operacional sem ruído.
                 </h3>
                 <ul className="mt-6 space-y-3 font-sans text-sm leading-relaxed text-bark/82">
-                  <li>Catálogo e lotes organizados sem transformar o produtor em operador de software.</li>
-                  <li>Mais chance de descoberta por compradores com intenção real de compra.</li>
-                  <li>Melhor ponte entre estoque disponível, pedido e exposição digital.</li>
-                  <li>Operação com foco em vender mais, não em aprender sistema complexo.</li>
+                  <li>
+                    Catálogo e lotes organizados sem transformar o produtor em
+                    operador de software.
+                  </li>
+                  <li>
+                    Mais chance de descoberta por compradores com intenção real
+                    de compra.
+                  </li>
+                  <li>
+                    Melhor ponte entre estoque disponível, pedido e exposição
+                    digital.
+                  </li>
+                  <li>
+                    Operação com foco em vender mais, não em aprender sistema
+                    complexo.
+                  </li>
                 </ul>
               </div>
             </ScrollReveal>
@@ -498,14 +547,18 @@ export default function Home() {
                 Entre no fluxo certo de compra e venda.
               </h2>
               <p className="max-w-2xl font-sans text-base leading-relaxed text-sage/78">
-                Explore a oferta disponível no catálogo ou leve sua produção para uma operação
-                digital pensada para o mercado de hortifruti.
+                Explore a oferta disponível no catálogo ou leve sua produção
+                para uma operação digital pensada para o mercado de hortifruti.
               </p>
             </div>
 
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               <Link href="/catalogo" className="w-full sm:w-auto">
-                <Button variant="secondary" size="lg" className="h-14 w-full sm:h-12 sm:w-auto">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="h-14 w-full sm:h-12 sm:w-auto"
+                >
                   Ver catálogo atacado
                 </Button>
               </Link>
@@ -525,9 +578,9 @@ export default function Home() {
       <footer className="border-t border-soil/8 bg-cream py-10">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 px-6 md:px-8 sm:flex-row lg:px-12">
           <BrandLogo size="sm" />
-            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
-             © {currentYear} Frescari - Marketplace B2B de hortifruti.
-            </p>
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
+            © {currentYear} Frescari - Marketplace B2B de hortifruti.
+          </p>
         </div>
       </footer>
     </div>

@@ -9,6 +9,7 @@ import {
   getSupplierRegionStaticParams,
 } from "@/lib/catalog-public";
 import { getSiteUrl, sanitizeText, serializeJsonLd } from "@/lib/catalog-seo";
+import { buildSeoMetadata } from "@/lib/seo";
 
 export const revalidate = 3600;
 
@@ -39,21 +40,11 @@ export async function generateMetadata({
 
   const title = `Fornecedores em ${sanitizeText(data.region.name)} | Frescari`;
   const description = sanitizeText(data.region.description, 160);
-  const canonical = `${getSiteUrl()}${data.region.path}`;
-
-  return {
-    title,
+  return buildSeoMetadata({
     description,
-    alternates: {
-      canonical,
-    },
-    openGraph: {
-      title,
-      description,
-      url: canonical,
-      type: "website",
-    },
-  };
+    path: data.region.path,
+    title,
+  });
 }
 
 export default async function SupplierRegionPage({
@@ -111,7 +102,10 @@ export default async function SupplierRegionPage({
 
       <div className="mx-auto flex max-w-[1400px] flex-col gap-12 px-6 py-16 lg:px-12">
         <nav className="flex flex-wrap items-center gap-2 text-sm text-bark/70">
-          <Link href="/catalogo" className="transition-colors hover:text-forest">
+          <Link
+            href="/catalogo"
+            className="transition-colors hover:text-forest"
+          >
             Catalogo
           </Link>
           <span>/</span>
@@ -227,10 +221,13 @@ export default async function SupplierRegionPage({
                       A partir de
                     </p>
                     <p className="mt-1 text-xl font-semibold text-forest">
-                      {formatCurrencyBRL(product.lowestPrice)}/{product.saleUnit}
+                      {formatCurrencyBRL(product.lowestPrice)}/
+                      {product.saleUnit}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold text-soil">Ver produto</span>
+                  <span className="text-sm font-semibold text-soil">
+                    Ver produto
+                  </span>
                 </div>
               </Link>
             ))}

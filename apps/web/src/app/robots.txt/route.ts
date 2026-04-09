@@ -8,9 +8,6 @@ export async function GET(): Promise<Response> {
   const body = `User-agent: *
 Allow: /
 Disallow: /api/
-Disallow: /auth/
-Disallow: /dashboard/
-Disallow: /_next/
 
 Sitemap: ${siteUrl}/sitemap.xml
 `;
