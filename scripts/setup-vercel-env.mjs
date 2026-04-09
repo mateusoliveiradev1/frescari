@@ -41,6 +41,10 @@ const parsedEnvFileMap = new Map(
 
 const sharedConfigs = [
   { key: "BETTER_AUTH_SECRET", sensitive: true },
+  { key: "RESEND_API_KEY", sensitive: true },
+  { key: "AUTH_EMAIL_FROM", sensitive: false },
+  { key: "AUTH_EMAIL_FROM_NAME", sensitive: false },
+  { key: "AUTH_EMAIL_REPLY_TO", sensitive: false },
   { key: "STRIPE_SECRET_KEY", sensitive: true },
   { key: "STRIPE_WEBHOOK_SECRET", sensitive: true },
   { key: "UPLOADTHING_TOKEN", sensitive: true },

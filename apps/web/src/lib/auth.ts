@@ -15,6 +15,11 @@ import {
   LEGAL_VERSION_MISMATCH_CODE,
 } from "@/lib/legal-consent";
 import { LEGAL_VERSION } from "@/lib/legal-documents";
+import {
+  isStrongPassword,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_POLICY_MESSAGE,
+} from "@/lib/password-policy";
 
 const isProduction = process.env.NODE_ENV === "production";
 const authBaseUrl =
@@ -82,6 +87,7 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    minPasswordLength: PASSWORD_MIN_LENGTH,
     requireEmailVerification: true,
   },
   emailVerification: {
@@ -148,6 +154,21 @@ export const auth = betterAuth({
               code: LEGAL_VERSION_MISMATCH_CODE,
               message:
                 "Os documentos juridicos foram atualizados. Recarregue a pagina e confirme novamente.",
+            });
+          }
+
+          const password =
+            typeof context?.body === "object" &&
+            context.body !== null &&
+            "password" in context.body &&
+            typeof context.body.password === "string"
+              ? context.body.password
+              : "";
+
+          if (!isStrongPassword(password)) {
+            throw APIError.from("BAD_REQUEST", {
+              code: "WEAK_PASSWORD",
+              message: PASSWORD_POLICY_MESSAGE,
             });
           }
         },

@@ -1,6 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
+
 import { ImageResponse } from "next/og";
 
-import { BrandMarkSvg } from "@/components/brand-mark-svg";
+import { getBrandImageDataUrl } from "@/lib/brand-image-data";
 
 export const alt =
   "Frescari - marketplace B2B de hortifruti direto do produtor";
@@ -11,6 +13,7 @@ export const size = {
 };
 
 const audienceLabels = ["Restaurantes", "Varejo", "Distribuicao"];
+const brandLogoSrc = getBrandImageDataUrl("compact");
 
 export default function OpenGraphImage() {
   return new ImageResponse(
@@ -50,55 +53,32 @@ export default function OpenGraphImage() {
         >
           <div
             style={{
-              alignItems: "center",
               display: "flex",
+              flexDirection: "column",
               gap: "18px",
             }}
           >
-            <div
+            <img
+              alt="Frescari"
+              height={119}
+              src={brandLogoSrc}
               style={{
-                alignItems: "center",
-                background: "#0d3321",
-                borderRadius: "24px",
-                display: "flex",
-                height: "84px",
-                justifyContent: "center",
-                width: "84px",
+                height: "auto",
+                width: "380px",
+              }}
+              width={445}
+            />
+            <span
+              style={{
+                color: "#1f5036",
+                fontSize: "18px",
+                fontWeight: 700,
+                letterSpacing: "0.26em",
+                textTransform: "uppercase",
               }}
             >
-              <BrandMarkSvg
-                detailLevel="compact"
-                style={{ height: "68%", width: "68%" }}
-              />
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "6px",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "20px",
-                  fontWeight: 700,
-                  letterSpacing: "0.32em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Marketplace B2B
-              </span>
-              <span
-                style={{
-                  fontSize: "56px",
-                  fontStyle: "italic",
-                  fontWeight: 900,
-                  letterSpacing: "-0.06em",
-                }}
-              >
-                Frescari
-              </span>
-            </div>
+              Marketplace B2B
+            </span>
           </div>
 
           <div

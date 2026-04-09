@@ -9,6 +9,7 @@
 - ter `DATABASE_ADMIN_URL` apontando para o banco alvo correto
 - ter uma conta real criada pelo fluxo normal do produto
 - ter essa conta com email verificado antes da promocao para `admin`
+- ter `AUTH_EMAIL_FROM` e `AUTH_EMAIL_REPLY_TO` alinhados com o dominio operacional correto antes da rodada real de verificacao por email
 - decidir se o catalogo inicial sera criado manualmente no painel ou por carga opcional em lote
 
 ## 2. Promover o admin raiz

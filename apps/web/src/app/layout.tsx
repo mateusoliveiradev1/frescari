@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Playfair_Display } from "next/font/google";
 import { Toaster } from "sonner";
 
@@ -32,6 +32,11 @@ const dmSans = DM_Sans({
 const googleSiteVerification = sanitizeEnvValue(
   process.env.GOOGLE_SITE_VERIFICATION,
 );
+const BRAND_ASSET_VERSION = "20260409d";
+
+function brandAsset(path: string) {
+  return `${path}?v=${BRAND_ASSET_VERSION}`;
+}
 
 const baseMetadata = buildSeoMetadata({
   description: SITE_DEFAULT_DESCRIPTION,
@@ -46,21 +51,32 @@ export const metadata: Metadata = {
   },
   icons: {
     apple: [
-      { sizes: "180x180", type: "image/png", url: "/apple-touch-icon.png" },
+      {
+        sizes: "180x180",
+        type: "image/png",
+        url: brandAsset("/apple-touch-icon.png"),
+      },
     ],
     icon: [
-      { url: "/favicon.ico" },
-      { sizes: "96x96", type: "image/png", url: "/favicon-96x96.png" },
-      { type: "image/svg+xml", url: "/favicon.svg" },
+      {
+        sizes: "96x96",
+        type: "image/png",
+        url: brandAsset("/favicon-96x96.png"),
+      },
+      { url: brandAsset("/favicon.ico") },
     ],
-    shortcut: ["/favicon.ico"],
+    shortcut: [brandAsset("/favicon.ico")],
   },
-  manifest: "/site.webmanifest",
+  manifest: brandAsset("/site.webmanifest"),
   verification: googleSiteVerification
     ? {
         google: googleSiteVerification,
       }
     : undefined,
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0d3321",
 };
 
 export default function RootLayout({

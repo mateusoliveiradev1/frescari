@@ -41,7 +41,7 @@ type LegalDocumentDraft = Omit<
 
 const LEGAL_PUBLICATION_DATE = "8 de abril de 2026";
 const LEGAL_PUBLICATION_DATE_ISO = "2026-04-08";
-const LEGAL_STATUS = "Versao vigente - V3";
+const LEGAL_STATUS = "Versao vigente";
 const LEGAL_OPERATOR_NAME =
   sanitizeEnvValue(process.env.NEXT_PUBLIC_LEGAL_OPERATOR_NAME) ||
   "Titular responsavel pela operacao Frescari";
