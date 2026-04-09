@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useState, type FormEvent as ReactFormEvent } from "react";
 
+import {
+  PasswordRequirements,
+  type PasswordRequirementItem,
+} from "@/components/auth/password-requirements";
 import { authClient } from "@/lib/auth-client";
 import {
   PASSWORD_MIN_LENGTH,
@@ -69,59 +73,6 @@ function StatusCard({
   );
 }
 
-function PasswordCriteriaList({ password }: { password: string }) {
-  const criteria = getPasswordCriteria(password);
-
-  const items = [
-    {
-      key: "min-length",
-      label: `Minimo de ${PASSWORD_MIN_LENGTH} caracteres`,
-      met: criteria.hasMinLength,
-    },
-    {
-      key: "uppercase",
-      label: "Letra maiuscula",
-      met: criteria.hasUppercase,
-    },
-    {
-      key: "lowercase",
-      label: "Letra minuscula",
-      met: criteria.hasLowercase,
-    },
-    {
-      key: "number",
-      label: "Numero",
-      met: criteria.hasNumber,
-    },
-  ];
-
-  return (
-    <ul className="space-y-1.5 rounded-[18px] border border-soil/8 bg-white/65 px-4 py-4 font-sans text-sm leading-6 text-bark/66">
-      {items.map((item) => (
-        <li
-          className={`flex items-center gap-3 ${
-            item.met ? "font-semibold text-forest" : "text-bark/66"
-          }`}
-          data-met={item.met}
-          key={item.key}
-        >
-          <span
-            aria-hidden="true"
-            className={`inline-flex min-w-[2.1rem] items-center justify-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${
-              item.met
-                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                : "border-soil/12 bg-white text-bark/42"
-            }`}
-          >
-            {item.met ? "OK" : "--"}
-          </span>
-          <span>{item.label}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 export function ResetPasswordForm({
   token,
   error = null,
@@ -142,9 +93,37 @@ export function ResetPasswordForm({
     passwordCriteria.hasUppercase &&
     passwordCriteria.hasLowercase &&
     passwordCriteria.hasNumber;
+  const hasPasswordInput = password.trim().length > 0;
   const hasConfirmation = confirmation.trim().length > 0;
   const passwordsMatch = hasConfirmation && password === confirmation;
   const showConfirmationError = hasConfirmation && !passwordsMatch;
+  const passwordRequirementItems: PasswordRequirementItem[] = [
+    {
+      key: "min-length",
+      met: passwordCriteria.hasMinLength,
+      text: `Minimo de ${PASSWORD_MIN_LENGTH} caracteres`,
+    },
+    {
+      key: "uppercase",
+      met: passwordCriteria.hasUppercase,
+      text: "Letra maiuscula",
+    },
+    {
+      key: "lowercase",
+      met: passwordCriteria.hasLowercase,
+      text: "Letra minuscula",
+    },
+    {
+      key: "number",
+      met: passwordCriteria.hasNumber,
+      text: "Numero",
+    },
+    {
+      key: "match",
+      met: passwordsMatch,
+      text: "Senhas iguais",
+    },
+  ];
   const confirmationMessage = !hasConfirmation
     ? "Repita a senha exatamente como foi digitada acima."
     : passwordsMatch
@@ -321,9 +300,13 @@ export function ResetPasswordForm({
                   Nova senha
                 </label>
                 <input
+                  aria-invalid={hasPasswordInput && !isPasswordStrong}
                   autoComplete="new-password"
                   className={[
                     "input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil",
+                    hasPasswordInput && !isPasswordStrong
+                      ? "border-forest/22"
+                      : "",
                     "placeholder:text-bark/42",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
                   ].join(" ")}
@@ -338,7 +321,7 @@ export function ResetPasswordForm({
                 />
               </div>
 
-              <PasswordCriteriaList password={password} />
+              <PasswordRequirements items={passwordRequirementItems} />
 
               <div className="space-y-2">
                 <label className="field-label" htmlFor="reset-password-confirm">
@@ -374,16 +357,6 @@ export function ResetPasswordForm({
                 }`}
               >
                 {confirmationMessage}
-              </p>
-
-              <p
-                className={`font-sans text-xs leading-5 ${
-                  password.length > 0 && !isPasswordStrong
-                    ? "text-red-700"
-                    : "text-bark/66"
-                }`}
-              >
-                {PASSWORD_POLICY_MESSAGE}
               </p>
 
               <Button
