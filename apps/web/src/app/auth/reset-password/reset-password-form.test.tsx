@@ -160,6 +160,72 @@ test("blocks submit when passwords do not match", async (context) => {
   assert.match(container.textContent ?? "", /As senhas precisam ser iguais\./i);
 });
 
+test("updates validation feedback while the user types", async (context) => {
+  const dom = setupDom();
+  const { window } = dom;
+  const container = window.document.createElement("div");
+  window.document.body.appendChild(container);
+  const root: Root = createRoot(container);
+  const { ResetPasswordForm } = await import("./reset-password-form");
+
+  context.after(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    dom.window.close();
+  });
+
+  await act(async () => {
+    root.render(<ResetPasswordForm error={null} token="abc123" />);
+  });
+
+  const passwordInput = container.querySelector(
+    "#reset-password-new",
+  ) as HTMLInputElement | null;
+  const confirmInput = container.querySelector(
+    "#reset-password-confirm",
+  ) as HTMLInputElement | null;
+  const submitButton = container.querySelector(
+    "button[type='submit']",
+  ) as HTMLButtonElement | null;
+
+  assert.ok(passwordInput);
+  assert.ok(confirmInput);
+  assert.ok(submitButton);
+  assert.equal(submitButton.disabled, true);
+  assert.match(
+    container.textContent ?? "",
+    /Repita a senha exatamente como foi digitada acima\./i,
+  );
+
+  await act(async () => {
+    setInputValue(passwordInput, "NovaSenha123", window);
+  });
+
+  assert.equal(
+    container.querySelectorAll("[data-met='true']").length,
+    4,
+    "all password criteria should be marked as satisfied",
+  );
+  assert.equal(submitButton.disabled, true);
+
+  await act(async () => {
+    setInputValue(confirmInput, "OutraSenha123", window);
+  });
+
+  assert.equal(confirmInput.getAttribute("aria-invalid"), "true");
+  assert.match(container.textContent ?? "", /As senhas precisam ser iguais\./i);
+  assert.equal(submitButton.disabled, true);
+
+  await act(async () => {
+    setInputValue(confirmInput, "NovaSenha123", window);
+  });
+
+  assert.equal(confirmInput.getAttribute("aria-invalid"), "false");
+  assert.match(container.textContent ?? "", /As senhas coincidem\./i);
+  assert.equal(submitButton.disabled, false);
+});
+
 test("submits a strong password and shows success state", async (context) => {
   const dom = setupDom();
   const { window } = dom;
