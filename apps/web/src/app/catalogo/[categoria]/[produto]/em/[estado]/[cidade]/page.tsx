@@ -5,67 +5,103 @@ import { formatCurrencyBRL } from "@frescari/ui";
 
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
 import {
-  getProductPageData,
-  getProductStaticParams,
+  getProductRegionPageData,
+  getProductRegionStaticParams,
   getSchemaUnitCode,
 } from "@/lib/catalog-public";
-import { buildOfferAreaServed } from "@/lib/catalog-pseo";
+import {
+  buildCategoryRegionPath,
+  buildOfferAreaServed,
+  buildSupplierRegionPath,
+} from "@/lib/catalog-pseo";
 import { getSiteUrl, sanitizeText, serializeJsonLd } from "@/lib/catalog-seo";
-import { buildSeoMetadata } from "@/lib/seo";
 
 export const revalidate = 3600;
 
-type ProductPageProps = {
+type ProductRegionPageProps = {
   params: Promise<{
     categoria: string;
     produto: string;
+    estado: string;
+    cidade: string;
   }>;
 };
 
 export async function generateStaticParams(): Promise<
-  Array<{ categoria: string; produto: string }>
+  Array<{ categoria: string; produto: string; estado: string; cidade: string }>
 > {
-  return getProductStaticParams();
+  return getProductRegionStaticParams();
 }
 
 export async function generateMetadata({
   params,
-}: ProductPageProps): Promise<Metadata> {
-  const { categoria, produto } = await params;
-  const data = await getProductPageData(categoria, produto);
+}: ProductRegionPageProps): Promise<Metadata> {
+  const { categoria, produto, estado, cidade } = await params;
+  const data = await getProductRegionPageData(
+    categoria,
+    produto,
+    estado,
+    cidade,
+  );
 
   if (!data) {
     return {
-      title: "Produto não encontrado | Frescari",
+      title: "Rota local nao encontrada | Frescari",
     };
   }
 
-  const title = `${sanitizeText(data.product.name)} em ${sanitizeText(data.category.name)} | Frescari`;
-  const description = sanitizeText(data.product.description, 160);
-  return buildSeoMetadata({
-    description,
-    images: data.product.imageUrl
-      ? [
-          {
-            alt: sanitizeText(data.product.name),
-            url: data.product.imageUrl,
-          },
-        ]
-      : undefined,
-    path: data.product.path,
+  const title = `${sanitizeText(data.region.name)} direto do produtor | Frescari`;
+  const description = sanitizeText(data.region.description, 160);
+  const canonical = `${getSiteUrl()}${data.region.path}`;
+
+  return {
     title,
-  });
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "website",
+      images: data.region.imageUrl
+        ? [
+            {
+              url: data.region.imageUrl,
+              alt: data.region.name,
+            },
+          ]
+        : undefined,
+    },
+  };
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
-  const { categoria, produto } = await params;
-  const data = await getProductPageData(categoria, produto);
+export default async function ProductRegionPage({
+  params,
+}: ProductRegionPageProps) {
+  const { categoria, produto, estado, cidade } = await params;
+  const data = await getProductRegionPageData(
+    categoria,
+    produto,
+    estado,
+    cidade,
+  );
 
   if (!data) {
     notFound();
   }
 
-  const canonical = `${getSiteUrl()}${data.product.path}`;
+  const canonical = `${getSiteUrl()}${data.region.path}`;
+  const categoryRegionPath = buildCategoryRegionPath(
+    data.category.slug,
+    data.region.stateSlug,
+    data.region.citySlug,
+  );
+  const supplierRegionPath = buildSupplierRegionPath(
+    data.region.stateSlug,
+    data.region.citySlug,
+  );
   const uniqueAreasServed = Array.from(
     new Map(
       data.lots
@@ -79,8 +115,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
     "@type": "Product",
     name: sanitizeText(data.product.name),
     category: sanitizeText(data.category.name),
-    description: sanitizeText(data.product.description, 200),
-    image: data.product.imageUrl ? [data.product.imageUrl] : undefined,
+    description: sanitizeText(data.region.description, 200),
+    image: data.region.imageUrl ? [data.region.imageUrl] : undefined,
     url: canonical,
     brand: {
       "@type": "Brand",
@@ -91,8 +127,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
         ? {
             "@type": "Offer",
             priceCurrency: "BRL",
-            price: data.product.lowestPrice.toFixed(2),
-            unitCode: getSchemaUnitCode(data.product.saleUnit),
+            price: data.region.lowestPrice.toFixed(2),
+            unitCode: getSchemaUnitCode(data.region.saleUnit),
             availability: "https://schema.org/InStock",
             priceValidUntil: data.lots[0]?.expiryDate,
             areaServed:
@@ -107,9 +143,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
           }
         : {
             "@type": "AggregateOffer",
-            lowPrice: data.product.lowestPrice.toFixed(2),
-            highPrice: data.product.highestPrice.toFixed(2),
-            offerCount: data.product.offerCount,
+            lowPrice: data.region.lowestPrice.toFixed(2),
+            highPrice: data.region.highestPrice.toFixed(2),
+            offerCount: data.region.offerCount,
             priceCurrency: "BRL",
             availability: "https://schema.org/InStock",
             areaServed:
@@ -118,7 +154,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
               "@type": "Offer",
               priceCurrency: "BRL",
               price: lot.finalPrice.toFixed(2),
-              unitCode: getSchemaUnitCode(lot.unit || lot.saleUnit),
+              unitCode: getSchemaUnitCode(lot.saleUnit),
               availability: "https://schema.org/InStock",
               areaServed: buildOfferAreaServed(lot),
               seller: {
@@ -149,6 +185,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
         "@type": "ListItem",
         position: 3,
         name: sanitizeText(data.product.name),
+        item: `${getSiteUrl()}${data.product.path}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 4,
+        name: sanitizeText(data.region.regionName),
         item: canonical,
       },
     ],
@@ -171,7 +213,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             href="/catalogo"
             className="transition-colors hover:text-forest"
           >
-            Catálogo
+            Catalogo
           </Link>
           <span>/</span>
           <Link
@@ -181,7 +223,16 @@ export default async function ProductPage({ params }: ProductPageProps) {
             {data.category.name}
           </Link>
           <span>/</span>
-          <span className="font-medium text-soil">{data.product.name}</span>
+          <Link
+            href={data.product.path}
+            className="transition-colors hover:text-forest"
+          >
+            {data.product.name}
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-soil">
+            {data.region.regionName}
+          </span>
         </nav>
 
         <header className="grid gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,1fr)] lg:items-start">
@@ -189,129 +240,118 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <div className="inline-flex items-center gap-2 rounded-full border border-forest/20 bg-forest/10 px-3 py-1.5">
               <span className="h-2 w-2 rounded-full bg-forest" />
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-forest">
-                Produto com metadata dinâmica
+                Produto + regiao com densidade valida
               </span>
             </div>
 
             <h1 className="font-display text-5xl font-black tracking-tight text-soil sm:text-6xl">
-              {data.product.name}
+              {data.region.name}
             </h1>
 
             <p className="max-w-3xl text-lg leading-relaxed text-bark">
-              {data.product.description}
+              {data.region.description}
             </p>
 
             <div className="flex flex-wrap gap-3">
-              {data.product.farmNames.map((farmName) => (
-                <span
-                  key={farmName}
-                  className="rounded-full border border-soil/10 bg-white px-3 py-1.5 text-sm text-bark shadow-sm"
-                >
-                  {farmName}
-                </span>
-              ))}
+              <Link
+                href={data.product.path}
+                className="rounded-full border border-soil/10 bg-white px-3 py-1.5 text-sm text-bark shadow-sm transition-colors hover:text-forest"
+              >
+                Ver pagina do produto
+              </Link>
+              <Link
+                href={categoryRegionPath}
+                className="rounded-full border border-soil/10 bg-white px-3 py-1.5 text-sm text-bark shadow-sm transition-colors hover:text-forest"
+              >
+                Ver categoria em {data.region.regionName}
+              </Link>
+              <Link
+                href={supplierRegionPath}
+                className="rounded-full border border-soil/10 bg-white px-3 py-1.5 text-sm text-bark shadow-sm transition-colors hover:text-forest"
+              >
+                Ver fornecedores em {data.region.regionName}
+              </Link>
             </div>
           </div>
 
           <aside className="grid gap-4 rounded-[28px] border border-soil/10 bg-white/75 p-6 shadow-sm backdrop-blur">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
-                Faixa de preço
+                Faixa de preco local
               </p>
               <p className="mt-2 font-display text-4xl font-black text-soil">
-                {formatCurrencyBRL(data.product.lowestPrice)}
+                {formatCurrencyBRL(data.region.lowestPrice)}
               </p>
               <p className="mt-1 text-sm text-bark/70">
-                até {formatCurrencyBRL(data.product.highestPrice)}/
-                {data.product.saleUnit}
+                ate {formatCurrencyBRL(data.region.highestPrice)}/
+                {data.region.saleUnit}
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
-                  Ofertas ativas
+                  Ofertas
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-forest">
-                  {data.product.offerCount}
+                  {data.region.offerCount}
                 </p>
               </div>
 
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
-                  Produtores
+                  Lotes
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-forest">
-                  {data.product.farmNames.length}
+                  {data.region.lotCount}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
+                  Fazendas
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-forest">
+                  {data.region.farmCount}
                 </p>
               </div>
             </div>
           </aside>
         </header>
 
-        {data.productRegions.length > 0 ? (
-          <section
-            aria-labelledby="rotas-locais-do-produto"
-            className="space-y-5"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
-                Densidade local
-              </p>
-              <h2
-                id="rotas-locais-do-produto"
-                className="font-display text-3xl font-bold text-soil"
+        <section aria-labelledby="produtores-locais" className="space-y-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
+              Malha local
+            </p>
+            <h2
+              id="produtores-locais"
+              className="font-display text-3xl font-bold text-soil"
+            >
+              Produtores ativos nesta rota
+            </h2>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {data.region.farmNames.map((farmName) => (
+              <span
+                key={farmName}
+                className="rounded-full border border-soil/10 bg-white px-3 py-1.5 text-sm text-bark shadow-sm"
               >
-                Onde {data.product.name.toLowerCase()} esta mais forte
-              </h2>
-            </div>
+                {farmName}
+              </span>
+            ))}
+          </div>
+        </section>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {data.productRegions.slice(0, 9).map((region) => (
-                <Link
-                  key={region.path}
-                  href={region.path}
-                  className="group rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-forest/30 hover:shadow-lg"
-                >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
-                    {region.regionName}
-                  </p>
-                  <h3 className="mt-3 font-display text-2xl font-bold text-soil transition-colors group-hover:text-forest">
-                    {region.offerCount} oferta
-                    {region.offerCount === 1 ? "" : "s"} locais
-                  </h3>
-                  <p className="mt-3 text-sm leading-relaxed text-bark">
-                    {region.farmCount} fazendas com{" "}
-                    {data.product.name.toLowerCase()} ativo nesta rota local.
-                  </p>
-                  <div className="mt-5 flex items-end justify-between gap-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-bark/60">
-                        A partir de
-                      </p>
-                      <p className="mt-1 text-xl font-semibold text-forest">
-                        {formatCurrencyBRL(region.lowestPrice)}/
-                        {region.saleUnit}
-                      </p>
-                    </div>
-                    <span className="text-sm font-semibold text-soil">
-                      Ver rota local
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        <section aria-labelledby="ofertas-do-produto" className="space-y-6">
+        <section aria-labelledby="ofertas-locais" className="space-y-6">
           <div className="flex items-center gap-4">
             <div className="h-px flex-1 bg-forest/10" />
             <h2
-              id="ofertas-do-produto"
+              id="ofertas-locais"
               className="text-[10px] font-bold uppercase tracking-[0.2em] text-bark"
             >
-              Lotes disponíveis deste produto
+              Lotes ativos desta rota local
             </h2>
             <div className="h-px flex-1 bg-forest/10" />
           </div>

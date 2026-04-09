@@ -22,6 +22,17 @@ before(() => {
       return {
         CATALOG_REVALIDATE_SECONDS: 3600,
         getCategoryStaticParams: async () => [{ categoria: "frutas" }],
+        getCategoryRegionStaticParams: async () => [
+          { categoria: "frutas", estado: "sp", cidade: "campinas" },
+        ],
+        getProductRegionStaticParams: async () => [
+          {
+            categoria: "frutas",
+            produto: "morango-organico",
+            estado: "sp",
+            cidade: "campinas",
+          },
+        ],
         getProductStaticParams: async () => [
           { categoria: "frutas", produto: "morango-organico" },
         ],
@@ -42,8 +53,19 @@ before(() => {
 
     if (request === "@/lib/catalog-pseo") {
       return {
+        buildCategoryRegionPath: (
+          categoria: string,
+          estado: string,
+          cidade: string,
+        ) => `/catalogo/${categoria}/em/${estado}/${cidade}`,
+        buildProductRegionPath: (
+          categoria: string,
+          produto: string,
+          estado: string,
+          cidade: string,
+        ) => `/catalogo/${categoria}/${produto}/em/${estado}/${cidade}`,
         buildSupplierRegionPath: (estado: string, cidade: string) =>
-          `/catalogo/regioes/${estado}/${cidade}`,
+          `/catalogo/fornecedores/${estado}/${cidade}`,
       };
     }
 
@@ -88,11 +110,19 @@ test("sitemap.xml includes the catalog surface and legal pages", async () => {
   );
   assert.match(
     body,
+    /<loc>https:\/\/frescari\.com\.br\/catalogo\/frutas\/em\/sp\/campinas<\/loc>/,
+  );
+  assert.match(
+    body,
+    /<loc>https:\/\/frescari\.com\.br\/catalogo\/frutas\/morango-organico\/em\/sp\/campinas<\/loc>/,
+  );
+  assert.match(
+    body,
     /<loc>https:\/\/frescari\.com\.br\/catalogo\/frutas\/morango-organico<\/loc>/,
   );
   assert.match(
     body,
-    /<loc>https:\/\/frescari\.com\.br\/catalogo\/regioes\/sp\/campinas<\/loc>/,
+    /<loc>https:\/\/frescari\.com\.br\/catalogo\/fornecedores\/sp\/campinas<\/loc>/,
   );
   assert.match(body, /<lastmod>2026-04-08<\/lastmod>/);
   assert.doesNotMatch(body, /<changefreq>/);

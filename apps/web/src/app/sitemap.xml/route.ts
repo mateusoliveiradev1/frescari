@@ -1,10 +1,16 @@
 import {
   CATALOG_REVALIDATE_SECONDS,
+  getCategoryRegionStaticParams,
   getCategoryStaticParams,
+  getProductRegionStaticParams,
   getProductStaticParams,
   getSupplierRegionStaticParams,
 } from "@/lib/catalog-public";
-import { buildSupplierRegionPath } from "@/lib/catalog-pseo";
+import {
+  buildCategoryRegionPath,
+  buildProductRegionPath,
+  buildSupplierRegionPath,
+} from "@/lib/catalog-pseo";
 import {
   buildCategoryPath,
   buildProductPath,
@@ -34,6 +40,8 @@ function escapeXml(value: string): string {
 export async function GET(): Promise<Response> {
   const siteUrl = getSiteUrl();
   const categories = await getCategoryStaticParams();
+  const categoryRegions = await getCategoryRegionStaticParams();
+  const productRegions = await getProductRegionStaticParams();
   const products = await getProductStaticParams();
   const supplierRegions = await getSupplierRegionStaticParams();
 
@@ -55,6 +63,24 @@ export async function GET(): Promise<Response> {
         [
           `${siteUrl}${buildCategoryPath(categoria)}`,
           { url: `${siteUrl}${buildCategoryPath(categoria)}` },
+        ] as const,
+    ),
+    ...categoryRegions.map(
+      ({ categoria, estado, cidade }) =>
+        [
+          `${siteUrl}${buildCategoryRegionPath(categoria, estado, cidade)}`,
+          {
+            url: `${siteUrl}${buildCategoryRegionPath(categoria, estado, cidade)}`,
+          },
+        ] as const,
+    ),
+    ...productRegions.map(
+      ({ categoria, produto, estado, cidade }) =>
+        [
+          `${siteUrl}${buildProductRegionPath(categoria, produto, estado, cidade)}`,
+          {
+            url: `${siteUrl}${buildProductRegionPath(categoria, produto, estado, cidade)}`,
+          },
         ] as const,
     ),
     ...products.map(
