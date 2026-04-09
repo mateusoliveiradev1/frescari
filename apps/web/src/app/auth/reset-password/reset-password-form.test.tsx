@@ -202,6 +202,7 @@ test("updates validation feedback while the user types", async (context) => {
     setInputValue(passwordInput, "NovaSenha123", window);
   });
 
+  assert.match(container.textContent ?? "", /Senhas iguais/i);
   assert.equal(
     container.querySelectorAll("[data-met='true']").length,
     4,
@@ -223,6 +224,11 @@ test("updates validation feedback while the user types", async (context) => {
 
   assert.equal(confirmInput.getAttribute("aria-invalid"), "false");
   assert.match(container.textContent ?? "", /As senhas coincidem\./i);
+  assert.equal(
+    container.querySelectorAll("[data-met='true']").length,
+    5,
+    "all password and confirmation criteria should be marked as satisfied",
+  );
   assert.equal(submitButton.disabled, false);
 });
 

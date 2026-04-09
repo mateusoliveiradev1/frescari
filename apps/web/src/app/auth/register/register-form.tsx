@@ -3,9 +3,13 @@
 import { useState, type FormEvent, type InputHTMLAttributes } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Eye, EyeOff, X } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand-logo";
+import {
+  PasswordRequirements,
+  type PasswordRequirementItem,
+} from "@/components/auth/password-requirements";
 import { authClient } from "@/lib/auth-client";
 import {
   buildVerifyEmailPendingPath,
@@ -99,21 +103,6 @@ function StatusAlert({
   );
 }
 
-function PasswordRule({ met, text }: { met: boolean; text: string }) {
-  return (
-    <li className="flex items-center gap-2.5 font-sans text-sm leading-6">
-      {met ? (
-        <Check aria-hidden="true" className="h-4 w-4 shrink-0 text-forest" />
-      ) : (
-        <X aria-hidden="true" className="h-4 w-4 shrink-0 text-bark/34" />
-      )}
-      <span className={met ? "font-medium text-forest" : "text-bark/58"}>
-        {text}
-      </span>
-    </li>
-  );
-}
-
 export function RegisterForm() {
   const router = useRouter();
   const genericRegisterError =
@@ -128,6 +117,28 @@ export function RegisterForm() {
   const passwordCriteria = getPasswordCriteria(password);
   const passwordIsStrong = isStrongPassword(password);
   const hasPasswordInput = password.trim().length > 0;
+  const passwordRequirementItems: PasswordRequirementItem[] = [
+    {
+      key: "min-length",
+      met: passwordCriteria.hasMinLength,
+      text: `Minimo de ${PASSWORD_MIN_LENGTH} caracteres`,
+    },
+    {
+      key: "uppercase",
+      met: passwordCriteria.hasUppercase,
+      text: "Letra maiuscula",
+    },
+    {
+      key: "lowercase",
+      met: passwordCriteria.hasLowercase,
+      text: "Letra minuscula",
+    },
+    {
+      key: "number",
+      met: passwordCriteria.hasNumber,
+      text: "Numero",
+    },
+  ];
   const canSubmit =
     name.trim().length > 0 &&
     email.trim().length > 0 &&
@@ -383,29 +394,7 @@ export function RegisterForm() {
                       </button>
                     </div>
                     {hasPasswordInput ? (
-                      <div
-                        aria-live="polite"
-                        className="rounded-[18px] border border-soil/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.86),rgba(249,246,240,0.82))] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.92)]"
-                      >
-                        <ul className="space-y-1.5">
-                          <PasswordRule
-                            met={passwordCriteria.hasMinLength}
-                            text={`Minimo de ${PASSWORD_MIN_LENGTH} caracteres`}
-                          />
-                          <PasswordRule
-                            met={passwordCriteria.hasUppercase}
-                            text="Letra maiuscula"
-                          />
-                          <PasswordRule
-                            met={passwordCriteria.hasLowercase}
-                            text="Letra minuscula"
-                          />
-                          <PasswordRule
-                            met={passwordCriteria.hasNumber}
-                            text="Numero"
-                          />
-                        </ul>
-                      </div>
+                      <PasswordRequirements items={passwordRequirementItems} />
                     ) : (
                       <p className="px-1 font-sans text-xs leading-5 text-bark/62">
                         Use uma senha unica para sua conta.

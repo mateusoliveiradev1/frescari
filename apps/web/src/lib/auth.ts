@@ -7,6 +7,7 @@ import { sanitizeEnvValue } from "@/lib/env";
 import { getAppUrl, getConfiguredUrl } from "@/lib/app-url";
 import { sendAuthVerificationEmail } from "@/lib/auth-email";
 import { getRequestOrigins } from "@/lib/auth-origin";
+import { getLocalDevelopmentTrustedOrigins } from "@/lib/auth-trusted-origins";
 import { createEmailAndPasswordConfig } from "@/lib/auth-password";
 import {
   extractIpAddress,
@@ -28,7 +29,7 @@ const authBaseUrl =
   getConfiguredUrl(process.env.NEXT_PUBLIC_BETTER_AUTH_URL) ||
   getConfiguredUrl(process.env.NEXT_PUBLIC_APP_URL) ||
   getAppUrl();
-const localTrustedOrigins = ["http://localhost:*", "http://127.0.0.1:*"];
+const localTrustedOrigins = getLocalDevelopmentTrustedOrigins();
 
 function toUniqueValues(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.filter(Boolean) as string[]));
