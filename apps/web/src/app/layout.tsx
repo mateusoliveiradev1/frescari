@@ -45,10 +45,17 @@ export const metadata: Metadata = {
     title: "Frescari",
   },
   icons: {
-    apple: [{ sizes: "180x180", type: "image/png", url: "/apple-icon" }],
-    icon: [{ sizes: "64x64", type: "image/png", url: "/icon" }],
-    shortcut: [{ sizes: "64x64", type: "image/png", url: "/icon" }],
+    apple: [
+      { sizes: "180x180", type: "image/png", url: "/apple-touch-icon.png" },
+    ],
+    icon: [
+      { url: "/favicon.ico" },
+      { sizes: "96x96", type: "image/png", url: "/favicon-96x96.png" },
+      { type: "image/svg+xml", url: "/favicon.svg" },
+    ],
+    shortcut: ["/favicon.ico"],
   },
+  manifest: "/site.webmanifest",
   verification: googleSiteVerification
     ? {
         google: googleSiteVerification,

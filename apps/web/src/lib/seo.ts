@@ -163,7 +163,7 @@ export function getOrganizationJsonLd() {
     availableLanguage: [SITE_LANGUAGE],
     description: SITE_DEFAULT_DESCRIPTION,
     image: [buildCanonicalUrl(DEFAULT_OG_IMAGE_PATH)],
-    logo: buildCanonicalUrl("/icon"),
+    logo: buildCanonicalUrl("/web-app-manifest-512x512.png"),
     name: SITE_NAME,
     url: buildCanonicalUrl("/"),
   };
