@@ -5,6 +5,7 @@ import { sanitizeText } from "./catalog-seo";
 import { getSaleUnitLabel, normalizeSaleUnit } from "./sale-units";
 
 type CatalogCommercialLot = {
+  categoryName?: string | null;
   deliveryRadiusKm?: number | null;
   farmCity?: string | null;
   farmName: string;
@@ -12,6 +13,7 @@ type CatalogCommercialLot = {
   finalPrice: number;
   freshnessScore?: number | null;
   pricingType: "UNIT" | "WEIGHT" | "BOX";
+  productName?: string | null;
   saleUnit?: string | null;
   status?: string | null;
   unit?: string | null;
@@ -31,6 +33,15 @@ type CatalogCommercialMetric = {
 type ProductCommercialContext = {
   productName: string;
   regionName?: string;
+};
+
+type SupplierRegionCommercialContext = {
+  regionName: string;
+};
+
+type CategoryRegionCommercialContext = {
+  categoryName: string;
+  regionName: string;
 };
 
 export type ProductCommercialSnapshot = {
@@ -77,6 +88,14 @@ function formatPriceBand(
   return `${formatCurrencyBRL(lowestPrice)} a ${formatCurrencyBRL(highestPrice)}${suffix}`;
 }
 
+function formatPlainPriceBand(lowestPrice: number, highestPrice: number) {
+  if (lowestPrice === highestPrice) {
+    return formatCurrencyBRL(lowestPrice);
+  }
+
+  return `${formatCurrencyBRL(lowestPrice)} a ${formatCurrencyBRL(highestPrice)}`;
+}
+
 function getMedian(values: number[]) {
   if (values.length === 0) {
     return null;
@@ -109,6 +128,71 @@ function buildFaqItem(question: string, answer: string): CatalogCommercialFaq {
   return {
     answer: sanitizeText(answer, 320),
     question: sanitizeText(question, 140),
+  };
+}
+
+function formatTopNames(
+  names: string[],
+  options?: {
+    emptyLabel?: string;
+    limit?: number;
+  },
+) {
+  const uniqueNames = Array.from(
+    new Set(
+      names.map((name) => sanitizeText(name)).filter((name) => name.length > 0),
+    ),
+  );
+
+  if (uniqueNames.length === 0) {
+    return options?.emptyLabel ?? "Mix em atualizacao";
+  }
+
+  const limit = options?.limit ?? 3;
+  const selectedNames = uniqueNames.slice(0, limit);
+  const remainingNames = uniqueNames.length - selectedNames.length;
+  const baseLabel = selectedNames.join(", ");
+
+  if (remainingNames <= 0) {
+    return baseLabel;
+  }
+
+  return `${baseLabel} e mais ${remainingNames}`;
+}
+
+function buildFreshnessMetric(lots: CatalogCommercialLot[]) {
+  const freshnessScores = lots
+    .map((lot) => lot.freshnessScore)
+    .filter((score): score is number => Number.isFinite(score));
+  const averageFreshness =
+    freshnessScores.length > 0
+      ? Math.round(
+          freshnessScores.reduce((sum, score) => sum + score, 0) /
+            freshnessScores.length,
+        )
+      : null;
+  const lastChanceCount = lots.filter(
+    (lot) => lot.status === "last_chance",
+  ).length;
+  const deliveryRadii = lots
+    .map((lot) => lot.deliveryRadiusKm)
+    .filter((radius): radius is number => Number.isFinite(radius));
+  const medianDeliveryRadius = getMedian(deliveryRadii);
+  const value =
+    averageFreshness !== null
+      ? `${averageFreshness}/100`
+      : medianDeliveryRadius !== null
+        ? `${medianDeliveryRadius} km`
+        : lastChanceCount > 0
+          ? formatCount(lastChanceCount, "alerta", "alertas")
+          : "Sem score";
+
+  return {
+    averageFreshness,
+    freshnessScores,
+    lastChanceCount,
+    medianDeliveryRadius,
+    value,
   };
 }
 
@@ -156,31 +240,7 @@ export function buildProductCommercialSnapshot(
   const pricingMix = pricingTypeEntries
     .map(([pricingType]) => PRICING_TYPE_LABELS[pricingType])
     .join(" + ");
-  const freshnessScores = lots
-    .map((lot) => lot.freshnessScore)
-    .filter((score): score is number => Number.isFinite(score));
-  const averageFreshness =
-    freshnessScores.length > 0
-      ? Math.round(
-          freshnessScores.reduce((sum, score) => sum + score, 0) /
-            freshnessScores.length,
-        )
-      : null;
-  const lastChanceCount = lots.filter(
-    (lot) => lot.status === "last_chance",
-  ).length;
-  const deliveryRadii = lots
-    .map((lot) => lot.deliveryRadiusKm)
-    .filter((radius): radius is number => Number.isFinite(radius));
-  const medianDeliveryRadius = getMedian(deliveryRadii);
-  const freshnessValue =
-    averageFreshness !== null
-      ? `${averageFreshness}/100`
-      : medianDeliveryRadius !== null
-        ? `${medianDeliveryRadius} km`
-        : lastChanceCount > 0
-          ? formatCount(lastChanceCount, "alerta", "alertas")
-          : "Sem score";
+  const freshnessMetric = buildFreshnessMetric(lots);
 
   const intro = sanitizeText(
     context.regionName
@@ -221,20 +281,20 @@ export function buildProductCommercialSnapshot(
     {
       detail: sanitizeText(
         [
-          averageFreshness !== null
-            ? `Media de frescor em ${averageFreshness}/100.`
+          freshnessMetric.averageFreshness !== null
+            ? `Media de frescor em ${freshnessMetric.averageFreshness}/100.`
             : "Sem media publica de frescor no momento.",
-          medianDeliveryRadius !== null
-            ? `Mediana de entrega em ${medianDeliveryRadius} km nos lotes que informam raio.`
+          freshnessMetric.medianDeliveryRadius !== null
+            ? `Mediana de entrega em ${freshnessMetric.medianDeliveryRadius} km nos lotes que informam raio.`
             : "Nenhum raio medio de entrega publicado agora.",
-          lastChanceCount > 0
-            ? `${formatCount(lastChanceCount, "lote em janela final", "lotes em janela final")} neste recorte.`
+          freshnessMetric.lastChanceCount > 0
+            ? `${formatCount(freshnessMetric.lastChanceCount, "lote em janela final", "lotes em janela final")} neste recorte.`
             : "Sem lotes em janela final neste recorte.",
         ].join(" "),
         220,
       ),
       label: "Frescor e entrega",
-      value: freshnessValue,
+      value: freshnessMetric.value,
     },
   ];
 
@@ -252,15 +312,15 @@ export function buildProductCommercialSnapshot(
         ? `Existe oferta recorrente nessa rota de ${context.productName}?`
         : `Existe cobertura para compra recorrente de ${context.productName}?`,
       context.regionName
-        ? `${subject} concentra ${formatCount(lots.length, "lote ativo", "lotes ativos")} de ${formatCount(farmCount, "produtor", "produtores")} nesta rota${medianDeliveryRadius !== null ? `, com mediana de ${medianDeliveryRadius} km de entrega nos lotes que informam raio` : ""}.`
+        ? `${subject} concentra ${formatCount(lots.length, "lote ativo", "lotes ativos")} de ${formatCount(farmCount, "produtor", "produtores")} nesta rota${freshnessMetric.medianDeliveryRadius !== null ? `, com mediana de ${freshnessMetric.medianDeliveryRadius} km de entrega nos lotes que informam raio` : ""}.`
         : `${subject} aparece hoje com ${formatCount(lots.length, "lote ativo", "lotes ativos")}, ${formatCount(farmCount, "produtor", "produtores")} e cobertura em ${formatCount(routeCount, "rota local", "rotas locais")}, o que ajuda a comparar fornecedor e repetir abastecimento dentro do catalogo.`,
     ),
     buildFaqItem(
       `Como esta o frescor publicado de ${subject} hoje?`,
-      averageFreshness !== null
-        ? `A media publica de frescor esta em ${averageFreshness}/100 entre ${formatCount(freshnessScores.length, "lote medido", "lotes medidos")}.${lastChanceCount > 0 ? ` Tambem ha ${formatCount(lastChanceCount, "lote em janela final", "lotes em janela final")}.` : ""}`
-        : lastChanceCount > 0
-          ? `${formatCount(lastChanceCount, "lote entrou", "lotes entraram")} em janela final neste recorte, mesmo sem score medio publicado.`
+      freshnessMetric.averageFreshness !== null
+        ? `A media publica de frescor esta em ${freshnessMetric.averageFreshness}/100 entre ${formatCount(freshnessMetric.freshnessScores.length, "lote medido", "lotes medidos")}.${freshnessMetric.lastChanceCount > 0 ? ` Tambem ha ${formatCount(freshnessMetric.lastChanceCount, "lote em janela final", "lotes em janela final")}.` : ""}`
+        : freshnessMetric.lastChanceCount > 0
+          ? `${formatCount(freshnessMetric.lastChanceCount, "lote entrou", "lotes entraram")} em janela final neste recorte, mesmo sem score medio publicado.`
           : `No momento nao ha score medio de frescor publicado para ${subject}, mas os lotes seguem ativos para consulta comercial.`,
     ),
   ];
@@ -269,6 +329,195 @@ export function buildProductCommercialSnapshot(
     faqItems,
     intro,
     metrics,
+  };
+}
+
+export function buildSupplierRegionCommercialSnapshot(
+  lots: CatalogCommercialLot[],
+  context: SupplierRegionCommercialContext,
+): ProductCommercialSnapshot {
+  const farmCount = new Set(lots.map((lot) => lot.farmName)).size;
+  const productNames = lots
+    .map((lot) => lot.productName)
+    .filter((name): name is string => Boolean(name));
+  const categoryNames = lots
+    .map((lot) => lot.categoryName)
+    .filter((name): name is string => Boolean(name));
+  const productCount = new Set(productNames).size;
+  const categoryCount = new Set(categoryNames).size;
+  const lowestPrice = Math.min(...lots.map((lot) => lot.finalPrice));
+  const highestPrice = Math.max(...lots.map((lot) => lot.finalPrice));
+  const freshnessMetric = buildFreshnessMetric(lots);
+  const topProducts = formatTopNames(productNames, {
+    emptyLabel: "Produtos em atualizacao",
+  });
+  const topCategories = formatTopNames(categoryNames, {
+    emptyLabel: "Categorias em atualizacao",
+  });
+  const subject = `fornecedores em ${context.regionName}`;
+
+  return {
+    intro: sanitizeText(
+      `Leitura comercial da malha de ${subject}: quantos produtores publicam hoje, quais categorias e produtos puxam oferta, qual a entrada de preco e como estao os sinais de frescor e entrega antes de abrir os lotes.`,
+      220,
+    ),
+    metrics: [
+      {
+        detail: sanitizeText(
+          `Entrada atual de ${formatPlainPriceBand(lowestPrice, highestPrice)} entre ${formatCount(lots.length, "lote ativo", "lotes ativos")} publicados nesta malha regional.`,
+          180,
+        ),
+        label: "Entrada de preco",
+        value: formatPlainPriceBand(lowestPrice, highestPrice),
+      },
+      {
+        detail: sanitizeText(
+          `${formatCount(farmCount, "produtor ativo", "produtores ativos")} abastecem ${formatCount(productCount, "produto", "produtos")} neste recorte local agora.`,
+          180,
+        ),
+        label: "Produtores ativos",
+        value: `${farmCount} produtores`,
+      },
+      {
+        detail: sanitizeText(
+          `Categorias com maior presenca hoje: ${topCategories}. Produtos mais visiveis: ${topProducts}.`,
+          200,
+        ),
+        label: "Mix local",
+        value: `${categoryCount} categorias`,
+      },
+      {
+        detail: sanitizeText(
+          [
+            freshnessMetric.averageFreshness !== null
+              ? `Media de frescor em ${freshnessMetric.averageFreshness}/100.`
+              : "Sem media publica de frescor no momento.",
+            freshnessMetric.medianDeliveryRadius !== null
+              ? `Mediana de entrega em ${freshnessMetric.medianDeliveryRadius} km nos lotes com raio informado.`
+              : "Sem mediana publica de entrega neste recorte.",
+            freshnessMetric.lastChanceCount > 0
+              ? `${formatCount(freshnessMetric.lastChanceCount, "lote em janela final", "lotes em janela final")} nesta malha.`
+              : "Sem lotes em janela final nesta malha.",
+          ].join(" "),
+          220,
+        ),
+        label: "Frescor e entrega",
+        value: freshnessMetric.value,
+      },
+    ],
+    faqItems: [
+      buildFaqItem(
+        `Quantos fornecedores estao ativos em ${context.regionName}?`,
+        `Hoje a malha de ${subject} concentra ${formatCount(farmCount, "produtor ativo", "produtores ativos")}, ${formatCount(lots.length, "lote publicado", "lotes publicados")} e ${formatCount(productCount, "produto", "produtos")} com oferta visivel no catalogo.`,
+      ),
+      buildFaqItem(
+        `Que mix aparece entre os fornecedores em ${context.regionName}?`,
+        `As categorias com maior presenca hoje sao ${topCategories}. Entre os produtos mais recorrentes neste recorte aparecem ${topProducts}.`,
+      ),
+      buildFaqItem(
+        `Qual e a entrada de preco para comprar nessa regiao?`,
+        `A leitura atual da malha de ${subject} vai de ${formatPlainPriceBand(lowestPrice, highestPrice)}, considerando os lotes ativos publicados agora no catalogo.`,
+      ),
+      buildFaqItem(
+        `Como estao frescor e entrega nos lotes de ${context.regionName}?`,
+        freshnessMetric.averageFreshness !== null
+          ? `A media publica de frescor esta em ${freshnessMetric.averageFreshness}/100.${freshnessMetric.medianDeliveryRadius !== null ? ` Nos lotes com raio informado, a mediana de entrega esta em ${freshnessMetric.medianDeliveryRadius} km.` : ""}${freshnessMetric.lastChanceCount > 0 ? ` Tambem ha ${formatCount(freshnessMetric.lastChanceCount, "lote em janela final", "lotes em janela final")}.` : ""}`
+          : freshnessMetric.lastChanceCount > 0
+            ? `${formatCount(freshnessMetric.lastChanceCount, "lote entrou", "lotes entraram")} em janela final neste recorte.${freshnessMetric.medianDeliveryRadius !== null ? ` A mediana de entrega entre os lotes com raio informado esta em ${freshnessMetric.medianDeliveryRadius} km.` : ""}`
+            : `No momento nao ha score medio de frescor publicado para ${subject}, mas os lotes seguem ativos para consulta comercial.${freshnessMetric.medianDeliveryRadius !== null ? ` A mediana de entrega entre os lotes com raio informado esta em ${freshnessMetric.medianDeliveryRadius} km.` : ""}`,
+      ),
+    ],
+  };
+}
+
+export function buildCategoryRegionCommercialSnapshot(
+  lots: CatalogCommercialLot[],
+  context: CategoryRegionCommercialContext,
+): ProductCommercialSnapshot {
+  const farmCount = new Set(lots.map((lot) => lot.farmName)).size;
+  const productNames = lots
+    .map((lot) => lot.productName)
+    .filter((name): name is string => Boolean(name));
+  const productCount = new Set(productNames).size;
+  const lowestPrice = Math.min(...lots.map((lot) => lot.finalPrice));
+  const highestPrice = Math.max(...lots.map((lot) => lot.finalPrice));
+  const freshnessMetric = buildFreshnessMetric(lots);
+  const topProducts = formatTopNames(productNames, {
+    emptyLabel: "Produtos em atualizacao",
+  });
+  const subject = `${context.categoryName} em ${context.regionName}`;
+
+  return {
+    intro: sanitizeText(
+      `Resumo comercial de ${subject} com foco em faixa de preco, variedade de produtos, produtores ativos e sinais de frescor e entrega antes do pedido nesta rota local.`,
+      220,
+    ),
+    metrics: [
+      {
+        detail: sanitizeText(
+          `${formatCount(lots.length, "lote ativo", "lotes ativos")} publicados hoje para ${subject}, com leitura de preco do menor ao maior lote visivel.`,
+          180,
+        ),
+        label: "Faixa local",
+        value: formatPlainPriceBand(lowestPrice, highestPrice),
+      },
+      {
+        detail: sanitizeText(
+          `Produtos com maior presenca hoje: ${topProducts}.`,
+          180,
+        ),
+        label: "Mix de produto",
+        value: `${productCount} produtos`,
+      },
+      {
+        detail: sanitizeText(
+          `${formatCount(farmCount, "produtor ativo", "produtores ativos")} sustentam a oferta local desta categoria agora.`,
+          180,
+        ),
+        label: "Produtores ativos",
+        value: `${farmCount} produtores / ${lots.length} lotes`,
+      },
+      {
+        detail: sanitizeText(
+          [
+            freshnessMetric.averageFreshness !== null
+              ? `Media de frescor em ${freshnessMetric.averageFreshness}/100.`
+              : "Sem media publica de frescor no momento.",
+            freshnessMetric.medianDeliveryRadius !== null
+              ? `Mediana de entrega em ${freshnessMetric.medianDeliveryRadius} km nos lotes com raio informado.`
+              : "Sem mediana publica de entrega neste recorte.",
+            freshnessMetric.lastChanceCount > 0
+              ? `${formatCount(freshnessMetric.lastChanceCount, "lote em janela final", "lotes em janela final")} nesta categoria local.`
+              : "Sem lotes em janela final nesta categoria local.",
+          ].join(" "),
+          220,
+        ),
+        label: "Frescor e entrega",
+        value: freshnessMetric.value,
+      },
+    ],
+    faqItems: [
+      buildFaqItem(
+        `Qual a faixa de preco de ${subject}?`,
+        `Hoje ${subject} aparece entre ${formatPlainPriceBand(lowestPrice, highestPrice)}, considerando ${formatCount(lots.length, "lote ativo", "lotes ativos")} publicados no catalogo para esta rota.`,
+      ),
+      buildFaqItem(
+        `Quais produtos puxam a oferta de ${context.categoryName} em ${context.regionName}?`,
+        `Os produtos mais presentes neste recorte hoje sao ${topProducts}, dentro de um mix local de ${formatCount(productCount, "produto ativo", "produtos ativos")}.`,
+      ),
+      buildFaqItem(
+        `Quantos produtores publicam ${context.categoryName} nessa regiao?`,
+        `${subject} reune hoje ${formatCount(farmCount, "produtor ativo", "produtores ativos")} e ${formatCount(lots.length, "lote publicado", "lotes publicados")} com oferta local visivel.`,
+      ),
+      buildFaqItem(
+        `Como estao frescor e entrega em ${subject}?`,
+        freshnessMetric.averageFreshness !== null
+          ? `A media publica de frescor esta em ${freshnessMetric.averageFreshness}/100.${freshnessMetric.medianDeliveryRadius !== null ? ` A mediana de entrega entre os lotes com raio informado esta em ${freshnessMetric.medianDeliveryRadius} km.` : ""}${freshnessMetric.lastChanceCount > 0 ? ` Tambem ha ${formatCount(freshnessMetric.lastChanceCount, "lote em janela final", "lotes em janela final")}.` : ""}`
+          : freshnessMetric.lastChanceCount > 0
+            ? `${formatCount(freshnessMetric.lastChanceCount, "lote entrou", "lotes entraram")} em janela final neste recorte.${freshnessMetric.medianDeliveryRadius !== null ? ` A mediana de entrega entre os lotes com raio informado esta em ${freshnessMetric.medianDeliveryRadius} km.` : ""}`
+            : `No momento nao ha score medio de frescor publicado para ${subject}, mas a oferta segue ativa no catalogo.${freshnessMetric.medianDeliveryRadius !== null ? ` A mediana de entrega entre os lotes com raio informado esta em ${freshnessMetric.medianDeliveryRadius} km.` : ""}`,
+      ),
+    ],
   };
 }
 
