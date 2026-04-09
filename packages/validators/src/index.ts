@@ -12,7 +12,7 @@ import {
   users,
   verification,
 } from "@frescari/db";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import {
   coercedPositiveNumber,
@@ -141,8 +141,7 @@ const parseLocalDateInput = (value: unknown) => {
 const lotDateSchema = z.preprocess(
   parseLocalDateInput,
   z.date({
-    required_error: "Data obrigatoria.",
-    invalid_type_error: "Data invalida. Use o formato YYYY-MM-DD.",
+    error: "Data invalida. Use o formato YYYY-MM-DD.",
   }),
 );
 
@@ -274,6 +273,10 @@ export const insertProductSchema = createInsertSchema(products).extend({
   unitWeightG: z.number().positive().optional().nullable(),
   pricePerUnit: moneyFromLocale("Preco por unidade"),
   minOrderQty: coercedPositiveNumber("Quantidade minima do pedido"),
+  originLocation: z
+    .union([z.string(), z.object({ type: z.string() }).catchall(z.unknown())])
+    .optional()
+    .nullable(),
 });
 export const selectProductSchema = createSelectSchema(products);
 

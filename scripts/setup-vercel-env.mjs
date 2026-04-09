@@ -52,6 +52,12 @@ const productionOnlyConfigs = [
   { key: "NEXT_PUBLIC_APP_URL", sensitive: false },
   { key: "NEXT_PUBLIC_BETTER_AUTH_URL", sensitive: false },
   { key: "NEXT_PUBLIC_TRPC_URL", sensitive: false },
+  { key: "NEXT_PUBLIC_LEGAL_OPERATOR_NAME", sensitive: false },
+  { key: "NEXT_PUBLIC_LEGAL_OPERATOR_DOCUMENT_KIND", sensitive: false },
+  { key: "NEXT_PUBLIC_LEGAL_OPERATOR_DOCUMENT", sensitive: false },
+  { key: "NEXT_PUBLIC_LEGAL_OPERATOR_ADDRESS", sensitive: false },
+  { key: "NEXT_PUBLIC_LEGAL_SUPPORT_EMAIL", sensitive: false },
+  { key: "NEXT_PUBLIC_LEGAL_PRIVACY_EMAIL", sensitive: false },
 ];
 
 async function main() {

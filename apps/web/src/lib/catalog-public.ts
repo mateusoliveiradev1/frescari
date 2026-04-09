@@ -4,8 +4,12 @@ import { formatCurrencyBRL } from "@frescari/ui";
 import { getServerTrpc } from "@/trpc/server";
 
 import {
+  buildCategoryRegionSummaries as buildCategoryRegionSummariesFromLots,
+  buildProductRegionSummaries as buildProductRegionSummariesFromLots,
   buildSupplierRegionPath,
   buildSupplierRegionSummaries as buildSupplierRegionSummariesFromLots,
+  type CatalogCategoryRegionSummary,
+  type CatalogProductRegionSummary,
   type CatalogSupplierRegionSummary,
 } from "./catalog-pseo";
 import {
@@ -87,13 +91,31 @@ export interface CategoryPageData {
 export interface ProductPageData {
   category: CatalogCategorySummary;
   product: CatalogProductSummary;
+  productRegions: CatalogProductRegionSummary[];
   lots: PublicCatalogLot[];
 }
 
 export interface SupplierRegionPageData {
   region: CatalogSupplierRegionSummary;
   products: CatalogProductSummary[];
+  productRegions: CatalogProductRegionSummary[];
   categories: CatalogCategorySummary[];
+  categoryRegions: CatalogCategoryRegionSummary[];
+  lots: PublicCatalogLot[];
+}
+
+export interface CategoryRegionPageData {
+  region: CatalogCategoryRegionSummary;
+  category: CatalogCategorySummary;
+  products: CatalogProductSummary[];
+  productRegions: CatalogProductRegionSummary[];
+  lots: PublicCatalogLot[];
+}
+
+export interface ProductRegionPageData {
+  region: CatalogProductRegionSummary;
+  category: CatalogCategorySummary;
+  product: CatalogProductSummary;
   lots: PublicCatalogLot[];
 }
 
@@ -225,6 +247,35 @@ export async function getSupplierRegionStaticParams(): Promise<
   }));
 }
 
+export async function getCategoryRegionStaticParams(): Promise<
+  Array<{ categoria: string; estado: string; cidade: string }>
+> {
+  const categoryRegions = buildCategoryRegionSummaries(
+    await getAllAvailableCatalogLots(),
+  );
+
+  return categoryRegions.map((region) => ({
+    categoria: region.categorySlug,
+    estado: region.stateSlug,
+    cidade: region.citySlug,
+  }));
+}
+
+export async function getProductRegionStaticParams(): Promise<
+  Array<{ categoria: string; produto: string; estado: string; cidade: string }>
+> {
+  const productRegions = buildProductRegionSummaries(
+    await getAllAvailableCatalogLots(),
+  );
+
+  return productRegions.map((region) => ({
+    categoria: region.categorySlug,
+    produto: region.productSlug,
+    estado: region.stateSlug,
+    cidade: region.citySlug,
+  }));
+}
+
 export async function getCategoryPageData(
   categorySlug: string,
 ): Promise<CategoryPageData | null> {
@@ -273,6 +324,7 @@ export async function getProductPageData(
   return {
     category,
     product,
+    productRegions: buildProductRegionSummaries(filteredLots),
     lots: filteredLots,
   };
 }
@@ -281,16 +333,9 @@ export async function getSupplierRegionPageData(
   stateSlug: string,
   citySlug: string,
 ): Promise<SupplierRegionPageData | null> {
-  const filteredLots = (await getAllAvailableCatalogLots()).filter((lot) => {
-    if (!lot.farmCity || !lot.farmState) {
-      return false;
-    }
-
-    return (
-      slugifySegment(lot.farmState) === stateSlug &&
-      slugifySegment(lot.farmCity) === citySlug
-    );
-  });
+  const filteredLots = (await getAllAvailableCatalogLots()).filter((lot) =>
+    lotMatchesRegion(lot, stateSlug, citySlug),
+  );
 
   if (filteredLots.length === 0) {
     return null;
@@ -305,7 +350,73 @@ export async function getSupplierRegionPageData(
   return {
     region,
     products: buildProductSummaries(filteredLots),
+    productRegions: buildProductRegionSummaries(filteredLots),
     categories: buildCategorySummaries(filteredLots),
+    categoryRegions: buildCategoryRegionSummaries(filteredLots),
+    lots: filteredLots,
+  };
+}
+
+export async function getCategoryRegionPageData(
+  categorySlug: string,
+  stateSlug: string,
+  citySlug: string,
+): Promise<CategoryRegionPageData | null> {
+  const filteredLots = (await getAllAvailableCatalogLots()).filter(
+    (lot) =>
+      lot.categorySlug === categorySlug &&
+      lotMatchesRegion(lot, stateSlug, citySlug),
+  );
+
+  if (filteredLots.length === 0) {
+    return null;
+  }
+
+  const category = buildCategorySummaries(filteredLots)[0];
+  const region = buildCategoryRegionSummaries(filteredLots)[0];
+
+  if (!category || !region) {
+    return null;
+  }
+
+  return {
+    region,
+    category,
+    products: buildProductSummaries(filteredLots),
+    productRegions: buildProductRegionSummaries(filteredLots),
+    lots: filteredLots,
+  };
+}
+
+export async function getProductRegionPageData(
+  categorySlug: string,
+  productSlug: string,
+  stateSlug: string,
+  citySlug: string,
+): Promise<ProductRegionPageData | null> {
+  const filteredLots = (await getAllAvailableCatalogLots()).filter(
+    (lot) =>
+      lot.categorySlug === categorySlug &&
+      lot.productSlug === productSlug &&
+      lotMatchesRegion(lot, stateSlug, citySlug),
+  );
+
+  if (filteredLots.length === 0) {
+    return null;
+  }
+
+  const category = buildCategorySummaries(filteredLots)[0];
+  const product = buildProductSummaries(filteredLots)[0];
+  const region = buildProductRegionSummaries(filteredLots)[0];
+
+  if (!category || !product || !region) {
+    return null;
+  }
+
+  return {
+    region,
+    category,
+    product,
     lots: filteredLots,
   };
 }
@@ -388,6 +499,18 @@ export function buildSupplierRegionSummaries(
   return buildSupplierRegionSummariesFromLots(lots);
 }
 
+export function buildCategoryRegionSummaries(
+  lots: PublicCatalogLot[],
+): CatalogCategoryRegionSummary[] {
+  return buildCategoryRegionSummariesFromLots(lots);
+}
+
+export function buildProductRegionSummaries(
+  lots: PublicCatalogLot[],
+): CatalogProductRegionSummary[] {
+  return buildProductRegionSummariesFromLots(lots);
+}
+
 export function buildCategoryDescription(
   categoryName: string,
   categoryDescription: string | null,
@@ -437,4 +560,19 @@ export function getSchemaUnitCode(saleUnit: string): string {
   };
 
   return unitMap[saleUnit] ?? "EA";
+}
+
+function lotMatchesRegion(
+  lot: Pick<PublicCatalogLot, "farmCity" | "farmState">,
+  stateSlug: string,
+  citySlug: string,
+): boolean {
+  if (!lot.farmCity || !lot.farmState) {
+    return false;
+  }
+
+  return (
+    slugifySegment(lot.farmState) === stateSlug &&
+    slugifySegment(lot.farmCity) === citySlug
+  );
 }

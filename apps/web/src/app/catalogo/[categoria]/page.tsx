@@ -4,8 +4,13 @@ import { notFound } from "next/navigation";
 import { formatCurrencyBRL } from "@frescari/ui";
 
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
-import { getCategoryPageData, getCategoryStaticParams } from "@/lib/catalog-public";
+import {
+  buildCategoryRegionSummaries,
+  getCategoryPageData,
+  getCategoryStaticParams,
+} from "@/lib/catalog-public";
 import { getSiteUrl, sanitizeText, serializeJsonLd } from "@/lib/catalog-seo";
+import { buildSeoMetadata } from "@/lib/seo";
 
 export const revalidate = 3600;
 
@@ -15,7 +20,9 @@ type CategoryPageProps = {
   }>;
 };
 
-export async function generateStaticParams(): Promise<Array<{ categoria: string }>> {
+export async function generateStaticParams(): Promise<
+  Array<{ categoria: string }>
+> {
   return getCategoryStaticParams();
 }
 
@@ -33,21 +40,11 @@ export async function generateMetadata({
 
   const title = `${sanitizeText(data.category.name)} direto da horta | Frescari`;
   const description = sanitizeText(data.category.description, 160);
-  const canonical = `${getSiteUrl()}${data.category.path}`;
-
-  return {
-    title,
+  return buildSeoMetadata({
     description,
-    alternates: {
-      canonical,
-    },
-    openGraph: {
-      title,
-      description,
-      url: canonical,
-      type: "website",
-    },
-  };
+    path: data.category.path,
+    title,
+  });
 }
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
@@ -59,6 +56,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   }
 
   const canonical = `${getSiteUrl()}${data.category.path}`;
+  const categoryRegions = buildCategoryRegionSummaries(data.lots);
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -108,7 +106,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
       <div className="mx-auto flex max-w-[1400px] flex-col gap-12 px-6 py-16 lg:px-12">
         <nav className="flex items-center gap-2 text-sm text-bark/70">
-          <Link href="/catalogo" className="transition-colors hover:text-forest">
+          <Link
+            href="/catalogo"
+            className="transition-colors hover:text-forest"
+          >
             Catálogo
           </Link>
           <span>/</span>
@@ -159,7 +160,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-forest">
                   {formatCurrencyBRL(
-                    Math.min(...data.products.map((product) => product.lowestPrice)),
+                    Math.min(
+                      ...data.products.map((product) => product.lowestPrice),
+                    ),
                   )}
                 </p>
               </div>
@@ -190,7 +193,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                 className="group rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-forest/30 hover:shadow-lg"
               >
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
-                  {product.offerCount} oferta{product.offerCount === 1 ? "" : "s"}
+                  {product.offerCount} oferta
+                  {product.offerCount === 1 ? "" : "s"}
                 </p>
                 <h3 className="mt-3 font-display text-2xl font-bold text-soil transition-colors group-hover:text-forest">
                   {product.name}
@@ -204,7 +208,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                       A partir de
                     </p>
                     <p className="mt-1 text-xl font-semibold text-forest">
-                      {formatCurrencyBRL(product.lowestPrice)}/{product.saleUnit}
+                      {formatCurrencyBRL(product.lowestPrice)}/
+                      {product.saleUnit}
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-soil">
@@ -215,6 +220,56 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             ))}
           </div>
         </section>
+
+        {categoryRegions.length > 0 ? (
+          <section aria-labelledby="regioes-da-categoria" className="space-y-5">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
+                Densidade local
+              </p>
+              <h2
+                id="regioes-da-categoria"
+                className="font-display text-3xl font-bold text-soil"
+              >
+                Onde {data.category.name.toLowerCase()} esta mais ativa
+              </h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {categoryRegions.slice(0, 9).map((region) => (
+                <Link
+                  key={region.path}
+                  href={region.path}
+                  className="group rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-forest/30 hover:shadow-lg"
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
+                    {region.regionName}
+                  </p>
+                  <h3 className="mt-3 font-display text-2xl font-bold text-soil transition-colors group-hover:text-forest">
+                    {region.lotCount} lotes ativos
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-bark">
+                    {region.farmCount} fazendas e {region.productCount} produtos
+                    locais publicados para esta categoria.
+                  </p>
+                  <div className="mt-5 flex items-end justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-bark/60">
+                        A partir de
+                      </p>
+                      <p className="mt-1 text-xl font-semibold text-forest">
+                        {formatCurrencyBRL(region.lowestPrice)}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-soil">
+                      Ver rota local
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section aria-labelledby="lotes-da-categoria" className="space-y-6">
           <div className="flex items-center gap-4">
