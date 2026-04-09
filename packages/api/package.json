@@ -18,10 +18,10 @@
         "@frescari/db": "workspace:*",
         "@frescari/validators": "workspace:*",
         "@trpc/server": "^11.16.0",
-        "bullmq": "^5.72.0",
+        "bullmq": "^5.73.1",
         "drizzle-orm": "0.45.2",
         "ioredis": "^5.10.1",
-        "next": "16.2.2",
+        "next": "16.2.3",
         "stripe": "17.7.0",
         "superjson": "^2.2.6",
         "zod": "^3.23.8"
