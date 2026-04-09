@@ -7,6 +7,7 @@ import superjson from "superjson";
 import { useState } from "react";
 
 import { getAppUrl } from "@/lib/app-url";
+import { sanitizeEnvValue } from "@/lib/env";
 
 const withTrpcPath = (value: string) => {
   const normalizedValue = value.replace(/\/+$/, "");
@@ -21,7 +22,9 @@ const getTrpcUrl = () => {
     return `${window.location.origin}/api/trpc`;
   }
 
-  return withTrpcPath(process.env.NEXT_PUBLIC_TRPC_URL || getAppUrl());
+  return withTrpcPath(
+    sanitizeEnvValue(process.env.NEXT_PUBLIC_TRPC_URL) || getAppUrl(),
+  );
 };
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
