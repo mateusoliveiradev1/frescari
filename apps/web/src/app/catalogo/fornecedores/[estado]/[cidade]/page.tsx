@@ -3,7 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatCurrencyBRL } from "@frescari/ui";
 
+import { CatalogCommercialSection } from "@/components/CatalogCommercialSection";
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
+import {
+  buildFaqPageJsonLd,
+  buildSupplierRegionCommercialSnapshot,
+} from "@/lib/catalog-commercial";
 import {
   getSupplierRegionPageData,
   getSupplierRegionStaticParams,
@@ -115,6 +120,10 @@ export default async function SupplierRegionPage({
       name: sanitizeText(farmName),
     })),
   };
+  const commercialSnapshot = buildSupplierRegionCommercialSnapshot(data.lots, {
+    regionName: data.region.name,
+  });
+  const faqJsonLd = buildFaqPageJsonLd(commercialSnapshot.faqItems);
 
   return (
     <main className="min-h-screen bg-cream">
@@ -125,6 +134,10 @@ export default async function SupplierRegionPage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(regionJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqJsonLd) }}
       />
 
       <div className="mx-auto flex max-w-[1400px] flex-col gap-12 px-6 py-16 lg:px-12">
@@ -212,6 +225,14 @@ export default async function SupplierRegionPage({
             </div>
           </aside>
         </header>
+
+        <CatalogCommercialSection
+          eyebrow="Compra B2B regional"
+          faqItems={commercialSnapshot.faqItems}
+          intro={commercialSnapshot.intro}
+          metrics={commercialSnapshot.metrics}
+          title={`Leitura comercial em ${data.region.name}`}
+        />
 
         <section aria-labelledby="produtos-da-regiao" className="space-y-5">
           <div>
