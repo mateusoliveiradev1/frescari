@@ -1,40 +1,31 @@
+/* eslint-disable @next/next/no-img-element */
+
 import { ImageResponse } from "next/og";
 
-import { BrandMarkSvg } from "@/components/brand-mark-svg";
+import { BRAND_IMAGE_DIMENSIONS } from "@/lib/brand-assets";
+import { getBrandImageDataUrl } from "@/lib/brand-image-data";
 
 type BrandIconResponseOptions = {
   background?: string;
-  cardBackground?: string;
-  cardInset?: number;
-  cardRadius?: number;
-  detailLevel?: "full" | "compact";
-  markScale?: number;
+  markInset?: number;
   size: number;
 };
 
-const DEFAULT_CARD_BACKGROUND = "#0d3321";
-const DEFAULT_MARK_SCALE = 0.74;
-
-function resolveCardInset(size: number, explicitInset?: number) {
-  return explicitInset ?? Math.max(4, Math.round(size * 0.0625));
-}
-
-function resolveCardRadius(cardSize: number, explicitRadius?: number) {
-  return explicitRadius ?? Math.round(cardSize * 0.2857);
+function resolveMarkInset(size: number, explicitInset?: number) {
+  return explicitInset ?? Math.max(6, Math.round(size * 0.14));
 }
 
 export function createBrandIconResponse({
   background = "transparent",
-  cardBackground = DEFAULT_CARD_BACKGROUND,
-  cardInset,
-  cardRadius,
-  detailLevel = "compact",
-  markScale = DEFAULT_MARK_SCALE,
+  markInset,
   size,
 }: BrandIconResponseOptions) {
-  const inset = resolveCardInset(size, cardInset);
-  const tileSize = size - inset * 2;
-  const radius = resolveCardRadius(tileSize, cardRadius);
+  const inset = resolveMarkInset(size, markInset);
+  const markWidth = size - inset * 2;
+  const markHeight = Math.round(
+    markWidth *
+      (BRAND_IMAGE_DIMENSIONS.mark.height / BRAND_IMAGE_DIMENSIONS.mark.width),
+  );
 
   return new ImageResponse(
     <div
@@ -47,25 +38,16 @@ export function createBrandIconResponse({
         background,
       }}
     >
-      <div
+      <img
+        alt="Frescari"
+        height={markHeight}
+        src={getBrandImageDataUrl("mark")}
         style={{
-          width: tileSize,
-          height: tileSize,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: radius,
-          background: cardBackground,
+          width: `${markWidth}px`,
+          height: `${markHeight}px`,
         }}
-      >
-        <BrandMarkSvg
-          detailLevel={detailLevel}
-          style={{
-            width: `${markScale * 100}%`,
-            height: `${markScale * 100}%`,
-          }}
-        />
-      </div>
+        width={markWidth}
+      />
     </div>,
     {
       width: size,

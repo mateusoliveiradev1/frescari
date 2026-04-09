@@ -1,5 +1,11 @@
+import Image from "next/image";
 import { cn } from "@frescari/ui";
-import { BrandMarkSvg } from "@/components/brand-mark-svg";
+
+import {
+  BRAND_IMAGE_DIMENSIONS,
+  BRAND_IMAGE_PATHS,
+  type BrandImageKey,
+} from "@/lib/brand-assets";
 
 type BrandLogoProps = {
   className?: string;
@@ -12,35 +18,29 @@ type BrandLogoProps = {
 
 const sizeStyles = {
   sm: {
-    mark: "h-8 w-8 rounded-[10px]",
-    wordmark: "text-[1.18rem]",
-    descriptor: "text-[8px] tracking-[0.22em]",
+    image: "h-8 w-auto",
+    inversePlate: "rounded-xl px-2.5 py-1.5",
   },
   md: {
-    mark: "h-10 w-10 rounded-[12px]",
-    wordmark: "text-[1.6rem]",
-    descriptor: "text-[9px] tracking-[0.2em]",
+    image: "h-10 w-auto",
+    inversePlate: "rounded-2xl px-3 py-2",
   },
   lg: {
-    mark: "h-12 w-12 rounded-[14px]",
-    wordmark: "text-[2rem]",
-    descriptor: "text-[10px] tracking-[0.22em]",
+    image: "h-12 w-auto",
+    inversePlate: "rounded-[1.35rem] px-3.5 py-2.5",
   },
 } as const;
 
-const variantStyles = {
-  default: {
-    frame:
-      "bg-forest border border-forest/35 shadow-[0_10px_20px_-16px_rgba(13,51,33,0.45),0_4px_10px_-8px_rgba(13,51,33,0.25)]",
-    wordmark: "text-soil",
-    descriptor: "text-bark/60",
-  },
-  inverse: {
-    frame: "bg-cream/10 border border-cream/16 backdrop-blur-[2px]",
-    wordmark: "text-cream",
-    descriptor: "text-sage/70",
-  },
-} as const;
+function resolveAssetKey(
+  showWordmark: boolean,
+  showDescriptor: boolean,
+): BrandImageKey {
+  if (!showWordmark) {
+    return "mark";
+  }
+
+  return showDescriptor ? "full" : "compact";
+}
 
 export function BrandLogo({
   className,
@@ -50,46 +50,36 @@ export function BrandLogo({
   size = "md",
   variant = "default",
 }: BrandLogoProps) {
+  const assetKey = resolveAssetKey(showWordmark, showDescriptor);
+  const assetDimensions = BRAND_IMAGE_DIMENSIONS[assetKey];
+  const assetPath = BRAND_IMAGE_PATHS[assetKey];
   const currentSize = sizeStyles[size];
-  const currentVariant = variantStyles[variant];
+  const usesInversePlate = variant === "inverse";
 
   return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
+    <span className={cn("inline-flex items-center", className)}>
       <span
         className={cn(
-          "inline-flex shrink-0 items-center justify-center transition-all duration-200",
-          currentSize.mark,
-          currentVariant.frame,
+          "inline-flex shrink-0 items-center justify-center transition-transform duration-200",
+          usesInversePlate
+            ? [
+                "bg-cream/94 ring-1 ring-forest/10",
+                "shadow-[0_18px_44px_-26px_rgba(13,51,33,0.45)]",
+                currentSize.inversePlate,
+              ]
+            : null,
           markClassName,
         )}
       >
-        <BrandMarkSvg className="h-[78%] w-[78%]" />
+        <Image
+          alt="Frescari"
+          className={cn("block select-none", currentSize.image)}
+          draggable={false}
+          height={assetDimensions.height}
+          src={assetPath}
+          width={assetDimensions.width}
+        />
       </span>
-
-      {showWordmark ? (
-        <span className="flex min-w-0 flex-col leading-none">
-          <span
-            className={cn(
-              "font-display font-black italic tracking-[-0.035em]",
-              currentSize.wordmark,
-              currentVariant.wordmark,
-            )}
-          >
-            Frescari
-          </span>
-          {showDescriptor ? (
-            <span
-              className={cn(
-                "mt-1 font-sans font-bold uppercase",
-                currentSize.descriptor,
-                currentVariant.descriptor,
-              )}
-            >
-              Direto da horta
-            </span>
-          ) : null}
-        </span>
-      ) : null}
     </span>
   );
 }

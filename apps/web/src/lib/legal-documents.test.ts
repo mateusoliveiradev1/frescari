@@ -8,7 +8,7 @@ import {
   legalDocumentLinks,
 } from "@/lib/legal-documents";
 
-test("legal registry exposes the current V3 documents", () => {
+test("legal registry exposes the current legal documents", () => {
   assert.equal(LEGAL_VERSION, "2026-04-08-v3");
   assert.deepEqual(
     legalDocumentLinks.map((entry) => entry.slug),
@@ -33,7 +33,7 @@ test("legal registry exposes the current V3 documents", () => {
     assert.equal(document.slug, entry.slug);
     assert.ok(document.title.length > 0);
     assert.ok(document.sections.length > 0);
-    assert.equal(document.status, "Versao vigente - V3");
+    assert.equal(document.status, "Versao vigente");
     assert.equal(document.effectiveDate, "8 de abril de 2026");
     assert.equal(document.effectiveDateIso, "2026-04-08");
     assert.equal(document.updatedAt, "8 de abril de 2026");

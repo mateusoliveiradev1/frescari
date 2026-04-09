@@ -310,7 +310,7 @@ Runbook quando o dominio for comprado:
 
 1. Adicionar o custom domain ao projeto Vercel `frescari-staging`.
 2. Apontar DNS, esperar validacao e confirmar HTTPS ativo no dominio final.
-3. Alinhar `BETTER_AUTH_URL`, `NEXT_PUBLIC_BETTER_AUTH_URL` e `NEXT_PUBLIC_APP_URL` para o custom domain.
+3. Alinhar `BETTER_AUTH_URL`, `NEXT_PUBLIC_BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `AUTH_EMAIL_FROM` e `AUTH_EMAIL_REPLY_TO` para o custom domain e o dominio operacional de email.
 4. Fazer novo deploy e repetir walkthrough publico de `/`, `/catalogo`, `/auth/login`, `/auth/register`, checkout e logout no dominio final.
 5. So depois dessa rodada reavaliar a decisao de `GO` desta checklist.
 
