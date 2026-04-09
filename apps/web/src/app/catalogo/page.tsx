@@ -7,7 +7,9 @@ import { Button, ProductCardSkeleton } from "@frescari/ui";
 import { CatalogReserveNotice } from "@/components/CatalogReserveNotice";
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
 import {
+  buildCategoryRegionSummaries,
   buildCategorySummaries,
+  buildProductRegionSummaries,
   buildSupplierRegionSummaries,
   getAvailableCatalogLots,
   type PublicCatalogLot,
@@ -27,11 +29,13 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   const categories = buildCategorySummaries(lots);
+  const categoryRegions = buildCategoryRegionSummaries(lots);
+  const productRegions = buildProductRegionSummaries(lots);
   const regions = buildSupplierRegionSummaries(lots);
   const title = "Catalogo Frescari | Hortifruti direto do produtor";
   const description = sanitizeText(
     lots.length > 0
-      ? `Catalogo Frescari com ${lots.length} lotes ativos em ${categories.length} categorias e ${regions.length} regioes com oferta local publicada.`
+      ? `Catalogo Frescari com ${lots.length} lotes ativos em ${categories.length} categorias, ${regions.length} regioes, ${categoryRegions.length} rotas categoria-regiao e ${productRegions.length} rotas produto-regiao com oferta publicada.`
       : "Catalogo Frescari com leitura viva da oferta local, categorias indexaveis e lotes publicados pelos produtores.",
     160,
   );
@@ -168,6 +172,8 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
   }
 
   const categories = buildCategorySummaries(lots);
+  const categoryRegions = buildCategoryRegionSummaries(lots);
+  const productRegions = buildProductRegionSummaries(lots);
   const regions = buildSupplierRegionSummaries(lots);
   const catalogJsonLd = {
     "@context": "https://schema.org",
@@ -175,7 +181,7 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
     name: "Catalogo Frescari",
     description: sanitizeText(
       lots.length > 0
-        ? `Catalogo Frescari com ${lots.length} lotes ativos, ${categories.length} categorias e ${regions.length} regioes indexaveis.`
+        ? `Catalogo Frescari com ${lots.length} lotes ativos, ${categories.length} categorias, ${regions.length} regioes, ${categoryRegions.length} rotas categoria-regiao e ${productRegions.length} rotas produto-regiao.`
         : "Catalogo Frescari com leitura viva da oferta local publicada pelos produtores.",
       200,
     ),
@@ -187,6 +193,16 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
         url: `${siteUrl}${category.path}`,
       })),
       ...regions.slice(0, 8).map((region) => ({
+        "@type": "CollectionPage",
+        name: sanitizeText(region.name),
+        url: `${siteUrl}${region.path}`,
+      })),
+      ...categoryRegions.slice(0, 8).map((region) => ({
+        "@type": "CollectionPage",
+        name: sanitizeText(region.name),
+        url: `${siteUrl}${region.path}`,
+      })),
+      ...productRegions.slice(0, 8).map((region) => ({
         "@type": "CollectionPage",
         name: sanitizeText(region.name),
         url: `${siteUrl}${region.path}`,
@@ -306,70 +322,148 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
           </aside>
         </header>
 
-        {categories.length > 0 || regions.length > 0 ? (
-          <section
-            aria-labelledby="atalhos-indexaveis"
-            className="grid gap-5 lg:grid-cols-2"
-          >
-            <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="field-label">Malha editorial</p>
-                  <h2
-                    id="atalhos-indexaveis"
-                    className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil"
-                  >
-                    Explore por categoria
-                  </h2>
+        {categories.length > 0 ||
+        regions.length > 0 ||
+        categoryRegions.length > 0 ? (
+          <section aria-labelledby="atalhos-indexaveis" className="space-y-5">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="field-label">Malha editorial</p>
+                    <h2
+                      id="atalhos-indexaveis"
+                      className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil"
+                    >
+                      Explore por categoria
+                    </h2>
+                  </div>
+                  <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
+                    {categories.length} categorias
+                  </span>
                 </div>
-                <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-                  {categories.length} categorias
-                </span>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {categories.slice(0, 12).map((category) => (
+                    <Link
+                      key={category.path}
+                      href={category.path}
+                      className="rounded-full border border-soil/10 bg-cream px-3.5 py-2 text-sm font-medium text-bark transition-colors hover:text-forest"
+                    >
+                      {category.name}
+                    </Link>
+                  ))}
+                </div>
               </div>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                {categories.slice(0, 12).map((category) => (
-                  <Link
-                    key={category.path}
-                    href={category.path}
-                    className="rounded-full border border-soil/10 bg-cream px-3.5 py-2 text-sm font-medium text-bark transition-colors hover:text-forest"
-                  >
-                    {category.name}
-                  </Link>
-                ))}
+              <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="field-label">Cobertura local</p>
+                    <h2 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil">
+                      Explore por regiao
+                    </h2>
+                  </div>
+                  <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
+                    {regions.length} regioes
+                  </span>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {regions.slice(0, 8).map((region) => (
+                    <Link
+                      key={region.path}
+                      href={region.path}
+                      className="rounded-[20px] border border-soil/10 bg-cream px-4 py-3 transition-colors hover:border-forest/25"
+                    >
+                      <p className="text-sm font-semibold text-soil">
+                        {region.name}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-bark/72">
+                        {region.lotCount} lotes, {region.farmCount} fazendas
+                      </p>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="field-label">Cobertura local</p>
-                  <h2 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil">
-                    Explore por regiao
-                  </h2>
+            {categoryRegions.length > 0 ? (
+              <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="field-label">Rotas locais</p>
+                    <h2 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil">
+                      Categoria + regiao com maior densidade
+                    </h2>
+                  </div>
+                  <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
+                    {categoryRegions.length} rotas
+                  </span>
                 </div>
-                <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-                  {regions.length} regioes
-                </span>
-              </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {regions.slice(0, 8).map((region) => (
-                  <Link
-                    key={region.path}
-                    href={region.path}
-                    className="rounded-[20px] border border-soil/10 bg-cream px-4 py-3 transition-colors hover:border-forest/25"
-                  >
-                    <p className="text-sm font-semibold text-soil">
-                      {region.name}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-bark/72">
-                      {region.lotCount} lotes, {region.farmCount} fazendas
-                    </p>
-                  </Link>
-                ))}
+                <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {categoryRegions.slice(0, 6).map((region) => (
+                    <Link
+                      key={region.path}
+                      href={region.path}
+                      className="rounded-[20px] border border-soil/10 bg-cream px-4 py-3 transition-colors hover:border-forest/25"
+                    >
+                      <p className="text-sm font-semibold text-soil">
+                        {region.name}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-bark/72">
+                        {region.lotCount} lotes, {region.farmCount} fazendas, a
+                        partir de{" "}
+                        {region.lowestPrice.toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
+
+            {productRegions.length > 0 ? (
+              <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="field-label">Rotas de produto</p>
+                    <h2 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil">
+                      Produto + regiao com mais prontidao
+                    </h2>
+                  </div>
+                  <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
+                    {productRegions.length} rotas
+                  </span>
+                </div>
+
+                <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {productRegions.slice(0, 6).map((region) => (
+                    <Link
+                      key={region.path}
+                      href={region.path}
+                      className="rounded-[20px] border border-soil/10 bg-cream px-4 py-3 transition-colors hover:border-forest/25"
+                    >
+                      <p className="text-sm font-semibold text-soil">
+                        {region.name}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-bark/72">
+                        {region.offerCount} ofertas, {region.farmCount}{" "}
+                        fazendas, a partir de{" "}
+                        {region.lowestPrice.toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                        /{region.saleUnit}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
