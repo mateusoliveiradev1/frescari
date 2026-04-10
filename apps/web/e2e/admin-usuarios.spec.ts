@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { createAdminSessionCookie } from "./support/admin-session";
+import { authenticateWithSessionHeader } from "./support/session-header";
 
 function requestIncludes(
   request: { postData(): string | null; url(): string },
@@ -238,16 +239,7 @@ async function mockTenantOverviewPagination(page: Page) {
 test.beforeEach(async ({ context }) => {
   const sessionCookie = await createAdminSessionCookie();
 
-  await context.addCookies([
-    {
-      domain: "127.0.0.1",
-      httpOnly: true,
-      name: "better-auth.session_token",
-      path: "/",
-      sameSite: "Lax",
-      value: sessionCookie,
-    },
-  ]);
+  await authenticateWithSessionHeader(context, sessionCookie);
 });
 
 test("admin usuarios aplica o fix do scroll e envia os filtros corretos", async ({

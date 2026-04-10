@@ -16,10 +16,30 @@ const originalModuleLoad = (
   }
 )._load;
 
-function createAuthRequest(pathname: string, headers?: HeadersInit) {
+function createAuthRequest(
+  pathname: string,
+  options?: {
+    body?: unknown;
+    headers?: HeadersInit;
+    method?: string;
+  },
+) {
+  const headers = new Headers(options?.headers);
+
+  let body: string | undefined;
+
+  if (typeof options?.body !== "undefined") {
+    body = JSON.stringify(options.body);
+
+    if (!headers.has("content-type")) {
+      headers.set("content-type", "application/json");
+    }
+  }
+
   return new NextRequest(`https://example.com${pathname}`, {
-    method: "POST",
+    method: options?.method ?? "POST",
     headers,
+    body,
   });
 }
 
@@ -165,14 +185,14 @@ test("POST /api/auth/request-password-reset is rate limited after 10 attempts fr
 
   for (let index = 0; index < 10; index += 1) {
     const response = await POST(
-      createAuthRequest("/api/auth/request-password-reset", headers),
+      createAuthRequest("/api/auth/request-password-reset", { headers }),
     );
 
     assert.notEqual(response.status, 429);
   }
 
   const limitedResponse = await POST(
-    createAuthRequest("/api/auth/request-password-reset", headers),
+    createAuthRequest("/api/auth/request-password-reset", { headers }),
   );
   const payload = await limitedResponse.json();
 
@@ -192,15 +212,113 @@ test("POST /api/auth/forget-password remains rate limited for backward compatibi
 
   for (let index = 0; index < 10; index += 1) {
     const response = await POST(
-      createAuthRequest("/api/auth/forget-password", headers),
+      createAuthRequest("/api/auth/forget-password", { headers }),
     );
 
     assert.notEqual(response.status, 429);
   }
 
   const limitedResponse = await POST(
-    createAuthRequest("/api/auth/forget-password", headers),
+    createAuthRequest("/api/auth/forget-password", { headers }),
   );
 
   assert.equal(limitedResponse.status, 429);
+});
+
+test("POST /api/auth/change-password strips response token and removes token from the forwarded payload", async () => {
+  let forwardedBody: unknown = null;
+
+  authState.handler = async (request) => {
+    forwardedBody = await request.clone().json();
+
+    return Response.json({
+      token: "rotated-session-secret",
+      user: {
+        id: "user_123",
+        email: "buyer@example.com",
+      },
+    });
+  };
+
+  const { POST } = await import("./route");
+  const response = await POST(
+    createAuthRequest("/api/auth/change-password", {
+      body: {
+        currentPassword: "SenhaAtual123",
+        newPassword: "NovaSenha123",
+        revokeOtherSessions: true,
+        token: "unexpected-token",
+      },
+    }),
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.token, null);
+  assert.deepEqual(forwardedBody, {
+    currentPassword: "SenhaAtual123",
+    newPassword: "NovaSenha123",
+    revokeOtherSessions: true,
+  });
+});
+
+test("POST /api/auth/change-password is rate limited after 10 attempts from the same IP", async () => {
+  const { POST } = await import("./route");
+  const headers = {
+    "x-forwarded-for": "203.0.113.12",
+  };
+
+  for (let index = 0; index < 10; index += 1) {
+    const response = await POST(
+      createAuthRequest("/api/auth/change-password", {
+        body: {
+          currentPassword: "SenhaAtual123",
+          newPassword: "NovaSenha123",
+        },
+        headers,
+      }),
+    );
+
+    assert.notEqual(response.status, 429);
+  }
+
+  const limitedResponse = await POST(
+    createAuthRequest("/api/auth/change-password", {
+      body: {
+        currentPassword: "SenhaAtual123",
+        newPassword: "NovaSenha123",
+      },
+      headers,
+    }),
+  );
+
+  assert.equal(limitedResponse.status, 429);
+});
+
+test("POST /api/auth/change-password rejects malformed payloads before reaching Better Auth", async () => {
+  let handlerCalls = 0;
+
+  authState.handler = async () => {
+    handlerCalls += 1;
+    return Response.json({ ok: true });
+  };
+
+  const { POST } = await import("./route");
+  const response = await POST(
+    createAuthRequest("/api/auth/change-password", {
+      body: {
+        currentPassword: 123,
+        newPassword: ["not-valid"],
+        token: "abc123",
+      },
+    }),
+  );
+  const payload = await response.json();
+
+  assert.equal(handlerCalls, 0);
+  assert.equal(response.status, 400);
+  assert.deepEqual(payload, {
+    code: "INVALID_CHANGE_PASSWORD_PAYLOAD",
+    message: "Payload invalido para troca de senha.",
+  });
 });

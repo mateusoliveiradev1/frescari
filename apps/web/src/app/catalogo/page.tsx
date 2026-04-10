@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { Suspense } from "react";
 import { Leaf, MapPin, Store } from "lucide-react";
 import { Button, ProductCardSkeleton } from "@frescari/ui";
@@ -19,7 +20,15 @@ import { buildSeoMetadata } from "@/lib/seo";
 
 export const revalidate = 3600;
 
+function disableCatalogStaticRenderingForE2E() {
+  if (process.env.PLAYWRIGHT_TEST === "true") {
+    noStore();
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
+  disableCatalogStaticRenderingForE2E();
+
   let lots: PublicCatalogLot[] = [];
 
   try {
@@ -47,6 +56,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 async function LotsList() {
+  disableCatalogStaticRenderingForE2E();
+
   let lots: PublicCatalogLot[] = [];
 
   try {
@@ -163,6 +174,8 @@ export default function CatalogPage() {
 }
 
 async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
+  disableCatalogStaticRenderingForE2E();
+
   let lots: PublicCatalogLot[] = [];
 
   try {

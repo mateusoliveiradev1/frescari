@@ -9,21 +9,13 @@ import {
   createBuyerJourneyFixture,
   type BuyerJourneyFixture,
 } from "./support/buyer-session";
+import { authenticateWithSessionHeader } from "./support/session-header";
 
 async function authenticateBuyer(
   context: BrowserContext,
   fixture: BuyerJourneyFixture,
 ) {
-  await context.addCookies([
-    {
-      domain: "127.0.0.1",
-      httpOnly: true,
-      name: "better-auth.session_token",
-      path: "/",
-      sameSite: "Lax",
-      value: fixture.cookie,
-    },
-  ]);
+  await authenticateWithSessionHeader(context, fixture.cookie);
 }
 
 function reserveButtonName(productName: string) {
@@ -166,9 +158,9 @@ test.describe.serial("fluxo core do comprador", () => {
   }) => {
     await page.goto("/dashboard/perfil");
 
-    await expect(page).toHaveURL(/\/dashboard\/perfil$/i);
+    await expect(page).toHaveURL(/\/conta\/enderecos$/i);
     await expect(
-      page.getByRole("heading", { name: /Enderecos de entrega de/i }),
+      page.getByRole("heading", { name: /^Enderecos$/i }),
     ).toBeVisible();
     await expect(
       page.getByText("Endereco padrao do checkout").first(),

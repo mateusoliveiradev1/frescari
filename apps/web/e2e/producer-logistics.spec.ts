@@ -10,6 +10,7 @@ import {
   createProducerDashboardFixture,
   type ProducerDashboardFixtureOptions,
 } from "./support/producer-session";
+import { authenticateWithSessionHeader } from "./support/session-header";
 
 async function authenticateProducer(
   context: BrowserContext,
@@ -17,16 +18,7 @@ async function authenticateProducer(
 ) {
   const fixture = await createProducerDashboardFixture(options);
 
-  await context.addCookies([
-    {
-      domain: "127.0.0.1",
-      httpOnly: true,
-      name: "better-auth.session_token",
-      path: "/",
-      sameSite: "Lax",
-      value: fixture.cookie,
-    },
-  ]);
+  await authenticateWithSessionHeader(context, fixture.cookie);
 
   return fixture;
 }

@@ -203,10 +203,13 @@ async function loadAllAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
 const getAllAvailableCatalogLotsCached = cache(loadAllAvailableCatalogLots);
 
 async function getAllAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
-  // In next dev and Playwright runs, the fixture seeds lots after the server
-  // has already booted. Bypassing React cache outside production keeps the
-  // public catalog aligned with the latest DB state without affecting prod.
-  if (process.env.NODE_ENV !== "production") {
+  // E2E fixtures are created after the app server boots under `next start`.
+  // Keep production caching, but bypass it in dev and Playwright so the
+  // catalog reflects the freshly seeded lots from the current test run.
+  if (
+    process.env.NODE_ENV !== "production" ||
+    process.env.PLAYWRIGHT_TEST === "true"
+  ) {
     return loadAllAvailableCatalogLots();
   }
 

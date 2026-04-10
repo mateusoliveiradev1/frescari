@@ -1,10 +1,34 @@
 import { exec } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { loadWebEnv } from "./web-env";
+
 const BUYER_PASSWORD = "CodexBuyer123!";
 const execAsync = promisify(exec);
+
+function formatFixtureDebugLog(stdout: string, stderr: string) {
+  const stdoutTail = stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(-5)
+    .join(" | ");
+  const stderrTail = stderr
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(-5)
+    .join(" | ");
+
+  const details = [
+    stdoutTail ? `stdout: ${stdoutTail}` : "",
+    stderrTail ? `stderr: ${stderrTail}` : "",
+  ].filter(Boolean);
+
+  return details.length > 0 ? ` (${details.join(" ; ")})` : "";
+}
 
 export type BuyerJourneyFixture = {
   addressTitle: string;
@@ -22,42 +46,12 @@ export type BuyerJourneyFixture = {
   sellerName: string;
 };
 
-function loadWebEnv() {
-  const envPath = path.resolve(process.cwd(), ".env.local");
-  const envContents = readFileSync(envPath, "utf8");
-
-  for (const rawLine of envContents.split(/\r?\n/)) {
-    const line = rawLine.trim();
-
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-
-    const separatorIndex = line.indexOf("=");
-    if (separatorIndex === -1) {
-      continue;
-    }
-
-    const key = line.slice(0, separatorIndex).trim();
-    let value = line.slice(separatorIndex + 1).trim();
-
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-
-    process.env[key] = value;
-  }
-}
-
 export async function createBuyerJourneyFixture(): Promise<BuyerJourneyFixture> {
   loadWebEnv();
 
   const script = `
-import { parseSetCookieHeader } from "better-auth/cookies";
 import { eq } from "drizzle-orm";
+import setCookieParser from "set-cookie-parser";
 import {
   addresses,
   authDb,
@@ -136,6 +130,7 @@ function isoDateOffset(days) {
     await tx
       .update(users)
       .set({
+        emailVerified: true,
         role: "buyer",
         tenantId: buyerTenant.id,
       })
@@ -367,33 +362,41 @@ function isoDateOffset(days) {
       formattedAddress,
       orderId: order.id,
       primaryFarmId: primaryFarm.id,
-      primaryFarmName: primaryFarm.name,
+      primaryFarmName: sellerName,
       primaryLotId: primaryLot.id,
       primaryProductName,
       secondaryFarmId: secondaryFarm.id,
-      secondaryFarmName: secondaryFarm.name,
+      secondaryFarmName: secondarySellerName,
       secondaryLotId: secondaryLot.id,
       secondaryProductName,
       sellerName,
     };
   });
 
-  const response = await auth.api.signInEmail({
-    asResponse: true,
+  const signInResponse = await auth.api.signInEmail({
     body: {
       email: buyerEmail,
       password: buyerPassword,
     },
+    asResponse: true,
   });
 
-  const cookie = parseSetCookieHeader(response.headers.get("set-cookie") ?? "")
-    .get("better-auth.session_token")
-    ?.value;
+  const responseCookies = setCookieParser.parse(signInResponse, {
+    decodeValues: false,
+    map: true,
+  });
+  const signedSessionCookie =
+    responseCookies["better-auth.session_token"]?.value ??
+    responseCookies["__Secure-better-auth.session_token"]?.value;
+
+  if (!signedSessionCookie) {
+    throw new Error("Nao foi possivel extrair o cookie assinado da sessao do comprador.");
+  }
 
   console.log(
     JSON.stringify({
       ...result,
-      cookie,
+      cookie: signedSessionCookie,
     }),
   );
 })().catch((error) => {
@@ -412,6 +415,7 @@ function isoDateOffset(days) {
   writeFileSync(scriptPath, script, "utf8");
 
   let stdout = "";
+  let stderr = "";
 
   try {
     const result = await execAsync(`pnpm exec tsx "${scriptPath}"`, {
@@ -420,6 +424,7 @@ function isoDateOffset(days) {
       maxBuffer: 1024 * 1024 * 10,
     });
     stdout = result.stdout;
+    stderr = result.stderr;
   } finally {
     rmSync(scriptPath, { force: true });
   }
@@ -443,7 +448,7 @@ function isoDateOffset(days) {
     !fixture.orderId
   ) {
     throw new Error(
-      "Nao foi possivel criar a fixture do comprador para o fluxo E2E.",
+      `Nao foi possivel criar a fixture do comprador para o fluxo E2E.${formatFixtureDebugLog(stdout, stderr)}`,
     );
   }
 

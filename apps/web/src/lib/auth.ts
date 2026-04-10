@@ -29,6 +29,15 @@ const authBaseUrl =
   getConfiguredUrl(process.env.NEXT_PUBLIC_BETTER_AUTH_URL) ||
   getConfiguredUrl(process.env.NEXT_PUBLIC_APP_URL) ||
   getAppUrl();
+const shouldUseSecureCookies =
+  isProduction &&
+  (() => {
+    try {
+      return new URL(authBaseUrl).protocol === "https:";
+    } catch {
+      return false;
+    }
+  })();
 const localTrustedOrigins = getLocalDevelopmentTrustedOrigins();
 
 function toUniqueValues(values: Array<string | null | undefined>): string[] {
@@ -107,13 +116,13 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    useSecureCookies: isProduction,
+    useSecureCookies: shouldUseSecureCookies,
   },
   defaultCookieAttributes: {
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secure: isProduction,
+    secure: shouldUseSecureCookies,
   },
   databaseHooks: {
     user: {
