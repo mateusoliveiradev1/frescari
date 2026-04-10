@@ -10,6 +10,7 @@ const AUTH_RATE_LIMIT = { limit: 10, windowMs: 60_000 } as const;
 const RATE_LIMITED_PATHS = [
   "/sign-in/email",
   "/sign-up/email",
+  "/change-password",
   "/request-password-reset",
   // Keep the legacy path protected while the wrapper transitions to Better Auth's current endpoint naming.
   "/forget-password",
@@ -48,6 +49,17 @@ const GENERIC_SIGN_UP_ERROR = {
   code: "SIGN_UP_FAILED",
 } as const;
 
+const INVALID_CHANGE_PASSWORD_PAYLOAD = {
+  code: "INVALID_CHANGE_PASSWORD_PAYLOAD",
+  message: "Payload invalido para troca de senha.",
+} as const;
+
+type SanitizedChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
+  revokeOtherSessions?: boolean;
+};
+
 function isSignUpRequest(request: NextRequest) {
   return request.nextUrl.pathname.endsWith("/sign-up/email");
 }
@@ -61,15 +73,91 @@ function isDuplicateUserError(body: unknown) {
   return typeof code === "string" && code.startsWith("USER_ALREADY_EXISTS");
 }
 
-function isEmailPasswordAuthRequest(request: NextRequest) {
+function isChangePasswordRequest(request: NextRequest) {
+  return request.nextUrl.pathname.endsWith("/change-password");
+}
+
+function shouldStripSessionToken(request: NextRequest) {
   return (
     request.nextUrl.pathname.endsWith("/sign-in/email") ||
-    request.nextUrl.pathname.endsWith("/sign-up/email")
+    request.nextUrl.pathname.endsWith("/sign-up/email") ||
+    isChangePasswordRequest(request)
   );
 }
 
 function isJsonObject(body: unknown): body is Record<string, unknown> {
   return Boolean(body) && typeof body === "object" && !Array.isArray(body);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function sanitizeChangePasswordPayload(
+  body: unknown,
+): SanitizedChangePasswordPayload | null {
+  if (!isJsonObject(body)) {
+    return null;
+  }
+
+  const currentPassword = body.currentPassword;
+  const newPassword = body.newPassword;
+  const revokeOtherSessions = body.revokeOtherSessions;
+
+  if (!isNonEmptyString(currentPassword) || !isNonEmptyString(newPassword)) {
+    return null;
+  }
+
+  return {
+    currentPassword,
+    newPassword,
+    ...(typeof revokeOtherSessions === "boolean"
+      ? { revokeOtherSessions }
+      : {}),
+  };
+}
+
+function buildInvalidChangePasswordPayloadResponse() {
+  return Response.json(INVALID_CHANGE_PASSWORD_PAYLOAD, {
+    status: 400,
+  });
+}
+
+function cloneRequestWithJsonBody(
+  request: NextRequest,
+  body: SanitizedChangePasswordPayload,
+) {
+  const headers = new Headers(request.headers);
+  headers.set("content-type", "application/json");
+  headers.delete("content-length");
+
+  return new Request(request.url, {
+    method: request.method,
+    headers,
+    body: JSON.stringify(body),
+  });
+}
+
+async function buildForwardedAuthRequest(request: NextRequest) {
+  if (!isChangePasswordRequest(request)) {
+    return request;
+  }
+
+  let body: unknown;
+
+  try {
+    body = await request.clone().json();
+  } catch {
+    return buildInvalidChangePasswordPayloadResponse();
+  }
+
+  const sanitizedPayload = sanitizeChangePasswordPayload(body);
+
+  if (!sanitizedPayload) {
+    return buildInvalidChangePasswordPayloadResponse();
+  }
+
+  return cloneRequestWithJsonBody(request, sanitizedPayload);
 }
 
 function buildJsonResponse(response: Response, payload: unknown) {
@@ -98,7 +186,13 @@ async function handleAuthRequest(request: NextRequest) {
     }
   }
 
-  const response = await auth.handler(request);
+  const forwardedRequest = await buildForwardedAuthRequest(request);
+
+  if (forwardedRequest instanceof Response) {
+    return forwardedRequest;
+  }
+
+  const response = await auth.handler(forwardedRequest);
 
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
@@ -119,7 +213,7 @@ async function handleAuthRequest(request: NextRequest) {
 
   if (
     !response.ok ||
-    !isEmailPasswordAuthRequest(request) ||
+    !shouldStripSessionToken(request) ||
     !isJsonObject(payload)
   ) {
     return response;

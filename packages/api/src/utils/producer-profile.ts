@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const producerLegalEntityTypeSchema = z.enum(["PF", "PJ"]);
 
-function normalizeWhitespace(value: string) {
+export function normalizeWhitespace(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
@@ -119,7 +119,7 @@ export function isValidCnpj(value: string) {
   return secondCheckDigit === Number(digits[13]);
 }
 
-function createNormalizedTextSchema(min: number, max: number) {
+export function createNormalizedTextSchema(min: number, max: number) {
   return z
     .string()
     .transform(normalizeWhitespace)

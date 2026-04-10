@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">Ilustracao de hortifruti Frescari</title>
+  <desc id="desc">Fundo suave com formas de frutas e verduras em destaque.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F7F3E8" />
+      <stop offset="100%" stop-color="#DDE8CF" />
+    </linearGradient>
+  </defs>
+  <rect width="640" height="480" fill="url(#bg)" rx="36" />
+  <g opacity="0.2">
+    <circle cx="108" cy="96" r="52" fill="#4A7A56" />
+    <circle cx="560" cy="72" r="44" fill="#D77A3D" />
+    <circle cx="536" cy="396" r="68" fill="#4A7A56" />
+  </g>
+  <g transform="translate(92 84)">
+    <rect x="86" y="180" width="284" height="110" rx="28" fill="#9C6038" />
+    <rect x="108" y="160" width="240" height="34" rx="17" fill="#B97648" />
+    <path d="M126 164c24-54 62-82 102-82s78 28 102 82" fill="none" stroke="#8F5834" stroke-width="18" stroke-linecap="round" />
+    <g>
+      <circle cx="150" cy="138" r="42" fill="#D75045" />
+      <path d="M146 90c8 10 11 20 10 30" fill="none" stroke="#2C6A3F" stroke-width="10" stroke-linecap="round" />
+      <path d="M148 95c-14-8-24-18-30-32" fill="none" stroke="#2C6A3F" stroke-width="10" stroke-linecap="round" />
+    </g>
+    <g>
+      <circle cx="236" cy="114" r="40" fill="#F0B63F" />
+      <path d="M236 68c10 10 14 19 13 28" fill="none" stroke="#4A7A56" stroke-width="10" stroke-linecap="round" />
+      <path d="M232 72c-11-6-20-14-28-26" fill="none" stroke="#4A7A56" stroke-width="10" stroke-linecap="round" />
+    </g>
+    <g>
+      <ellipse cx="324" cy="132" rx="42" ry="34" fill="#6AAE4F" />
+      <path d="M324 92c12-10 28-14 44-10" fill="none" stroke="#2C6A3F" stroke-width="10" stroke-linecap="round" />
+      <path d="M322 96c-14-8-22-18-26-34" fill="none" stroke="#2C6A3F" stroke-width="10" stroke-linecap="round" />
+    </g>
+    <g>
+      <path d="M198 134c-34 10-60 34-70 72 38 12 72 10 104-8 20-12 32-30 40-54-20-10-48-14-74-10z" fill="#6AAE4F" />
+      <path d="M246 150c18-24 36-40 56-50" fill="none" stroke="#4A7A56" stroke-width="12" stroke-linecap="round" />
+    </g>
+    <g>
+      <path d="M308 194c-18-10-42-10-60 0-18 10-28 28-28 48 0 34 28 62 62 62s62-28 62-62c0-20-10-38-36-48z" fill="#E38A3E" />
+      <path d="M278 190c10-16 18-30 22-46" fill="none" stroke="#4A7A56" stroke-width="10" stroke-linecap="round" />
+    </g>
+  </g>
+</svg>

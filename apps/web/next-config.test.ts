@@ -62,7 +62,7 @@ test("allows UploadThing CDN hosts used by stored product images", () => {
   );
 });
 
-test("allows Unsplash fallback images used in seed data", () => {
+test("allows approved Unsplash hosts when editorial images are configured", () => {
   const remotePatterns = nextConfig.images?.remotePatterns ?? [];
   const unsplashUrl =
     "https://images.unsplash.com/photo-1466814314367-45caeebcbddc?w=800&q=80";

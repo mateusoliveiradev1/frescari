@@ -8,6 +8,7 @@ import { Menu, ShoppingCart } from "lucide-react";
 import { Button } from "@frescari/ui";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { getPersonalMenuItems } from "@/components/global-nav.model";
 import { NotificationInboxSheet } from "@/components/notification-inbox-sheet";
 import { authClient } from "@/lib/auth-client";
 import { CartStore, useCartStore, useCartTotals } from "@/store/useCartStore";
@@ -30,6 +31,13 @@ type SessionUser = {
   email?: string | null;
   role?: string | null;
 };
+
+type ClientSessionResponse = {
+  data?: {
+    user?: SessionUser | null;
+  } | null;
+  user?: SessionUser | null;
+} | null;
 
 function getLinkState(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href);
@@ -70,18 +78,20 @@ export function GlobalNav() {
   const role = user?.role;
   const canUseCart = role === "buyer";
   const canUseNotifications = role === "buyer" || role === "producer";
+  const personalMenuItems = getPersonalMenuItems(user);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadSession = async () => {
       try {
-        const response = await authClient.getSession();
+        const response =
+          (await authClient.getSession()) as ClientSessionResponse;
         if (cancelled) {
           return;
         }
 
-        setUser((response.data?.user as SessionUser | undefined) ?? null);
+        setUser(response?.data?.user ?? response?.user ?? null);
       } catch (error) {
         void error;
         if (cancelled) {
@@ -413,15 +423,16 @@ export function GlobalNav() {
                         </p>
                       </div>
                     </div>
-                    {role === "buyer" ? (
+                    {personalMenuItems.map((item) => (
                       <Link
                         className="mb-3 block w-full rounded-sm border border-forest/15 bg-sage/40 px-4 py-3 font-sans text-sm font-bold uppercase tracking-widest text-forest text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
-                        href="/dashboard/perfil"
+                        href={item.href}
+                        key={item.key}
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        Meus Enderecos
+                        {item.label}
                       </Link>
-                    ) : null}
+                    ))}
                     <button
                       className="w-full py-3 px-4 rounded-sm bg-red-50 text-red-600 font-sans text-sm font-bold uppercase tracking-widest text-center transition-[background-color,color] hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
                       onClick={handleSignOut}
@@ -467,16 +478,17 @@ export function GlobalNav() {
                       {user.email}
                     </p>
                   </div>
-                  {role === "buyer" ? (
+                  {personalMenuItems.map((item) => (
                     <Link
                       className="px-4 py-2 font-sans text-xs font-bold text-forest hover:bg-sage/30 transition-colors focus-visible:outline-none focus-visible:bg-sage/30"
-                      href="/dashboard/perfil"
+                      href={item.href}
+                      key={item.key}
                       onClick={() => setIsProfileOpen(false)}
                       role="menuitem"
                     >
-                      Meus Enderecos
+                      {item.label}
                     </Link>
-                  ) : null}
+                  ))}
                   <button
                     className="w-full text-left px-4 py-2 font-sans text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:bg-red-50"
                     onClick={handleSignOut}
