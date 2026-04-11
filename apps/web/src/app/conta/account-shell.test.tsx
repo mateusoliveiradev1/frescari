@@ -75,12 +75,25 @@ test("renders buyer sections and marks the current section as active", async (co
     (link) => link.textContent?.trim() === "Empresa",
   );
   const shellRoot = container.firstElementChild as HTMLElement | null;
+  const layoutGrid = container.querySelector("main > div");
+  const nav = container.querySelector("nav");
+  const aside = container.querySelector("aside");
+  const contentPanel = container.querySelector("section");
 
   assert.deepEqual(links, ["Perfil", "Empresa", "Enderecos", "Seguranca"]);
   assert.ok(cadastroLink);
   assert.ok(shellRoot);
+  assert.ok(layoutGrid);
+  assert.ok(nav);
+  assert.ok(aside);
+  assert.ok(contentPanel);
   assert.match(shellRoot.className, /bg-background/);
   assert.equal(shellRoot.className.includes("radial-gradient"), false);
+  assert.match(layoutGrid.className, /\bmin-w-0\b/);
+  assert.match(nav.className, /\bflex-wrap\b/);
+  assert.equal(nav.className.includes("overflow-x-auto"), false);
+  assert.match(aside.className, /\bmin-w-0\b/);
+  assert.match(contentPanel.className, /\bmin-w-0\b/);
   assert.equal(cadastroLink.getAttribute("aria-current"), "page");
   assert.ok(container.querySelector("[data-testid='content']"));
 });
