@@ -72,13 +72,100 @@ test("renders buyer sections and marks the current section as active", async (co
     link.textContent?.trim(),
   );
   const cadastroLink = Array.from(container.querySelectorAll("a")).find(
-    (link) => link.textContent?.trim() === "Cadastro",
+    (link) => link.textContent?.trim() === "Empresa",
   );
+  const shellRoot = container.firstElementChild as HTMLElement | null;
 
-  assert.deepEqual(links, ["Perfil", "Cadastro", "Enderecos", "Seguranca"]);
+  assert.deepEqual(links, ["Perfil", "Empresa", "Enderecos", "Seguranca"]);
   assert.ok(cadastroLink);
+  assert.ok(shellRoot);
+  assert.match(shellRoot.className, /bg-background/);
+  assert.equal(shellRoot.className.includes("radial-gradient"), false);
   assert.equal(cadastroLink.getAttribute("aria-current"), "page");
   assert.ok(container.querySelector("[data-testid='content']"));
+});
+
+test("uses a business label for producer registration", async (context) => {
+  const dom = setupDom();
+  const container = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(container);
+  const root: Root = createRoot(container);
+
+  context.after(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    dom.window.close();
+  });
+
+  await act(async () => {
+    root.render(
+      <AccountShellView
+        LinkComponent={TestLink}
+        pathname="/conta/cadastro"
+        role="producer"
+      >
+        <div>produtor</div>
+      </AccountShellView>,
+    );
+  });
+
+  const links = Array.from(container.querySelectorAll("a")).map((link) =>
+    link.textContent?.trim(),
+  );
+  const businessLink = Array.from(container.querySelectorAll("a")).find(
+    (link) => link.textContent?.trim() === "Negocio",
+  );
+
+  assert.deepEqual(links, ["Perfil", "Negocio", "Seguranca"]);
+  assert.ok(businessLink);
+  assert.equal(businessLink.getAttribute("aria-current"), "page");
+});
+
+test("uses a customer-facing account header instead of an internal card", async (context) => {
+  const dom = setupDom();
+  const container = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(container);
+  const root: Root = createRoot(container);
+
+  context.after(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    dom.window.close();
+  });
+
+  await act(async () => {
+    root.render(
+      <AccountShellView
+        LinkComponent={TestLink}
+        pathname="/conta/perfil"
+        role="buyer"
+        userName="Mateus Oliveira Lopes"
+      >
+        <div>perfil</div>
+      </AccountShellView>,
+    );
+  });
+
+  const header = container.querySelector("header");
+
+  assert.ok(header);
+  assert.match(container.textContent ?? "", /Area Frescari/);
+  assert.match(container.textContent ?? "", /Oi, Mateus\./);
+  assert.match(
+    container.textContent ?? "",
+    /Seu espaco para manter a Frescari do seu jeito\./,
+  );
+  assert.match(
+    container.textContent ?? "",
+    /perfil, empresa, enderecos e seguranca ficam juntos/,
+  );
+  assert.equal(container.textContent?.includes("Minha Conta"), false);
+  assert.equal(container.textContent?.includes("Conta de"), false);
+  assert.equal(container.textContent?.includes("sem burocracia"), false);
+  assert.equal(container.textContent?.includes("resolver rapido"), false);
+  assert.equal(header.className.includes("surface-panel"), false);
 });
 
 test("hides buyer-only sections for admin", async (context) => {

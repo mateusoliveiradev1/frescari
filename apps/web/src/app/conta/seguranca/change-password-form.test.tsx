@@ -115,7 +115,8 @@ test("blocks submit when the new password confirmation does not match", async (c
   window.document.body.appendChild(container);
   const root: Root = createRoot(container);
   const calls: Array<unknown> = [];
-  const { ChangePasswordForm } = await import("./change-password-form");
+  const { default: ChangePasswordForm } =
+    await import("./change-password-form");
 
   context.after(async () => {
     await act(async () => {
@@ -133,6 +134,17 @@ test("blocks submit when the new password confirmation does not match", async (c
       />,
     );
   });
+
+  assert.match(container.textContent ?? "", /Proteja seu acesso/i);
+  assert.equal(
+    container.textContent?.includes("Atualizacao autenticada"),
+    false,
+  );
+  assert.equal(container.textContent?.includes("Antes de confirmar"), false);
+  assert.equal(container.textContent?.includes("Boas praticas"), false);
+  assert.equal(container.textContent?.includes("Seguro"), false);
+  assert.equal(container.textContent?.includes("Checklist"), false);
+  assert.equal(container.textContent?.includes("01"), false);
 
   const currentInput = container.querySelector(
     "#change-password-current",
@@ -173,7 +185,8 @@ test("submits a strong password with session revocation and shows success state"
     newPassword: string;
     revokeOtherSessions: boolean;
   }> = [];
-  const { ChangePasswordForm } = await import("./change-password-form");
+  const { default: ChangePasswordForm } =
+    await import("./change-password-form");
 
   context.after(async () => {
     await act(async () => {
@@ -233,7 +246,8 @@ test("shows an explicit message when the current password is incorrect", async (
   const container = window.document.createElement("div");
   window.document.body.appendChild(container);
   const root: Root = createRoot(container);
-  const { ChangePasswordForm } = await import("./change-password-form");
+  const { default: ChangePasswordForm } =
+    await import("./change-password-form");
 
   context.after(async () => {
     await act(async () => {
@@ -289,7 +303,8 @@ test("surfaces session freshness errors separately from generic failures", async
   const container = window.document.createElement("div");
   window.document.body.appendChild(container);
   const root: Root = createRoot(container);
-  const { ChangePasswordForm } = await import("./change-password-form");
+  const { default: ChangePasswordForm } =
+    await import("./change-password-form");
 
   context.after(async () => {
     await act(async () => {

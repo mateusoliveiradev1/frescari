@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { inferRouterOutputs } from "@trpc/server";
 import {
   AlertCircle,
   Building2,
@@ -15,9 +16,13 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import type { AppRouter } from "@frescari/api";
 import { Button, Skeleton, SkeletonText } from "@frescari/ui";
 
 import { trpc } from "@/trpc/react";
+
+export type RegistrationFormOverview =
+  inferRouterOutputs<AppRouter>["account"]["getOverview"];
 
 export type RegistrationFormUser = {
   email: string | null;
@@ -82,6 +87,10 @@ type RegistrationFormViewProps = {
   onSave?: (input: RegistrationFormInput) => Promise<unknown> | unknown;
   tenant: RegistrationFormTenant | null;
   user: RegistrationFormUser | null;
+};
+
+type RegistrationFormProps = {
+  initialOverview?: RegistrationFormOverview;
 };
 
 const inputClassName =
@@ -168,13 +177,13 @@ function RegistrationLoadingState() {
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="font-sans text-[11px] font-bold uppercase tracking-[0.22em] text-bark/70">
-          Cadastro
+          Conta
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Separando os dados da organizacao.
+          Preparando seus dados.
         </h2>
         <p className="font-sans text-sm text-bark">
-          Carregando o cadastro principal da sua conta.
+          Carregando as informacoes principais do seu acesso.
         </p>
       </div>
 
@@ -210,13 +219,13 @@ function RegistrationErrorState({
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="font-sans text-[11px] font-bold uppercase tracking-[0.22em] text-bark/70">
-          Cadastro
+          Conta
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Separando os dados da organizacao.
+          Nao conseguimos carregar esses dados.
         </h2>
         <p className="font-sans text-sm text-bark">
-          Nao foi possivel carregar o cadastro agora.
+          Tente novamente em alguns instantes.
         </p>
       </div>
 
@@ -228,7 +237,7 @@ function RegistrationErrorState({
           <div className="space-y-3">
             <div className="space-y-1">
               <p className="font-display text-2xl font-black text-soil">
-                Falha ao carregar o cadastro
+                Falha ao carregar os dados
               </p>
               <p className="font-sans text-sm leading-6 text-bark/80">
                 {loadError || "Tente novamente em alguns instantes."}
@@ -257,14 +266,14 @@ function RegistrationBlockedState() {
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="font-sans text-[11px] font-bold uppercase tracking-[0.22em] text-bark/70">
-          Cadastro
+          Conta
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Cadastro indisponivel para este perfil.
+          Dados da conta indisponiveis para este acesso.
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          Esta secao fica restrita aos perfis que administram dados
-          organizacionais da conta.
+          Voce ainda pode revisar seus dados pessoais e sua seguranca nas outras
+          abas da sua area Frescari.
         </p>
       </div>
 
@@ -275,11 +284,11 @@ function RegistrationBlockedState() {
           </div>
           <div className="space-y-2">
             <p className="font-display text-2xl font-black text-soil">
-              Sem acesso de edicao
+              Sem edicao por aqui
             </p>
             <p className="font-sans text-sm leading-6 text-bark/80">
-              Dados pessoais continuam em Perfil. Organizacao e operacao ficam
-              visiveis apenas para contas compativeis com esse escopo.
+              Quando esse acesso estiver liberado, os dados comerciais vao
+              aparecer nesta mesma tela.
             </p>
           </div>
         </div>
@@ -293,14 +302,14 @@ function RegistrationMissingTenantState() {
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="font-sans text-[11px] font-bold uppercase tracking-[0.22em] text-bark/70">
-          Cadastro
+          Conta
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Ainda nao encontramos uma organizacao vinculada.
+          Ainda nao encontramos os dados da conta.
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          Assim que a conta concluir o onboarding organizacional, esta tela
-          passa a mostrar os campos corretos de cadastro.
+          Assim que a configuracao inicial for concluida, os campos comerciais
+          aparecem automaticamente aqui.
         </p>
       </div>
     </div>
@@ -334,7 +343,7 @@ function BuyerRegistrationPanel({
     <form className="mt-6 space-y-4" onSubmit={onSubmit}>
       <div className="space-y-1.5">
         <label className={labelClassName} htmlFor="registration-company-name">
-          Nome da organizacao
+          Nome da empresa
         </label>
         <div className="relative">
           <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bark/45" />
@@ -348,8 +357,7 @@ function BuyerRegistrationPanel({
           />
         </div>
         <p className="font-sans text-xs leading-5 text-bark/68">
-          Compradores ajustam apenas o nome da organizacao suportado pelo banco
-          atual nesta fase.
+          Use o nome que identifica sua compra na Frescari.
         </p>
       </div>
 
@@ -559,9 +567,8 @@ function ProducerRegistrationPanel({
 
       <div className="rounded-[18px] border border-soil/10 bg-white/75 px-4 py-3">
         <p className="font-sans text-xs leading-5 text-bark/70">
-          O cadastro usa apenas campos de tenant. Documento e telefone sao
-          normalizados antes do envio, e a validacao final continua protegida no
-          server.
+          Documento e telefone sao conferidos antes de salvar para manter os
+          dados consistentes.
         </p>
       </div>
 
@@ -616,7 +623,6 @@ export function RegistrationFormView({
   onRetry,
   onSave,
   tenant,
-  user,
 }: RegistrationFormViewProps) {
   const [buyerCompanyName, setBuyerCompanyName] = React.useState(
     tenant?.name ?? "",
@@ -665,6 +671,7 @@ export function RegistrationFormView({
     return <RegistrationMissingTenantState />;
   }
 
+  const registrationLabel = flags.isProducer ? "Negocio" : "Empresa";
   const trimmedBuyerCompanyName = normalizeWhitespace(buyerCompanyName);
   const trimmedBuyerBaselineName = normalizeWhitespace(buyerBaselineName);
   const buyerHasValidName = trimmedBuyerCompanyName.length >= 2;
@@ -770,25 +777,25 @@ export function RegistrationFormView({
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="font-sans text-[11px] font-bold uppercase tracking-[0.22em] text-bark/70">
-          Cadastro
+          {registrationLabel}
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Organizando os dados da sua conta.
+          Dados do seu negocio.
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          Esta area concentra somente os dados organizacionais do tenant. Perfil
-          pessoal, enderecos e seguranca continuam em secoes separadas.
+          Mantenha as informacoes comerciais atualizadas para pedidos, contato e
+          documentos ficarem claros.
         </p>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <section className="rounded-[22px] border border-soil/8 bg-cream p-6 shadow-card">
-          <div className="space-y-5">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sage text-forest shadow-sm">
+      <section className="rounded-[22px] border border-soil/8 bg-cream p-5 shadow-card sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-sage text-forest shadow-sm">
               {flags.isProducer ? (
-                <Factory className="h-7 w-7" />
+                <Factory className="h-6 w-6" />
               ) : (
-                <Building2 className="h-7 w-7" />
+                <Building2 className="h-6 w-6" />
               )}
             </div>
 
@@ -798,91 +805,62 @@ export function RegistrationFormView({
               </p>
               <p className="font-sans text-sm leading-6 text-bark/80">
                 {flags.isProducer
-                  ? "Produtores editam nome publico, documento, responsavel e telefone comercial."
-                  : "Compradores mantem aqui apenas o nome principal da organizacao nesta fase."}
+                  ? "Atualize como seu negocio aparece para compradores e pedidos."
+                  : "Mantenha o nome da empresa claro para compras e contatos."}
               </p>
             </div>
-
-            <div className="rounded-[20px] border border-soil/10 bg-white/80 p-4">
-              <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-                Escopo desta fase
-              </p>
-              <ul className="mt-3 space-y-2 font-sans text-sm leading-6 text-bark/80">
-                <li>Somente dados do tenant</li>
-                <li>Sem mistura com nome e email do usuario</li>
-                <li>Persistencia via account.updateRegistration</li>
-              </ul>
-            </div>
-
-            {user?.role ? (
-              <div className="rounded-[20px] border border-soil/10 bg-cream-dark/30 p-4">
-                <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-                  Perfil autenticado
-                </p>
-                <p className="mt-2 font-sans text-sm leading-6 text-bark/80">
-                  {user.role === "producer"
-                    ? "Produtor"
-                    : user.role === "buyer"
-                      ? "Comprador"
-                      : user.role}
-                </p>
-              </div>
-            ) : null}
           </div>
-        </section>
+          <p className="rounded-full border border-forest/12 bg-sage/35 px-4 py-2 font-sans text-xs font-bold text-forest">
+            {flags.isProducer
+              ? "Visivel para compradores"
+              : "Usado nas suas compras"}
+          </p>
+        </div>
 
-        <section className="rounded-[22px] border border-soil/8 bg-cream p-6 shadow-card">
-          <div className="space-y-2">
-            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-              Dados organizacionais
-            </p>
-            <h3 className="font-display text-2xl font-black text-soil">
-              Cadastro principal do tenant
-            </h3>
-            <p className="font-sans text-sm leading-6 text-bark/80">
-              Cada papel ve apenas os campos atualmente suportados pelo fluxo
-              dessa conta.
-            </p>
-          </div>
+        {flags.isBuyer ? (
+          <BuyerRegistrationPanel
+            buyerCanSubmit={buyerCanSubmit}
+            buyerCompanyName={buyerCompanyName}
+            isSaving={isSaving}
+            onBuyerNameChange={handleBuyerNameChange}
+            onRetry={onRetry}
+            onSubmit={handleBuyerSubmit}
+            submitError={submitError}
+            successMessage={successMessage}
+          />
+        ) : null}
 
-          {flags.isBuyer ? (
-            <BuyerRegistrationPanel
-              buyerCanSubmit={buyerCanSubmit}
-              buyerCompanyName={buyerCompanyName}
-              isSaving={isSaving}
-              onBuyerNameChange={handleBuyerNameChange}
-              onRetry={onRetry}
-              onSubmit={handleBuyerSubmit}
-              submitError={submitError}
-              successMessage={successMessage}
-            />
-          ) : null}
-
-          {flags.isProducer ? (
-            <ProducerRegistrationPanel
-              isSaving={isSaving}
-              onFieldChange={handleProducerFieldChange}
-              onRetry={onRetry}
-              onSubmit={handleProducerSubmit}
-              producerCanSubmit={producerCanSubmit}
-              producerDocumentLabel={producerDocumentLabel}
-              producerDocumentPlaceholder={producerDocumentPlaceholder}
-              producerForm={producerForm}
-              submitError={submitError}
-              successMessage={successMessage}
-            />
-          ) : null}
-        </section>
-      </div>
+        {flags.isProducer ? (
+          <ProducerRegistrationPanel
+            isSaving={isSaving}
+            onFieldChange={handleProducerFieldChange}
+            onRetry={onRetry}
+            onSubmit={handleProducerSubmit}
+            producerCanSubmit={producerCanSubmit}
+            producerDocumentLabel={producerDocumentLabel}
+            producerDocumentPlaceholder={producerDocumentPlaceholder}
+            producerForm={producerForm}
+            submitError={submitError}
+            successMessage={successMessage}
+          />
+        ) : null}
+      </section>
     </div>
   );
 }
 
-export default function RegistrationForm() {
+export default function RegistrationForm({
+  initialOverview,
+}: RegistrationFormProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const { data, error, isLoading, refetch } =
-    trpc.account.getOverview.useQuery();
+  const { data, error, isLoading, refetch } = trpc.account.getOverview.useQuery(
+    undefined,
+    {
+      initialData: initialOverview,
+      staleTime: 30_000,
+    },
+  );
   const updateRegistration = trpc.account.updateRegistration.useMutation();
 
   const handleSave = async (input: RegistrationFormInput) => {

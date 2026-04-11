@@ -174,7 +174,7 @@ after(() => {
   )._load = originalModuleLoad;
 });
 
-test("renders the buyer registration form with only supported tenant fields", async (context) => {
+test("renders the buyer registration form with user-facing company copy", async (context) => {
   const dom = setupDom();
   const { window } = dom;
   const container = window.document.createElement("div");
@@ -231,9 +231,15 @@ test("renders the buyer registration form with only supported tenant fields", as
   assert.ok(companyNameInput);
   assert.equal(companyNameInput.value, "Mercado Central");
   assert.equal(container.querySelector("#registration-public-name"), null);
-  assert.match(
-    container.textContent ?? "",
-    /compradores ajustam apenas o nome da organizacao/i,
+  assert.match(container.textContent ?? "", /Use o nome que identifica/i);
+  assert.equal(container.textContent?.includes("Resumo"), false);
+  assert.equal(container.textContent?.includes("Dados comerciais"), false);
+  assert.equal(container.textContent?.includes("Escopo desta fase"), false);
+  assert.equal(container.textContent?.includes("Perfil autenticado"), false);
+  assert.equal(container.textContent?.includes("tenant"), false);
+  assert.equal(
+    container.textContent?.includes("account.updateRegistration"),
+    false,
   );
 });
 
@@ -318,6 +324,10 @@ test("submits the producer registration payload with normalized tenant fields", 
   assert.ok(phoneInput);
   assert.ok(form);
   assert.ok(submitButton);
+  assert.match(container.textContent ?? "", /Negocio/);
+  assert.match(container.textContent ?? "", /Visivel para compradores/);
+  assert.equal(container.textContent?.includes("Empresa"), false);
+  assert.equal(container.textContent?.includes("Nome da empresa"), false);
 
   await act(async () => {
     setInputValue(publicNameInput, "  Sitio da Ana Premium  ", window);
@@ -385,9 +395,39 @@ test("shows a blocked state when the authenticated role cannot manage registrati
     );
   });
 
-  assert.match(
-    container.textContent ?? "",
-    /cadastro indisponivel para este perfil/i,
-  );
+  assert.match(container.textContent ?? "", /dados da conta indisponiveis/i);
+  assert.equal(container.textContent?.includes("Empresa"), false);
   assert.equal(container.querySelector("form"), null);
+});
+
+test("uses neutral account copy while registration data is loading", async (context) => {
+  const dom = setupDom();
+  const { window } = dom;
+  const container = window.document.createElement("div");
+  window.document.body.appendChild(container);
+  const root: Root = createRoot(container);
+  const { RegistrationFormView } = await import("./registration-form");
+
+  context.after(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    dom.window.close();
+  });
+
+  await act(async () => {
+    root.render(
+      <RegistrationFormView
+        flags={null}
+        isLoading
+        loadError={null}
+        tenant={null}
+        user={null}
+      />,
+    );
+  });
+
+  assert.match(container.textContent ?? "", /Conta/);
+  assert.match(container.textContent ?? "", /Preparando seus dados/);
+  assert.equal(container.textContent?.includes("Empresa"), false);
 });

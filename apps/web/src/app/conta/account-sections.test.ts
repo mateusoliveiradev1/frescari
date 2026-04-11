@@ -15,6 +15,10 @@ test("buyer sees perfil, cadastro, enderecos e seguranca", () => {
     sections.map((section) => section.key),
     ["perfil", "cadastro", "enderecos", "seguranca"],
   );
+  assert.deepEqual(
+    sections.map((section) => section.label),
+    ["Perfil", "Empresa", "Enderecos", "Seguranca"],
+  );
   assert.equal(getDefaultAccountPathForRole("buyer"), "/conta/perfil");
   assert.equal(canAccessAccountSection("buyer", "enderecos"), true);
 });
@@ -25,6 +29,10 @@ test("producer does not see enderecos", () => {
   assert.deepEqual(
     sections.map((section) => section.key),
     ["perfil", "cadastro", "seguranca"],
+  );
+  assert.deepEqual(
+    sections.map((section) => section.label),
+    ["Perfil", "Negocio", "Seguranca"],
   );
   assert.equal(canAccessAccountSection("producer", "enderecos"), false);
 });
