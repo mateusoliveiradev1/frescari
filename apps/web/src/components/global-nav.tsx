@@ -57,7 +57,7 @@ function getDesktopLinkClasses(active: boolean) {
 
 function getMobileLinkClasses(active: boolean) {
   return [
-    "rounded-sm px-1 py-4 font-sans text-lg font-bold uppercase tracking-[0.18em]",
+    "block w-full rounded-sm px-1 py-3.5 text-left font-sans text-[15px] font-bold uppercase leading-[1.45] tracking-[0.14em]",
     "transition-[color,background-color] duration-200",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
     "border-b border-soil/5 last:border-0",
@@ -394,7 +394,7 @@ export function GlobalNav() {
               </SheetTrigger>
               <SheetContent
                 side="right"
-                className="flex w-[320px] flex-col overflow-hidden border-l border-forest/10 bg-cream/95 pt-12 backdrop-blur-xl"
+                className="flex w-[92vw] max-w-[360px] flex-col overflow-hidden border-l border-forest/10 bg-cream/95 pt-12 backdrop-blur-xl"
               >
                 <SheetHeader>
                   <SheetTitle className="text-left font-display italic text-3xl mb-8">
@@ -405,7 +405,7 @@ export function GlobalNav() {
                   </SheetDescription>
                 </SheetHeader>
                 <div className="flex min-h-0 flex-1 flex-col">
-                  <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                  <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
                     {navLinks(true)}
                   </div>
 
