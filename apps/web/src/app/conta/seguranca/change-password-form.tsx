@@ -92,7 +92,7 @@ function getChangePasswordErrorMessage(code?: string | null) {
   return GENERIC_ERROR_MESSAGE;
 }
 
-export function ChangePasswordForm({
+export default function ChangePasswordForm({
   changePassword = authClient.changePassword as ChangePasswordFn,
 }: ChangePasswordFormProps) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -389,5 +389,3 @@ export function ChangePasswordForm({
     </div>
   );
 }
-
-export default ChangePasswordForm;
