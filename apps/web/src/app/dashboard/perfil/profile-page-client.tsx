@@ -249,11 +249,11 @@ export default function BuyerProfilePageClient() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h2 className="font-display text-3xl font-black text-soil">
-          Enderecos
+          Seus enderecos
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          O checkout usa o endereco padrao para calcular frete por fazenda. O
-          primeiro endereco salvo vira padrao automaticamente.
+          Mantenha os locais de entrega atualizados para agilizar pedidos e
+          fretes.
         </p>
       </div>
 
@@ -266,7 +266,7 @@ export default function BuyerProfilePageClient() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-2">
                   <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-                    Endereco padrao do checkout
+                    Endereco principal
                   </p>
                   <h2 className="font-display text-2xl font-black text-soil">
                     {defaultAddress.title}
@@ -287,8 +287,8 @@ export default function BuyerProfilePageClient() {
                       {defaultAddress.formattedAddress}
                     </p>
                     <p className="font-sans text-xs leading-5 text-bark/75">
-                      Esse endereco sera usado para calcular a cobertura e o
-                      frete no carrinho.
+                      Esse endereco ajuda a calcular cobertura e frete nos
+                      pedidos.
                     </p>
                   </div>
                 </div>
@@ -305,8 +305,8 @@ export default function BuyerProfilePageClient() {
                     Nenhum endereco cadastrado ainda
                   </p>
                   <p className="max-w-xl font-sans text-sm leading-6 text-bark/80">
-                    Cadastre o primeiro endereco para liberar o calculo de frete
-                    por produtor no carrinho.
+                    Cadastre o primeiro endereco para agilizar fretes e
+                    entregas.
                   </p>
                 </div>
               </div>
@@ -320,7 +320,7 @@ export default function BuyerProfilePageClient() {
                   Enderecos salvos
                 </p>
                 <h2 className="font-display text-2xl font-black text-soil">
-                  Gerenciar entregas
+                  Locais de entrega
                 </h2>
               </div>
               <span className="inline-flex items-center rounded-full border border-soil/10 bg-cream-dark/35 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-bark/70">
