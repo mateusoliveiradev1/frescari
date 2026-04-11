@@ -394,7 +394,7 @@ export function GlobalNav() {
               </SheetTrigger>
               <SheetContent
                 side="right"
-                className="w-[320px] border-l border-forest/10 bg-cream/95 backdrop-blur-xl flex flex-col pt-12"
+                className="flex w-[320px] flex-col overflow-hidden border-l border-forest/10 bg-cream/95 pt-12 backdrop-blur-xl"
               >
                 <SheetHeader>
                   <SheetTitle className="text-left font-display italic text-3xl mb-8">
@@ -404,44 +404,50 @@ export function GlobalNav() {
                     Menu de navegação principal para compradores e produtores.
                   </SheetDescription>
                 </SheetHeader>
-                <div className="flex flex-col flex-1">{navLinks(true)}</div>
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                    {navLinks(true)}
+                  </div>
 
-                {user ? (
-                  <div className="mt-auto pt-6 border-t border-soil/10">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-10 h-10 rounded-sm bg-forest flex items-center justify-center">
-                        <span className="font-display text-white text-lg font-black leading-none">
-                          {user.name?.charAt(0).toUpperCase() ?? "U"}
-                        </span>
+                  {user ? (
+                    <div className="mt-6 shrink-0 border-t border-soil/10 pt-6">
+                      <div className="mb-6 flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-forest">
+                          <span className="font-display text-lg font-black leading-none text-white">
+                            {user.name?.charAt(0).toUpperCase() ?? "U"}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <p className="font-sans text-sm font-bold text-soil">
+                            {user.name}
+                          </p>
+                          <p className="font-sans text-xs text-bark">
+                            {user.email}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <p className="font-sans text-sm font-bold text-soil">
-                          {user.name}
-                        </p>
-                        <p className="font-sans text-xs text-bark">
-                          {user.email}
-                        </p>
+                      <div className="grid gap-3">
+                        {personalMenuItems.map((item) => (
+                          <Link
+                            className="block w-full rounded-sm border border-forest/15 bg-sage/40 px-4 py-3 text-center font-sans text-sm font-bold uppercase tracking-widest text-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                            href={item.href}
+                            key={item.key}
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                        <button
+                          className="w-full rounded-sm bg-red-50 px-4 py-3 text-center font-sans text-sm font-bold uppercase tracking-widest text-red-600 transition-[background-color,color] hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                          onClick={handleSignOut}
+                          type="button"
+                        >
+                          Sair da Conta
+                        </button>
                       </div>
                     </div>
-                    {personalMenuItems.map((item) => (
-                      <Link
-                        className="mb-3 block w-full rounded-sm border border-forest/15 bg-sage/40 px-4 py-3 font-sans text-sm font-bold uppercase tracking-widest text-forest text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
-                        href={item.href}
-                        key={item.key}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                    <button
-                      className="w-full py-3 px-4 rounded-sm bg-red-50 text-red-600 font-sans text-sm font-bold uppercase tracking-widest text-center transition-[background-color,color] hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
-                      onClick={handleSignOut}
-                      type="button"
-                    >
-                      Sair da Conta
-                    </button>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
               </SheetContent>
             </Sheet>
           </div>
