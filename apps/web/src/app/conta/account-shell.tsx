@@ -28,7 +28,7 @@ function DefaultAccountLink(props: AccountLinkProps) {
 
 function getAccountLinkClasses(active: boolean) {
   return [
-    "inline-flex shrink-0 items-center justify-center rounded-full border px-4 py-2.5 font-sans text-[11px] font-bold uppercase tracking-[0.16em] transition-[background-color,color,border-color,box-shadow]",
+    "inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-2.5 font-sans text-[11px] font-bold uppercase tracking-[0.16em] transition-[background-color,color,border-color,box-shadow] sm:px-4",
     active
       ? "border-forest bg-forest text-cream shadow-[0_18px_40px_-28px_rgba(13,51,33,0.8)]"
       : "border-soil/10 bg-cream/75 text-bark hover:border-forest/30 hover:bg-sage/30 hover:text-forest",
@@ -81,11 +81,11 @@ export function AccountShellView({
           </div>
         </header>
 
-        <div className="grid gap-5 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start">
-          <aside className="surface-panel rounded-[24px] p-3 lg:sticky lg:top-24">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start">
+          <aside className="surface-panel min-w-0 rounded-[24px] p-3 lg:sticky lg:top-24">
             <nav
               aria-label="Navegacao interna de Minha Conta"
-              className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0"
+              className="flex flex-wrap gap-2 lg:flex-col"
             >
               {sections.map((section) => {
                 const isActive = currentSection === section.key;
@@ -104,7 +104,7 @@ export function AccountShellView({
             </nav>
           </aside>
 
-          <section className="surface-panel rounded-[26px] p-4 sm:p-6 lg:p-8">
+          <section className="surface-panel min-w-0 rounded-[26px] p-4 sm:p-6 lg:p-8">
             {children}
           </section>
         </div>
