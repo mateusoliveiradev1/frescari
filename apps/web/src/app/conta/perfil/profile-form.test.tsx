@@ -309,10 +309,13 @@ test("prefills the current name, keeps email read-only, and saves only after a r
   assert.equal(emailInput.value, "mateus@frescari.com");
   assert.equal(emailInput.disabled, true);
   assert.equal(submitButton.disabled, true);
-  assert.match(
-    container.textContent ?? "",
-    /Email e papel da conta permanecem protegidos nesta fase\./i,
-  );
+  assert.match(container.textContent ?? "", /Seu email fica visivel/i);
+  assert.equal(container.textContent?.includes("Resumo da conta"), false);
+  assert.equal(container.textContent?.includes("Avatar da conta"), false);
+  assert.equal(container.textContent?.includes("Dados de acesso"), false);
+  assert.equal(container.textContent?.includes("Escopo desta fase"), false);
+  assert.equal(container.textContent?.includes("papel"), false);
+  assert.equal(container.textContent?.includes("fase"), false);
 
   await act(async () => {
     setInputValue(nameInput, "Mateus Oliveira Junior", window);

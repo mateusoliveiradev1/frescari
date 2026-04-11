@@ -134,6 +134,17 @@ test("blocks submit when the new password confirmation does not match", async (c
     );
   });
 
+  assert.match(container.textContent ?? "", /Proteja seu acesso/i);
+  assert.equal(
+    container.textContent?.includes("Atualizacao autenticada"),
+    false,
+  );
+  assert.equal(container.textContent?.includes("Antes de confirmar"), false);
+  assert.equal(container.textContent?.includes("Boas praticas"), false);
+  assert.equal(container.textContent?.includes("Seguro"), false);
+  assert.equal(container.textContent?.includes("Checklist"), false);
+  assert.equal(container.textContent?.includes("01"), false);
+
   const currentInput = container.querySelector(
     "#change-password-current",
   ) as HTMLInputElement | null;

@@ -56,9 +56,20 @@ function normalizeAccountRole(role: AccountRole): NormalizedAccountRole {
 }
 
 export function getAccountSectionsForRole(role: AccountRole) {
-  return ROLE_SECTION_KEYS[normalizeAccountRole(role)].map(
-    (key) => ACCOUNT_SECTION_DEFINITIONS[key],
-  );
+  const normalizedRole = normalizeAccountRole(role);
+
+  return ROLE_SECTION_KEYS[normalizedRole].map((key) => {
+    const section = ACCOUNT_SECTION_DEFINITIONS[key];
+
+    if (key !== "cadastro") {
+      return section;
+    }
+
+    return {
+      ...section,
+      label: normalizedRole === "producer" ? "Negocio" : "Empresa",
+    };
+  });
 }
 
 export function getDefaultAccountPathForRole(role: AccountRole) {

@@ -251,176 +251,141 @@ export function ChangePasswordForm({
           Seguranca
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Troque a senha com a sessao atual.
+          Proteja seu acesso.
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          A troca exige sua senha atual e encerra as outras sessoes para manter
-          a conta protegida.
+          Atualize sua senha e encerre outros acessos para manter a conta
+          segura.
         </p>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <section className="rounded-[22px] border border-soil/8 bg-cream p-6 shadow-card">
-          <div className="space-y-5">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sage text-forest shadow-sm">
-              <span className="font-display text-2xl font-black">01</span>
-            </div>
-
-            <div className="space-y-2">
-              <p className="font-display text-2xl font-black text-soil">
-                O que muda ao salvar
-              </p>
-              <p className="font-sans text-sm leading-6 text-bark/80">
-                A senha da conta passa a valer imediatamente e outras sessoes
-                abertas sao revogadas.
-              </p>
-            </div>
-
-            <div className="rounded-[20px] border border-soil/10 bg-white/80 p-4">
-              <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-                Checklist
-              </p>
-              <ul className="mt-3 space-y-2 font-sans text-sm leading-6 text-bark/80">
-                <li>Confirmar senha atual</li>
-                <li>Criar uma senha forte</li>
-                <li>Revogar outras sessoes ativas</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-[22px] border border-soil/8 bg-cream p-6 shadow-card">
+      <section className="rounded-[22px] border border-soil/8 bg-cream p-5 shadow-card sm:p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
-            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-              Atualizacao autenticada
-            </p>
             <h3 className="font-display text-2xl font-black text-soil">
-              Nova senha da conta
+              Atualizar senha
             </h3>
             <p className="font-sans text-sm leading-6 text-bark/80">
               Use uma combinacao forte e diferente da senha anterior.
             </p>
           </div>
+          <p className="rounded-full border border-forest/12 bg-sage/35 px-4 py-2 font-sans text-xs font-bold text-forest">
+            Revoga outros acessos automaticamente
+          </p>
+        </div>
 
-          <div className="mt-6 space-y-5">
-            {feedback ? (
-              <StatusCard
-                eyebrow="Nao foi possivel atualizar"
-                message={feedback}
-                tone="error"
+        <div className="mt-6 space-y-5">
+          {feedback ? (
+            <StatusCard
+              eyebrow="Nao foi possivel atualizar"
+              message={feedback}
+              tone="error"
+            />
+          ) : null}
+
+          {success ? (
+            <StatusCard
+              eyebrow="Senha atualizada"
+              message={SUCCESS_MESSAGE}
+              tone="success"
+            />
+          ) : null}
+
+          <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <label className="field-label" htmlFor="change-password-current">
+                Senha atual
+              </label>
+              <input
+                autoComplete="current-password"
+                className="input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil placeholder:text-bark/42 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                disabled={loading}
+                id="change-password-current"
+                name="current-password"
+                onInput={handleCurrentPasswordInput}
+                placeholder="Digite sua senha atual"
+                required
+                type="password"
+                value={currentPassword}
               />
-            ) : null}
+            </div>
 
-            {success ? (
-              <StatusCard
-                eyebrow="Senha atualizada"
-                message={SUCCESS_MESSAGE}
-                tone="success"
+            <div className="space-y-2">
+              <label className="field-label" htmlFor="change-password-new">
+                Nova senha
+              </label>
+              <input
+                aria-invalid={hasNewPassword && !isPasswordStrong}
+                autoComplete="new-password"
+                className="input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil placeholder:text-bark/42 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                disabled={loading}
+                id="change-password-new"
+                name="new-password"
+                onInput={handleNewPasswordInput}
+                placeholder="Digite sua nova senha"
+                required
+                type="password"
+                value={newPassword}
               />
-            ) : null}
+            </div>
 
-            <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <label
-                  className="field-label"
-                  htmlFor="change-password-current"
-                >
-                  Senha atual
-                </label>
-                <input
-                  autoComplete="current-password"
-                  className="input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil placeholder:text-bark/42 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
-                  disabled={loading}
-                  id="change-password-current"
-                  name="current-password"
-                  onInput={handleCurrentPasswordInput}
-                  placeholder="Digite sua senha atual"
-                  required
-                  type="password"
-                  value={currentPassword}
-                />
-              </div>
+            <PasswordRequirements items={passwordRequirementItems} />
 
-              <div className="space-y-2">
-                <label className="field-label" htmlFor="change-password-new">
-                  Nova senha
-                </label>
-                <input
-                  aria-invalid={hasNewPassword && !isPasswordStrong}
-                  autoComplete="new-password"
-                  className="input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil placeholder:text-bark/42 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
-                  disabled={loading}
-                  id="change-password-new"
-                  name="new-password"
-                  onInput={handleNewPasswordInput}
-                  placeholder="Digite sua nova senha"
-                  required
-                  type="password"
-                  value={newPassword}
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="field-label" htmlFor="change-password-confirm">
+                Confirmar nova senha
+              </label>
+              <input
+                aria-invalid={showConfirmationError}
+                autoComplete="new-password"
+                className={[
+                  "input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil placeholder:text-bark/42 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
+                  showConfirmationError ? "border-red-300 bg-red-50/60" : "",
+                ].join(" ")}
+                disabled={loading}
+                id="change-password-confirm"
+                name="confirm-password"
+                onInput={handleConfirmationInput}
+                placeholder="Repita sua nova senha"
+                required
+                type="password"
+                value={confirmation}
+              />
+            </div>
 
-              <PasswordRequirements items={passwordRequirementItems} />
+            <p
+              className={`font-sans text-xs leading-5 ${
+                hasConfirmation
+                  ? passwordsMatch
+                    ? "text-emerald-700"
+                    : "text-red-700"
+                  : "text-bark/66"
+              }`}
+            >
+              {confirmationMessage}
+            </p>
 
-              <div className="space-y-2">
-                <label
-                  className="field-label"
-                  htmlFor="change-password-confirm"
-                >
-                  Confirmar nova senha
-                </label>
-                <input
-                  aria-invalid={showConfirmationError}
-                  autoComplete="new-password"
-                  className={[
-                    "input-shell w-full rounded-[18px] px-4 py-3.5 font-sans text-sm text-soil placeholder:text-bark/42 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream",
-                    showConfirmationError ? "border-red-300 bg-red-50/60" : "",
-                  ].join(" ")}
-                  disabled={loading}
-                  id="change-password-confirm"
-                  name="confirm-password"
-                  onInput={handleConfirmationInput}
-                  placeholder="Repita sua nova senha"
-                  required
-                  type="password"
-                  value={confirmation}
-                />
-              </div>
-
-              <p
-                className={`font-sans text-xs leading-5 ${
-                  hasConfirmation
-                    ? passwordsMatch
-                      ? "text-emerald-700"
-                      : "text-red-700"
-                    : "text-bark/66"
-                }`}
-              >
-                {confirmationMessage}
+            <div className="rounded-[18px] border border-soil/10 bg-white/75 px-4 py-3">
+              <p className="font-sans text-xs leading-5 text-bark/70">
+                Depois de salvar, outros acessos abertos serao encerrados
+                automaticamente.
               </p>
+            </div>
 
-              <div className="rounded-[18px] border border-soil/10 bg-white/75 px-4 py-3">
-                <p className="font-sans text-xs leading-5 text-bark/70">
-                  Ao confirmar, outras sessoes abertas serao encerradas para
-                  manter a conta protegida.
-                </p>
-              </div>
-
-              <Button
-                className="h-13 w-full rounded-[18px] text-sm shadow-[0_20px_42px_-24px_rgba(13,51,33,0.46)] disabled:border-soil/8 disabled:bg-soil/8 disabled:text-bark/48 disabled:shadow-none"
-                data-loading={loading}
-                disabled={!canSubmit}
-                isLoading={loading}
-                size="lg"
-                type="submit"
-                variant="primary"
-              >
-                {loading ? "Atualizando..." : "Atualizar senha"}
-              </Button>
-            </form>
-          </div>
-        </section>
-      </div>
+            <Button
+              className="h-13 w-full rounded-[18px] text-sm shadow-[0_20px_42px_-24px_rgba(13,51,33,0.46)] disabled:border-soil/8 disabled:bg-soil/8 disabled:text-bark/48 disabled:shadow-none"
+              data-loading={loading}
+              disabled={!canSubmit}
+              isLoading={loading}
+              size="lg"
+              type="submit"
+              variant="primary"
+            >
+              {loading ? "Atualizando..." : "Atualizar senha"}
+            </Button>
+          </form>
+        </div>
+      </section>
     </div>
   );
 }

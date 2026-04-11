@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 
 import { getRequestAuthSession } from "@/lib/server-session";
+import { getAuthedServerTrpc } from "@/trpc/server";
 
 import {
   canAccessAccountSection,
   getDefaultAccountPathForRole,
 } from "../account-sections";
+import type { ProfileFormOverview } from "./profile-form";
 import ProfileForm from "./profile-form";
 
 export const dynamic = "force-dynamic";
@@ -21,5 +23,14 @@ export default async function AccountProfilePage() {
     redirect(getDefaultAccountPathForRole(session.user.role));
   }
 
-  return <ProfileForm />;
+  let initialOverview: ProfileFormOverview | undefined;
+
+  try {
+    const trpc = await getAuthedServerTrpc();
+    initialOverview = await trpc.account.getOverview();
+  } catch (error) {
+    console.error("[account.profile.initialOverview]", error);
+  }
+
+  return <ProfileForm initialOverview={initialOverview} />;
 }

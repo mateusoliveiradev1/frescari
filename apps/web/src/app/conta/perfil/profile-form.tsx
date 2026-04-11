@@ -1,13 +1,18 @@
 "use client";
 
 import * as React from "react";
+import type { inferRouterOutputs } from "@trpc/server";
 import { AlertCircle, Mail, RefreshCw, Save, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import type { AppRouter } from "@frescari/api";
 import { Button, Skeleton, SkeletonText } from "@frescari/ui";
 import { authClient } from "@/lib/auth-client";
 import { trpc } from "@/trpc/react";
+
+export type ProfileFormOverview =
+  inferRouterOutputs<AppRouter>["account"]["getOverview"];
 
 export type ProfileFormUser = {
   email: string | null;
@@ -24,6 +29,10 @@ type ProfileFormViewProps = {
   onRetry?: () => Promise<unknown> | unknown;
   onSave?: (input: { name: string }) => Promise<unknown> | unknown;
   user: ProfileFormUser | null;
+};
+
+type ProfileFormProps = {
+  initialOverview?: ProfileFormOverview;
 };
 
 const inputClassName =
@@ -72,7 +81,7 @@ function ProfileLoadingState() {
           Perfil
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Ajuste os dados que representam voce.
+          Preparando seu perfil.
         </h2>
         <p className="font-sans text-sm text-bark">
           Carregando os dados principais da sua conta.
@@ -112,7 +121,7 @@ function ProfileErrorState({
           Perfil
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Ajuste os dados que representam voce.
+          Nao conseguimos abrir seu perfil.
         </h2>
         <p className="font-sans text-sm text-bark">
           Nao foi possivel carregar o perfil agora.
@@ -202,7 +211,7 @@ export function ProfileFormView({
   const helperMessage = !hasValidName
     ? "Informe o nome que deve aparecer na sua conta."
     : hasChanges
-      ? "Voce esta ajustando apenas os dados pessoais da conta."
+      ? "Voce esta atualizando como seu nome aparece na Frescari."
       : "Atualize o nome somente quando quiser refletir uma mudanca real.";
 
   const handleNameChange = (
@@ -246,18 +255,18 @@ export function ProfileFormView({
           Perfil
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Ajuste os dados que representam voce.
+          Seu perfil na Frescari.
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          Esta area edita apenas o seu nome publico de acesso. Dados de
-          organizacao, enderecos e seguranca ficam nas secoes vizinhas.
+          Mantenha seu nome de exibicao atualizado para que pedidos, mensagens e
+          documentos aparecam com clareza.
         </p>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <section className="rounded-[22px] border border-soil/8 bg-cream p-6 shadow-card">
-          <div className="space-y-5">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-sage text-forest shadow-sm">
+      <section className="rounded-[22px] border border-soil/8 bg-cream p-5 shadow-card sm:p-6">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sage text-forest shadow-sm">
               {user.image ? (
                 // eslint-disable-next-line @next/next/no-img-element -- auth avatars may come from arbitrary providers.
                 <img
@@ -277,130 +286,111 @@ export function ProfileFormView({
                 {trimmedName || "Conta sem nome definido"}
               </p>
               <p className="font-sans text-sm leading-6 text-bark/80">
-                O avatar acompanha a sessao atual. Se ele ja existir, aparece
-                aqui sem ampliar o escopo de edicao desta fase.
+                Esse nome aparece nos pontos principais da sua conta.
               </p>
-            </div>
-
-            <div className="rounded-[20px] border border-soil/10 bg-white/80 p-4">
-              <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-                Escopo desta fase
-              </p>
-              <ul className="mt-3 space-y-2 font-sans text-sm leading-6 text-bark/80">
-                <li>Nome pessoal da conta</li>
-                <li>Email em modo somente leitura</li>
-                <li>Nenhum dado organizacional misturado aqui</li>
-              </ul>
             </div>
           </div>
-        </section>
+          <p className="rounded-full border border-forest/12 bg-sage/35 px-4 py-2 font-sans text-xs font-bold text-forest">
+            Seu email fica visivel para conferencia e continua protegido.
+          </p>
+        </div>
 
-        <section className="rounded-[22px] border border-soil/8 bg-cream p-6 shadow-card">
-          <div className="space-y-2">
-            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-              Dados pessoais
-            </p>
-            <h3 className="font-display text-2xl font-black text-soil">
-              Identidade da conta
-            </h3>
-            <p className="font-sans text-sm leading-6 text-bark/80">
-              Email e papel da conta permanecem protegidos nesta fase.
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <label className={labelClassName} htmlFor="profile-name">
+              Nome
+            </label>
+            <div className="relative">
+              <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bark/45" />
+              <input
+                aria-invalid={hasValidName ? "false" : "true"}
+                className={`${inputClassName} pl-11`}
+                id="profile-name"
+                onChange={handleNameChange}
+                onInput={handleNameChange}
+                placeholder="Como seu nome deve aparecer"
+                value={name}
+              />
+            </div>
+            <p className="font-sans text-xs leading-5 text-bark/68">
+              {helperMessage}
             </p>
           </div>
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-1.5">
-              <label className={labelClassName} htmlFor="profile-name">
-                Nome
-              </label>
-              <div className="relative">
-                <UserRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bark/45" />
-                <input
-                  aria-invalid={hasValidName ? "false" : "true"}
-                  className={`${inputClassName} pl-11`}
-                  id="profile-name"
-                  onChange={handleNameChange}
-                  onInput={handleNameChange}
-                  placeholder="Como seu nome deve aparecer"
-                  value={name}
-                />
-              </div>
-              <p className="font-sans text-xs leading-5 text-bark/68">
-                {helperMessage}
+          <div className="space-y-1.5">
+            <label className={labelClassName} htmlFor="profile-email">
+              Email
+            </label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bark/45" />
+              <input
+                className={`${readOnlyInputClassName} pl-11`}
+                disabled
+                id="profile-email"
+                value={user.email ?? ""}
+              />
+            </div>
+            <p className="font-sans text-xs leading-5 text-bark/68">
+              Para alterar o email de acesso, fale com o suporte da Frescari.
+            </p>
+          </div>
+
+          {submitError ? (
+            <div
+              aria-live="assertive"
+              className="rounded-[18px] border border-destructive/20 bg-red-50 px-4 py-3"
+              role="alert"
+            >
+              <p className="font-sans text-sm leading-6 text-destructive">
+                {submitError}
               </p>
             </div>
+          ) : null}
 
-            <div className="space-y-1.5">
-              <label className={labelClassName} htmlFor="profile-email">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bark/45" />
-                <input
-                  className={`${readOnlyInputClassName} pl-11`}
-                  disabled
-                  id="profile-email"
-                  value={user.email ?? ""}
-                />
-              </div>
-              <p className="font-sans text-xs leading-5 text-bark/68">
-                Troca de email permanece fora desta entrega para evitar impacto
-                em login e verificacao.
+          {successMessage ? (
+            <div
+              aria-live="polite"
+              className="rounded-[18px] border border-forest/15 bg-sage/25 px-4 py-3"
+            >
+              <p className="font-sans text-sm leading-6 text-forest">
+                {successMessage}
               </p>
             </div>
+          ) : null}
 
-            {submitError ? (
-              <div
-                aria-live="assertive"
-                className="rounded-[18px] border border-destructive/20 bg-red-50 px-4 py-3"
-                role="alert"
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button type="submit" disabled={!canSubmit} isLoading={isSaving}>
+              <Save className="h-4 w-4" />
+              Salvar perfil
+            </Button>
+
+            {onRetry ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void onRetry()}
               >
-                <p className="font-sans text-sm leading-6 text-destructive">
-                  {submitError}
-                </p>
-              </div>
-            ) : null}
-
-            {successMessage ? (
-              <div
-                aria-live="polite"
-                className="rounded-[18px] border border-forest/15 bg-sage/25 px-4 py-3"
-              >
-                <p className="font-sans text-sm leading-6 text-forest">
-                  {successMessage}
-                </p>
-              </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Button type="submit" disabled={!canSubmit} isLoading={isSaving}>
-                <Save className="h-4 w-4" />
-                Salvar perfil
+                <RefreshCw className="h-4 w-4" />
+                Recarregar dados
               </Button>
-
-              {onRetry ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => void onRetry()}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Recarregar dados
-                </Button>
-              ) : null}
-            </div>
-          </form>
-        </section>
-      </div>
+            ) : null}
+          </div>
+        </form>
+      </section>
     </div>
   );
 }
 
-export default function ProfileForm() {
+export default function ProfileForm({ initialOverview }: ProfileFormProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const { data, error, isLoading, refetch } =
-    trpc.account.getOverview.useQuery();
+  const { data, error, isLoading, refetch } = trpc.account.getOverview.useQuery(
+    undefined,
+    {
+      initialData: initialOverview,
+      staleTime: 30_000,
+    },
+  );
 
   const handleSave = React.useCallback(
     async ({ name }: { name: string }) => {
