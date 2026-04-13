@@ -259,7 +259,8 @@ export function OnboardingClient() {
               <div className="rounded-lg border border-forest/15 bg-forest/5 px-4 py-3">
                 <p className="font-sans text-xs text-bark">
                   Primeiro coletamos seus dados basicos. Banco, documentos e
-                  exigencias regulatorias ficam para a etapa seguinte no Stripe.
+                  exigencias regulatorias ficam para a proxima etapa de
+                  recebimento.
                 </p>
               </div>
 

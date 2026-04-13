@@ -37,7 +37,7 @@ function resolveProducerStripeBusinessType(tenant: {
   return tenant.producerLegalEntityType === "PJ" ? "company" : "individual";
 }
 
-function buildStripeAccountProfilePrefill(args: {
+function buildStripeAccountProfileDefaults(args: {
   businessType: "individual" | "company";
   fallbackUserName: string;
   tenant: {
@@ -81,7 +81,7 @@ function getStripeConnectSetupErrorMessage(error: unknown): string | null {
       : "";
 
   if (/responsibilities of managing losses/i.test(message)) {
-    return "O Stripe Connect da plataforma ainda nao esta liberado no modo live. No Dashboard da Stripe, acesse Configuracoes > Connect > Perfil da plataforma e revise as responsabilidades por perdas antes de tentar novamente.";
+    return "A configuracao de recebimento da plataforma ainda precisa ser liberada no modo live. Revise o perfil financeiro da plataforma antes de tentar novamente.";
   }
 
   return null;
@@ -137,7 +137,7 @@ export const stripeRouter = createTRPCRouter({
     if (!tenant) {
       throw new TRPCError({
         code: "NOT_FOUND",
-        message: "Organizacao nao encontrada.",
+        message: "Conta comercial nao encontrada.",
       });
     }
 
@@ -184,7 +184,7 @@ export const stripeRouter = createTRPCRouter({
         if (!dbInfo || !dbInfo.tenant) {
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Organizacao nao encontrada.",
+            message: "Conta comercial nao encontrada.",
           });
         }
 
@@ -204,7 +204,7 @@ export const stripeRouter = createTRPCRouter({
         }
 
         const businessType = resolveProducerStripeBusinessType(tenant);
-        const accountProfilePrefill = buildStripeAccountProfilePrefill({
+        const accountProfileDefaults = buildStripeAccountProfileDefaults({
           businessType,
           fallbackUserName: userName,
           tenant,
@@ -218,7 +218,7 @@ export const stripeRouter = createTRPCRouter({
             card_payments: { requested: true },
             transfers: { requested: true },
           },
-          ...accountProfilePrefill,
+          ...accountProfileDefaults,
           business_profile: {
             name: tenant.name,
             url: getStripeBusinessProfileUrl(APP_URL),
@@ -267,7 +267,7 @@ export const stripeRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            "Falha ao criar conta conectada no Stripe. Verifique os logs.",
+            "Falha ao iniciar verificacao de recebimento. Tente novamente ou contate o suporte.",
           cause: error,
         });
       }

@@ -215,8 +215,7 @@ export const orderRouter = createTRPCRouter({
       if (!session || !user?.tenantId) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message:
-            "Comprador nÃ£o possui uma organizaÃ§Ã£o vinculada (tenantId ausente).",
+          message: "Comprador nao possui uma conta comercial vinculada.",
         });
       }
 

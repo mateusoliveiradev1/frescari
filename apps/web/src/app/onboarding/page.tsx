@@ -9,10 +9,9 @@ import { OnboardingClient } from "./onboarding-client";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildNoIndexMetadata({
-  description:
-    "Fluxo interno de onboarding para ativacao operacional na Frescari.",
+  description: "Cadastro inicial para preparar sua conta Frescari.",
   path: "/onboarding",
-  title: "Onboarding operacional | Frescari",
+  title: "Cadastro inicial | Frescari",
 });
 
 export default async function OnboardingPage() {

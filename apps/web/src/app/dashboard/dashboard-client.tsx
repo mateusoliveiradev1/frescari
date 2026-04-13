@@ -6,166 +6,213 @@ import { trpc } from "@/trpc/react";
 import { StripeConnectButton } from "@/components/StripeConnectButton";
 
 function Skeleton({ className }: { className?: string }) {
-    return <div className={`animate-pulse bg-soil/10 rounded-sm ${className}`} />;
+  return <div className={`animate-pulse bg-soil/10 rounded-sm ${className}`} />;
 }
 
 function formatDate(dateInput: string) {
-    return new Intl.DateTimeFormat("pt-BR", {
-        timeZone: "UTC",
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(dateInput));
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(dateInput));
 }
 
 export default function DashboardClient({ user }: { user: unknown }) {
-    void user;
+  void user;
 
-    const { data: metrics, isLoading: isMetricsLoading } = trpc.lot.getDashboardMetrics.useQuery();
-    const { data: recentLots, isLoading: isLotsLoading } = trpc.lot.getRecentLots.useQuery();
+  const { data: metrics, isLoading: isMetricsLoading } =
+    trpc.lot.getDashboardMetrics.useQuery();
+  const { data: recentLots, isLoading: isLotsLoading } =
+    trpc.lot.getRecentLots.useQuery();
 
-    return (
-        <div className="min-h-screen bg-cream">
-            <main className="max-w-[1400px] mx-auto px-6 lg:px-12 py-12 space-y-12">
-
-                {/* ── Page header ── */}
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-                    <div className="space-y-1">
-                        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/70">
-                            Painel do Produtor
-                        </p>
-                        <h1 className="font-display text-4xl font-black text-soil">
-                            Visão Geral
-                        </h1>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <StripeConnectButton />
-                        <Button variant="primary" asChild className="shrink-0 bg-forest hover:bg-forest/90 text-cream">
-                            <Link href="/dashboard/inventario">Criar Novo Lote</Link>
-                        </Button>
-                    </div>
-                </div>
-
-                {/* ── Quick stats row ── */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Metric 1 */}
-                    <div className="p-6 bg-cream border border-soil/8 rounded-sm shadow-card flex flex-col justify-between min-h-[140px]">
-                        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
-                            Lotes Ativos
-                        </p>
-                        {isMetricsLoading ? (
-                            <Skeleton className="h-10 w-20 mt-4" />
-                        ) : (
-                            <p className="font-display text-4xl font-black text-forest mt-4">
-                                {metrics?.activeLots ?? 0}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Metric 2 */}
-                    <div className="p-6 bg-cream border border-soil/8 rounded-sm shadow-card flex flex-col justify-between min-h-[140px]">
-                        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
-                            Last Chance (Qty)
-                        </p>
-                        {isMetricsLoading ? (
-                            <Skeleton className="h-10 w-20 mt-4" />
-                        ) : (
-                            <p className="font-display text-4xl font-black text-orange-600 mt-4">
-                                {metrics?.lastChanceQty ?? 0}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Metric 3 */}
-                    <div className="p-6 bg-cream border border-soil/8 rounded-sm shadow-card flex flex-col justify-between min-h-[140px]">
-                        <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
-                            CO₂ Evitado Estimado
-                        </p>
-                        {isMetricsLoading ? (
-                            <Skeleton className="h-10 w-32 mt-4" />
-                        ) : (
-                            <p className="font-display text-4xl font-black text-forest mt-4">
-                                {metrics?.co2AvoidedKg ?? 0} <span className="text-xl text-bark/60">kg</span>
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                {/* ── Recent Lots Section ── */}
-                <div className="space-y-6">
-                    <h2 className="font-display text-2xl font-bold text-soil border-b border-soil/10 pb-4">
-                        Lotes Recentes
-                    </h2>
-
-                    <div className="bg-cream border border-soil/8 shadow-card rounded-sm overflow-hidden">
-                        <div className="overflow-x-auto w-full">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-soil/10 bg-cream-dark/30">
-                                        <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80">Código</th>
-                                        <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80">Produto</th>
-                                        <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80 text-right">Qtd Disponível</th>
-                                        <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80">Validade</th>
-                                        <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80 text-center">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {isLotsLoading ? (
-                                        Array.from({ length: 5 }).map((_, i) => (
-                                            <tr key={i} className="border-b border-soil/5">
-                                                <td className="py-4 px-6"><Skeleton className="h-4 w-16" /></td>
-                                                <td className="py-4 px-6"><Skeleton className="h-4 w-32" /></td>
-                                                <td className="py-4 px-6"><Skeleton className="h-4 w-12 ml-auto" /></td>
-                                                <td className="py-4 px-6"><Skeleton className="h-4 w-24" /></td>
-                                                <td className="py-4 px-6"><Skeleton className="h-6 w-20 mx-auto rounded-full" /></td>
-                                            </tr>
-                                        ))
-                                    ) : recentLots && recentLots.length > 0 ? (
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        recentLots.map((lot: any) => {
-                                            const isLastChance = lot.status === "last_chance";
-                                            const isExpired = lot.status === "vencido";
-                                            const statusText = isExpired ? "Expirado" : isLastChance ? "Last Chance" : "Ativo";
-
-                                            return (
-                                                <tr key={lot.id} className="border-b border-soil/5 hover:bg-cream-dark/20 transition-colors">
-                                                    <td className="py-4 px-6 font-sans text-xs font-semibold text-bark">
-                                                        {lot.lotCode}
-                                                    </td>
-                                                    <td className="py-4 px-6 font-sans text-sm font-medium text-soil">
-                                                        {lot.productName || "Produto Desconhecido"}
-                                                    </td>
-                                                    <td className="py-4 px-6 font-sans text-sm font-semibold text-soil text-right">
-                                                        {Number(lot.availableQty)}
-                                                    </td>
-                                                    <td className="py-4 px-6 font-sans text-xs text-bark">
-                                                        {formatDate(lot.expiryDate)}
-                                                    </td>
-                                                    <td className="py-4 px-6 text-center">
-                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider ${isExpired ? "bg-red-100 text-red-700" :
-                                                            isLastChance ? "bg-orange-100 text-orange-600 border border-orange-200" :
-                                                                "bg-sage border border-forest/15 text-forest"
-                                                            }`}>
-                                                            {statusText}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={5} className="py-12 px-6 text-center text-bark text-sm font-sans">
-                                                Nenhum lote recente encontrado. <Link href="/dashboard/inventario" className="text-forest hover:underline font-semibold">Crie o seu primeiro lote</Link>.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-            </main>
+  return (
+    <div className="min-h-screen bg-cream">
+      <main className="max-w-[1400px] mx-auto px-6 lg:px-12 py-12 space-y-12">
+        {/* ── Page header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+          <div className="space-y-1">
+            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/70">
+              Area do produtor
+            </p>
+            <h1 className="font-display text-4xl font-black text-soil">
+              Oferta viva
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <StripeConnectButton />
+            <Button
+              variant="primary"
+              asChild
+              className="shrink-0 bg-forest hover:bg-forest/90 text-cream"
+            >
+              <Link href="/dashboard/inventario">Adicionar lote</Link>
+            </Button>
+          </div>
         </div>
-    );
+
+        {/* ── Quick stats row ── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Metric 1 */}
+          <div className="p-6 bg-cream border border-soil/8 rounded-sm shadow-card flex flex-col justify-between min-h-[140px]">
+            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
+              Lotes no catalogo
+            </p>
+            {isMetricsLoading ? (
+              <Skeleton className="h-10 w-20 mt-4" />
+            ) : (
+              <p className="font-display text-4xl font-black text-forest mt-4">
+                {metrics?.activeLots ?? 0}
+              </p>
+            )}
+          </div>
+
+          {/* Metric 2 */}
+          <div className="p-6 bg-cream border border-soil/8 rounded-sm shadow-card flex flex-col justify-between min-h-[140px]">
+            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
+              Perto da validade
+            </p>
+            {isMetricsLoading ? (
+              <Skeleton className="h-10 w-20 mt-4" />
+            ) : (
+              <p className="font-display text-4xl font-black text-orange-600 mt-4">
+                {metrics?.lastChanceQty ?? 0}
+              </p>
+            )}
+          </div>
+
+          {/* Metric 3 */}
+          <div className="p-6 bg-cream border border-soil/8 rounded-sm shadow-card flex flex-col justify-between min-h-[140px]">
+            <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
+              Desperdicio evitado
+            </p>
+            {isMetricsLoading ? (
+              <Skeleton className="h-10 w-32 mt-4" />
+            ) : (
+              <p className="font-display text-4xl font-black text-forest mt-4">
+                {metrics?.co2AvoidedKg ?? 0}{" "}
+                <span className="text-xl text-bark/60">kg</span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Recent Lots Section ── */}
+        <div className="space-y-6">
+          <h2 className="font-display text-2xl font-bold text-soil border-b border-soil/10 pb-4">
+            Lotes mais recentes
+          </h2>
+
+          <div className="bg-cream border border-soil/8 shadow-card rounded-sm overflow-hidden">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-soil/10 bg-cream-dark/30">
+                    <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80">
+                      Codigo
+                    </th>
+                    <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80">
+                      Produto
+                    </th>
+                    <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80 text-right">
+                      Disponivel
+                    </th>
+                    <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80">
+                      Validade
+                    </th>
+                    <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80 text-center">
+                      Situacao
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLotsLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-b border-soil/5">
+                        <td className="py-4 px-6">
+                          <Skeleton className="h-4 w-16" />
+                        </td>
+                        <td className="py-4 px-6">
+                          <Skeleton className="h-4 w-32" />
+                        </td>
+                        <td className="py-4 px-6">
+                          <Skeleton className="h-4 w-12 ml-auto" />
+                        </td>
+                        <td className="py-4 px-6">
+                          <Skeleton className="h-4 w-24" />
+                        </td>
+                        <td className="py-4 px-6">
+                          <Skeleton className="h-6 w-20 mx-auto rounded-full" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : recentLots && recentLots.length > 0 ? (
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    recentLots.map((lot: any) => {
+                      const isLastChance = lot.status === "last_chance";
+                      const isExpired = lot.status === "vencido";
+                      const statusText = isExpired
+                        ? "Vencido"
+                        : isLastChance
+                          ? "Prioridade"
+                          : "Publicado";
+
+                      return (
+                        <tr
+                          key={lot.id}
+                          className="border-b border-soil/5 hover:bg-cream-dark/20 transition-colors"
+                        >
+                          <td className="py-4 px-6 font-sans text-xs font-semibold text-bark">
+                            {lot.lotCode}
+                          </td>
+                          <td className="py-4 px-6 font-sans text-sm font-medium text-soil">
+                            {lot.productName || "Produto sem nome"}
+                          </td>
+                          <td className="py-4 px-6 font-sans text-sm font-semibold text-soil text-right">
+                            {Number(lot.availableQty)}
+                          </td>
+                          <td className="py-4 px-6 font-sans text-xs text-bark">
+                            {formatDate(lot.expiryDate)}
+                          </td>
+                          <td className="py-4 px-6 text-center">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider ${
+                                isExpired
+                                  ? "bg-red-100 text-red-700"
+                                  : isLastChance
+                                    ? "bg-orange-100 text-orange-600 border border-orange-200"
+                                    : "bg-sage border border-forest/15 text-forest"
+                              }`}
+                            >
+                              {statusText}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="py-12 px-6 text-center text-bark text-sm font-sans"
+                      >
+                        Seu catalogo ainda nao tem lote recente.{" "}
+                        <Link
+                          href="/dashboard/inventario"
+                          className="text-forest hover:underline font-semibold"
+                        >
+                          Publique o primeiro lote
+                        </Link>{" "}
+                        para aparecer na oferta da Frescari.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
 }

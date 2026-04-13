@@ -40,7 +40,7 @@ test("marks fully enabled accounts as ready", () => {
 
   assert.equal(status.state, "ready");
   assert.equal(status.canReceivePayments, true);
-  assert.equal(status.actionLabel, "Abrir painel Stripe");
+  assert.equal(status.actionLabel, "Gerenciar recebimento");
   assert.equal(isStripeConnectReady(status.snapshot), true);
 });
 

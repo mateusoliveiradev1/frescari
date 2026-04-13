@@ -36,7 +36,7 @@ const TENANTS_PAGE_SIZE = 6;
 
 const healthOptions = [
   { label: "Todos", value: "ALL" as const },
-  { label: "Needs setup", value: "needs_setup" as const },
+  { label: "Pede preparo", value: "needs_setup" as const },
   { label: "Inativos", value: "inactive" as const },
   { label: "Operando", value: "operating" as const },
 ];
@@ -127,7 +127,7 @@ function QueueCard(props: {
                         ? "produtor"
                         : tenant.tenant.type === "BUYER"
                           ? "comprador"
-                          : "tenant"}
+                          : "conta"}
                     </Badge>
                     <Badge variant="secondary">{tenant.tenant.plan}</Badge>
                   </div>
@@ -186,39 +186,39 @@ export function TenantOperationsClient() {
   const showBuyerQueues = type !== "PRODUCER";
   const summaryCards = [
     {
-      copy: "Tenants que batem com tipo, saude e janela selecionados.",
+      copy: "Contas comerciais que batem com perfil, prontidao e janela selecionados.",
       icon: Building2,
-      label: "Tenants no recorte",
+      label: "Contas no recorte",
       value: overview.summary.totalTenants,
     },
     {
-      copy: "Usuarios vinculados aos tenants que aparecem neste recorte.",
+      copy: "Pessoas com acesso as contas comerciais deste recorte.",
       icon: Users,
       label: "Usuarios no recorte",
       value: overview.summary.totalUsers,
     },
     {
-      copy: "Entradas recentes dentro da janela e do mesmo recorte.",
+      copy: "Novas contas comerciais dentro da janela e do mesmo recorte.",
       icon: Clock3,
       label: "Novos na janela",
       value: overview.summary.newTenantsInWindow,
     },
     {
-      copy: "Produtores com base minima pronta e lote ativo.",
+      copy: "Produtores com base pronta e lote vivo no catalogo.",
       icon: Sprout,
       label: "Produtores operando",
       value: overview.summary.producersOperating,
     },
     {
-      copy: "Produtores ainda sem estrutura para operar.",
+      copy: "Produtores que ainda precisam completar a base para vender.",
       icon: AlertTriangle,
-      label: "Produtores em setup",
+      label: "Produtores em preparo",
       value: overview.summary.producersNeedingSetup,
     },
     {
-      copy: "Compradores sem endereco pronto para rodar pedido.",
+      copy: "Compradores sem endereco pronto para fechar pedido.",
       icon: MapPin,
-      label: "Buyers sem endereco",
+      label: "Compradores sem endereco",
       value: overview.summary.buyersWithoutAddress,
     },
   ];
@@ -228,14 +228,15 @@ export function TenantOperationsClient() {
       <section className="overflow-hidden rounded-[34px] border border-forest/10 bg-[radial-gradient(circle_at_top_left,_rgba(213,229,216,0.9),_rgba(248,245,237,0.96)_45%,_rgba(255,255,255,1)_100%)] p-6 shadow-[0_30px_80px_-56px_rgba(13,51,33,0.58)] sm:p-8">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl space-y-4">
-            <Badge variant="secondary">torre de prontidao dos tenants</Badge>
+            <Badge variant="secondary">prontidao da operacao</Badge>
             <div className="space-y-3">
               <h1 className="font-display text-4xl font-black tracking-[-0.06em] text-soil sm:text-5xl">
-                Onboarding, saude e travas em uma leitura.
+                Quem esta pronto, quem precisa de apoio e onde agir.
               </h1>
               <p className="max-w-2xl font-sans text-sm leading-7 text-bark/76 sm:text-base">
-                Aqui a lente nao e faturamento. E prontidao operacional: quem
-                entrou, quem travou e quem ja esta rodando de verdade.
+                A leitura mostra produtores e compradores por prontidao
+                comercial: quem entrou, quem ainda precisa completar dados e
+                quem ja roda no fluxo real de compra e venda.
               </p>
             </div>
           </div>
@@ -281,7 +282,7 @@ export function TenantOperationsClient() {
 
             <div className="space-y-2">
               <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-bark/58">
-                Saude
+                Prontidao
               </p>
               <div className="flex flex-wrap gap-2">
                 {healthOptions.map((option) => (
@@ -302,15 +303,15 @@ export function TenantOperationsClient() {
         <div className="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {[
             {
-              label: "Produtores sem fazenda",
+              label: "Produtores sem base",
               value: overview.summary.producersWithoutFarm,
             },
             {
-              label: "Produtores sem Stripe",
+              label: "Produtores sem recebimento",
               value: overview.summary.producersWithoutStripe,
             },
             {
-              label: "Buyers comprando",
+              label: "Compradores comprando",
               value: overview.summary.buyersActive,
             },
             {
@@ -366,16 +367,16 @@ export function TenantOperationsClient() {
           <CardHeader className="border-b border-forest/6 bg-cream/45">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-2">
-                <CardTitle className="text-soil">Tenants monitorados</CardTitle>
+                <CardTitle className="text-soil">Contas acompanhadas</CardTitle>
                 <CardDescription>
-                  Resumo, filas e cards seguem o mesmo recorte filtrado.
+                  Resumo, filas e cards usam o mesmo recorte filtrado.
                 </CardDescription>
               </div>
               <p className="font-sans text-xs uppercase tracking-[0.16em] text-bark/58">
                 {tenantOperationsQuery.isFetching &&
                 !tenantOperationsQuery.isFetchingNextPage
                   ? "atualizando leitura"
-                  : `${loadedTenants.length} de ${overview.summary.totalTenants} carregados`}
+                  : `${loadedTenants.length} de ${overview.summary.totalTenants} contas carregadas`}
               </p>
             </div>
           </CardHeader>
@@ -389,7 +390,7 @@ export function TenantOperationsClient() {
                   <div className="flex flex-col gap-3 rounded-[22px] border border-dashed border-forest/14 bg-cream/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
                     <p className="font-sans text-sm leading-6 text-bark/68">
                       {loadedTenants.length} de {overview.summary.totalTenants}{" "}
-                      tenants carregados.
+                      contas carregadas.
                     </p>
                     <Button
                       disabled={tenantOperationsQuery.isFetchingNextPage}
@@ -398,15 +399,15 @@ export function TenantOperationsClient() {
                     >
                       {tenantOperationsQuery.isFetchingNextPage
                         ? "Carregando..."
-                        : "Carregar mais tenants"}
+                        : "Carregar mais contas"}
                     </Button>
                   </div>
                 ) : null}
               </div>
             ) : (
               <div className="rounded-[24px] border border-dashed border-forest/14 bg-cream/40 px-5 py-8 font-sans text-sm leading-6 text-bark/68">
-                Nenhum tenant caiu nesse recorte. Ajuste os filtros para ampliar
-                a leitura.
+                Nenhuma conta comercial apareceu nesse recorte. Ajuste os
+                filtros para ampliar a leitura.
               </div>
             )}
           </CardContent>
@@ -415,28 +416,28 @@ export function TenantOperationsClient() {
         <div className="space-y-4">
           {showProducerQueues ? (
             <QueueCard
-              description="Top 5 produtores que ainda nao criaram a base operacional."
-              emptyState="Nenhum produtor sem fazenda apareceu nesta leitura."
+              description="Produtores que ainda precisam completar a base para vender."
+              emptyState="Nenhum produtor sem base apareceu nesta leitura."
               items={overview.queues.producersWithoutFarm}
-              title="Produtores sem fazenda"
+              title="Produtores sem base"
             />
           ) : null}
 
           {showProducerQueues ? (
             <QueueCard
-              description="Top 5 produtores que ja existem, mas ainda sem conta conectada."
-              emptyState="Nenhum produtor com Stripe pendente apareceu nesta leitura."
+              description="Produtores que ainda precisam liberar o recebimento."
+              emptyState="Nenhum produtor com recebimento pendente apareceu nesta leitura."
               items={overview.queues.producersWithoutStripe}
-              title="Produtores sem Stripe"
+              title="Produtores sem recebimento"
             />
           ) : null}
 
           {showBuyerQueues ? (
             <QueueCard
-              description="Top 5 buyers ainda sem endereco para fechar o ciclo do pedido."
+              description="Compradores que ainda precisam cadastrar endereco para fechar pedido."
               emptyState="Nenhum comprador sem endereco apareceu nesta leitura."
               items={overview.queues.buyersWithoutAddress}
-              title="Buyers sem endereco"
+              title="Compradores sem endereco"
             />
           ) : null}
 
@@ -444,18 +445,18 @@ export function TenantOperationsClient() {
             <CardHeader className="border-b border-forest/6 bg-cream/45">
               <CardTitle className="text-soil">Atalhos operacionais</CardTitle>
               <CardDescription>
-                Saltos rapidos para agir onde a plataforma trava.
+                Saltos rapidos para agir onde a operacao pede atencao.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 pt-6 sm:grid-cols-2 xl:grid-cols-1">
               <Button asChild variant="primary">
-                <Link href="/admin/catalogo">Abrir catalogo mestre</Link>
+                <Link href="/admin/catalogo">Abrir catalogo base</Link>
               </Button>
               <Button asChild variant="ghost">
-                <Link href="/admin">Voltar ao cockpit</Link>
+                <Link href="/admin">Voltar a visao geral</Link>
               </Button>
               <Button asChild variant="ghost">
-                <Link href="/catalogo">Ver marketplace</Link>
+                <Link href="/catalogo">Ver catalogo publico</Link>
               </Button>
             </CardContent>
           </Card>

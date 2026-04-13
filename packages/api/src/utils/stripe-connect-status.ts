@@ -85,49 +85,49 @@ export function deriveStripeConnectStatus(
     >
   > = {
     not_started: {
-      actionLabel: "Comecar onboarding Stripe",
+      actionLabel: "Ativar recebimento",
       badgeLabel: "Nao iniciado",
       description:
-        "Conecte sua conta Stripe para liberar os recebimentos da loja.",
+        "Conclua a verificacao de recebimento para liberar vendas no catalogo.",
       headline: "Recebimentos ainda nao configurados",
       needsAction: true,
     },
     pending_information: {
-      actionLabel: "Continuar onboarding Stripe",
+      actionLabel: "Continuar verificacao",
       badgeLabel: "Pendente",
       description:
         currentlyDue.length > 0
-          ? `A Stripe ainda precisa de ${currentlyDue.length} dado(s) para liberar sua conta.`
-          : "Complete o onboarding da Stripe para continuar.",
-      headline: "Faltam dados obrigatorios na Stripe",
+          ? `Ainda faltam ${currentlyDue.length} dado(s) para liberar o recebimento.`
+          : "Complete a verificacao de recebimento para continuar.",
+      headline: "Faltam dados de recebimento",
       needsAction: true,
     },
     under_review: {
-      actionLabel: "Abrir painel Stripe",
+      actionLabel: "Acompanhar recebimento",
       badgeLabel: "Em analise",
       description:
-        "Os dados ja foram enviados. Agora a Stripe pode estar revisando a conta antes de liberar os recebimentos.",
-      headline: "Conta enviada para analise da Stripe",
+        "Os dados ja foram enviados e podem estar em analise antes da liberacao dos recebimentos.",
+      headline: "Recebimento enviado para analise",
       needsAction: false,
     },
     ready: {
-      actionLabel: "Abrir painel Stripe",
+      actionLabel: "Gerenciar recebimento",
       badgeLabel: "Pronto para receber",
       description:
         eventuallyDue.length > 0
-          ? "Recebimentos ativos. Acompanhe futuras exigencias da Stripe para evitar bloqueios."
+          ? "Recebimentos ativos. Acompanhe futuras exigencias para evitar bloqueios."
           : "Recebimentos ativos e conta pronta para operar.",
-      headline: "Conta Stripe pronta para operar",
+      headline: "Recebimento pronto para operar",
       needsAction: false,
     },
     restricted: {
-      actionLabel: "Resolver pendencias no Stripe",
+      actionLabel: "Resolver recebimento",
       badgeLabel: "Bloqueado",
       description:
         pastDue.length > 0
-          ? `Existem ${pastDue.length} pendencia(s) critica(s) bloqueando sua conta na Stripe.`
-          : "A Stripe sinalizou um bloqueio operacional que precisa ser resolvido.",
-      headline: "Recebimentos bloqueados pela Stripe",
+          ? `Existem ${pastDue.length} pendencia(s) critica(s) bloqueando o recebimento.`
+          : "Existe um bloqueio operacional que precisa ser resolvido.",
+      headline: "Recebimentos bloqueados",
       needsAction: true,
     },
   };

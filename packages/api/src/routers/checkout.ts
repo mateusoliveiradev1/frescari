@@ -228,7 +228,7 @@ function throwCheckoutStripeError(error: unknown): never {
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
       message:
-        "Produtor nao possui conta Stripe conectada valida para receber pagamentos.",
+        "Produtor ainda nao possui recebimento valido para aceitar pedidos.",
       cause: error,
     });
   }
@@ -353,7 +353,7 @@ export const checkoutRouter = createTRPCRouter({
       if (!stripeSecretKey) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Stripe nao esta configurado. Contate o administrador.",
+          message: "Pagamento nao esta configurado. Contate o suporte.",
         });
       }
 
@@ -361,7 +361,7 @@ export const checkoutRouter = createTRPCRouter({
       if (!buyerTenantId) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Comprador sem organizacao vinculada.",
+          message: "Comprador sem conta comercial vinculada.",
         });
       }
 
@@ -515,7 +515,7 @@ export const checkoutRouter = createTRPCRouter({
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
           message:
-            "Produtor nao possui conta Stripe configurada para receber pagamentos.",
+            "Produtor ainda nao possui recebimento configurado para aceitar pedidos.",
         });
       }
 
@@ -726,7 +726,7 @@ export const checkoutRouter = createTRPCRouter({
         if (!session.url) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "Stripe nao retornou a URL de checkout. Tente novamente.",
+            message: "Nao foi possivel abrir o checkout. Tente novamente.",
           });
         }
 

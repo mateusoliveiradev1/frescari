@@ -201,7 +201,7 @@ test("onboarding.setupAccount rejects users who already have a tenant", async ()
         type: "BUYER",
         companyName: "Nao deveria criar",
       }),
-    /ja possui uma organizacao vinculada/i,
+    /ja possui uma conta comercial vinculada/i,
   );
 
   assert.equal(insertAttempts, 0);

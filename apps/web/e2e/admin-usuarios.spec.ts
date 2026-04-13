@@ -34,7 +34,7 @@ async function mockBuyerTenantDetailPagination(page: Page) {
     createdAt: "2026-03-15T12:00:00.000Z",
     geoRegion: null,
     id: "00000000-0000-0000-0000-000000000111",
-    name: "Tenant paginado",
+    name: "Conta comercial paginada",
     plan: "free",
     slug: "tenant-paginado",
     stripeAccountId: null,
@@ -164,7 +164,7 @@ async function mockTenantOverviewPagination(page: Page) {
     buyerOrderCount: 0,
     checklist: [
       { done: true, label: "fazenda" },
-      { done: true, label: "stripe" },
+      { done: true, label: "recebimento" },
       { done: index < 7, label: "catalogo" },
     ],
     farmCount: 1,
@@ -178,7 +178,7 @@ async function mockTenantOverviewPagination(page: Page) {
       createdAt: `2026-03-${String(15 - index).padStart(2, "0")}T12:00:00.000Z`,
       geoRegion: null,
       id: `00000000-0000-0000-0000-00000000010${index}`,
-      name: `Tenant overview ${index}`,
+      name: `Conta comercial ${index}`,
       plan: "free",
       slug: `tenant-overview-${index}`,
       stripeAccountId: `acct_overview_${index}`,
@@ -269,13 +269,13 @@ test("admin usuarios aplica o fix do scroll e envia os filtros corretos", async 
   await buyerRequestPromise;
 
   await expect(
-    page.getByRole("heading", { name: "Produtores sem fazenda" }),
+    page.getByRole("heading", { name: "Produtores sem base" }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Produtores sem Stripe" }),
+    page.getByRole("heading", { name: "Produtores sem recebimento" }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Buyers sem endereco" }),
+    page.getByRole("heading", { name: "Compradores sem endereco" }),
   ).toBeVisible();
 
   const producerRequestPromise = page.waitForRequest(
@@ -287,13 +287,13 @@ test("admin usuarios aplica o fix do scroll e envia os filtros corretos", async 
   await producerRequestPromise;
 
   await expect(
-    page.getByRole("heading", { name: "Produtores sem fazenda" }),
+    page.getByRole("heading", { name: "Produtores sem base" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Produtores sem Stripe" }),
+    page.getByRole("heading", { name: "Produtores sem recebimento" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Buyers sem endereco" }),
+    page.getByRole("heading", { name: "Compradores sem endereco" }),
   ).toHaveCount(0);
 
   expect(
@@ -307,7 +307,9 @@ test("admin usuarios aplica o fix do scroll e envia os filtros corretos", async 
   ).toBe(false);
 });
 
-test("admin usuarios abre o drill-down do tenant", async ({ page }) => {
+test("admin usuarios abre o drill-down da conta comercial", async ({
+  page,
+}) => {
   await mockTenantOverviewPagination(page);
   await mockBuyerTenantDetailPagination(page);
 
@@ -358,26 +360,26 @@ test("admin usuarios carrega mais pessoas no drill-down", async ({ page }) => {
   );
 });
 
-test("admin usuarios carrega mais tenants no overview", async ({ page }) => {
+test("admin usuarios carrega mais contas no overview", async ({ page }) => {
   await mockTenantOverviewPagination(page);
 
   await page.goto("/admin/usuarios");
 
   await expect(
-    page.getByRole("button", { name: "Carregar mais tenants" }),
+    page.getByRole("button", { name: "Carregar mais contas" }),
   ).toBeVisible();
-  await expect(page.getByText("Tenant overview 6")).toBeVisible();
+  await expect(page.getByText("Conta comercial 6")).toBeVisible();
 
   const nextPageRequest = page.waitForRequest(
     (request) =>
       request.url().includes("admin.getTenantOperationsOverview") &&
       requestIncludes(request, '"cursor":"overview-page-2"'),
   );
-  await page.getByRole("button", { name: "Carregar mais tenants" }).click();
+  await page.getByRole("button", { name: "Carregar mais contas" }).click();
   await nextPageRequest;
 
-  await expect(page.getByText("Tenant overview 7")).toBeVisible();
+  await expect(page.getByText("Conta comercial 7")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Carregar mais tenants" }),
+    page.getByRole("button", { name: "Carregar mais contas" }),
   ).toHaveCount(0);
 });

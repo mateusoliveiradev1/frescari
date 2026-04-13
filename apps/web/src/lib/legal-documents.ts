@@ -160,7 +160,7 @@ const legalDocuments = {
       {
         title: "2. Plataforma e escopo",
         paragraphs: [
-          "A Frescari opera como plataforma digital de intermediacao entre produtores, compradores e administradores do marketplace, oferecendo infraestrutura de cadastro, descoberta, negociacao, pagamento e gestao operacional.",
+          "A Frescari opera como ambiente digital de intermediacao entre produtores, compradores e administradores, oferecendo infraestrutura de cadastro, descoberta, negociacao, pagamento e gestao operacional.",
           "A utilizacao da plataforma depende de conta valida, observancia destes Termos de Uso e respeito a todas as politicas complementares publicadas pela Frescari.",
         ],
       },
@@ -179,7 +179,7 @@ const legalDocuments = {
         title: "4. Regras de conduta",
         paragraphs: [
           "E vedado usar a plataforma para fraudar operacoes, manipular precos, burlar controles de acesso, publicar conteudo enganoso ou praticar qualquer conduta contraria a lei, a boa-fe ou as politicas da Frescari.",
-          "Tambem e vedado tentar explorar falhas tecnicas, automatizar acessos nao autorizados, utilizar dados de terceiros sem base legal ou praticar condutas que comprometam a confianca do marketplace.",
+          "Tambem e vedado tentar explorar falhas tecnicas, automatizar acessos nao autorizados, utilizar dados de terceiros sem base legal ou praticar condutas que comprometam a confianca da Frescari.",
         ],
       },
       {
@@ -207,7 +207,7 @@ const legalDocuments = {
         title: "8. Responsabilidade geral",
         paragraphs: [
           "A Frescari envidara esforcos tecnicos e operacionais razoaveis para manter a plataforma disponivel, segura e funcional, sem assumir garantia absoluta de funcionamento ininterrupto ou livre de erros.",
-          "Cada usuario responde pelas informacoes que fornece, pelas obrigacoes legais e tributarias que lhe cabem e pela regularidade da propria atuacao dentro do marketplace.",
+          "Cada usuario responde pelas informacoes que fornece, pelas obrigacoes legais e tributarias que lhe cabem e pela regularidade da propria atuacao dentro da Frescari.",
         ],
       },
       {
@@ -250,7 +250,7 @@ const legalDocuments = {
         title: "2. Dados tratados",
         paragraphs: [
           "A Frescari pode tratar dados cadastrais, dados de contato, dados de autenticacao, dados operacionais de pedidos e dados necessarios para viabilizar pagamentos, repasses, suporte, seguranca e prevencao a fraude.",
-          "Para produtores, a plataforma podera tratar tambem dados de perfil profissional, nome publico da fazenda ou marca, informacoes de onboarding e dados minimos para prefill de integracoes financeiras.",
+          "Para produtores, a Frescari podera tratar tambem dados de perfil profissional, nome publico da fazenda ou marca, informacoes de cadastro inicial e dados minimos para preenchimento financeiro.",
         ],
       },
       {
@@ -261,7 +261,7 @@ const legalDocuments = {
         bullets: [
           "Criacao e manutencao de conta, autenticacao e acesso ao servico: execucao de contrato (Art. 7o, V).",
           "Processamento de pagamentos e repasses ao produtor: execucao de contrato e cumprimento de obrigacao legal (Art. 7o, V e II).",
-          "Prevencao a fraude, seguranca da informacao e integridade do marketplace: legitimo interesse (Art. 7o, IX).",
+          "Prevencao a fraude, seguranca da informacao e integridade da operacao Frescari: legitimo interesse (Art. 7o, IX).",
           "Cumprimento de obrigacoes regulatorias, fiscais e de prevencao a lavagem de dinheiro: obrigacao legal (Art. 7o, II).",
           "Comunicacoes transacionais (confirmacao de pedido, atualizacao de status): execucao de contrato (Art. 7o, V).",
           "Aperfeicoamento do servico e analise de uso anonimizado: legitimo interesse (Art. 7o, IX), com respeito ao direito de oposicao.",
@@ -271,7 +271,7 @@ const legalDocuments = {
         title: "4. Compartilhamento e transferencia internacional",
         paragraphs: [
           "A Frescari podera compartilhar dados com operadores e parceiros estritamente necessarios para a prestacao do servico, incluindo provedores de autenticacao, infraestrutura em nuvem, armazenamento de arquivos e processamento financeiro.",
-          "Para viabilizar pagamentos e repasses, dados necessarios ao onboarding e validacoes regulatorias sao compartilhados com a Stripe, Inc. (Estados Unidos). Esse compartilhamento constitui transferencia internacional de dados pessoais, realizada com base nas garantias adequadas aplicaveis nos termos da LGPD e das regulamentacoes da ANPD.",
+          "Para viabilizar pagamentos e repasses, dados necessarios a verificacao financeira e validacoes regulatorias sao compartilhados com a Stripe, Inc. (Estados Unidos). Esse compartilhamento constitui transferencia internacional de dados pessoais, realizada com base nas garantias adequadas aplicaveis nos termos da LGPD e das regulamentacoes da ANPD.",
         ],
         bullets: [
           "O compartilhamento observa os principios de necessidade, adequacao e minimizacao.",
@@ -318,12 +318,12 @@ const legalDocuments = {
   },
   marketplace: {
     slug: "marketplace",
-    title: "Termos do Marketplace",
+    title: "Termos Comerciais",
     eyebrow: "Regras da operacao comercial",
     description:
-      "Regras especificas para compradores, produtores e operacao comercial dentro do marketplace Frescari.",
+      "Regras especificas para compradores, produtores e operacao comercial dentro da Frescari.",
     summary:
-      "Estes Termos do Marketplace regulam a utilizacao comercial da plataforma, definindo papeis, responsabilidades, limites operacionais e regras de publicacao, negociacao e execucao das operacoes.",
+      "Estes Termos Comerciais regulam a utilizacao comercial da Frescari, definindo papeis, responsabilidades, limites operacionais e regras de publicacao, negociacao e execucao das operacoes.",
     status: "Versao final — V2",
     effectiveDate: "2 de abril de 2026",
     updatedAt: "2 de abril de 2026",
@@ -332,14 +332,14 @@ const legalDocuments = {
       {
         title: "1. Identificacao e escopo",
         paragraphs: [
-          "O marketplace Frescari e operado por [RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF].",
-          "Estes Termos do Marketplace regulam especificamente as relacoes comerciais entre produtores e compradores intermediadas pela plataforma, complementando os Termos de Uso gerais.",
+          "O ambiente comercial Frescari e operado por [RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF].",
+          "Estes Termos Comerciais regulam especificamente as relacoes entre produtores e compradores intermediadas pela Frescari, complementando os Termos de Uso gerais.",
         ],
       },
       {
         title: "2. Papeis das partes",
         paragraphs: [
-          "A Frescari disponibiliza a infraestrutura do marketplace e nao substitui a responsabilidade legal, comercial, tributaria e operacional das partes pelos atos que lhes competem.",
+          "A Frescari disponibiliza a infraestrutura comercial e nao substitui a responsabilidade legal, comercial, tributaria e operacional das partes pelos atos que lhes competem.",
           "O produtor e responsavel pela regularidade do cadastro, pela legitimidade da oferta, pela veracidade das informacoes do item e pela capacidade de cumprir a operacao. O comprador responde pela veracidade das informacoes de compra, pagamento e recebimento.",
         ],
       },
@@ -367,14 +367,14 @@ const legalDocuments = {
       {
         title: "6. Compliance operacional",
         paragraphs: [
-          "A utilizacao comercial do marketplace depende da manutencao de conta regular, onboarding financeiro compativel com a categoria do usuario e respeito aos fluxos de pagamento e repasse definidos pela plataforma.",
+          "A utilizacao comercial da Frescari depende da manutencao de conta regular, verificacao financeira compativel com a categoria do usuario e respeito aos fluxos de pagamento e repasse definidos pela plataforma.",
           "Produtores que nao atenderem aos requisitos de cadastro, verificacao, aceite e recebimentos poderao ter a operacao limitada ate regularizacao.",
         ],
       },
       {
         title: "7. Lei aplicavel e foro",
         paragraphs: [
-          "Estes Termos do Marketplace sao regidos pela legislacao brasileira, incluindo o Codigo de Defesa do Consumidor (Lei no 8.078/1990), o Marco Civil da Internet (Lei no 12.965/2014) e demais normas aplicaveis.",
+          "Estes Termos Comerciais sao regidos pela legislacao brasileira, incluindo o Codigo de Defesa do Consumidor (Lei no 8.078/1990), o Marco Civil da Internet (Lei no 12.965/2014) e demais normas aplicaveis.",
           "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias, sem prejuizo do foro especial previsto em lei para consumidores.",
         ],
       },
@@ -383,7 +383,7 @@ const legalDocuments = {
   "pagamentos-e-repasses": {
     slug: "pagamentos-e-repasses",
     title: "Politica de Pagamentos, Comissoes e Repasses",
-    eyebrow: "Financeiro do marketplace",
+    eyebrow: "Financeiro Frescari",
     description:
       "Como pagamentos, comissoes, repasses, cancelamentos, estornos e chargebacks devem funcionar na Frescari.",
     summary:
@@ -402,21 +402,21 @@ const legalDocuments = {
       {
         title: "2. Intermediacao financeira",
         paragraphs: [
-          "Os pagamentos realizados na Frescari sao processados pela Stripe, Inc., parceiro financeiro habilitado pela plataforma, via Stripe Connect, conforme o fluxo tecnico e regulatorio aplicavel.",
-          "Para produtores, o recebimento depende da criacao e manutencao regular da conta conectada (Stripe Connect), do onboarding financeiro e do atendimento aos requisitos do parceiro de pagamento.",
+          "Os pagamentos realizados na Frescari sao processados por parceiro financeiro habilitado pela plataforma, conforme o fluxo tecnico e regulatorio aplicavel.",
+          "Para produtores, o recebimento depende da criacao e manutencao regular da conta de recebimento, da verificacao financeira e do atendimento aos requisitos do parceiro de pagamento.",
         ],
       },
       {
         title: "3. Comissao da plataforma",
         paragraphs: [
           "A Frescari cobra uma comissao de 10% (dez por cento) sobre o valor bruto de cada transacao intermediada pela plataforma. Esse percentual incide sobre o total pago pelo comprador, incluindo o valor dos itens, antes do desconto do frete.",
-          "A comissao e deduzida automaticamente no momento do repasse ao produtor. Taxas adicionais da Stripe (processamento de cartao, chargeback) podem ser descontadas conforme os termos da Stripe e serao comunicadas ao produtor no dashboard ou por comunicado especifico.",
+          "A comissao e deduzida automaticamente no momento do repasse ao produtor. Taxas adicionais do parceiro financeiro, instituicao financeira, adquirente, bandeira, banco ou meio de pagamento podem ser descontadas conforme os termos aplicaveis e serao comunicadas ao produtor na area do produtor ou por comunicado especifico.",
         ],
       },
       {
         title: "4. Repasse ao produtor",
         paragraphs: [
-          "O repasse ao produtor ocorre em ate 7 (sete) dias uteis contados da confirmacao da entrega do pedido, sujeito ao calendario operacional da Stripe e a ausencia de bloqueios previstos nesta politica.",
+          "O repasse ao produtor ocorre em ate 7 (sete) dias uteis contados da confirmacao da entrega do pedido, sujeito ao calendario do parceiro financeiro e a ausencia de bloqueios previstos nesta politica.",
           "A Frescari podera reter temporariamente valores quando houver necessidade de conciliacao, investigacao de fraude, contestacao de pagamento, determinacao regulatoria ou descumprimento material das politicas da plataforma.",
         ],
       },
@@ -424,14 +424,14 @@ const legalDocuments = {
         title: "5. Cancelamentos, estornos e chargebacks",
         paragraphs: [
           "Operacoes canceladas, estornadas ou objeto de chargeback poderao afetar a disponibilidade de repasse e gerar compensacoes, ajustes ou debitamentos conforme o caso concreto e a responsabilidade identificada.",
-          "A plataforma podera priorizar a preservacao da integridade financeira do marketplace, inclusive com bloqueio temporario de saque, ajuste de saldo ou exigencia de informacoes adicionais.",
+          "A plataforma podera priorizar a preservacao da integridade financeira da Frescari, inclusive com bloqueio temporario de saque, ajuste de saldo ou exigencia de informacoes adicionais.",
         ],
       },
       {
         title: "6. Limitacoes de operacao financeira",
         paragraphs: [
           "A Frescari nao garante liberacao imediata de valores nem continuidade irrestrita de recebimentos quando o produtor estiver em estado de pendencia cadastral, verificacao, risco elevado, inconsistencias documentais ou restricoes impostas pelo parceiro financeiro.",
-          "A conta so deve ser tratada como apta para receber quando o estado operacional indicar habilitacao efetiva de cobranca e repasse (charges_enabled e payouts_enabled ativos no Stripe Connect).",
+          "A conta so deve ser tratada como apta para receber quando o parceiro financeiro confirmar a habilitacao efetiva de cobranca e repasse.",
         ],
       },
       {
@@ -450,7 +450,7 @@ const legalDocuments = {
     description:
       "Regras de tratamento para cancelamentos, estornos, contestacoes e chargebacks dentro da operacao Frescari.",
     summary:
-      "Esta politica organiza os criterios minimos para cancelamento de operacoes, estorno de valores, tratamento de chargebacks e medidas preventivas de integridade financeira no marketplace.",
+      "Esta politica organiza os criterios minimos para cancelamento de operacoes, estorno de valores, tratamento de chargebacks e medidas preventivas de integridade financeira na Frescari.",
     status: "Versao final — V2",
     effectiveDate: "2 de abril de 2026",
     updatedAt: "2 de abril de 2026",
@@ -460,7 +460,7 @@ const legalDocuments = {
         title: "1. Identificacao e escopo",
         paragraphs: [
           "Esta Politica e publicada por [RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDERECO COMPLETO, CIDADE/UF].",
-          "Este documento complementa os Termos do Marketplace e a Politica de Pagamentos, Comissoes e Repasses, detalhando como a Frescari trata eventos de cancelamento, estorno, contestacao e chargeback.",
+          "Este documento complementa os Termos Comerciais e a Politica de Pagamentos, Comissoes e Repasses, detalhando como a Frescari trata eventos de cancelamento, estorno, contestacao e chargeback.",
         ],
       },
       {
@@ -499,7 +499,7 @@ const legalDocuments = {
         title: "6. Medidas de integridade financeira",
         paragraphs: [
           "Sempre que houver risco razoavel de perda, fraude, reincidencia ou inconsistencias materiais, a plataforma podera reter valores, interromper novos recebimentos, exigir regularizacao documental ou limitar saques e repasses ate a conclusao da analise.",
-          "Essas medidas poderao ser adotadas mesmo antes da definicao final da disputa quando forem necessarias para proteger compradores, produtores, a propria operacao da Frescari e o equilibrio financeiro do marketplace.",
+          "Essas medidas poderao ser adotadas mesmo antes da definicao final da disputa quando forem necessarias para proteger compradores, produtores, a propria operacao da Frescari e o equilibrio financeiro da plataforma.",
         ],
       },
       {
@@ -525,7 +525,7 @@ const legalDocuments = {
     description:
       "Como a Frescari utiliza cookies estritamente necessarios para autenticacao, continuidade da sessao e protecao basica da operacao.",
     summary:
-      "Na versao atual da Frescari, o uso de cookies esta concentrado em autenticacao, continuidade de sessao e seguranca operacional. Nao ha, nesta etapa, ativacao de cookies de publicidade ou analytics nao essenciais no app web.",
+      "Na versao atual da Frescari, o uso de cookies esta concentrado em autenticacao, continuidade de sessao e seguranca operacional. Nao ha, nesta etapa, ativacao de cookies de publicidade ou medicao nao essencial.",
     status: "Versao final — V2",
     effectiveDate: "2 de abril de 2026",
     updatedAt: "2 de abril de 2026",
@@ -548,7 +548,7 @@ const legalDocuments = {
         title: "3. Cookies atualmente utilizados",
         paragraphs: [
           "A aplicacao web utiliza exclusivamente cookies estritamente necessarios para autenticar o usuario, manter a sessao ativa, encerrar o acesso com seguranca e apoiar controles basicos contra abuso do fluxo autenticado.",
-          "Esses cookies nao sao usados, nesta versao do produto, para publicidade comportamental, remarketing ou analytics nao essenciais no front-end publico da aplicacao.",
+          "Esses cookies nao sao usados, nesta versao do produto, para publicidade comportamental, remarketing ou medicao nao essencial na experiencia publica.",
         ],
         bullets: [
           "Cookies de sessao e autenticacao para manter o usuario conectado (HttpOnly, Secure, SameSite=Lax).",
@@ -566,7 +566,7 @@ const legalDocuments = {
       {
         title: "5. Preferencias futuras e atualizacoes",
         paragraphs: [
-          "Caso a Frescari venha a introduzir cookies nao estritamente necessarios — como mensuracao, analytics, personalizacao opcional ou publicidade — esta politica sera atualizada com transparencia e, quando exigido, sera solicitado consentimento especifico antes da ativacao desses recursos.",
+          "Caso a Frescari venha a introduzir cookies nao estritamente necessarios, como mensuracao, personalizacao opcional ou publicidade, esta politica sera atualizada com transparencia e, quando exigido, sera solicitado consentimento especifico antes da ativacao desses recursos.",
           "Mudancas materiais nesta politica serao destacadas no produto ou em canais oficiais.",
         ],
       },
@@ -612,7 +612,7 @@ const resolvedLegalDocuments = Object.fromEntries(
 export const legalDocumentLinks = [
   { href: "/termos", label: "Termos de Uso", slug: "termos" },
   { href: "/privacidade", label: "Aviso de Privacidade", slug: "privacidade" },
-  { href: "/marketplace", label: "Termos do Marketplace", slug: "marketplace" },
+  { href: "/marketplace", label: "Termos Comerciais", slug: "marketplace" },
   {
     href: "/pagamentos-e-repasses",
     label: "Pagamentos, Comissoes e Repasses",
