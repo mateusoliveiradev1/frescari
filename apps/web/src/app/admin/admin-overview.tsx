@@ -38,7 +38,7 @@ const periodOptions = [
 
 const trendOptions = [
   { label: "Pedidos", value: "orders" as const },
-  { label: "GMV", value: "gmv" as const },
+  { label: "Vendas", value: "gmv" as const },
   { label: "Produtores", value: "producers" as const },
 ];
 
@@ -124,9 +124,9 @@ export function AdminOverview({
       value: formatCompactNumber(dashboard.kpis.ordersInWindow),
     },
     {
-      copy: "Volume financeiro operacional para leitura rapida do momento.",
+      copy: "Valor bruto vendido na janela para leitura rapida do momento.",
       icon: BarChart3,
-      label: "GMV na janela",
+      label: "Venda bruta na janela",
       value: formatCurrency(dashboard.kpis.gmvInWindow),
     },
     {
@@ -160,14 +160,14 @@ export function AdminOverview({
       <section className="overflow-hidden rounded-[34px] border border-forest/10 bg-[radial-gradient(circle_at_top_left,_rgba(213,229,216,0.9),_rgba(248,245,237,0.96)_45%,_rgba(255,255,255,1)_100%)] p-6 shadow-[0_30px_80px_-56px_rgba(13,51,33,0.58)] sm:p-8">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl space-y-4">
-            <Badge variant="secondary">cockpit operacional da plataforma</Badge>
+            <Badge variant="secondary">visao geral da operacao</Badge>
             <div className="space-y-3">
               <h1 className="font-display text-4xl font-black tracking-[-0.06em] text-soil sm:text-5xl">
-                Operacao admin em uma tela.
+                A operacao da Frescari em uma tela.
               </h1>
               <p className="max-w-2xl font-sans text-sm leading-7 text-bark/76 sm:text-base">
-                O foco aqui nao e analytics de vaidade. E fila, saude de
-                catalogo e ritmo operacional para decidir onde atuar primeiro.
+                Pedidos, catalogo, produtores e compradores aparecem juntos para
+                decidir onde agir primeiro.
               </p>
             </div>
           </div>
@@ -209,7 +209,7 @@ export function AdminOverview({
               value: dashboard.totals.categories,
             },
             {
-              label: "Produtos mestres",
+              label: "Produtos base",
               value: dashboard.totals.masterProducts,
             },
           ].map((item) => (
@@ -260,8 +260,8 @@ export function AdminOverview({
               <div className="space-y-2">
                 <CardTitle className="text-soil">Ritmo operacional</CardTitle>
                 <CardDescription>
-                  Tendencia da janela selecionada para pedidos, GMV e entrada de
-                  produtores.
+                  Tendencia da janela selecionada para pedidos, venda bruta e
+                  entrada de produtores.
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -298,12 +298,12 @@ export function AdminOverview({
                 value: dashboard.attention.operationalOrders,
               },
               {
-                copy: "Produtores sem fazenda vinculada e ainda fora do fluxo.",
-                label: "Onboarding",
+                copy: "Produtores sem base vinculada e ainda fora do fluxo.",
+                label: "Cadastro do produtor",
                 value: dashboard.attention.producerOnboarding,
               },
               {
-                copy: `${dashboard.catalogBreakdown.productsWithoutMaster} produtos sem mestre, ${dashboard.catalogBreakdown.masterProductsWithoutImage} mestres sem imagem e ${dashboard.catalogBreakdown.expiredLotsWithStock} lotes vencidos com saldo.`,
+                copy: `${dashboard.catalogBreakdown.productsWithoutMaster} produtos sem cadastro base, ${dashboard.catalogBreakdown.masterProductsWithoutImage} produtos base sem imagem e ${dashboard.catalogBreakdown.expiredLotsWithStock} lotes vencidos com saldo.`,
                 label: "Catalogo",
                 value: dashboard.attention.catalogAlerts,
               },
@@ -330,10 +330,10 @@ export function AdminOverview({
 
             <div className="grid gap-3 pt-2 sm:grid-cols-2">
               <Button asChild variant="primary">
-                <Link href="/admin/catalogo">Abrir catalogo mestre</Link>
+                <Link href="/admin/catalogo">Abrir catalogo base</Link>
               </Button>
               <Button asChild variant="ghost">
-                <Link href="/catalogo">Ver marketplace</Link>
+                <Link href="/catalogo">Ver catalogo publico</Link>
               </Button>
             </div>
           </CardContent>
@@ -345,7 +345,7 @@ export function AdminOverview({
           <CardHeader className="border-b border-forest/6 bg-cream/45">
             <CardTitle className="text-soil">Pedidos que pedem toque</CardTitle>
             <CardDescription>
-              Fila operacional para destravar a plataforma.
+              Fila operacional para destravar a compra e a entrega.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-6">
@@ -383,11 +383,9 @@ export function AdminOverview({
 
         <Card className={metricCardClassName}>
           <CardHeader className="border-b border-forest/6 bg-cream/45">
-            <CardTitle className="text-soil">
-              Produtores fora do fluxo
-            </CardTitle>
+            <CardTitle className="text-soil">Produtores em preparo</CardTitle>
             <CardDescription>
-              Tenants que ainda nao chegaram na base operacional minima.
+              Produtores que ainda precisam completar a base minima para vender.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-6">
@@ -407,7 +405,7 @@ export function AdminOverview({
               ))
             ) : (
               <div className="rounded-[22px] border border-dashed border-forest/14 bg-cream/40 px-4 py-6 font-sans text-sm leading-6 text-bark/68">
-                Nenhum produtor esta travado na etapa de onboarding.
+                Nenhum produtor precisa de apoio de cadastro agora.
               </div>
             )}
           </CardContent>
@@ -415,9 +413,9 @@ export function AdminOverview({
 
         <Card className={metricCardClassName}>
           <CardHeader className="border-b border-forest/6 bg-cream/45">
-            <CardTitle className="text-soil">Gaps de catalogo</CardTitle>
+            <CardTitle className="text-soil">Pontos de catalogo</CardTitle>
             <CardDescription>
-              Itens com ruina operacional antes de virar problema publico.
+              Itens que merecem ajuste antes de aparecerem mal para o comprador.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-6">

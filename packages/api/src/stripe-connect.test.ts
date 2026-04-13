@@ -74,7 +74,7 @@ test("filterStripeConnectBackfillCandidates keeps only producer accounts missing
       }),
       createCandidate({
         id: "producer-no-account",
-        name: "Produtor sem Stripe",
+        name: "Produtor sem recebimento",
       }),
     ],
     {
@@ -117,7 +117,7 @@ test("runStripeConnectStatusBackfill reports synced and failed tenants without a
         status: {
           state: "ready",
           canReceivePayments: true,
-          description: "Conta Stripe pronta para operar",
+          description: "Recebimento pronto para operar",
           syncedAt,
         },
       } as SyncTenantStatusResult;
@@ -173,7 +173,7 @@ test("syncStripeConnectStatusBatch reads candidates from the database and syncs 
         status: {
           state: "ready",
           canReceivePayments: true,
-          description: "Conta Stripe pronta para operar",
+          description: "Recebimento pronto para operar",
           syncedAt: new Date("2026-03-22T14:00:00.000Z"),
         },
       } as SyncTenantStatusResult;

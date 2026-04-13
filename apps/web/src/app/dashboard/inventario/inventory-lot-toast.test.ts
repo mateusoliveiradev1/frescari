@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { getCreateLotSuccessDescription } from "./inventory-lot-toast";
 
-test("mantem a promessa de catalogo apenas quando a conta Stripe pode receber pagamentos", () => {
+test("mantem a promessa de catalogo apenas quando o recebimento esta pronto", () => {
   assert.equal(
     getCreateLotSuccessDescription({
       canReceivePayments: true,
@@ -13,22 +13,22 @@ test("mantem a promessa de catalogo apenas quando a conta Stripe pode receber pa
   );
 });
 
-test("explica que o lote aguarda analise quando a conta Stripe ainda nao foi liberada", () => {
+test("explica que o lote aguarda analise quando o recebimento ainda nao foi liberado", () => {
   assert.equal(
     getCreateLotSuccessDescription({
       canReceivePayments: false,
       state: "under_review",
     }),
-    "O lote foi salvo, mas so aparecera no catalogo quando a Stripe concluir a analise da sua conta.",
+    "O lote foi salvo, mas so aparecera no catalogo quando a analise do recebimento for concluida.",
   );
 });
 
-test("usa uma mensagem segura quando a conta Stripe ainda nao foi conectada", () => {
+test("usa uma mensagem segura quando o recebimento ainda nao foi ativado", () => {
   assert.equal(
     getCreateLotSuccessDescription({
       canReceivePayments: false,
       state: "not_started",
     }),
-    "O lote foi salvo, mas so aparecera no catalogo quando sua conta Stripe estiver conectada e habilitada para receber pagamentos.",
+    "O lote foi salvo, mas so aparecera no catalogo quando sua conta estiver pronta para receber pagamentos.",
   );
 });

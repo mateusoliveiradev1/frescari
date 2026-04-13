@@ -53,7 +53,7 @@ function getIntentCopy(intent?: EmailVerificationIntent) {
       eyebrow: "Cadastro em espera",
       heading: "Verifique seu email para liberar o primeiro acesso",
       supporting:
-        "Se o email informado puder receber acesso, voce vai encontrar um link de confirmacao na caixa de entrada. Depois disso, seguimos para o onboarding.",
+        "Se o email informado puder receber acesso, voce vai encontrar um link de confirmacao na caixa de entrada. Depois disso, seguimos para concluir seu cadastro.",
       secondaryLabel: "Voltar ao cadastro",
       secondaryHref: "/auth/register",
     };

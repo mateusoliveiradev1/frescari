@@ -709,7 +709,7 @@ test("checkout.createFarmCheckoutSession surfaces invalid producer Stripe destin
           },
         ],
       }),
-    /conta stripe conectada valida/i,
+    /recebimento valido/i,
   );
 
   assert.equal(stripeState.createdSessionPayload, null);
@@ -955,7 +955,7 @@ test("stripe.createStripeConnect surfaces pending Stripe platform profile setup 
 
   await assert.rejects(
     () => (caller as StripeCaller).stripe.createStripeConnect({}),
-    /perfil da plataforma|responsabilidades por perdas/i,
+    /configuracao de recebimento da plataforma|perfil financeiro da plataforma/i,
   );
 
   assert.equal(stripeState.createdAccountPayload, null);

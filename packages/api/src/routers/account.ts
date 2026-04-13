@@ -67,7 +67,7 @@ export const accountRouter = createTRPCRouter({
       ) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "User must belong to a tenant.",
+          message: "Usuario precisa estar vinculado a uma conta comercial.",
         });
       }
 
@@ -86,7 +86,7 @@ export const accountRouter = createTRPCRouter({
       if (!existingTenant) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Organizacao do usuario nao encontrada.",
+          message: "Conta comercial do usuario nao encontrada.",
         });
       }
 

@@ -15,7 +15,7 @@ export const onboardingRouter = createTRPCRouter({
       if (user.tenantId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Usuario ja possui uma organizacao vinculada.",
+          message: "Usuario ja possui uma conta comercial vinculada.",
         });
       }
 
@@ -64,7 +64,7 @@ export const onboardingRouter = createTRPCRouter({
           if (!newTenant) {
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
-              message: "Falha ao criar a organizacao inicial.",
+              message: "Falha ao criar a conta comercial inicial.",
             });
           }
 

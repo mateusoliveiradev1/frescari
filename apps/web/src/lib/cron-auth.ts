@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-const CRON_UNAUTHORIZED_MESSAGE = "Unauthorized cron invocation.";
-const CRON_SECRET_MISSING_MESSAGE = "CRON_SECRET is not configured.";
+const CRON_UNAUTHORIZED_MESSAGE = "Chamada cron nao autorizada.";
+const CRON_SECRET_MISSING_MESSAGE = "CRON_SECRET nao esta configurado.";
 
 const noStoreHeaders = {
   "Cache-Control": "no-store",

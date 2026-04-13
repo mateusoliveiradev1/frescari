@@ -32,15 +32,19 @@ type UploadActor = {
 
 export function assertProducerUploadActor(user: UploadUser): UploadActor {
   if (!user?.id) {
-    throw new UploadThingError("Unauthorized");
+    throw new UploadThingError("Acesso nao autenticado.");
   }
 
   if (user.role !== "producer") {
-    throw new UploadThingError("Forbidden");
+    throw new UploadThingError(
+      "Apenas produtores podem enviar imagens de lote.",
+    );
   }
 
   if (!user.tenantId) {
-    throw new UploadThingError("User must belong to a tenant");
+    throw new UploadThingError(
+      "Usuario precisa estar vinculado a uma conta comercial.",
+    );
   }
 
   return {

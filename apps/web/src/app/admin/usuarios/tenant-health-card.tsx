@@ -39,7 +39,7 @@ export function TenantHealthCard({ tenant }: TenantHealthCardProps) {
       ? "produtor"
       : tenant.tenant.type === "BUYER"
         ? "comprador"
-        : "tenant";
+        : "conta";
 
   return (
     <div className="rounded-[28px] border border-forest/10 bg-white px-5 py-5 shadow-[0_22px_48px_-40px_rgba(13,51,33,0.5)]">
@@ -130,8 +130,8 @@ export function TenantHealthCard({ tenant }: TenantHealthCardProps) {
           <p className="mt-2 font-sans text-xs leading-5 text-bark/64">
             {isProducer
               ? tenant.stripeConnected
-                ? "Stripe conectado"
-                : "Stripe pendente"
+                ? "Recebimento pronto"
+                : "Recebimento pendente"
               : tenant.buyerOrderCount > 0
                 ? "Comprando na janela"
                 : "Sem atividade recente"}

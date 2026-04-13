@@ -153,8 +153,8 @@ function PeopleList({ users }: { users: TenantUsersPage["items"] }) {
   if (users.length === 0) {
     return (
       <EmptyState
-        body="Nenhum usuario apareceu vinculado a este tenant."
-        title="Sem usuarios"
+        body="Nenhuma pessoa apareceu vinculada a esta conta comercial."
+        title="Sem pessoas"
       />
     );
   }
@@ -190,7 +190,7 @@ function AddressesList({
   if (addresses.length === 0) {
     return (
       <EmptyState
-        body="Este tenant ainda nao cadastrou enderecos operacionais."
+        body="Esta conta comercial ainda nao cadastrou enderecos de entrega."
         title="Sem enderecos"
       />
     );
@@ -253,7 +253,7 @@ function ProductsList({ products }: { products: TenantProductsPage["items"] }) {
   if (products.length === 0) {
     return (
       <EmptyState
-        body="Ainda nao existe catalogo publicado para este tenant."
+        body="Ainda nao existe catalogo publicado para esta conta comercial."
         title="Sem catalogo"
       />
     );
@@ -290,7 +290,7 @@ function LotsList({ lots }: { lots: TenantLotsPage["items"] }) {
   if (lots.length === 0) {
     return (
       <EmptyState
-        body="Nenhum lote apareceu vinculado a este tenant."
+        body="Nenhum lote apareceu vinculado a esta conta comercial."
         title="Sem lotes"
       />
     );
@@ -509,14 +509,14 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
       return (
         <Card className="border-forest/8 bg-white/95 shadow-[0_24px_52px_-40px_rgba(13,51,33,0.48)]">
           <CardHeader>
-            <CardTitle className="text-soil">Tenant nao encontrado</CardTitle>
+            <CardTitle className="text-soil">Conta nao encontrada</CardTitle>
             <CardDescription>
-              O identificador informado nao retornou nenhum tenant no admin.
+              Nao encontramos uma conta comercial com esse identificador.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="primary">
-              <Link href="/admin/usuarios">Voltar para usuarios</Link>
+              <Link href="/admin/usuarios">Voltar para contas</Link>
             </Button>
           </CardContent>
         </Card>
@@ -530,7 +530,7 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
       ? "produtor"
       : detail.tenant.type === "BUYER"
         ? "comprador"
-        : "tenant";
+        : "conta";
 
   const summaryCards = isProducer
     ? [
@@ -598,12 +598,12 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
                 {detail.tenant.name}
               </h1>
               <p className="max-w-2xl font-sans text-sm leading-7 text-bark/76 sm:text-base">
-                Leitura operacional do tenant em profundidade: pessoas, base,
-                catalogo e sinais comerciais com dados reais.
+                Leitura de uma conta comercial em profundidade: pessoas, base,
+                catalogo, pedidos e sinais de prontidao.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.16em] text-bark/58">
-              <span>slug {detail.tenant.slug}</span>
+              <span>identificador {detail.tenant.slug}</span>
               <span>desde {formatDateTime(detail.tenant.createdAt)}</span>
               <span>prontidao {detail.health.progressPercent}%</span>
             </div>
@@ -632,10 +632,10 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
 
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="primary">
-                <Link href="/admin/usuarios">Voltar para usuarios</Link>
+                <Link href="/admin/usuarios">Voltar para contas</Link>
               </Button>
               <Button asChild variant="ghost">
-                <Link href="/admin">Cockpit admin</Link>
+                <Link href="/admin">Painel admin</Link>
               </Button>
             </div>
           </div>
@@ -669,7 +669,7 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
 
       <section className="grid gap-6 xl:grid-cols-2">
         <InfoCard
-          description="Usuarios com acesso e papel operacional dentro deste tenant."
+          description="Pessoas com acesso e papel operacional nesta conta comercial."
           title="Pessoas"
         >
           {usersQuery.data ? (
@@ -769,18 +769,18 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
         <InfoCard
           description={
             isProducer
-              ? "Pedidos em que este tenant aparece como vendedor."
-              : "Pedidos recentes em que este tenant comprou."
+              ? "Pedidos em que este produtor aparece como origem da oferta."
+              : "Pedidos recentes feitos por esta conta compradora."
           }
-          title={isProducer ? "Pedidos como seller" : "Pedidos como buyer"}
+          title={isProducer ? "Pedidos de venda" : "Pedidos de compra"}
         >
           {(isProducer ? sellerOrdersQuery.data : buyerOrdersQuery.data) ? (
             <>
               <OrdersList
                 emptyBody={
                   isProducer
-                    ? "Nenhum pedido de venda apareceu para este tenant."
-                    : "Nenhum pedido recente apareceu para este tenant."
+                    ? "Nenhum pedido de venda apareceu para esta conta comercial."
+                    : "Nenhum pedido recente apareceu para esta conta comercial."
                 }
                 orders={isProducer ? sellerOrderItems : buyerOrderItems}
               />
@@ -830,12 +830,12 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
             ))}
             <div className="rounded-[22px] border border-forest/10 bg-white px-4 py-4">
               <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-                Stripe
+                Recebimento
               </p>
               <p className="mt-2 font-sans text-sm leading-6 text-bark/72">
                 {detail.summary.stripeConnected
-                  ? "Conta conectada"
-                  : "Conta pendente"}
+                  ? "Recebimento pronto"
+                  : "Recebimento pendente"}
               </p>
             </div>
             <div className="rounded-[22px] border border-forest/10 bg-white px-4 py-4">

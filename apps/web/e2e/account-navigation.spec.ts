@@ -99,7 +99,7 @@ test.describe.serial("navegacao da area Minha Conta", () => {
 
     await expect(page).toHaveURL(/\/conta\/cadastro$/i);
     await expect(
-      page.getByRole("heading", { name: "Cadastro principal do tenant" }),
+      page.getByRole("heading", { name: "Dados do seu negocio." }),
     ).toBeVisible();
 
     await getAccountNavigation(page)

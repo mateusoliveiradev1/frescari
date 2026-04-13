@@ -13,9 +13,8 @@ const stripeStatusStyles: Record<string, string> = {
 };
 
 /**
- * Stripe Connect Button
- * Allows a Producer tenant to start the Stripe Express onboarding flow.
- * Adheres to "React UI Patterns" with proper loading/error states.
+ * Payment readiness button for producers.
+ * The provider stays an implementation detail; visible copy speaks Frescari.
  */
 export function StripeConnectButton() {
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -32,10 +31,10 @@ export function StripeConnectButton() {
       onError: (error: any) => {
         console.error("[STRIPE_CONNECT_ERROR]:", error);
         setIsRedirecting(false);
-        toast.error("Erro ao conectar", {
+        toast.error("Erro ao ativar recebimento", {
           description:
             error.message ||
-            "Não foi possível iniciar a conexão com o Stripe. Tente novamente.",
+            "Nao foi possivel iniciar a verificacao de recebimento. Tente novamente.",
         });
       },
     });
@@ -49,7 +48,7 @@ export function StripeConnectButton() {
         : connectStatus?.state === "restricted"
           ? "blocked"
           : "pending";
-  const buttonLabel = connectStatus?.actionLabel ?? "Conectar com Stripe";
+  const buttonLabel = connectStatus?.actionLabel ?? "Ativar recebimento";
 
   return (
     <div className="flex flex-col items-end gap-2 max-w-sm">
@@ -67,7 +66,7 @@ export function StripeConnectButton() {
         </div>
       ) : null}
       <Button
-        className="bg-[#635BFF] text-white hover:bg-[#635BFF]/90 focus-visible:ring-[#635BFF] normal-case tracking-normal"
+        className="bg-forest text-cream hover:bg-forest/90 focus-visible:ring-forest normal-case tracking-normal"
         isLoading={isLoading}
         onClick={() => connectStripe({})}
         type="button"

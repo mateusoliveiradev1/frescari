@@ -253,7 +253,7 @@ test("shows an error state with retry when the profile cannot be loaded", async 
   assert.equal(retries, 1);
 });
 
-test("prefills the current name, keeps email read-only, and saves only after a real change", async (context) => {
+test("loads the current name, keeps email read-only, and saves only after a real change", async (context) => {
   const dom = setupDom();
   const { window } = dom;
   const container = window.document.createElement("div");
