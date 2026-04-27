@@ -53,9 +53,9 @@
     "@types/react-dom": "^19",
     "drizzle-kit": "0.31.10",
     "eslint": "^9",
-    "eslint-config-next": "16.2.2",
-    "jsdom": "^29.0.1",
-    "postcss": "^8.4.49",
+    "eslint-config-next": "16.2.4",
+    "jsdom": "^29.1.0",
+    "postcss": "^8.5.12",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"
