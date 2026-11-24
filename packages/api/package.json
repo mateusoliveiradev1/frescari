@@ -17,13 +17,13 @@
     "dependencies": {
         "@frescari/db": "workspace:*",
         "@frescari/validators": "workspace:*",
-        "@trpc/server": "^11.17.0",
-        "bullmq": "^5.73.1",
-        "drizzle-orm": "0.45.2",
-        "ioredis": "^5.10.1",
+        "@trpc/server": "^11.29.7",
+        "bullmq": "^5.81.6",
+        "drizzle-orm": "0.45.4",
+        "ioredis": "^5.11.1",
         "next": "16.4.6",
         "stripe": "17.7.0",
-        "superjson": "^2.2.6",
+        "superjson": "^2.2.7",
         "zod": "^3.23.8"
     },
     "devDependencies": {
