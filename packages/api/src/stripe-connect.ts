@@ -3,7 +3,6 @@ import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 
 import { tenants, type AppDb } from "@frescari/db";
 
-import { safeRevalidatePath } from "./cache";
 import { sanitizeEnvValue } from "./env";
 import {
   deriveStripeConnectStatus,
@@ -312,30 +311,9 @@ export async function syncTenantStripeConnectStatus(
 
   const update = buildStripeTenantStatusUpdate(account);
 
-  const [previous] = await db
-    .select({
-      chargesEnabled: tenants.stripeChargesEnabled,
-      payoutsEnabled: tenants.stripePayoutsEnabled,
-    })
-    .from(tenants)
-    .where(eq(tenants.id, args.tenantId))
-    .limit(1);
-
   await db.update(tenants).set(update).where(eq(tenants.id, args.tenantId));
 
   const snapshot = buildStripeConnectSnapshot(args.accountId, update);
-
-  // The catalog is statically cached; when a producer's ability to receive
-  // payments flips, their lots appear or disappear, so refresh it right away.
-  const wasReady = Boolean(
-    previous?.chargesEnabled && previous?.payoutsEnabled,
-  );
-  const isReady = Boolean(
-    snapshot.stripeChargesEnabled && snapshot.stripePayoutsEnabled,
-  );
-  if (wasReady !== isReady) {
-    safeRevalidatePath("/catalogo", "layout");
-  }
 
   return {
     account,
