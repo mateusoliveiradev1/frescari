@@ -39,7 +39,7 @@ next-env.d.ts
 
 # agents and skills
 .agent/
-# .agents/
+.agents/
 .gemini/
 # skills/
 .claude/
