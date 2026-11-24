@@ -8,9 +8,10 @@ import {
   productLots,
   products,
   masterProducts,
+  users,
   type AppDb,
 } from "@frescari/db";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   buildDeliveryAddressLine,
   parseDeliveryPointMetadata,
@@ -27,6 +28,7 @@ import {
   type OrderStatus,
 } from "./resolve-order-status";
 import { sanitizeEnvValue } from "@/lib/env";
+import { sendProducerNewOrderEmails } from "@/lib/order-email";
 
 // ── Stripe SDK ───────────────────────────────────────────────────────
 const webhookSecret = sanitizeEnvValue(process.env.STRIPE_WEBHOOK_SECRET);
@@ -75,6 +77,46 @@ interface MetadataAddressSnapshot {
   formattedAddress?: string;
   latitude?: number | null;
   longitude?: number | null;
+}
+
+async function emailProducersAboutNewOrders(
+  createdOrders: Array<{
+    orderId: string;
+    sellerTenantId: string;
+    totalAmount: number;
+    awaitingWeight: boolean;
+  }>,
+) {
+  for (const order of createdOrders) {
+    try {
+      const recipients = await withWebhookBypass(async (database) =>
+        database
+          .select({ email: users.email, name: users.name })
+          .from(users)
+          .where(
+            and(
+              eq(users.tenantId, order.sellerTenantId),
+              eq(users.role, "producer"),
+            ),
+          ),
+      );
+
+      const sent = await sendProducerNewOrderEmails(recipients, {
+        orderId: order.orderId,
+        totalAmount: order.totalAmount,
+        awaitingWeight: order.awaitingWeight,
+      });
+      console.log(
+        `[WEBHOOK] Email de novo pedido ${order.orderId}: ${sent}/${recipients.length} enviados`,
+      );
+    } catch (error) {
+      // The order is committed; never fail the webhook because of an email.
+      console.error(
+        `[WEBHOOK] Falha ao enviar email de novo pedido ${order.orderId}:`,
+        error,
+      );
+    }
+  }
 }
 
 async function withWebhookBypass<T>(callback: (database: AppDb) => Promise<T>) {
@@ -397,6 +439,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     );
     console.log("[WEBHOOK] Iniciando transacao unica no banco...");
 
+    // Filled inside the transaction, emailed only after it commits, so a
+    // rolled-back order never produces a "new order" email.
+    const createdOrders: Array<{
+      orderId: string;
+      sellerTenantId: string;
+      totalAmount: number;
+      awaitingWeight: boolean;
+    }> = [];
+
     try {
       await withWebhookBypass(async (database) => {
         await acquireTransactionLock(database, `stripe-session:${session.id}`);
@@ -569,6 +620,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               stripeSessionId: session.id,
             },
           });
+
+          createdOrders.push({
+            orderId: newOrder.id,
+            sellerTenantId: sellerId,
+            totalAmount: orderTotal,
+            awaitingWeight: initialStatus === "awaiting_weight",
+          });
         }
       });
     } catch (error) {
@@ -583,6 +641,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     console.log(
       `[WEBHOOK] Transacao completa para sessao ${session.id} | Comprador: ${buyerTenantId}`,
     );
+
+    await emailProducersAboutNewOrders(createdOrders);
     return;
   }
 

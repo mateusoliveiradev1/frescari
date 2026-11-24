@@ -225,6 +225,59 @@ async function sendAuthEmail({
   );
 }
 
+/**
+ * Sends a non-auth transactional email through Resend. Returns false instead of
+ * throwing when delivery is not configured or fails, so callers on critical
+ * paths (webhooks, crons) never break because of an email.
+ */
+export async function sendTransactionalEmail(input: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  logLabel: string;
+}): Promise<boolean> {
+  const { apiKey, from, fromName, replyTo } = getResendConfig();
+
+  if (!apiKey || !from) {
+    console.info(
+      `[email] ${input.logLabel} not sent: RESEND_API_KEY or AUTH_EMAIL_FROM missing.`,
+    );
+    return false;
+  }
+
+  try {
+    const response = await fetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: formatSenderAddress(from, fromName),
+        to: [input.to],
+        ...(replyTo ? { reply_to: replyTo } : {}),
+        subject: input.subject,
+        html: input.html,
+        text: input.text,
+      }),
+    });
+
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      console.error(
+        `[email] ${input.logLabel} failed (${response.status})${details ? `: ${details}` : ""}`,
+      );
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error(`[email] ${input.logLabel} failed:`, error);
+    return false;
+  }
+}
+
 export async function sendAuthVerificationEmail(input: SendAuthEmailInput) {
   await sendAuthEmail({
     input,
