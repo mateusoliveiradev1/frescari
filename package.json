@@ -26,7 +26,7 @@
     "@eslint/js": "^9.39.4",
     "@types/node": "^20.19.37",
     "eslint": "^9",
-    "eslint-config-next": "16.4.6",
+    "eslint-config-next": "16.2.2",
     "globals": "^17.4.0",
     "husky": "^9.1.7",
     "knip": "^5.88.1",
@@ -36,5 +36,10 @@
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.58.0"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "overrides": {
+      "eslint-plugin-react-hooks": "7.0.1"
+    }
+  }
 }
