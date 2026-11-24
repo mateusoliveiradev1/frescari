@@ -81,9 +81,7 @@ test("saveFarmLocationInputSchema rejects invalid coordinates and malformed addr
   assert.equal(result.success, false);
 
   if (!result.success) {
-    const issuePaths = result.error.issues.map(
-      (issue: { path: Array<string | number> }) => issue.path.join("."),
-    );
+    const issuePaths = result.error.issues.map((issue) => issue.path.join("."));
     assert.ok(issuePaths.includes("name"));
     assert.ok(issuePaths.includes("address.street"));
     assert.ok(issuePaths.includes("address.city"));
