@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Playfair_Display } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 
 import { GlobalNav } from "@/components/global-nav";
@@ -99,6 +100,7 @@ export default function RootLayout({
           </div>
           <Toaster closeButton position="top-right" richColors />
         </TRPCProvider>
+        <Analytics />
       </body>
     </html>
   );

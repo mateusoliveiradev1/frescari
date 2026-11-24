@@ -752,6 +752,8 @@ function FarmCheckoutSection({
   );
 }
 
+const RESUME_CHECKOUT_KEY = "frescari:resume-checkout";
+
 export function CartDrawer() {
   const isOpen = useCartStore(selectCartIsOpen);
   const setIsOpen = useCartStore((state: CartStore) => state.setIsOpen);
@@ -759,15 +761,42 @@ export function CartDrawer() {
   const items = useCartStore((state: CartStore) => state.items);
   const { data: session } = authClient.useSession();
   const sessionUser = session?.user as SessionUser | undefined;
+  const isBuyerSignedIn = sessionUser?.role === "buyer";
   const [isMounted, setIsMounted] = React.useState(false);
 
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // A visitor who left the cart to sign in comes back to it: the cart itself
+  // is persisted, this flag only reopens the drawer once they are a buyer.
+  const itemCount = items.length;
+  React.useEffect(() => {
+    if (!isBuyerSignedIn || itemCount === 0) {
+      return;
+    }
+
+    try {
+      if (window.localStorage.getItem(RESUME_CHECKOUT_KEY)) {
+        window.localStorage.removeItem(RESUME_CHECKOUT_KEY);
+        setIsOpen(true);
+      }
+    } catch {
+      // Storage unavailable (private mode): the cart still loads, just closed.
+    }
+  }, [isBuyerSignedIn, itemCount, setIsOpen]);
+
+  const rememberCheckoutIntent = () => {
+    try {
+      window.localStorage.setItem(RESUME_CHECKOUT_KEY, "1");
+    } catch {
+      // Non-critical.
+    }
+    setIsOpen(false);
+  };
+
   const totalItems = items.reduce((sum, item) => sum + item.cartQty, 0);
   const farmGroups = buildFarmGroups(items);
-  const isBuyerSignedIn = sessionUser?.role === "buyer";
   const defaultAddressQuery = trpc.addresses.getDefaultAddress.useQuery(
     undefined,
     {
@@ -881,11 +910,35 @@ export function CartDrawer() {
                               </Link>
                             </Button>
                           </div>
-                        ) : (
+                        ) : sessionUser ? (
                           <p className="mt-2 font-sans text-sm leading-6 text-bark/80">
-                            Faca login como comprador para calcular frete e
-                            fechar pedidos.
+                            Para comprar, use uma conta de comprador.
                           </p>
+                        ) : (
+                          <div className="mt-2 space-y-3">
+                            <p className="font-sans text-sm leading-6 text-bark/80">
+                              Entre ou crie sua conta gratis para calcular o
+                              frete e fechar o pedido. Seu carrinho fica salvo.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              <Button asChild variant="primary">
+                                <Link
+                                  href="/auth/login"
+                                  onClick={rememberCheckoutIntent}
+                                >
+                                  Entrar
+                                </Link>
+                              </Button>
+                              <Button asChild variant="secondary">
+                                <Link
+                                  href="/auth/register"
+                                  onClick={rememberCheckoutIntent}
+                                >
+                                  Criar conta
+                                </Link>
+                              </Button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>

@@ -2,6 +2,7 @@
 
 import { Button } from "@frescari/ui";
 import Link from "next/link";
+import { useEffect } from "react";
 import { trpc } from "@/trpc/react";
 import { StripeConnectButton } from "@/components/StripeConnectButton";
 
@@ -18,6 +19,132 @@ function formatDate(dateInput: string) {
   }).format(new Date(dateInput));
 }
 
+type PublishReadiness = {
+  paymentsStarted: boolean;
+  paymentsReady: boolean;
+  farmLocated: boolean;
+  hasActiveLot: boolean;
+  lotsVisibleInCatalog: boolean;
+};
+
+type SetupStep = {
+  key: string;
+  title: string;
+  description: string;
+  done: boolean;
+  action?: { href: string; label: string };
+};
+
+function ProducerSetupChecklist({
+  readiness,
+}: {
+  readiness: PublishReadiness;
+}) {
+  const steps: SetupStep[] = [
+    {
+      key: "payments",
+      title: "Ativar recebimento",
+      description: readiness.paymentsReady
+        ? "Pronto: voce ja pode receber pagamentos."
+        : readiness.paymentsStarted
+          ? "Cadastro iniciado no Stripe. Conclua as informacoes pendentes para liberar suas vendas."
+          : "Cadastro rapido no Stripe para receber direto na sua conta. Use o botao 'Ativar recebimento' acima.",
+      done: readiness.paymentsReady,
+    },
+    {
+      key: "farm",
+      title: "Localizar a fazenda",
+      description: readiness.farmLocated
+        ? "Pronto: o frete ja pode ser calculado."
+        : "Marque onde fica a fazenda. Sem isso o comprador nao consegue calcular o frete.",
+      done: readiness.farmLocated,
+      action: readiness.farmLocated
+        ? undefined
+        : { href: "/dashboard/fazenda", label: "Localizar fazenda" },
+    },
+    {
+      key: "lot",
+      title: "Publicar o primeiro lote",
+      description: readiness.hasActiveLot
+        ? "Pronto: voce tem lote ativo."
+        : "Escolha o produto, informe quantidade e preco. Leva cerca de 1 minuto.",
+      done: readiness.hasActiveLot,
+      action: readiness.hasActiveLot
+        ? undefined
+        : { href: "/dashboard/inventario", label: "Adicionar lote" },
+    },
+  ];
+
+  const completed = steps.filter((step) => step.done).length;
+
+  return (
+    <section
+      aria-labelledby="setup-checklist-title"
+      className="border border-forest/20 bg-sage/40 rounded-sm p-6 space-y-5"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+        <div className="space-y-1">
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-forest">
+            {completed} de {steps.length} passos
+          </p>
+          <h2
+            id="setup-checklist-title"
+            className="font-display text-2xl font-bold text-soil"
+          >
+            Comece a vender na Frescari
+          </h2>
+        </div>
+        <p className="font-sans text-sm text-bark max-w-md">
+          {readiness.lotsVisibleInCatalog
+            ? "Seus lotes ja aparecem para compradores."
+            : "Seus lotes so aparecem para compradores depois dos dois primeiros passos."}
+        </p>
+      </div>
+
+      <ol className="grid gap-3 md:grid-cols-3">
+        {steps.map((step, index) => (
+          <li
+            key={step.key}
+            className={`flex flex-col gap-3 rounded-sm border p-4 ${
+              step.done
+                ? "border-forest/20 bg-cream/70"
+                : "border-soil/10 bg-cream"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden="true"
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  step.done ? "bg-forest text-cream" : "bg-soil/10 text-soil"
+                }`}
+              >
+                {step.done ? "✓" : index + 1}
+              </span>
+              <p className="font-sans text-sm font-semibold text-soil">
+                {step.title}
+                <span className="sr-only">
+                  {step.done ? " (concluido)" : " (pendente)"}
+                </span>
+              </p>
+            </div>
+            <p className="font-sans text-xs text-bark leading-relaxed">
+              {step.description}
+            </p>
+            {step.action ? (
+              <Link
+                href={step.action.href}
+                className="mt-auto font-sans text-sm font-semibold text-forest hover:underline"
+              >
+                {step.action.label} →
+              </Link>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 export default function DashboardClient({ user }: { user: unknown }) {
   void user;
 
@@ -25,6 +152,22 @@ export default function DashboardClient({ user }: { user: unknown }) {
     trpc.lot.getDashboardMetrics.useQuery();
   const { data: recentLots, isLoading: isLotsLoading } =
     trpc.lot.getRecentLots.useQuery();
+  const { data: readiness } = trpc.lot.getPublishReadiness.useQuery();
+  // getConnectStatus re-syncs the Stripe account (e.g. on return from Stripe
+  // onboarding); shares its cache with StripeConnectButton. Recompute
+  // readiness once the synced state arrives.
+  const { data: connectStatus } = trpc.stripe.getConnectStatus.useQuery();
+  const utils = trpc.useUtils();
+  const connectState = connectStatus?.state;
+  useEffect(() => {
+    if (connectState) {
+      void utils.lot.getPublishReadiness.invalidate();
+    }
+  }, [connectState, utils]);
+  const lotsHidden = readiness ? !readiness.lotsVisibleInCatalog : false;
+  const showChecklist =
+    readiness !== undefined &&
+    !(readiness.lotsVisibleInCatalog && readiness.hasActiveLot);
 
   return (
     <div className="min-h-screen bg-cream">
@@ -50,6 +193,10 @@ export default function DashboardClient({ user }: { user: unknown }) {
             </Button>
           </div>
         </div>
+
+        {showChecklist && readiness ? (
+          <ProducerSetupChecklist readiness={readiness} />
+        ) : null}
 
         {/* ── Quick stats row ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -151,11 +298,14 @@ export default function DashboardClient({ user }: { user: unknown }) {
                     recentLots.map((lot: any) => {
                       const isLastChance = lot.status === "last_chance";
                       const isExpired = lot.status === "vencido";
+                      const isHidden = !isExpired && lotsHidden;
                       const statusText = isExpired
                         ? "Vencido"
-                        : isLastChance
-                          ? "Prioridade"
-                          : "Publicado";
+                        : isHidden
+                          ? "Oculto"
+                          : isLastChance
+                            ? "Prioridade"
+                            : "Publicado";
 
                       return (
                         <tr
@@ -176,12 +326,19 @@ export default function DashboardClient({ user }: { user: unknown }) {
                           </td>
                           <td className="py-4 px-6 text-center">
                             <span
+                              title={
+                                isHidden
+                                  ? "Ainda nao aparece para compradores: conclua os passos de recebimento e localizacao da fazenda."
+                                  : undefined
+                              }
                               className={`inline-flex items-center px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider ${
                                 isExpired
                                   ? "bg-red-100 text-red-700"
-                                  : isLastChance
-                                    ? "bg-orange-100 text-orange-600 border border-orange-200"
-                                    : "bg-sage border border-forest/15 text-forest"
+                                  : isHidden
+                                    ? "bg-soil/10 text-bark border border-soil/15"
+                                    : isLastChance
+                                      ? "bg-orange-100 text-orange-600 border border-orange-200"
+                                      : "bg-sage border border-forest/15 text-forest"
                               }`}
                             >
                               {statusText}

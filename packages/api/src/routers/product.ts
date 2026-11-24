@@ -1,75 +1,101 @@
-import { createTRPCRouter, publicProcedure, protectedProcedure, producerProcedure, tenantProcedure } from '../trpc';
-import { insertProductSchema } from '@frescari/validators';
-import { enableCatalogPublicReadContext, products, farms, masterProducts } from '@frescari/db';
-import { eq, sql, ilike } from 'drizzle-orm';
-import { z } from 'zod';
+import {
+  createTRPCRouter,
+  publicProcedure,
+  protectedProcedure,
+  producerProcedure,
+  tenantProcedure,
+} from "../trpc";
+import { insertProductSchema } from "@frescari/validators";
+import {
+  enableCatalogPublicReadContext,
+  products,
+  masterProducts,
+} from "@frescari/db";
+import { eq, sql } from "drizzle-orm";
+import { z } from "zod";
+
+function foldAccents(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[%_\\]/g, (match) => `\\${match}`);
+}
 
 export const productRouter = createTRPCRouter({
+  create: producerProcedure
+    .input(insertProductSchema)
+    .mutation(async ({ ctx, input }) => {
+      const dataToInsert: typeof products.$inferInsert = {
+        ...input,
+        tenantId: ctx.tenantId, // Force tenantId from context, never trust input
+        pricePerUnit: input.pricePerUnit.toString(),
+        minOrderQty: input.minOrderQty.toString(),
+      };
 
-    create: producerProcedure
-        .input(insertProductSchema)
-        .mutation(async ({ ctx, input }) => {
-            const dataToInsert: typeof products.$inferInsert = {
-                ...input,
-                tenantId: ctx.tenantId, // Force tenantId from context, never trust input
-                pricePerUnit: input.pricePerUnit.toString(),
-                minOrderQty: input.minOrderQty.toString(),
-            };
-
-            const [newProduct] = await ctx.db.insert(products).values(dataToInsert).returning();
-            return newProduct;
-        }),
-
-    getById: publicProcedure
-        .input(z.object({ id: z.string().uuid() }))
-        .query(async ({ ctx, input }) => {
-            const product = await ctx.db.transaction(async (tx) => {
-                await enableCatalogPublicReadContext(tx);
-
-                return tx.query.products.findFirst({
-                    where: eq(products.id, input.id)
-                });
-            });
-
-            return product;
-        }),
-
-    list: tenantProcedure
-        .query(async ({ ctx }) => {
-            const tenantProducts = await ctx.db.query.products.findMany({
-                where: eq(products.tenantId, ctx.tenantId),
-            });
-            return tenantProducts;
-        }),
-
-    getProducts: tenantProcedure.query(async ({ ctx }) => {
-        const { db, tenantId } = ctx;
-
-        const allProducts = await db.query.products.findMany({
-            where: eq(products.tenantId, tenantId),
-            with: {
-                category: true,
-                farm: true
-            }
-        });
-
-        return allProducts;
+      const [newProduct] = await ctx.db
+        .insert(products)
+        .values(dataToInsert)
+        .returning();
+      return newProduct;
     }),
 
-    searchMasterProducts: protectedProcedure
-        .input(z.object({
-            query: z.string().min(1).optional()
-        }))
-        .query(async ({ ctx, input }) => {
-            const { db } = ctx;
+  getById: publicProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const product = await ctx.db.transaction(async (tx) => {
+        await enableCatalogPublicReadContext(tx);
 
-            const q = input.query ? `%${input.query}%` : '%';
+        return tx.query.products.findFirst({
+          where: eq(products.id, input.id),
+        });
+      });
 
-            const results = await db.query.masterProducts.findMany({
-                where: ilike(masterProducts.name, q),
-                limit: 20
-            });
+      return product;
+    }),
 
-            return results;
-        }),
+  list: tenantProcedure.query(async ({ ctx }) => {
+    const tenantProducts = await ctx.db.query.products.findMany({
+      where: eq(products.tenantId, ctx.tenantId),
+    });
+    return tenantProducts;
+  }),
+
+  getProducts: tenantProcedure.query(async ({ ctx }) => {
+    const { db, tenantId } = ctx;
+
+    const allProducts = await db.query.products.findMany({
+      where: eq(products.tenantId, tenantId),
+      with: {
+        category: true,
+        farm: true,
+      },
+    });
+
+    return allProducts;
+  }),
+
+  searchMasterProducts: protectedProcedure
+    .input(
+      z.object({
+        query: z.string().min(1).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { db } = ctx;
+
+      // Accent- and case-insensitive: "maca" must find "Maçã Fuji".
+      // translate() avoids depending on the unaccent extension.
+      const accented = "áàâãäéèêëíìîïóòôõöúùûüçñ";
+      const plain = "aaaaaeeeeiiiiooooouuuucn";
+      const q = input.query ? `%${foldAccents(input.query)}%` : "%";
+
+      const results = await db.query.masterProducts.findMany({
+        where: sql`translate(lower(${masterProducts.name}), ${accented}, ${plain}) like ${q}`,
+        orderBy: (fields, { asc }) => [asc(fields.name)],
+        limit: 20,
+      });
+
+      return results;
+    }),
 });
