@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { tenants, users } from "@frescari/db";
 
+import { safeRevalidatePath } from "../cache";
 import { sanitizeEnvValue } from "../env";
 import {
   buildStripeConnectSnapshot,
@@ -150,6 +151,15 @@ export const stripeRouter = createTRPCRouter({
         accountId: tenant.stripeAccountId,
         tenantId: tenant.id,
       });
+
+      // The catalog is statically cached. When the producer's ability to
+      // receive payments flips (typically on return from Stripe onboarding,
+      // which lands on the dashboard that runs this query), their lots
+      // appear or disappear, so refresh it now instead of within the hour.
+      const wasReady = deriveStripeConnectStatus(tenant).state === "ready";
+      if (wasReady !== (status.state === "ready")) {
+        safeRevalidatePath("/catalogo", "layout");
+      }
 
       return status;
     } catch (error) {

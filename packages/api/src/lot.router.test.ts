@@ -157,7 +157,7 @@ test("lot.getAvailableLots hides sellers without Stripe Connect when connect mod
       },
       farmName: "Fazenda Conectada",
       farmAddress: { city: "Sao Paulo", state: "SP" },
-      farmLocation: null,
+      farmLocation: [-46.6333, -23.5505],
       deliveryRadiusKm: 120,
       categorySlug: "legumes",
       categoryName: "Legumes",
@@ -189,7 +189,7 @@ test("lot.getAvailableLots hides sellers without Stripe Connect when connect mod
       },
       farmName: "Fazenda Sem Connect",
       farmAddress: { city: "Campinas", state: "SP" },
-      farmLocation: null,
+      farmLocation: [-46.6333, -23.5505],
       deliveryRadiusKm: 80,
       categorySlug: "hortifruti",
       categoryName: "Hortifruti",
@@ -225,6 +225,85 @@ test("lot.getAvailableLots hides sellers without Stripe Connect when connect mod
     assert.deepEqual(
       result.map((lot) => lot.id),
       ["lot-with-connect"],
+    );
+  } finally {
+    if (originalStripeConnectMode === undefined) {
+      delete process.env.STRIPE_CONNECT_MODE;
+    } else {
+      process.env.STRIPE_CONNECT_MODE = originalStripeConnectMode;
+    }
+  }
+});
+
+test("lot.getAvailableLots hides lots from farms without a location, since freight cannot be quoted", async () => {
+  const originalStripeConnectMode = process.env.STRIPE_CONNECT_MODE;
+  process.env.STRIPE_CONNECT_MODE = "platform_only";
+
+  const buildRow = (id: string, farmLocation: [number, number] | null) => ({
+    lot: {
+      id,
+      lotCode: id.toUpperCase(),
+      availableQty: "10",
+      expiryDate: "2027-03-30",
+      harvestDate: "2027-03-20",
+      freshnessScore: 80,
+      imageUrl: null,
+      priceOverride: null,
+      pricingType: "UNIT",
+      unit: "kg",
+    },
+    product: {
+      id: `product-${id}`,
+      farmId: `farm-${id}`,
+      isActive: true,
+      name: "Tomate",
+      saleUnit: "kg",
+      images: [],
+      pricePerUnit: "10.00",
+      pricingType: "UNIT",
+    },
+    farmName: `Fazenda ${id}`,
+    farmAddress: { city: "Sao Paulo", state: "SP" },
+    farmLocation,
+    deliveryRadiusKm: 100,
+    categorySlug: "legumes",
+    categoryName: "Legumes",
+    categoryDescription: null,
+    sellerStripeAccountId: null,
+  });
+
+  const mockRows = [
+    buildRow("lot-located", [-46.6333, -23.5505]),
+    buildRow("lot-unlocated", null),
+  ];
+
+  const db = withRlsMockDb({
+    transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        execute: async () => [],
+        select() {
+          const chain = {
+            from() {
+              return chain;
+            },
+            leftJoin() {
+              return chain;
+            },
+            where: async () => mockRows,
+          };
+
+          return chain;
+        },
+      }),
+  });
+
+  try {
+    const caller = await createLotCaller(db);
+    const result = await (caller as LotCaller).lot.getAvailableLots({});
+
+    assert.deepEqual(
+      result.map((lot) => lot.id),
+      ["lot-located"],
     );
   } finally {
     if (originalStripeConnectMode === undefined) {

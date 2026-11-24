@@ -164,7 +164,13 @@ export const lotRouter = createTRPCRouter({
             farm = newFarm;
           }
 
-          const category = await ctx.db.query.productCategories.findFirst();
+          // The master product stores its category by name; fall back to any
+          // category only if that name has no match, so lots land on the
+          // right catalog page instead of whichever category comes first.
+          const category =
+            (await ctx.db.query.productCategories.findFirst({
+              where: eq(productCategories.name, masterProduct.category),
+            })) ?? (await ctx.db.query.productCategories.findFirst());
           if (!category) {
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
@@ -303,35 +309,41 @@ export const lotRouter = createTRPCRouter({
 
         const requiresConnectedProducer = !isPlatformOnlyStripeMode();
 
-        return results
-          .filter((row) =>
-            requiresConnectedProducer
-              ? isStripeConnectCatalogEligible({
-                  stripeAccountId: row.sellerStripeAccountId,
-                  stripeChargesEnabled: row.sellerStripeChargesEnabled,
-                  stripeDetailsSubmitted: row.sellerStripeDetailsSubmitted,
-                  stripePayoutsEnabled: row.sellerStripePayoutsEnabled,
-                  stripeRequirementsCurrentlyDue:
-                    row.sellerStripeRequirementsCurrentlyDue,
-                  stripeRequirementsDisabledReason:
-                    row.sellerStripeRequirementsDisabledReason,
-                  stripeRequirementsEventuallyDue:
-                    row.sellerStripeRequirementsEventuallyDue,
-                  stripeRequirementsPastDue:
-                    row.sellerStripeRequirementsPastDue,
-                  stripeStatusSyncedAt: row.sellerStripeStatusSyncedAt,
-                })
-              : true,
-          )
-          .filter((row) => row.product?.isActive !== false)
-          .map((row) => buildCatalogLot(row))
-          .filter(
-            (lot) =>
-              !lot.isExpired && lot.availableQty > 0 && lot.farmId.length > 0,
-          )
-          .sort((left, right) =>
-            left.expiryDate.localeCompare(right.expiryDate),
-          );
+        return (
+          results
+            .filter((row) =>
+              requiresConnectedProducer
+                ? isStripeConnectCatalogEligible({
+                    stripeAccountId: row.sellerStripeAccountId,
+                    stripeChargesEnabled: row.sellerStripeChargesEnabled,
+                    stripeDetailsSubmitted: row.sellerStripeDetailsSubmitted,
+                    stripePayoutsEnabled: row.sellerStripePayoutsEnabled,
+                    stripeRequirementsCurrentlyDue:
+                      row.sellerStripeRequirementsCurrentlyDue,
+                    stripeRequirementsDisabledReason:
+                      row.sellerStripeRequirementsDisabledReason,
+                    stripeRequirementsEventuallyDue:
+                      row.sellerStripeRequirementsEventuallyDue,
+                    stripeRequirementsPastDue:
+                      row.sellerStripeRequirementsPastDue,
+                    stripeStatusSyncedAt: row.sellerStripeStatusSyncedAt,
+                  })
+                : true,
+            )
+            .filter((row) => row.product?.isActive !== false)
+            // Without a farm location freight cannot be quoted, so the buyer
+            // would hit an error at checkout. Keep those lots out of the catalog;
+            // the producer dashboard tells the producer why.
+            .filter((row) => row.farmLocation != null)
+            .map((row) => buildCatalogLot(row))
+            .filter(
+              (lot) =>
+                !lot.isExpired && lot.availableQty > 0 && lot.farmId.length > 0,
+            )
+            .sort((left, right) =>
+              left.expiryDate.localeCompare(right.expiryDate),
+            )
+        );
       } catch (error: unknown) {
         console.error("[DB_CATALOG_ERROR]:", error);
         throw new TRPCError({
@@ -340,6 +352,58 @@ export const lotRouter = createTRPCRouter({
         });
       }
     }),
+
+  // What still stops this producer's lots from showing in the public catalog.
+  // Mirrors the filters in getAvailableLots, so "visible" here means visible there.
+  getPublishReadiness: producerProcedure.query(async ({ ctx }) => {
+    const tenantId = ctx.tenantId;
+
+    const [tenant] = await ctx.db
+      .select({
+        stripeAccountId: tenants.stripeAccountId,
+        stripeChargesEnabled: tenants.stripeChargesEnabled,
+        stripeDetailsSubmitted: tenants.stripeDetailsSubmitted,
+        stripePayoutsEnabled: tenants.stripePayoutsEnabled,
+        stripeRequirementsCurrentlyDue: tenants.stripeRequirementsCurrentlyDue,
+        stripeRequirementsDisabledReason:
+          tenants.stripeRequirementsDisabledReason,
+        stripeRequirementsEventuallyDue:
+          tenants.stripeRequirementsEventuallyDue,
+        stripeRequirementsPastDue: tenants.stripeRequirementsPastDue,
+        stripeStatusSyncedAt: tenants.stripeStatusSyncedAt,
+      })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1);
+
+    const farm = await ctx.db.query.farms.findFirst({
+      where: eq(farms.tenantId, tenantId),
+    });
+
+    const activeLot = await ctx.db.transaction(async (tx) => {
+      await enableProductLotTenantContext(tx, tenantId);
+
+      return tx.query.productLots.findFirst({
+        where: activeProductLotWhere(eq(productLots.tenantId, tenantId)),
+        columns: { id: true },
+      });
+    });
+
+    const paymentsReady =
+      isPlatformOnlyStripeMode() ||
+      (tenant ? isStripeConnectCatalogEligible(tenant) : false);
+    const paymentsStarted = Boolean(tenant?.stripeAccountId);
+    const farmLocated = Boolean(farm?.location);
+    const hasActiveLot = Boolean(activeLot);
+
+    return {
+      paymentsStarted,
+      paymentsReady,
+      farmLocated,
+      hasActiveLot,
+      lotsVisibleInCatalog: paymentsReady && farmLocated,
+    };
+  }),
 
   getDashboardMetrics: producerProcedure.query(async ({ ctx }) => {
     try {

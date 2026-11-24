@@ -295,7 +295,7 @@ export const orderRouter = createTRPCRouter({
           if (fetchedLots.length !== lotIds.length) {
             throw new TRPCError({
               code: "BAD_REQUEST",
-              message: "Um ou mais produtos nÃ£o foram encontrados.",
+              message: "Um ou mais produtos não foram encontrados.",
             });
           }
 
@@ -308,7 +308,7 @@ export const orderRouter = createTRPCRouter({
             if (Number(lotData.availableQty) < reqItem.quantity) {
               throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: `Quantidade indisponÃ­vel para o lote ${reqItem.lotId}`,
+                message: `Quantidade indisponível para o lote ${reqItem.lotId}`,
               });
             }
 
@@ -321,7 +321,7 @@ export const orderRouter = createTRPCRouter({
             if (!isWeight && !Number.isInteger(reqItem.quantity)) {
               throw new TRPCError({
                 code: "BAD_REQUEST",
-                message: `A quantidade para o produto ${lotData.productId} deve ser um nÃºmero inteiro.`,
+                message: `A quantidade para o produto ${lotData.productId} deve ser um número inteiro.`,
               });
             }
 
@@ -629,7 +629,7 @@ export const orderRouter = createTRPCRouter({
             throw new TRPCError({
               code: "NOT_FOUND",
               message:
-                "Pedido nÃ£o encontrado ou vocÃª nÃ£o tem permissÃ£o para acessÃ¡-lo.",
+                "Pedido não encontrado ou você não tem permissão para acessá-lo.",
             });
           }
 
@@ -770,7 +770,7 @@ export const orderRouter = createTRPCRouter({
       if (!targetOrder) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Pedido nÃ£o encontrado.",
+          message: "Pedido não encontrado.",
         });
       }
 
@@ -810,7 +810,7 @@ export const orderRouter = createTRPCRouter({
       if (!stripeSecretKey) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Stripe nÃ£o estÃ¡ configurado.",
+          message: "Stripe não está configurado.",
         });
       }
 
@@ -864,7 +864,7 @@ export const orderRouter = createTRPCRouter({
       if (!targetOrder) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Pedido nÃ£o encontrado ou vocÃª nÃ£o tem permissÃ£o.",
+          message: "Pedido não encontrado ou você não tem permissão.",
         });
       }
 
@@ -875,22 +875,21 @@ export const orderRouter = createTRPCRouter({
       ) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Este pedido nÃ£o estÃ¡ aguardando pesagem.",
+          message: "Este pedido não está aguardando pesagem.",
         });
       }
 
       if (!targetOrder.paymentIntentId && !targetOrder.stripeSessionId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message:
-            "Este pedido nÃ£o possui uma sessÃ£o de pagamento vinculada.",
+          message: "Este pedido não possui uma sessão de pagamento vinculada.",
         });
       }
 
       if (items.length === 0) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Este pedido nÃƒÂ£o possui itens para reconciliar.",
+          message: "Este pedido não possui itens para reconciliar.",
         });
       }
 
@@ -899,7 +898,7 @@ export const orderRouter = createTRPCRouter({
       if (weightItems.length === 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Este pedido nÃƒÂ£o possui itens vendidos por peso.",
+          message: "Este pedido não possui itens vendidos por peso.",
         });
       }
 
@@ -925,8 +924,7 @@ export const orderRouter = createTRPCRouter({
               validationContext.addIssue({
                 code: z.ZodIssueCode.custom,
                 path: ["weighedItems", index, "orderItemId"],
-                message:
-                  "Cada item pesÃƒÂ¡vel deve ser informado apenas uma vez.",
+                message: "Cada item pesável deve ser informado apenas uma vez.",
               });
               return;
             }
@@ -969,7 +967,7 @@ export const orderRouter = createTRPCRouter({
           code: "BAD_REQUEST",
           message:
             validatedPayload.error.issues[0]?.message ??
-            "Os pesos informados sÃƒÂ£o invÃƒÂ¡lidos.",
+            "Os pesos informados são inválidos.",
         });
       }
 
@@ -1021,7 +1019,7 @@ export const orderRouter = createTRPCRouter({
           paymentIntentId = typeof pi === "string" ? pi : (pi?.id ?? "");
 
           if (!paymentIntentId) {
-            throw new Error("Payment Intent ID nÃ£o encontrado na sessÃ£o.");
+            throw new Error("Payment Intent ID não encontrado na sessão.");
           }
         } catch (error) {
           console.error("[STRIPE_RETRIEVE_ERROR]", error);
@@ -1036,8 +1034,7 @@ export const orderRouter = createTRPCRouter({
       if (!paymentIntentId) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message:
-            "NÃƒÂ£o foi possÃƒÂ­vel identificar o Payment Intent do Stripe.",
+          message: "Não foi possível identificar o Payment Intent do Stripe.",
         });
       }
 
@@ -1064,7 +1061,7 @@ export const orderRouter = createTRPCRouter({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "O pagamento jÃƒÂ¡ foi capturado com um valor diferente. Revise este pedido manualmente.",
+              "O pagamento já foi capturado com um valor diferente. Revise este pedido manualmente.",
           });
         }
 
@@ -1100,7 +1097,7 @@ export const orderRouter = createTRPCRouter({
             throw new TRPCError({
               code: "BAD_REQUEST",
               message:
-                "O pedido jÃƒÂ¡ foi confirmado com um total diferente. Revise este pedido manualmente.",
+                "O pedido já foi confirmado com um total diferente. Revise este pedido manualmente.",
             });
           }
 
@@ -1118,7 +1115,7 @@ export const orderRouter = createTRPCRouter({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "O pedido jÃƒÂ¡ foi confirmado no sistema, mas o pagamento ainda nÃƒÂ£o estÃƒÂ¡ capturado. Revise manualmente.",
+              "O pedido já foi confirmado no sistema, mas o pagamento ainda não está capturado. Revise manualmente.",
           });
         }
 
@@ -1126,7 +1123,7 @@ export const orderRouter = createTRPCRouter({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "Este pagamento nÃƒÂ£o estÃƒÂ¡ em um estado capturÃƒÂ¡vel no Stripe.",
+              "Este pagamento não está em um estado capturável no Stripe.",
           });
         }
 
@@ -1172,7 +1169,7 @@ export const orderRouter = createTRPCRouter({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              "O pagamento falhou ou foi recusado pela operadora. NÃ£o libere o pedido. Verifique logs do Stripe.",
+              "O pagamento falhou ou foi recusado pela operadora. Não libere o pedido. Verifique logs do Stripe.",
             cause: error,
           });
         }
@@ -1217,7 +1214,7 @@ export const orderRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            "Falha ao salvar as atualizaÃ§Ãµes de peso no banco de dados, mas o pagamento jÃ¡ foi capturado no Stripe!",
+            "Falha ao salvar as atualizações de peso no banco de dados, mas o pagamento já foi capturado no Stripe!",
           cause: error,
         });
       }

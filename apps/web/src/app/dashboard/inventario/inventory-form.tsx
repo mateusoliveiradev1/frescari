@@ -31,6 +31,10 @@ type InventorySubmission = {
   productId: string;
 };
 
+const SUPPORT_EMAIL =
+  process.env.NEXT_PUBLIC_LEGAL_SUPPORT_EMAIL?.trim() ||
+  "suporte@frescari.com.br";
+
 const formatForDateInput = (value: string | Date | null | undefined) => {
   if (!value) {
     return "";
@@ -164,11 +168,6 @@ export function InventoryForm({
       return;
     }
 
-    if (!imageUrl) {
-      toast.error("Por favor, adicione uma foto para o lote.");
-      return;
-    }
-
     const parsedPrice = Number(price.replace(",", "."));
     if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
       toast.error("Por favor, insira um preco valido.");
@@ -265,7 +264,8 @@ export function InventoryForm({
               }}
             />
             <p className="mt-4 text-center font-sans text-[10px] text-bark/40">
-              Dica: use fotos bem iluminadas do produto real.
+              Opcional. Sem foto, usamos a imagem padrao do produto. Fotos reais
+              e bem iluminadas vendem mais.
             </p>
           </div>
         )}
@@ -301,7 +301,7 @@ export function InventoryForm({
           value={productId}
         />
 
-        {isComboboxOpen && (masterProducts?.length || loadingMaster) ? (
+        {isComboboxOpen && productId.length > 1 && !selectedMasterId ? (
           <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-soil/15 bg-cream shadow-card">
             {loadingMaster ? (
               <div className="p-3 text-xs text-bark/60">
@@ -332,8 +332,20 @@ export function InventoryForm({
                 ))}
               </ul>
             ) : (
-              <div className="p-3 text-xs text-bark/60">
-                Nenhum produto encontrado no catalogo mestre.
+              <div className="space-y-1 p-3 text-xs text-bark/70">
+                <p>Nenhum produto encontrado no catalogo.</p>
+                <p>
+                  Nao achou o que voce produz?{" "}
+                  <a
+                    className="font-semibold text-forest hover:underline"
+                    href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                      `Novo produto no catalogo: ${productId}`,
+                    )}`}
+                  >
+                    Peca para incluirmos
+                  </a>
+                  .
+                </p>
               </div>
             )}
           </div>
@@ -450,7 +462,7 @@ export function InventoryForm({
 
       <Button
         className="w-full"
-        disabled={!selectedMasterId || !imageUrl || isUploading || !price}
+        disabled={!selectedMasterId || isUploading || !price}
         isPending={createLot.isPending || updateLot.isPending}
         type="submit"
         variant="primary"
