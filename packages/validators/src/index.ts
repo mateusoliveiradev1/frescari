@@ -159,23 +159,57 @@ const hasValidLotDateRange = (data: {
   return data.expiryDate.getTime() > data.harvestDate.getTime();
 };
 
-export const farmCoordinatesSchema = z.object({
-  latitude: z
-    .number()
-    .finite()
-    .min(-90, "Latitude deve estar entre -90 e 90.")
-    .max(90, "Latitude deve estar entre -90 e 90."),
-  longitude: z
-    .number()
-    .finite()
-    .min(-180, "Longitude deve estar entre -180 e 180.")
-    .max(180, "Longitude deve estar entre -180 e 180."),
-});
+// Bounding box of Brazil, islands included (Fernando de Noronha, Trindade is
+// excluded on purpose: no farm ships from there). Farms are only ever in
+// Brazil, so a point outside this box is always a map or geocoding error,
+// e.g. an ocean point from a mis-sized map, and must never be saved.
+export const BRAZIL_BOUNDS = {
+  minLatitude: -34.0,
+  maxLatitude: 5.5,
+  minLongitude: -74.1,
+  maxLongitude: -28.6,
+} as const;
 
-export const farmPointSchema = z.tuple([
-  z.number().finite().min(-180).max(180),
-  z.number().finite().min(-90).max(90),
-]);
+export function isWithinBrazil(coordinates: {
+  latitude: number;
+  longitude: number;
+}) {
+  return (
+    Number.isFinite(coordinates.latitude) &&
+    Number.isFinite(coordinates.longitude) &&
+    coordinates.latitude >= BRAZIL_BOUNDS.minLatitude &&
+    coordinates.latitude <= BRAZIL_BOUNDS.maxLatitude &&
+    coordinates.longitude >= BRAZIL_BOUNDS.minLongitude &&
+    coordinates.longitude <= BRAZIL_BOUNDS.maxLongitude
+  );
+}
+
+const OUTSIDE_BRAZIL_MESSAGE =
+  "O ponto precisa ficar dentro do Brasil. Marque no mapa o local da sua fazenda.";
+
+export const farmCoordinatesSchema = z
+  .object({
+    latitude: z
+      .number()
+      .finite()
+      .min(-90, "Latitude deve estar entre -90 e 90.")
+      .max(90, "Latitude deve estar entre -90 e 90."),
+    longitude: z
+      .number()
+      .finite()
+      .min(-180, "Longitude deve estar entre -180 e 180.")
+      .max(180, "Longitude deve estar entre -180 e 180."),
+  })
+  .refine(isWithinBrazil, { message: OUTSIDE_BRAZIL_MESSAGE });
+
+export const farmPointSchema = z
+  .tuple([
+    z.number().finite().min(-180).max(180),
+    z.number().finite().min(-90).max(90),
+  ])
+  .refine(([longitude, latitude]) => isWithinBrazil({ latitude, longitude }), {
+    message: OUTSIDE_BRAZIL_MESSAGE,
+  });
 
 export const farmAddressSchema: z.ZodType<FarmAddress> = z
   .object({
