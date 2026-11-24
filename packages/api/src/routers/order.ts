@@ -37,6 +37,11 @@ import {
 import { buildFreightQuote } from "../freight-quote";
 import { calculateLotPriceAndStatus } from "../utils/lot-status";
 import { emitOrderNotifications } from "../notifications/domain-events";
+import {
+  PaymentNotReleasableError,
+  releaseOrderPayment,
+} from "../order-payment-release";
+import { isPlatformOnlyStripeMode } from "../stripe-connect-mode";
 import { sanitizeEnvValue } from "../env";
 
 const stripeSecretKey = sanitizeEnvValue(process.env.STRIPE_SECRET_KEY);
@@ -56,6 +61,14 @@ function getStripeClient() {
 
 const WEIGHT_SAFETY_MARGIN = 1.1;
 const PLATFORM_FEE_RATE = 0.1;
+// Statuses in which the buyer may still cancel on their own: payment
+// authorized or captured, but nothing picked or shipped yet.
+const BUYER_CANCELLABLE_STATUSES = new Set<string>([
+  "payment_authorized",
+  "awaiting_weight",
+  "confirmed",
+]);
+
 const legacyDirectOrderMutationEnabled =
   sanitizeEnvValue(process.env.ENABLE_LEGACY_DIRECT_ORDER_MUTATION) === "true";
 const STRIPE_CAPTURE_FINGERPRINT_METADATA_KEY = "frescari_capture_fingerprint";
@@ -633,12 +646,34 @@ export const orderRouter = createTRPCRouter({
             });
           }
 
-          if (targetOrder.status !== "confirmed") {
+          if (!BUYER_CANCELLABLE_STATUSES.has(targetOrder.status)) {
             throw new TRPCError({
               code: "BAD_REQUEST",
               message:
-                'Apenas pedidos com status "Processando" podem ser cancelados.',
+                "Este pedido nao pode mais ser cancelado pelo comprador. Fale com o suporte.",
             });
+          }
+
+          // Give the money back before touching the order: if Stripe fails,
+          // the transaction aborts and the order stays as it was, instead of
+          // showing "cancelled" while the buyer's money is still held.
+          let payment;
+          try {
+            payment = await releaseOrderPayment({
+              stripe: getStripeClient(),
+              orderId: targetOrder.id,
+              paymentIntentId: targetOrder.paymentIntentId,
+              platformOnly: isPlatformOnlyStripeMode(),
+            });
+          } catch (error) {
+            if (error instanceof PaymentNotReleasableError) {
+              throw new TRPCError({
+                code: "PRECONDITION_FAILED",
+                message:
+                  "O pagamento ainda esta sendo processado. Tente cancelar novamente em alguns minutos.",
+              });
+            }
+            throw error;
           }
 
           // Fetch order items to refund stock
@@ -664,7 +699,21 @@ export const orderRouter = createTRPCRouter({
               .where(eq(productLots.id, item.lotId));
           }
 
-          return { success: true };
+          await emitOrderNotifications({
+            tx,
+            type: "order_cancelled",
+            orderId: targetOrder.id,
+            buyerTenantId: targetOrder.buyerTenantId,
+            sellerTenantId: targetOrder.sellerTenantId,
+            actorUserId: ctx.user.id,
+            metadata: {
+              orderId: targetOrder.id,
+              cancelledBy: "buyer",
+              payment: payment.action,
+            },
+          });
+
+          return { success: true, payment: payment.action };
         });
       } catch (error) {
         console.error("[ERRO_CANCELAR_PEDIDO]: ", error);
