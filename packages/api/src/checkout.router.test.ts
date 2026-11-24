@@ -518,6 +518,15 @@ test("checkout.createFarmCheckoutSession recalculates freight on the server and 
     payload.payment_intent_data?.transfer_data?.destination,
     "acct_producer_123",
   );
+
+  // Commission is 10% of the products only; the R$ 18 freight is excluded.
+  const productCents =
+    payload.line_items[0]!.price_data!.unit_amount! *
+    (payload.line_items[0]!.quantity ?? 1);
+  assert.equal(
+    payload.payment_intent_data?.application_fee_amount,
+    Math.round(productCents * 0.1),
+  );
 });
 
 test("checkout.createFarmCheckoutSession normalizes weighable items to a single Stripe line item quantity", async () => {

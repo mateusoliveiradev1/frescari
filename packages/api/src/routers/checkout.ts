@@ -694,10 +694,10 @@ export const checkoutRouter = createTRPCRouter({
       );
       const captureMethod = hasWeightProducts ? "manual" : "automatic";
       const isAllUnitOrder = !hasWeightProducts;
-      const totalAmountBrl = itemsTotalBRL + effectiveDeliveryFee;
-      const totalAmountCents = Math.round(totalAmountBrl * 100);
+      // Commission applies to the products only, never to freight: freight
+      // is the producer's delivery cost and goes to them in full.
       const calculatedFeeCents = Math.round(
-        totalAmountCents * PLATFORM_FEE_RATE,
+        Math.round(itemsTotalBRL * 100) * PLATFORM_FEE_RATE,
       );
       const deliveryNotes = input.deliveryNotes?.trim() || undefined;
 

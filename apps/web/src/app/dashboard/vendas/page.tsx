@@ -123,7 +123,8 @@ function calculateWeighingPreview(
 
   const deliveryFeeCents = Math.round(Number(order.deliveryFee ?? 0) * 100);
   const grossAmountCents = itemSubtotalCents + deliveryFeeCents;
-  const platformFeeCents = Math.round(grossAmountCents * PLATFORM_FEE_RATE);
+  // Mirrors the API: commission on products only, never on freight.
+  const platformFeeCents = Math.round(itemSubtotalCents * PLATFORM_FEE_RATE);
 
   return {
     itemSubtotal: itemSubtotalCents / 100,

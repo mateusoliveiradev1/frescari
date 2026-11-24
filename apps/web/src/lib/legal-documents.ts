@@ -354,6 +354,7 @@ const legalDocuments = {
         paragraphs: [
           "A Frescari disponibiliza a infraestrutura comercial e nao substitui a responsabilidade legal, comercial, tributaria e operacional das partes pelos atos que lhes competem.",
           "O produtor e responsavel pela regularidade do cadastro, pela legitimidade da oferta, pela veracidade das informacoes do item e pela capacidade de cumprir a operacao. O comprador responde pela veracidade das informacoes de compra, pagamento e recebimento.",
+          "A separacao, o transporte e a entrega dos pedidos sao de responsabilidade do produtor, que define as condicoes de frete da sua operacao, como taxa base, valor por quilometro, raio maximo de entrega e pedido minimo. A Frescari calcula o frete a partir dessas condicoes e intermedia o pagamento, mas nao presta servico de transporte.",
         ],
       },
       {
@@ -422,7 +423,7 @@ const legalDocuments = {
       {
         title: "3. Comissao da plataforma",
         paragraphs: [
-          "A Frescari cobra uma comissao de 10% (dez por cento) sobre o valor bruto de cada transacao intermediada pela plataforma. Esse percentual incide sobre o total pago pelo comprador, incluindo o valor dos itens, antes do desconto do frete.",
+          "A Frescari cobra uma comissao de 10% (dez por cento) sobre o valor dos produtos de cada pedido intermediado pela plataforma. A comissao nao incide sobre o frete: o valor do frete e repassado integralmente ao produtor responsavel pela entrega.",
           "A comissao e deduzida automaticamente no momento do repasse ao produtor. Taxas adicionais do parceiro financeiro, instituicao financeira, adquirente, bandeira, banco ou meio de pagamento podem ser descontadas conforme os termos aplicaveis e serao comunicadas ao produtor na area do produtor ou por comunicado especifico.",
         ],
       },
