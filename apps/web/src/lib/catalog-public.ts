@@ -56,6 +56,7 @@ export interface PublicCatalogLot {
   categoryPath: string;
   productPath: string;
   supplierRegionPath: string | null;
+  sellerSlug: string | null;
 }
 
 export interface CatalogCategorySummary {
@@ -185,6 +186,7 @@ async function loadAllAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
         categoryPath,
         productPath,
         supplierRegionPath,
+        sellerSlug: row.sellerSlug ?? null,
       } satisfies PublicCatalogLot;
     })
     .sort((left, right) => {
@@ -219,6 +221,43 @@ async function getAllAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
 export async function getAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
   return getAllAvailableCatalogLots();
 }
+
+export interface ProducerStorefrontPageData {
+  producer: {
+    name: string;
+    slug: string;
+    farmName: string | null;
+    city: string | null;
+    state: string | null;
+  };
+  lots: PublicCatalogLot[];
+}
+
+export const getProducerStorefrontPageData = cache(
+  async (slug: string): Promise<ProducerStorefrontPageData | null> => {
+    const trpc = await getServerTrpc();
+    const producer = await trpc.lot.getProducerStorefront({ slug });
+
+    if (!producer) {
+      return null;
+    }
+
+    const lots = (await getAllAvailableCatalogLots()).filter(
+      (lot) => lot.sellerSlug === producer.slug,
+    );
+
+    return {
+      producer: {
+        ...producer,
+        city: producer.city ? sanitizeText(producer.city) : null,
+        state: producer.state
+          ? sanitizeText(producer.state).toUpperCase()
+          : null,
+      },
+      lots,
+    };
+  },
+);
 
 export async function getCategoryStaticParams(): Promise<
   Array<{ categoria: string }>

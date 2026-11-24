@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { trpc } from "@/trpc/react";
 import { StripeConnectButton } from "@/components/StripeConnectButton";
+import { StorefrontShareButtons } from "@/components/StorefrontShareButtons";
+import { buildProducerStorefrontPath } from "@/lib/producer-storefront";
 
 function Skeleton({ className }: { className?: string }) {
   return <div className={`animate-pulse bg-soil/10 rounded-sm ${className}`} />;
@@ -25,7 +27,44 @@ type PublishReadiness = {
   farmLocated: boolean;
   hasActiveLot: boolean;
   lotsVisibleInCatalog: boolean;
+  storefrontSlug: string | null;
 };
+
+function StorefrontCard({ slug }: { slug: string }) {
+  const path = buildProducerStorefrontPath(slug);
+  const url = `${window.location.origin}${path}`;
+
+  return (
+    <section
+      aria-labelledby="storefront-title"
+      className="border border-forest/20 bg-sage/40 rounded-sm p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+    >
+      <div className="space-y-1">
+        <h2
+          id="storefront-title"
+          className="font-display text-2xl font-bold text-soil"
+        >
+          Sua vitrine
+        </h2>
+        <p className="font-sans text-sm text-bark max-w-xl">
+          Uma pagina so com os seus produtos. Mande para os seus clientes e
+          grupos: eles compram direto por ela.{" "}
+          <Link
+            href={path}
+            target="_blank"
+            className="font-semibold text-forest hover:underline"
+          >
+            Ver vitrine
+          </Link>
+        </p>
+      </div>
+      <StorefrontShareButtons
+        url={url}
+        shareText={`Confira meus produtos frescos na Frescari e compre direto comigo: ${url}`}
+      />
+    </section>
+  );
+}
 
 type SetupStep = {
   key: string;
@@ -196,6 +235,10 @@ export default function DashboardClient({ user }: { user: unknown }) {
 
         {showChecklist && readiness ? (
           <ProducerSetupChecklist readiness={readiness} />
+        ) : null}
+
+        {readiness && !showChecklist && readiness.storefrontSlug ? (
+          <StorefrontCard slug={readiness.storefrontSlug} />
         ) : null}
 
         {/* ── Quick stats row ── */}

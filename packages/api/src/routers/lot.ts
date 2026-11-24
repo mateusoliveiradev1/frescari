@@ -45,6 +45,7 @@ const formatDateOnly = (value: string | Date) => {
 
 const revalidateCatalogPages = () => {
   safeRevalidatePath("/catalogo", "layout");
+  safeRevalidatePath("/produtor", "layout");
 };
 
 const getErrorMessage = (error: unknown) => {
@@ -64,6 +65,7 @@ const buildCatalogLot = (
     categorySlug?: string | null;
     categoryName?: string | null;
     categoryDescription?: string | null;
+    sellerSlug?: string | null;
   },
   referenceDate = new Date(),
 ) => {
@@ -110,6 +112,7 @@ const buildCatalogLot = (
     categorySlug: row.categorySlug ?? null,
     categoryName: row.categoryName ?? null,
     categoryDescription: row.categoryDescription ?? null,
+    sellerSlug: row.sellerSlug ?? null,
   };
 };
 
@@ -277,6 +280,7 @@ export const lotRouter = createTRPCRouter({
               categorySlug: productCategories.slug,
               categoryName: productCategories.name,
               categoryDescription: productCategories.seoDescription,
+              sellerSlug: tenants.slug,
               sellerStripeAccountId: tenants.stripeAccountId,
               sellerStripeChargesEnabled: tenants.stripeChargesEnabled,
               sellerStripeDetailsSubmitted: tenants.stripeDetailsSubmitted,
@@ -354,12 +358,49 @@ export const lotRouter = createTRPCRouter({
     }),
 
   // What still stops this producer's lots from showing in the public catalog.
+  // Public profile for the producer storefront (/produtor/[slug]). Only
+  // non-sensitive fields: never phone, document or Stripe data.
+  getProducerStorefront: publicProcedure
+    .input(z.object({ slug: z.string().min(1).max(200) }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.transaction(async (tx) => {
+        await enableProductLotPublicReadContext(tx);
+
+        const [producer] = await tx
+          .select({ id: tenants.id, name: tenants.name, slug: tenants.slug })
+          .from(tenants)
+          .where(
+            and(eq(tenants.slug, input.slug), eq(tenants.type, "PRODUCER")),
+          )
+          .limit(1);
+
+        if (!producer) {
+          return null;
+        }
+
+        const [farm] = await tx
+          .select({ name: farms.name, address: farms.address })
+          .from(farms)
+          .where(eq(farms.tenantId, producer.id))
+          .limit(1);
+
+        return {
+          name: producer.name,
+          slug: producer.slug,
+          farmName: farm?.name ?? null,
+          city: farm?.address?.city ?? null,
+          state: farm?.address?.state ?? null,
+        };
+      });
+    }),
+
   // Mirrors the filters in getAvailableLots, so "visible" here means visible there.
   getPublishReadiness: producerProcedure.query(async ({ ctx }) => {
     const tenantId = ctx.tenantId;
 
     const [tenant] = await ctx.db
       .select({
+        slug: tenants.slug,
         stripeAccountId: tenants.stripeAccountId,
         stripeChargesEnabled: tenants.stripeChargesEnabled,
         stripeDetailsSubmitted: tenants.stripeDetailsSubmitted,
@@ -402,6 +443,7 @@ export const lotRouter = createTRPCRouter({
       farmLocated,
       hasActiveLot,
       lotsVisibleInCatalog: paymentsReady && farmLocated,
+      storefrontSlug: tenant?.slug ?? null,
     };
   }),
 

@@ -159,6 +159,7 @@ export const stripeRouter = createTRPCRouter({
       const wasReady = deriveStripeConnectStatus(tenant).state === "ready";
       if (wasReady !== (status.state === "ready")) {
         safeRevalidatePath("/catalogo", "layout");
+        safeRevalidatePath("/produtor", "layout");
       }
 
       return status;
