@@ -1044,7 +1044,8 @@ export const orderRouter = createTRPCRouter({
       );
       const grossAmountCents = itemsTotalCents + deliveryFeeCents;
       const grossAmount = grossAmountCents / 100;
-      const platformFeeCents = Math.round(grossAmountCents * PLATFORM_FEE_RATE);
+      // Commission on the weighed products only; freight goes to the producer.
+      const platformFeeCents = Math.round(itemsTotalCents * PLATFORM_FEE_RATE);
       const netAmountCents = grossAmountCents - platformFeeCents;
       const storedTotalCents = Math.round(
         Number(targetOrder.totalAmount) * 100,
