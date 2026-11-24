@@ -81,59 +81,72 @@ const GENERAL_FORUM_PARAGRAPH =
   "Eventuais controversias serao submetidas ao foro competente definido pela legislacao brasileira aplicavel.";
 
 function resolveLegalContent(value: string): string {
-  return value
-    .replaceAll(
-      "Para exercicio de direitos ou duvidas sobre privacidade, o titular pode entrar em contato com o encarregado de dados (DPO) pelo endeco de e-mail: [EMAIL DE PRIVACIDADE].",
-      `Para exercicio de direitos ou duvidas sobre privacidade, o titular pode entrar em contato pelo canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}.`,
-    )
-    .replaceAll(
-      "Solicitacoes relacionadas ao exercicio de direitos, duvidas sobre tratamento e reclamacoes de privacidade devem ser encaminhadas ao encarregado de dados da Frescari pelo e-mail: [EMAIL DE PRIVACIDADE]. A Frescari se compromete a responder dentro do prazo razoavel exigido pela LGPD.",
-      `Solicitacoes relacionadas ao exercicio de direitos, duvidas sobre tratamento e reclamacoes de privacidade devem ser encaminhadas ao canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}. A Frescari se compromete a responder dentro de prazo razoavel, observado o regime aplicavel da LGPD.`,
-    )
-    .replaceAll(
-      "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias oriundas deste instrumento, sem prejuizo da competencia de foro especial prevista em lei para consumidores.",
-      CONSUMER_FORUM_PARAGRAPH,
-    )
-    .replaceAll(
-      "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias, sem prejuizo do foro especial previsto em lei para consumidores.",
-      CONSUMER_FORUM_PARAGRAPH,
-    )
-    .replaceAll(
-      "Fica eleito o foro da comarca de [CIDADE/UF] para dirimir eventuais controversias, sem prejuizo do foro especial do consumidor.",
-      CONSUMER_FORUM_PARAGRAPH,
-    )
-    .replaceAll(
-      "O foro competente para eventuais controversias e o da comarca de [CIDADE/UF].",
-      GENERAL_FORUM_PARAGRAPH,
-    )
-    .replaceAll(
-      "Fica eleito o foro da comarca de [CIDADE/UF] para dirimir eventuais controversias.",
-      GENERAL_FORUM_PARAGRAPH,
-    )
-    .replaceAll(
-      "[RAZAO SOCIAL], inscrita no CNPJ sob o numero [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF]",
-      LEGAL_OPERATOR_LEGAL_LINE,
-    )
-    .replaceAll(
-      "[RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF]",
-      LEGAL_OPERATOR_LEGAL_LINE,
-    )
-    .replaceAll("[RAZAO SOCIAL]", LEGAL_OPERATOR_NAME)
-    .replaceAll(
-      "[ENDERECO COMPLETO, CIDADE/UF]",
-      LEGAL_OPERATOR_ADDRESS ||
-        "endereco comercial informado pelos canais oficiais de atendimento",
-    )
-    .replaceAll(
-      "[XX.XXX.XXX/XXXX-XX]",
-      LEGAL_OPERATOR_DOCUMENT || LEGAL_DOCUMENT_FALLBACK,
-    )
-    .replaceAll("[EMAIL DE SUPORTE]", LEGAL_SUPPORT_EMAIL)
-    .replaceAll("[EMAIL DE PRIVACIDADE]", LEGAL_PRIVACY_EMAIL)
-    .replaceAll(
-      "[CIDADE/UF]",
-      "localidade informada nos canais oficiais de atendimento",
-    );
+  return (
+    value
+      .replaceAll(
+        "Para exercicio de direitos ou duvidas sobre privacidade, o titular pode entrar em contato com o encarregado de dados (DPO) pelo endeco de e-mail: [EMAIL DE PRIVACIDADE].",
+        `Para exercicio de direitos ou duvidas sobre privacidade, o titular pode entrar em contato pelo canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}.`,
+      )
+      .replaceAll(
+        "Solicitacoes relacionadas ao exercicio de direitos, duvidas sobre tratamento e reclamacoes de privacidade devem ser encaminhadas ao encarregado de dados da Frescari pelo e-mail: [EMAIL DE PRIVACIDADE]. A Frescari se compromete a responder dentro do prazo razoavel exigido pela LGPD.",
+        `Solicitacoes relacionadas ao exercicio de direitos, duvidas sobre tratamento e reclamacoes de privacidade devem ser encaminhadas ao canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}. A Frescari se compromete a responder dentro de prazo razoavel, observado o regime aplicavel da LGPD.`,
+      )
+      .replaceAll(
+        "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias oriundas deste instrumento, sem prejuizo da competencia de foro especial prevista em lei para consumidores.",
+        CONSUMER_FORUM_PARAGRAPH,
+      )
+      .replaceAll(
+        "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias, sem prejuizo do foro especial previsto em lei para consumidores.",
+        CONSUMER_FORUM_PARAGRAPH,
+      )
+      .replaceAll(
+        "Fica eleito o foro da comarca de [CIDADE/UF] para dirimir eventuais controversias, sem prejuizo do foro especial do consumidor.",
+        CONSUMER_FORUM_PARAGRAPH,
+      )
+      .replaceAll(
+        "O foro competente para eventuais controversias e o da comarca de [CIDADE/UF].",
+        GENERAL_FORUM_PARAGRAPH,
+      )
+      .replaceAll(
+        "Fica eleito o foro da comarca de [CIDADE/UF] para dirimir eventuais controversias.",
+        GENERAL_FORUM_PARAGRAPH,
+      )
+      .replaceAll(
+        "[RAZAO SOCIAL], inscrita no CNPJ sob o numero [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF]",
+        LEGAL_OPERATOR_LEGAL_LINE,
+      )
+      .replaceAll(
+        "[RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF]",
+        LEGAL_OPERATOR_LEGAL_LINE,
+      )
+      .replaceAll(
+        "[RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDERECO COMPLETO, CIDADE/UF]",
+        `${LEGAL_OPERATOR_NAME}, ${LEGAL_OPERATOR_REGISTRY_LINE}, responsavel pela operacao da plataforma Frescari, ${LEGAL_OPERATOR_ADDRESS_LINE}`,
+      )
+      // Safety net for any other template sentence: never label a CPF as CNPJ.
+      .replaceAll(
+        "CNPJ [XX.XXX.XXX/XXXX-XX]",
+        LEGAL_OPERATOR_DOCUMENT
+          ? `${LEGAL_OPERATOR_DOCUMENT_KIND} ${LEGAL_OPERATOR_DOCUMENT}`
+          : LEGAL_DOCUMENT_FALLBACK,
+      )
+      .replaceAll("[RAZAO SOCIAL]", LEGAL_OPERATOR_NAME)
+      .replaceAll(
+        "[ENDERECO COMPLETO, CIDADE/UF]",
+        LEGAL_OPERATOR_ADDRESS ||
+          "endereco comercial informado pelos canais oficiais de atendimento",
+      )
+      .replaceAll(
+        "[XX.XXX.XXX/XXXX-XX]",
+        LEGAL_OPERATOR_DOCUMENT || LEGAL_DOCUMENT_FALLBACK,
+      )
+      .replaceAll("[EMAIL DE SUPORTE]", LEGAL_SUPPORT_EMAIL)
+      .replaceAll("[EMAIL DE PRIVACIDADE]", LEGAL_PRIVACY_EMAIL)
+      .replaceAll(
+        "[CIDADE/UF]",
+        "localidade informada nos canais oficiais de atendimento",
+      )
+  );
 }
 
 const legalDocuments = {
