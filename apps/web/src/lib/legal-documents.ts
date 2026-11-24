@@ -424,20 +424,20 @@ const legalDocuments = {
         title: "3. Comissao da plataforma",
         paragraphs: [
           "A Frescari cobra uma comissao de 10% (dez por cento) sobre o valor dos produtos de cada pedido intermediado pela plataforma. A comissao nao incide sobre o frete: o valor do frete e repassado integralmente ao produtor responsavel pela entrega.",
-          "A comissao e deduzida automaticamente no momento do repasse ao produtor. Taxas adicionais do parceiro financeiro, instituicao financeira, adquirente, bandeira, banco ou meio de pagamento podem ser descontadas conforme os termos aplicaveis e serao comunicadas ao produtor na area do produtor ou por comunicado especifico.",
+          "A comissao e separada automaticamente no momento em que o pagamento do pedido e confirmado. Taxas adicionais do parceiro financeiro, instituicao financeira, adquirente, bandeira, banco ou meio de pagamento podem ser descontadas conforme os termos aplicaveis e serao comunicadas ao produtor na area do produtor ou por comunicado especifico.",
         ],
       },
       {
         title: "4. Repasse ao produtor",
         paragraphs: [
-          "O repasse ao produtor ocorre em ate 7 (sete) dias uteis contados da confirmacao da entrega do pedido, sujeito ao calendario do parceiro financeiro e a ausencia de bloqueios previstos nesta politica.",
+          "Quando o pagamento do pedido e confirmado, o valor do produtor (o valor dos produtos menos a comissao, mais o frete) e transferido automaticamente para a conta de recebimento do produtor no parceiro financeiro. Em pedidos com itens vendidos por peso, a transferencia ocorre quando o produtor informa o peso final e o pagamento e capturado pelo valor real. O deposito na conta bancaria do produtor segue o calendario de repasses do parceiro financeiro.",
           "A Frescari podera reter temporariamente valores quando houver necessidade de conciliacao, investigacao de fraude, contestacao de pagamento, determinacao regulatoria ou descumprimento material das politicas da plataforma.",
         ],
       },
       {
         title: "5. Cancelamentos, estornos e chargebacks",
         paragraphs: [
-          "Operacoes canceladas, estornadas ou objeto de chargeback poderao afetar a disponibilidade de repasse e gerar compensacoes, ajustes ou debitamentos conforme o caso concreto e a responsabilidade identificada.",
+          "Quando um pedido e cancelado com estorno ao comprador, o valor transferido ao produtor e a comissao da plataforma sao revertidos junto com o estorno, inclusive por debito no saldo da conta de recebimento do produtor quando o valor ja tiver sido transferido. Operacoes objeto de chargeback poderao gerar compensacoes, ajustes ou debitamentos conforme o caso concreto e a responsabilidade identificada.",
           "A plataforma podera priorizar a preservacao da integridade financeira da Frescari, inclusive com bloqueio temporario de saque, ajuste de saldo ou exigencia de informacoes adicionais.",
         ],
       },
