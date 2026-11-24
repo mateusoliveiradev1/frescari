@@ -31,6 +31,8 @@ import {
 } from "react-hook-form";
 import { toast } from "sonner";
 
+import { isWithinBrazil } from "@frescari/validators";
+
 import { trpc } from "@/trpc/react";
 
 import { FarmMap } from "./farm-map";
@@ -713,6 +715,15 @@ export function FarmPageClient() {
         longitude: result.longitude,
       });
 
+      if (!isWithinBrazil(nextCoordinates)) {
+        setMapFeedback({
+          tone: "error",
+          message:
+            "A busca encontrou um lugar fora do Brasil. Inclua cidade e estado, por exemplo: Rua X, 123, Cidade - UF.",
+        });
+        return;
+      }
+
       setValue("location", nextCoordinates, {
         shouldDirty: true,
         shouldTouch: true,
@@ -740,6 +751,14 @@ export function FarmPageClient() {
     _source: FarmMapInteractionSource,
   ) => {
     await requestAddressSuggestion(roundCoordinates(coordinates), _source);
+  };
+
+  const handleRejectedMapLocation = () => {
+    setMapFeedback({
+      tone: "error",
+      message:
+        "Esse ponto fica fora do Brasil, entao nao foi usado. Clique no mapa sobre a sua fazenda ou busque pelo endereco.",
+    });
   };
 
   const onSubmit = handleSubmit(async (values) => {
@@ -1144,6 +1163,7 @@ export function FarmPageClient() {
                       disabled={saveMutation.isPending}
                       onChange={field.onChange}
                       onLocationCommit={handleMapLocationCommit}
+                      onRejectedLocation={handleRejectedMapLocation}
                       value={field.value}
                     />
                   )}
