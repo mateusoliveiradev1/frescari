@@ -501,13 +501,15 @@ test("logistics.updateDeliveryStatus advances producer orders through ready_for_
       return {
         set(values: Record<string, unknown>) {
           return {
-            where: async () => {
+            where() {
               const nextStatus = String(values.status);
               state.updatedStatuses.push(nextStatus);
               state.order = {
                 ...state.order,
                 status: nextStatus,
               };
+              // The update is guarded by the current status and returns the row.
+              return { returning: async () => [{ id: state.order.id }] };
             },
           };
         },
@@ -580,13 +582,15 @@ test("logistics.updateDeliveryStatus blocks skipping dispatch confirmation befor
       return {
         set(values: Record<string, unknown>) {
           return {
-            where: async () => {
+            where() {
               const nextStatus = String(values.status);
               state.updatedStatuses.push(nextStatus);
               state.order = {
                 ...state.order,
                 status: nextStatus,
               };
+              // The update is guarded by the current status and returns the row.
+              return { returning: async () => [{ id: state.order.id }] };
             },
           };
         },
