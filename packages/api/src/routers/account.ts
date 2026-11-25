@@ -6,6 +6,7 @@ import {
   getTenantTypeMismatchMessage,
   isTenantTypeCompatibleWithRole,
 } from "../tenant-access";
+import { decryptPii } from "../pii-crypto";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import {
   accountRegistrationUpdateSchema,
@@ -19,7 +20,8 @@ function mapAccountTenant(tenant: typeof tenants.$inferSelect) {
     id: tenant.id,
     name: tenant.name,
     producerContactName: tenant.producerContactName ?? null,
-    producerDocumentId: tenant.producerDocumentId ?? null,
+    // The producer's own document, decrypted only for its owner.
+    producerDocumentId: decryptPii(tenant.producerDocumentId),
     producerLegalEntityType: tenant.producerLegalEntityType ?? null,
     producerLegalName: tenant.producerLegalName ?? null,
     producerPhone: tenant.producerPhone ?? null,

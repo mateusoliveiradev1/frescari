@@ -8,6 +8,7 @@
         "test:worker": "tsx --test src/workers/*.test.ts",
         "stripe:connect:audit-legacy": "tsx src/workers/stripe-connect-legacy-audit-cli.ts",
         "stripe:connect:backfill": "tsx src/workers/stripe-connect-backfill-cli.ts",
+        "pii:encrypt-documents": "tsx src/workers/encrypt-documents-cli.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "worker:lot-freshness": "tsx src/workers/lot-freshness-cli.ts",
         "worker:lot-freshness:run-once": "tsx src/workers/lot-freshness-cli.ts --run-once",

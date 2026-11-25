@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { decryptPii, isEncryptedPii } from "../pii-crypto";
+
+// Documents are stored encrypted; tests use a throwaway key.
+process.env.PII_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString("base64");
 
 import {
   accountRegistrationUpdateSchema,
@@ -76,7 +80,8 @@ test("accountRegistrationUpdateSchema normalizes producer payloads", () => {
 
   assert.equal(update.name, "Sitio da Ana");
   assert.equal(update.producerContactName, "Ana Maria Souza");
-  assert.equal(update.producerDocumentId, "52998224725");
+  assert.ok(isEncryptedPii(update.producerDocumentId));
+  assert.equal(decryptPii(update.producerDocumentId), "52998224725");
   assert.equal(update.producerLegalEntityType, "PF");
   assert.equal(update.producerLegalName, "Ana Maria de Souza");
   assert.equal(update.producerPhone, "11998765432");

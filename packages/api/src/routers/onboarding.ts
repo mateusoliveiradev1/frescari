@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { encryptPii } from "../pii-crypto";
 import { TRPCError } from "@trpc/server";
 
 import { enableRlsBypassContext, tenants, users } from "@frescari/db";
@@ -53,7 +54,7 @@ export const onboardingRouter = createTRPCRouter({
                     slug,
                     type: input.type,
                     producerContactName: input.contactName,
-                    producerDocumentId: input.documentId,
+                    producerDocumentId: encryptPii(input.documentId),
                     producerLegalEntityType: input.legalEntityType,
                     producerLegalName: input.legalName,
                     producerPhone: input.phone,
