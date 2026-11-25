@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
+  type AppDb,
   addresses,
   deliveryDispatchOverrides,
   deliveryDispatchWaveOrders,
@@ -20,9 +21,24 @@ import { calculateFreightSchema } from "@frescari/validators";
 
 import {
   buildDispatchControlQueueWithExternalRiskSignals,
+  estimateDeliveryWeightKg,
   getOperationDate,
+  suggestVehicleTypeForLoad,
+  type DeliveryControlFleetVehicle,
   type DeliveryControlQueueItem,
+  type DispatchConfidence,
 } from "../delivery-control";
+import {
+  MAX_WAVE_STOPS,
+  UNKNOWN_ITEM_WEIGHT_KG,
+  WAVE_RADIUS_KM,
+  brasiliaDayKey,
+  haversineKm,
+  planStopOrder,
+  selectWaveMembers,
+  type GeoPoint,
+  type WaveCandidate,
+} from "../dispatch-route";
 import { stubDeliveryExternalSignalsResolver } from "../external-risk-signals";
 import {
   normalizeCurrencyValue,
@@ -42,7 +58,12 @@ const pendingDeliveryStatuses = [
   "confirmed",
   "picking",
   "ready_for_dispatch",
+  // Shown as "em rota" so the producer can confirm the delivery here.
+  "in_transit",
 ] as const;
+// Only orders already paid and confirmed can go into a wave
+// (payment_authorized is an uncaptured legacy state).
+const dispatchableStatuses = new Set(["confirmed", "picking"]);
 const deliveryMutationStatuses = [
   "ready_for_dispatch",
   "in_transit",
@@ -284,7 +305,6 @@ function assertDeliveryTransition(
   nextStatus: DeliveryMutationStatus,
 ) {
   const allowedTransitions: Record<string, DeliveryMutationStatus[]> = {
-    payment_authorized: ["ready_for_dispatch"],
     confirmed: ["ready_for_dispatch"],
     picking: ["ready_for_dispatch"],
     ready_for_dispatch: ["in_transit", "delivered"],
@@ -391,6 +411,10 @@ function groupPendingDeliveryRows(
       if (row.estimatedWeightKg !== null) {
         groupedDelivery.totalEstimatedWeightKg += row.estimatedWeightKg;
         groupedDelivery.hasEstimatedWeight = true;
+      } else {
+        // 40 boxes with no unit weight are not weightless: without this an
+        // order of 2 kg + 40 boxes was estimated at 2 kg (a motorcycle).
+        groupedDelivery.totalEstimatedWeightKg += UNKNOWN_ITEM_WEIGHT_KG;
       }
 
       if (lotFreshnessScore !== null) {
@@ -434,9 +458,7 @@ function hasConfirmedDispatch(delivery: PendingDeliveryQueueItem) {
 
 function isDispatchable(delivery: PendingDeliveryQueueItem) {
   return (
-    !hasConfirmedDispatch(delivery) &&
-    delivery.status !== "in_transit" &&
-    delivery.status !== "delivered"
+    !hasConfirmedDispatch(delivery) && dispatchableStatuses.has(delivery.status)
   );
 }
 
@@ -510,69 +532,234 @@ function buildWavePolyline(
   return polyline;
 }
 
-function sumEstimatedWeight(deliveries: PendingDeliveryQueueItem[]) {
-  return deliveries.reduce<number | null>((sum, delivery) => {
-    if (delivery.totalEstimatedWeightKg === null) {
-      return sum;
-    }
+type DeliveryWaveCandidate = WaveCandidate & {
+  delivery: PendingDeliveryQueueItem;
+};
 
-    return (sum ?? 0) + delivery.totalEstimatedWeightKg;
-  }, null);
+function toWaveCandidate(
+  delivery: PendingDeliveryQueueItem,
+): DeliveryWaveCandidate {
+  const destination = delivery.destination;
+  const point: GeoPoint | null =
+    destination &&
+    isValidCoordinate(destination.latitude) &&
+    isValidCoordinate(destination.longitude)
+      ? { latitude: destination.latitude, longitude: destination.longitude }
+      : null;
+
+  return {
+    orderId: delivery.orderId,
+    farmId: delivery.origin?.farmId ?? null,
+    point,
+    windowStart: delivery.deliveryWindowStart,
+    weightKg: estimateDeliveryWeightKg(delivery),
+    needsRefrigeration: delivery.recommendation.riskLevel === "high",
+    delivery,
+  };
 }
 
-function isCompatibleWithPrimary(
-  primaryDelivery: PendingDeliveryQueueItem,
-  delivery: PendingDeliveryQueueItem,
+// Stops in driving order from the farm (shortest path); a stop without
+// coordinates goes last.
+function routeWave(members: DeliveryWaveCandidate[]) {
+  const origin = resolveWaveOrigin(members[0]!.delivery);
+  const located = members.filter(
+    (member): member is DeliveryWaveCandidate & { point: GeoPoint } =>
+      member.point !== null,
+  );
+  const unlocated = members.filter((member) => member.point === null);
+  const { ordered, totalKm } = planStopOrder(
+    origin ? { latitude: origin.latitude, longitude: origin.longitude } : null,
+    located,
+  );
+
+  return {
+    deliveries: [...ordered, ...unlocated].map((member) => member.delivery),
+    routeKm: located.length > 0 ? Number(totalKm.toFixed(1)) : null,
+  };
+}
+
+function resolveWaveVehicleType(
+  members: DeliveryWaveCandidate[],
+  totalKg: number,
+  needsRefrigeration: boolean,
+  vehicle: DeliveryControlFleetVehicle | null,
 ) {
-  if (
-    primaryDelivery.orderId === delivery.orderId ||
-    !isAutoActionable(delivery)
-  ) {
-    return false;
+  if (vehicle) {
+    return vehicle.vehicleType;
   }
 
-  if (
-    (primaryDelivery.origin?.farmId ?? null) !==
-    (delivery.origin?.farmId ?? null)
-  ) {
-    return false;
+  const distances = members
+    .map((member) => member.delivery.distanceKm)
+    .filter((km): km is number => km !== null);
+
+  return suggestVehicleTypeForLoad({
+    weightKg: totalKg,
+    maxDistanceKm: distances.length > 0 ? Math.max(...distances) : null,
+    needsRefrigeration,
+  });
+}
+
+/**
+ * The wave suggested around `primary`: same farm, same delivery day, close
+ * to it, within one vehicle's capacity (see dispatch-route.ts), in driving
+ * order.
+ */
+function planDispatchWave(
+  primary: PendingDeliveryQueueItem,
+  candidates: PendingDeliveryQueueItem[],
+  vehicles: DeliveryControlFleetVehicle[],
+) {
+  const plan = selectWaveMembers(
+    toWaveCandidate(primary),
+    candidates.map(toWaveCandidate),
+    vehicles,
+  );
+  const route = routeWave(plan.members);
+
+  return {
+    deliveries: route.deliveries,
+    routeKm: route.routeKm,
+    totalKg: plan.totalKg,
+    vehicle: plan.vehicle,
+    vehicleType: resolveWaveVehicleType(
+      plan.members,
+      plan.totalKg,
+      plan.needsRefrigeration,
+      plan.vehicle,
+    ),
+  };
+}
+
+const confidenceRank: Record<DispatchConfidence, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+/**
+ * Server-side check of a wave the producer confirms (a suggested wave,
+ * possibly with orders unticked): the same rules as the suggestion, so a
+ * hand-crafted request can't mix days or regions or overload a vehicle.
+ */
+function validateDispatchWave(
+  deliveries: PendingDeliveryQueueItem[],
+  vehicles: DeliveryControlFleetVehicle[],
+  selectedVehicleId: string | null,
+) {
+  const fail = (message: string): never => {
+    throw new TRPCError({ code: "BAD_REQUEST", message });
+  };
+
+  if (deliveries.length > MAX_WAVE_STOPS) {
+    fail(`Uma saida pode ter no maximo ${MAX_WAVE_STOPS} pedidos.`);
   }
 
-  if (
-    primaryDelivery.recommendation.suggestedVehicleType !==
-    delivery.recommendation.suggestedVehicleType
-  ) {
-    return false;
+  const members = deliveries.map(toWaveCandidate);
+  const farmIds = new Set(members.map((member) => member.farmId));
+
+  if (farmIds.size > 1) {
+    fail("Pedidos de fazendas diferentes nao podem sair juntos.");
   }
 
-  const primaryVehicleId =
-    primaryDelivery.recommendation.suggestedVehicle?.id ?? null;
-  const deliveryVehicleId =
-    delivery.recommendation.suggestedVehicle?.id ?? null;
+  const days = new Set(
+    members
+      .map((member) => member.windowStart)
+      .filter((date): date is Date => date !== null)
+      .map((date) => brasiliaDayKey(date)),
+  );
 
-  if (
-    primaryVehicleId &&
-    deliveryVehicleId &&
-    primaryVehicleId !== deliveryVehicleId
-  ) {
-    return false;
+  if (days.size > 1) {
+    fail("Pedidos com entrega em dias diferentes nao podem sair juntos.");
   }
 
-  return true;
+  const located = members.filter((member) => member.point !== null);
+
+  for (let i = 0; i < located.length; i += 1) {
+    for (let j = i + 1; j < located.length; j += 1) {
+      if (
+        haversineKm(located[i]!.point!, located[j]!.point!) >
+        WAVE_RADIUS_KM * 2
+      ) {
+        fail(
+          "Esses pedidos ficam em regioes distantes; confirme-os em saidas separadas.",
+        );
+      }
+    }
+  }
+
+  const totalKg = members.reduce((sum, member) => sum + member.weightKg, 0);
+  const needsRefrigeration = members.some(
+    (member) => member.needsRefrigeration,
+  );
+  const farmId = members[0]?.farmId ?? null;
+  let vehicle: DeliveryControlFleetVehicle | null = null;
+
+  if (selectedVehicleId) {
+    vehicle =
+      vehicles.find((candidate) => candidate.id === selectedVehicleId) ?? null;
+
+    if (!vehicle) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Veiculo nao encontrado para este produtor.",
+      });
+    }
+
+    if (vehicle.availabilityStatus !== "available") {
+      fail(`${vehicle.label} nao esta disponivel agora.`);
+    }
+
+    if (vehicle.farmId && farmId && vehicle.farmId !== farmId) {
+      fail(`${vehicle.label} pertence a outra fazenda.`);
+    }
+
+    if (Number(vehicle.capacityKg) < totalKg) {
+      fail(
+        `A carga estimada (${totalKg.toFixed(0)} kg) passa da capacidade de ${vehicle.label} (${Number(vehicle.capacityKg).toFixed(0)} kg). Tire pedidos ou escolha outro veiculo.`,
+      );
+    }
+
+    if (needsRefrigeration && !vehicle.refrigeration) {
+      fail(
+        `Ha carga sensivel nesta saida e ${vehicle.label} nao e refrigerado.`,
+      );
+    }
+  }
+
+  const route = routeWave(members);
+  const confidence = deliveries
+    .map((delivery) => delivery.recommendation.confidence)
+    .reduce<DispatchConfidence>(
+      (lowest, current) =>
+        confidenceRank[current] > confidenceRank[lowest] ? current : lowest,
+      "high",
+    );
+
+  return {
+    farmId,
+    orderedDeliveries: route.deliveries,
+    totalKg,
+    vehicle,
+    vehicleType: resolveWaveVehicleType(
+      members,
+      totalKg,
+      needsRefrigeration,
+      vehicle,
+    ),
+    confidence,
+  };
 }
 
 function buildSuggestedWaveContext(
   primaryDelivery: PendingDeliveryQueueItem,
   deliveries: PendingDeliveryQueueItem[],
+  suggestedVehicleLabel: string,
 ): DeliveryMapWaveContext {
   const stops = deliveries
     .map((delivery, index) => createWaveStop(delivery, index + 1))
     .filter((stop): stop is DeliveryMapWaveStop => stop !== null);
   const origin = resolveWaveOrigin(primaryDelivery);
   const totalOrders = deliveries.length;
-  const suggestedVehicleLabel =
-    primaryDelivery.recommendation.suggestedVehicle?.label ??
-    humanizeVehicleType(primaryDelivery.recommendation.suggestedVehicleType);
 
   return {
     kind: "suggested",
@@ -647,6 +834,7 @@ function buildConfirmedWaveContext(
 function buildDispatchSuggestion(
   deliveries: PendingDeliveryQueueItem[],
   anchorOrderId: string,
+  vehicles: DeliveryControlFleetVehicle[],
 ): DispatchSuggestion | null {
   const primaryDelivery = deliveries.find(
     (delivery) =>
@@ -657,17 +845,20 @@ function buildDispatchSuggestion(
     return null;
   }
 
-  const groupedDeliveries = [
+  const wave = planDispatchWave(
     primaryDelivery,
-    ...deliveries
-      .filter((delivery) => isCompatibleWithPrimary(primaryDelivery, delivery))
-      .slice(0, 2),
-  ];
-  const totalEstimatedWeightKg = sumEstimatedWeight(groupedDeliveries);
+    deliveries.filter(isAutoActionable),
+    vehicles,
+  );
+  const groupedDeliveries = wave.deliveries;
+  const totalEstimatedWeightKg = Number(wave.totalKg.toFixed(3));
   const totalOrders = groupedDeliveries.length;
   const suggestedVehicleLabel =
-    primaryDelivery.recommendation.suggestedVehicle?.label ??
-    humanizeVehicleType(primaryDelivery.recommendation.suggestedVehicleType);
+    wave.vehicle?.label ?? humanizeVehicleType(wave.vehicleType);
+  const routeNote =
+    wave.routeKm !== null
+      ? ` Rota de ~${wave.routeKm.toFixed(1)} km, ${totalEstimatedWeightKg.toFixed(0)} kg.`
+      : "";
   const extraOrders = totalOrders - 1;
   const title =
     extraOrders <= 0
@@ -676,11 +867,11 @@ function buildDispatchSuggestion(
   const subtitle =
     totalOrders === 1
       ? primaryDelivery.recommendation.explanation
-      : `Wave sugerida com ${totalOrders} pedidos usando ${suggestedVehicleLabel.toLowerCase()}.`;
+      : `Wave sugerida com ${totalOrders} pedidos da mesma regiao e do mesmo dia usando ${suggestedVehicleLabel.toLowerCase()}.${routeNote}`;
   const recommendationSummary =
     totalOrders === 1
       ? primaryDelivery.recommendation.explanation
-      : `Consolidar ${totalOrders} pedidos agora. ${primaryDelivery.recommendation.explanation}`;
+      : `Consolidar ${totalOrders} pedidos proximos agora.${routeNote} ${primaryDelivery.recommendation.explanation}`;
 
   return {
     ctaLabel:
@@ -710,12 +901,12 @@ function buildDispatchSuggestion(
         urgencyLevel: primaryDelivery.recommendation.urgencyLevel,
         riskLevel: primaryDelivery.recommendation.riskLevel,
         confidence: primaryDelivery.recommendation.confidence,
-        suggestedVehicleType:
-          primaryDelivery.recommendation.suggestedVehicleType,
-        suggestedVehicle: primaryDelivery.recommendation.suggestedVehicle
+        // The vehicle for the whole wave, not just for the first order.
+        suggestedVehicleType: wave.vehicleType,
+        suggestedVehicle: wave.vehicle
           ? {
-              id: primaryDelivery.recommendation.suggestedVehicle.id,
-              label: primaryDelivery.recommendation.suggestedVehicle.label,
+              id: wave.vehicle.id,
+              label: wave.vehicle.label,
             }
           : null,
         reasons: primaryDelivery.recommendation.reasons,
@@ -727,12 +918,17 @@ function buildDispatchSuggestion(
     title,
     totalEstimatedWeightKg,
     totalOrders,
-    waveContext: buildSuggestedWaveContext(primaryDelivery, groupedDeliveries),
+    waveContext: buildSuggestedWaveContext(
+      primaryDelivery,
+      groupedDeliveries,
+      suggestedVehicleLabel,
+    ),
   };
 }
 
 function attachDispatchMapContext(
   deliveries: PendingDeliveryQueueItem[],
+  vehicles: DeliveryControlFleetVehicle[],
 ): PendingDeliveryResponseItem[] {
   const dispatchSuggestionsByOrder = new Map<
     string,
@@ -746,7 +942,7 @@ function attachDispatchMapContext(
   for (const delivery of deliveries) {
     dispatchSuggestionsByOrder.set(
       delivery.orderId,
-      buildDispatchSuggestion(deliveries, delivery.orderId),
+      buildDispatchSuggestion(deliveries, delivery.orderId, vehicles),
     );
     confirmedWaveContextsByOrder.set(
       delivery.orderId,
@@ -767,6 +963,218 @@ function attachDispatchMapContext(
         confirmedWaveContext ?? dispatchSuggestion?.waveContext ?? null,
     };
   });
+}
+
+// The producer's delivery queue (orders, scores, fleet). Shared by the
+// page query and by confirmDispatchWave, which re-plans on the server.
+async function loadDispatchQueue(
+  ctx: { db: AppDb; tenantId: string },
+  now: Date,
+) {
+  const operationDate = getOperationDate(now);
+
+  const deliveryRows = await ctx.db
+    .select({
+      orderId: orders.id,
+      status: orders.status,
+      totalAmount: orders.totalAmount,
+      deliveryFee: orders.deliveryFee,
+      createdAt: orders.createdAt,
+      buyerTenantId: orders.buyerTenantId,
+      buyerName: tenants.name,
+      deliveryStreet: orders.deliveryStreet,
+      deliveryNumber: orders.deliveryNumber,
+      deliveryCep: orders.deliveryCep,
+      deliveryCity: orders.deliveryCity,
+      deliveryState: orders.deliveryState,
+      deliveryAddress: orders.deliveryAddress,
+      deliveryNotes: orders.deliveryNotes,
+      deliveryWindowStart: orders.deliveryWindowStart,
+      deliveryWindowEnd: orders.deliveryWindowEnd,
+      farmId: farms.id,
+      farmName: farms.name,
+      farmLatitude: sql<number | null>`
+                    CASE
+                        WHEN ${farms.location} IS NOT NULL AND ST_IsValid(${farms.location})
+                            THEN CAST(ST_Y(${farms.location}) AS double precision)
+                        ELSE NULL
+                    END
+                `,
+      farmLongitude: sql<number | null>`
+                    CASE
+                        WHEN ${farms.location} IS NOT NULL AND ST_IsValid(${farms.location})
+                            THEN CAST(ST_X(${farms.location}) AS double precision)
+                        ELSE NULL
+                    END
+                `,
+      deliveryLatitude: sql<number | null>`
+                    CASE
+                        WHEN ${orders.deliveryPoint} IS NOT NULL AND ST_IsValid(${orders.deliveryPoint})
+                            THEN CAST(ST_Y(${orders.deliveryPoint}) AS double precision)
+                        ELSE NULL
+                    END
+                `,
+      deliveryLongitude: sql<number | null>`
+                    CASE
+                        WHEN ${orders.deliveryPoint} IS NOT NULL AND ST_IsValid(${orders.deliveryPoint})
+                            THEN CAST(ST_X(${orders.deliveryPoint}) AS double precision)
+                        ELSE NULL
+                    END
+                `,
+      distanceKm: sql<number | null>`
+                    CASE
+                        WHEN ${farms.location} IS NOT NULL
+                            AND ${orders.deliveryPoint} IS NOT NULL
+                            AND ST_IsValid(${farms.location})
+                            AND ST_IsValid(${orders.deliveryPoint})
+                            THEN CAST(
+                                ROUND(
+                                    (ST_Distance(${farms.location}::geography, ${orders.deliveryPoint}::geography) / 1000.0)::numeric,
+                                    2
+                                ) AS double precision
+                            )
+                        ELSE NULL
+                    END
+                `,
+      orderItemId: orderItems.id,
+      productId: products.id,
+      productName: products.name,
+      itemQty: orderItems.qty,
+      itemSaleUnit: sql<string>`
+                    CASE
+                        WHEN ${orderItems.saleUnit} IS NOT NULL AND ${orderItems.saleUnit} <> 'unit'
+                            THEN ${orderItems.saleUnit}
+                        ELSE ${products.saleUnit}::text
+                    END
+                `,
+      productSaleUnit: sql<string>`${products.saleUnit}::text`,
+      unitWeightG: products.unitWeightG,
+      estimatedWeightKg: sql<number | null>`
+                    CASE
+                        WHEN ${orderItems.saleUnit} = 'kg'
+                            THEN CAST(${orderItems.qty} AS double precision)
+                        WHEN ${orderItems.saleUnit} = 'g'
+                            THEN CAST(${orderItems.qty} AS double precision) / 1000.0
+                        WHEN ${products.saleUnit} = 'kg'
+                            THEN CAST(${orderItems.qty} AS double precision)
+                        WHEN ${products.saleUnit} = 'g'
+                            THEN CAST(${orderItems.qty} AS double precision) / 1000.0
+                        WHEN ${products.unitWeightG} IS NOT NULL
+                            THEN (CAST(${orderItems.qty} AS double precision) * CAST(${products.unitWeightG} AS double precision)) / 1000.0
+                        ELSE NULL
+                    END
+                `,
+      lotExpiryDate: productLots.expiryDate,
+      lotFreshnessScore: productLots.freshnessScore,
+    })
+    .from(orders)
+    .innerJoin(tenants, eq(orders.buyerTenantId, tenants.id))
+    .leftJoin(farms, eq(farms.tenantId, orders.sellerTenantId))
+    .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
+    .innerJoin(products, eq(orderItems.productId, products.id))
+    .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
+    .where(
+      and(
+        eq(orders.sellerTenantId, ctx.tenantId),
+        inArray(orders.status, pendingDeliveryStatuses),
+      ),
+    )
+    .orderBy(sql`${orders.createdAt} DESC`);
+
+  const groupedDeliveries = groupPendingDeliveryRows(
+    deliveryRows as PendingDeliveryRow[],
+  );
+  const orderIds = groupedDeliveries.map((delivery) => delivery.orderId);
+
+  if (groupedDeliveries.length === 0) {
+    return {
+      queue: [] as PendingDeliveryQueueItem[],
+      vehicles: [] as DeliveryControlFleetVehicle[],
+    };
+  }
+
+  const [overrideRows, vehicleRows, waveAssignments] = await Promise.all([
+    ctx.db
+      .select({
+        id: deliveryDispatchOverrides.id,
+        orderId: deliveryDispatchOverrides.orderId,
+        operationDate: deliveryDispatchOverrides.operationDate,
+        action: deliveryDispatchOverrides.action,
+        reason: deliveryDispatchOverrides.reason,
+        reasonNotes: deliveryDispatchOverrides.reasonNotes,
+        createdAt: deliveryDispatchOverrides.createdAt,
+      })
+      .from(deliveryDispatchOverrides)
+      .where(
+        and(
+          eq(deliveryDispatchOverrides.tenantId, ctx.tenantId),
+          inArray(deliveryDispatchOverrides.orderId, orderIds),
+          eq(deliveryDispatchOverrides.operationDate, operationDate),
+          isNull(deliveryDispatchOverrides.clearedAt),
+        ),
+      ),
+    ctx.db
+      .select({
+        id: farmVehicles.id,
+        farmId: farmVehicles.farmId,
+        label: farmVehicles.label,
+        vehicleType: farmVehicles.vehicleType,
+        capacityKg: farmVehicles.capacityKg,
+        refrigeration: farmVehicles.refrigeration,
+        availabilityStatus: farmVehicles.availabilityStatus,
+      })
+      .from(farmVehicles)
+      .where(eq(farmVehicles.tenantId, ctx.tenantId)),
+    ctx.db
+      .select({
+        waveId: deliveryDispatchWaves.id,
+        orderId: deliveryDispatchWaveOrders.orderId,
+        sequence: deliveryDispatchWaveOrders.sequence,
+        status: deliveryDispatchWaves.status,
+        confidence: deliveryDispatchWaves.confidence,
+        recommendedVehicleType: deliveryDispatchWaves.recommendedVehicleType,
+        selectedVehicleId: deliveryDispatchWaves.selectedVehicleId,
+        selectedVehicleLabel: sql<
+          string | null
+        >`COALESCE(${deliveryDispatchWaves.selectedVehicleLabel}, ${farmVehicles.label})`,
+        confirmedAt: deliveryDispatchWaves.confirmedAt,
+      })
+      .from(deliveryDispatchWaveOrders)
+      .innerJoin(
+        deliveryDispatchWaves,
+        eq(deliveryDispatchWaveOrders.waveId, deliveryDispatchWaves.id),
+      )
+      .leftJoin(
+        farmVehicles,
+        eq(deliveryDispatchWaves.selectedVehicleId, farmVehicles.id),
+      )
+      .where(
+        and(
+          eq(deliveryDispatchWaves.tenantId, ctx.tenantId),
+          inArray(deliveryDispatchWaveOrders.orderId, orderIds),
+        ),
+      ),
+  ]);
+
+  const vehicles: DeliveryControlFleetVehicle[] = (
+    vehicleRows as FleetVehicleRow[]
+  ).map((vehicle) => ({
+    ...vehicle,
+    capacityKg: Number(vehicle.capacityKg),
+  }));
+  const queue = await buildDispatchControlQueueWithExternalRiskSignals(
+    groupedDeliveries,
+    {
+      now,
+      operationDate,
+      overrides: overrideRows as DeliveryOverrideRow[],
+      vehicles,
+      waveAssignments: waveAssignments as DispatchWaveAssignmentRow[],
+      resolveExternalSignals: stubDeliveryExternalSignalsResolver,
+    },
+  );
+
+  return { queue, vehicles };
 }
 
 export const logisticsRouter = createTRPCRouter({
@@ -961,217 +1369,9 @@ export const logisticsRouter = createTRPCRouter({
     }),
 
   getPendingDeliveries: producerProcedure.query(async ({ ctx }) => {
-    const now = new Date();
-    const operationDate = getOperationDate(now);
+    const { queue, vehicles } = await loadDispatchQueue(ctx, new Date());
 
-    const deliveryRows = await ctx.db
-      .select({
-        orderId: orders.id,
-        status: orders.status,
-        totalAmount: orders.totalAmount,
-        deliveryFee: orders.deliveryFee,
-        createdAt: orders.createdAt,
-        buyerTenantId: orders.buyerTenantId,
-        buyerName: tenants.name,
-        deliveryStreet: orders.deliveryStreet,
-        deliveryNumber: orders.deliveryNumber,
-        deliveryCep: orders.deliveryCep,
-        deliveryCity: orders.deliveryCity,
-        deliveryState: orders.deliveryState,
-        deliveryAddress: orders.deliveryAddress,
-        deliveryNotes: orders.deliveryNotes,
-        deliveryWindowStart: orders.deliveryWindowStart,
-        deliveryWindowEnd: orders.deliveryWindowEnd,
-        farmId: farms.id,
-        farmName: farms.name,
-        farmLatitude: sql<number | null>`
-                    CASE
-                        WHEN ${farms.location} IS NOT NULL AND ST_IsValid(${farms.location})
-                            THEN CAST(ST_Y(${farms.location}) AS double precision)
-                        ELSE NULL
-                    END
-                `,
-        farmLongitude: sql<number | null>`
-                    CASE
-                        WHEN ${farms.location} IS NOT NULL AND ST_IsValid(${farms.location})
-                            THEN CAST(ST_X(${farms.location}) AS double precision)
-                        ELSE NULL
-                    END
-                `,
-        deliveryLatitude: sql<number | null>`
-                    CASE
-                        WHEN ${orders.deliveryPoint} IS NOT NULL AND ST_IsValid(${orders.deliveryPoint})
-                            THEN CAST(ST_Y(${orders.deliveryPoint}) AS double precision)
-                        ELSE NULL
-                    END
-                `,
-        deliveryLongitude: sql<number | null>`
-                    CASE
-                        WHEN ${orders.deliveryPoint} IS NOT NULL AND ST_IsValid(${orders.deliveryPoint})
-                            THEN CAST(ST_X(${orders.deliveryPoint}) AS double precision)
-                        ELSE NULL
-                    END
-                `,
-        distanceKm: sql<number | null>`
-                    CASE
-                        WHEN ${farms.location} IS NOT NULL
-                            AND ${orders.deliveryPoint} IS NOT NULL
-                            AND ST_IsValid(${farms.location})
-                            AND ST_IsValid(${orders.deliveryPoint})
-                            THEN CAST(
-                                ROUND(
-                                    (ST_Distance(${farms.location}::geography, ${orders.deliveryPoint}::geography) / 1000.0)::numeric,
-                                    2
-                                ) AS double precision
-                            )
-                        ELSE NULL
-                    END
-                `,
-        orderItemId: orderItems.id,
-        productId: products.id,
-        productName: products.name,
-        itemQty: orderItems.qty,
-        itemSaleUnit: sql<string>`
-                    CASE
-                        WHEN ${orderItems.saleUnit} IS NOT NULL AND ${orderItems.saleUnit} <> 'unit'
-                            THEN ${orderItems.saleUnit}
-                        ELSE ${products.saleUnit}::text
-                    END
-                `,
-        productSaleUnit: sql<string>`${products.saleUnit}::text`,
-        unitWeightG: products.unitWeightG,
-        estimatedWeightKg: sql<number | null>`
-                    CASE
-                        WHEN ${orderItems.saleUnit} = 'kg'
-                            THEN CAST(${orderItems.qty} AS double precision)
-                        WHEN ${orderItems.saleUnit} = 'g'
-                            THEN CAST(${orderItems.qty} AS double precision) / 1000.0
-                        WHEN ${products.saleUnit} = 'kg'
-                            THEN CAST(${orderItems.qty} AS double precision)
-                        WHEN ${products.saleUnit} = 'g'
-                            THEN CAST(${orderItems.qty} AS double precision) / 1000.0
-                        WHEN ${products.unitWeightG} IS NOT NULL
-                            THEN (CAST(${orderItems.qty} AS double precision) * CAST(${products.unitWeightG} AS double precision)) / 1000.0
-                        ELSE NULL
-                    END
-                `,
-        lotExpiryDate: productLots.expiryDate,
-        lotFreshnessScore: productLots.freshnessScore,
-      })
-      .from(orders)
-      .innerJoin(tenants, eq(orders.buyerTenantId, tenants.id))
-      .leftJoin(farms, eq(farms.tenantId, orders.sellerTenantId))
-      .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
-      .innerJoin(products, eq(orderItems.productId, products.id))
-      .innerJoin(productLots, eq(orderItems.lotId, productLots.id))
-      .where(
-        and(
-          eq(orders.sellerTenantId, ctx.tenantId),
-          inArray(orders.status, pendingDeliveryStatuses),
-        ),
-      )
-      .orderBy(sql`${orders.createdAt} DESC`);
-
-    const groupedDeliveries = groupPendingDeliveryRows(
-      deliveryRows as PendingDeliveryRow[],
-    );
-    const orderIds = groupedDeliveries.map((delivery) => delivery.orderId);
-
-    if (groupedDeliveries.length === 0) {
-      return attachDispatchMapContext(
-        await buildDispatchControlQueueWithExternalRiskSignals<PendingDeliveryQueueItem>(
-          [],
-          {
-            now,
-            operationDate,
-            overrides: [],
-            vehicles: [],
-            waveAssignments: [],
-            resolveExternalSignals: stubDeliveryExternalSignalsResolver,
-          },
-        ),
-      );
-    }
-
-    const [overrideRows, vehicleRows, waveAssignments] = await Promise.all([
-      ctx.db
-        .select({
-          id: deliveryDispatchOverrides.id,
-          orderId: deliveryDispatchOverrides.orderId,
-          operationDate: deliveryDispatchOverrides.operationDate,
-          action: deliveryDispatchOverrides.action,
-          reason: deliveryDispatchOverrides.reason,
-          reasonNotes: deliveryDispatchOverrides.reasonNotes,
-          createdAt: deliveryDispatchOverrides.createdAt,
-        })
-        .from(deliveryDispatchOverrides)
-        .where(
-          and(
-            eq(deliveryDispatchOverrides.tenantId, ctx.tenantId),
-            inArray(deliveryDispatchOverrides.orderId, orderIds),
-            eq(deliveryDispatchOverrides.operationDate, operationDate),
-            isNull(deliveryDispatchOverrides.clearedAt),
-          ),
-        ),
-      ctx.db
-        .select({
-          id: farmVehicles.id,
-          farmId: farmVehicles.farmId,
-          label: farmVehicles.label,
-          vehicleType: farmVehicles.vehicleType,
-          capacityKg: farmVehicles.capacityKg,
-          refrigeration: farmVehicles.refrigeration,
-          availabilityStatus: farmVehicles.availabilityStatus,
-        })
-        .from(farmVehicles)
-        .where(eq(farmVehicles.tenantId, ctx.tenantId)),
-      ctx.db
-        .select({
-          waveId: deliveryDispatchWaves.id,
-          orderId: deliveryDispatchWaveOrders.orderId,
-          sequence: deliveryDispatchWaveOrders.sequence,
-          status: deliveryDispatchWaves.status,
-          confidence: deliveryDispatchWaves.confidence,
-          recommendedVehicleType: deliveryDispatchWaves.recommendedVehicleType,
-          selectedVehicleId: deliveryDispatchWaves.selectedVehicleId,
-          selectedVehicleLabel: sql<
-            string | null
-          >`COALESCE(${deliveryDispatchWaves.selectedVehicleLabel}, ${farmVehicles.label})`,
-          confirmedAt: deliveryDispatchWaves.confirmedAt,
-        })
-        .from(deliveryDispatchWaveOrders)
-        .innerJoin(
-          deliveryDispatchWaves,
-          eq(deliveryDispatchWaveOrders.waveId, deliveryDispatchWaves.id),
-        )
-        .leftJoin(
-          farmVehicles,
-          eq(deliveryDispatchWaves.selectedVehicleId, farmVehicles.id),
-        )
-        .where(
-          and(
-            eq(deliveryDispatchWaves.tenantId, ctx.tenantId),
-            inArray(deliveryDispatchWaveOrders.orderId, orderIds),
-          ),
-        ),
-    ]);
-
-    return attachDispatchMapContext(
-      await buildDispatchControlQueueWithExternalRiskSignals(
-        groupedDeliveries,
-        {
-          now,
-          operationDate,
-          overrides: overrideRows as DeliveryOverrideRow[],
-          vehicles: (vehicleRows as FleetVehicleRow[]).map((vehicle) => ({
-            ...vehicle,
-            capacityKg: Number(vehicle.capacityKg),
-          })),
-          waveAssignments: waveAssignments as DispatchWaveAssignmentRow[],
-          resolveExternalSignals: stubDeliveryExternalSignalsResolver,
-        },
-      ),
-    );
+    return attachDispatchMapContext(queue, vehicles);
   }),
 
   applyDispatchOverride: producerProcedure
@@ -1308,68 +1508,85 @@ export const logisticsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const now = new Date();
       const operationDate = getOperationDate(now);
+      const orderIds = [...new Set(input.orderIds)];
 
-      const targetOrders = await ctx.db
-        .select({
-          id: orders.id,
-          status: orders.status,
-          buyerTenantId: orders.buyerTenantId,
-        })
-        .from(orders)
-        .where(
-          and(
-            eq(orders.sellerTenantId, ctx.tenantId),
-            inArray(orders.id, input.orderIds),
-          ),
-        );
+      // Re-plan on the server with the same rules as the suggestion: the
+      // client only picks which suggested orders go and in which vehicle.
+      const { queue, vehicles } = await loadDispatchQueue(ctx, now);
+      const queueById = new Map(
+        queue.map((delivery) => [delivery.orderId, delivery]),
+      );
+      const waveDeliveries: PendingDeliveryQueueItem[] = [];
 
-      if (targetOrders.length !== input.orderIds.length) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Nem todos os pedidos informados pertencem a este produtor.",
-        });
-      }
+      for (const orderId of orderIds) {
+        const delivery = queueById.get(orderId);
 
-      for (const targetOrder of targetOrders) {
-        assertDeliveryTransition(targetOrder.status, "ready_for_dispatch");
-      }
-
-      let selectedVehicleLabel: string | null = null;
-
-      if (input.selectedVehicleId) {
-        const [selectedVehicle] = await ctx.db
-          .select({
-            id: farmVehicles.id,
-            label: farmVehicles.label,
-          })
-          .from(farmVehicles)
-          .where(
-            and(
-              eq(farmVehicles.id, input.selectedVehicleId),
-              eq(farmVehicles.tenantId, ctx.tenantId),
-            ),
-          );
-
-        if (!selectedVehicle) {
+        if (!delivery) {
           throw new TRPCError({
             code: "NOT_FOUND",
-            message: "Veiculo nao encontrado para este produtor.",
+            message:
+              "Nem todos os pedidos informados pertencem a este produtor.",
           });
         }
 
-        selectedVehicleLabel = selectedVehicle.label;
+        if (!isDispatchable(delivery)) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "Um dos pedidos ja saiu em outra entrega ou nao esta pronto. Recarregue a pagina.",
+          });
+        }
+
+        assertDeliveryTransition(delivery.status, "ready_for_dispatch");
+        waveDeliveries.push(delivery);
       }
 
-      const [wave] = await ctx.db
+      const wave = validateDispatchWave(
+        waveDeliveries,
+        vehicles,
+        input.selectedVehicleId ?? null,
+      );
+
+      if (input.farmId && wave.farmId && input.farmId !== wave.farmId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Fazenda nao encontrada na sua conta.",
+        });
+      }
+
+      // Only from a dispatchable status: two confirmations at once (two
+      // tabs) can't put one order in two waves; the second one finds the
+      // order already ready_for_dispatch and the whole transaction rolls back.
+      const updatedOrders = await ctx.db
+        .update(orders)
+        .set({ status: "ready_for_dispatch" })
+        .where(
+          and(
+            eq(orders.sellerTenantId, ctx.tenantId),
+            inArray(orders.id, orderIds),
+            inArray(orders.status, ["confirmed", "picking"]),
+          ),
+        )
+        .returning({ id: orders.id });
+
+      if (updatedOrders.length !== orderIds.length) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Um dos pedidos mudou enquanto voce confirmava (cancelado ou ja despachado). Nada foi salvo; recarregue a pagina.",
+        });
+      }
+
+      const [wave_] = await ctx.db
         .insert(deliveryDispatchWaves)
         .values({
           tenantId: ctx.tenantId,
-          farmId: input.farmId ?? null,
+          farmId: wave.farmId,
           operationDate,
-          confidence: input.confidence,
-          recommendedVehicleType: input.recommendedVehicleType,
-          selectedVehicleId: input.selectedVehicleId ?? null,
-          selectedVehicleLabel,
+          confidence: wave.confidence,
+          recommendedVehicleType: wave.vehicleType,
+          selectedVehicleId: wave.vehicle?.id ?? null,
+          selectedVehicleLabel: wave.vehicle?.label ?? null,
           recommendationSummary: input.recommendationSummary,
           recommendationSnapshot: input.recommendationSnapshot ?? null,
           confirmedByUserId: ctx.user.id,
@@ -1378,31 +1595,27 @@ export const logisticsRouter = createTRPCRouter({
           id: deliveryDispatchWaves.id,
         });
 
-      if (!wave) {
+      if (!wave_) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Nao foi possivel criar a onda de despacho.",
         });
       }
 
+      // Stop order is the driving order computed here, not the client's.
       await ctx.db.insert(deliveryDispatchWaveOrders).values(
-        input.orderIds.map((orderId, index) => ({
-          waveId: wave.id,
-          orderId,
+        wave.orderedDeliveries.map((delivery, index) => ({
+          waveId: wave_.id,
+          orderId: delivery.orderId,
           sequence: index + 1,
-          priorityScore: Math.max(1, input.orderIds.length - index),
+          priorityScore: Math.max(1, wave.orderedDeliveries.length - index),
         })),
       );
 
-      await ctx.db
-        .update(orders)
-        .set({ status: "ready_for_dispatch" })
-        .where(
-          and(
-            eq(orders.sellerTenantId, ctx.tenantId),
-            inArray(orders.id, input.orderIds),
-          ),
-        );
+      const targetOrders = wave.orderedDeliveries.map((delivery) => ({
+        id: delivery.orderId,
+        buyerTenantId: delivery.buyerTenantId,
+      }));
 
       for (const targetOrder of targetOrders) {
         await emitOrderNotifications({
@@ -1415,16 +1628,16 @@ export const logisticsRouter = createTRPCRouter({
           metadata: {
             orderId: targetOrder.id,
             status: "ready_for_dispatch",
-            waveId: wave.id,
+            waveId: wave_.id,
           },
         });
       }
 
       return {
         success: true,
-        waveId: wave.id,
+        waveId: wave_.id,
         status: "confirmed" as const,
-        updatedOrderCount: input.orderIds.length,
+        updatedOrderCount: orderIds.length,
       };
     }),
 

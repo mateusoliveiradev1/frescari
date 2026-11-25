@@ -63,6 +63,13 @@ const statusFlow = [
 ] as const;
 type NextOrderStatus = Exclude<(typeof statusFlow)[number], "awaiting_weight">;
 const WEIGHT_SAFETY_MARGIN = 1.1;
+// Before the order leaves the farm; mirrors the API's seller cancel rule.
+const SELLER_CANCELLABLE_STATUSES = new Set([
+  "payment_authorized",
+  "awaiting_weight",
+  "confirmed",
+  "picking",
+]);
 const PLATFORM_FEE_RATE = 0.1;
 
 interface ReceivedOrderItem {
@@ -205,6 +212,34 @@ export default function VendasPage() {
         toast.error(error.message || "Erro ao atualizar status.");
       },
     });
+
+  // Producer can't deliver (out of stock, no route): the buyer gets the money
+  // back (authorization voided or refunded) and the stock returns to the lot.
+  const { mutate: cancelAsSeller, isPending: isCancelling } =
+    trpc.order.cancelOrderAsSeller.useMutation({
+      onSuccess: (data) => {
+        toast.success(
+          data?.payment === "voided"
+            ? "Pedido cancelado. A reserva no cartao do comprador foi liberada."
+            : "Pedido cancelado. O valor foi estornado ao comprador.",
+        );
+        void utils.order.listReceivedOrders.invalidate();
+      },
+      onError: (error) => {
+        toast.error(error.message || "Erro ao cancelar o pedido.");
+      },
+    });
+
+  const handleCancelAsSeller = (orderId: string) => {
+    if (
+      !window.confirm(
+        "Cancelar este pedido? O comprador recebe o valor de volta e o estoque volta para o lote. Isso nao pode ser desfeito.",
+      )
+    ) {
+      return;
+    }
+    cancelAsSeller({ orderId });
+  };
 
   const { mutate: captureWeight, isPending: isCapturing } =
     trpc.order.captureWeighedOrder.useMutation({
@@ -457,6 +492,18 @@ export default function VendasPage() {
                           ) : (
                             <span className="text-xs text-bark/40">-</span>
                           )}
+                          {SELLER_CANCELLABLE_STATUSES.has(order.status) ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelAsSeller(order.id);
+                              }}
+                              disabled={isCancelling}
+                              className="mt-2 block w-full text-[10px] font-bold uppercase tracking-wider text-red-700 hover:underline disabled:opacity-50"
+                            >
+                              Cancelar pedido
+                            </button>
+                          ) : null}
                         </td>
                       </tr>
                     );

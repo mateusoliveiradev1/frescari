@@ -15,6 +15,7 @@ import {
 import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { buildFreightQuote } from "../freight-quote";
+import { writeChunkedMetadata } from "../stripe-metadata";
 import { calculateLotPriceAndStatus } from "../utils/lot-status";
 import { isWeighableSaleUnit, resolveEffectiveSaleUnit } from "../sale-units";
 import {
@@ -321,14 +322,14 @@ function buildCheckoutSessionParams({
   const paymentIntentMetadata = {
     buyer_tenant_id: buyerTenantId,
     delivery_fee: deliveryFee.toString(),
-    delivery_address: deliveryAddress,
+    ...writeChunkedMetadata("delivery_address", deliveryAddress),
     delivery_point: deliveryPoint,
     is_all_unit_order: isAllUnitOrder.toString(),
     stripe_connect_mode: usePlatformOnlyMode ? "platform_only" : "connect",
-    ...(addressJson ? { address: addressJson } : {}),
+    ...writeChunkedMetadata("address", addressJson),
     ...(farmId ? { farm_id: farmId } : {}),
     ...(addressId ? { address_id: addressId } : {}),
-    ...(addressSnapshot ? { address_snapshot: addressSnapshot } : {}),
+    ...writeChunkedMetadata("address_snapshot", addressSnapshot),
     ...(deliveryNotes ? { delivery_notes: deliveryNotes } : {}),
     ...deliveryWindowMetadata,
   };
@@ -348,22 +349,27 @@ function buildCheckoutSessionParams({
 
   return {
     mode: "payment",
+    // Card only: the webhook creates the order as paid on
+    // checkout.session.completed, which for boleto or other delayed methods
+    // arrives before the money does. Manual capture (weighed items) is also
+    // card-only.
+    payment_method_types: ["card"],
     payment_intent_data: paymentIntentData,
     line_items: lineItems,
     success_url: successUrl,
     cancel_url: cancelUrl,
     metadata: {
       buyer_tenant_id: buyerTenantId,
-      items: itemsMetadata,
+      ...writeChunkedMetadata("items", itemsMetadata),
       delivery_fee: deliveryFee.toString(),
-      delivery_address: deliveryAddress,
+      ...writeChunkedMetadata("delivery_address", deliveryAddress),
       delivery_point: deliveryPoint,
       is_all_unit_order: isAllUnitOrder.toString(),
       stripe_connect_mode: usePlatformOnlyMode ? "platform_only" : "connect",
-      ...(addressJson ? { address: addressJson } : {}),
+      ...writeChunkedMetadata("address", addressJson),
       ...(farmId ? { farm_id: farmId } : {}),
       ...(addressId ? { address_id: addressId } : {}),
-      ...(addressSnapshot ? { address_snapshot: addressSnapshot } : {}),
+      ...writeChunkedMetadata("address_snapshot", addressSnapshot),
       ...(deliveryNotes ? { delivery_notes: deliveryNotes } : {}),
       ...deliveryWindowMetadata,
     },

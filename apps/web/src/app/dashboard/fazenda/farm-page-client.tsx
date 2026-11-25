@@ -1191,15 +1191,18 @@ export function FarmPageClient() {
                       className={buildInputClassName(errors.deliveryRadiusKm)}
                       id="farm-delivery-radius-km"
                       inputMode="numeric"
-                      min={0}
+                      max={500}
+                      min={1}
                       placeholder="Ex: 30"
                       step={1}
                       type="number"
                       {...register("deliveryRadiusKm", {
                         setValueAs: (value) => coerceNonNegativeInteger(value),
                         validate: (value) =>
-                          Number.isInteger(value) ||
-                          "Informe um raio inteiro igual ou maior que zero.",
+                          (Number.isInteger(value) &&
+                            value >= 1 &&
+                            value <= 500) ||
+                          "Informe ate quantos km voce entrega (de 1 a 500 km).",
                       })}
                     />
                   </FieldShell>

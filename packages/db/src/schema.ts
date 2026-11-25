@@ -349,43 +349,49 @@ export const userLegalAcceptances = pgTable(
   ],
 );
 
-export const farms = pgTable("farms", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  tenantId: uuid("tenant_id")
-    .references(() => tenants.id)
-    .notNull(),
-  name: text("name").notNull(),
-  address: jsonb("address").$type<FarmAddress | null>(),
-  location: postgisPoint("location"),
-  certifications: text("certifications").array(),
-  baseDeliveryFee: numeric("base_delivery_fee", { precision: 10, scale: 2 })
-    .default("0")
-    .notNull(),
-  pricePerKm: numeric("price_per_km", { precision: 10, scale: 2 })
-    .default("0")
-    .notNull(),
-  maxDeliveryRadiusKm: numeric("max_delivery_radius_km", {
-    precision: 10,
-    scale: 2,
-  })
-    .default("0")
-    .notNull(),
-  minOrderValue: numeric("min_order_value", { precision: 10, scale: 2 })
-    .default("0")
-    .notNull(),
-  freeShippingThreshold: numeric("free_shipping_threshold", {
-    precision: 10,
-    scale: 2,
-  }),
-  // Delivery windows offered at checkout (see packages/api delivery-slots).
-  // Null until the producer saves a schedule; a default applies meanwhile.
-  deliveryDays: smallint("delivery_days").array(),
-  deliveryPeriods: text("delivery_periods").array(),
-  deliveryLeadDays: smallint("delivery_lead_days"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const farms = pgTable(
+  "farms",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .references(() => tenants.id)
+      .notNull(),
+    name: text("name").notNull(),
+    address: jsonb("address").$type<FarmAddress | null>(),
+    location: postgisPoint("location"),
+    certifications: text("certifications").array(),
+    baseDeliveryFee: numeric("base_delivery_fee", { precision: 10, scale: 2 })
+      .default("0")
+      .notNull(),
+    pricePerKm: numeric("price_per_km", { precision: 10, scale: 2 })
+      .default("0")
+      .notNull(),
+    maxDeliveryRadiusKm: numeric("max_delivery_radius_km", {
+      precision: 10,
+      scale: 2,
+    })
+      .default("0")
+      .notNull(),
+    minOrderValue: numeric("min_order_value", { precision: 10, scale: 2 })
+      .default("0")
+      .notNull(),
+    freeShippingThreshold: numeric("free_shipping_threshold", {
+      precision: 10,
+      scale: 2,
+    }),
+    // Delivery windows offered at checkout (see packages/api delivery-slots).
+    // Null until the producer saves a schedule; a default applies meanwhile.
+    deliveryDays: smallint("delivery_days").array(),
+    deliveryPeriods: text("delivery_periods").array(),
+    deliveryLeadDays: smallint("delivery_lead_days"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  // One farm per producer: deliveries join farms by tenant, and creation is
+  // find-then-insert, so a second row would duplicate every delivery item.
+  (table) => [uniqueIndex("farms_tenant_id_uidx").on(table.tenantId)],
+);
 
 export const addresses = pgTable(
   "addresses",
