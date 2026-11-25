@@ -24,12 +24,26 @@ import { deriveStripeConnectStatus } from "../utils/stripe-connect-status";
 const APP_URL =
   sanitizeEnvValue(process.env.NEXT_PUBLIC_APP_URL) ?? "http://localhost:3000";
 
-function getStripeBusinessProfileUrl(appUrl: string) {
+const PUBLIC_SITE_URL = "https://frescari.com.br";
+
+// Stripe asks for the producer's business website. Their storefront is that
+// site. Stripe rejects localhost and plain http, so a local or misconfigured
+// app URL falls back to the public site.
+export function getStripeBusinessProfileUrl(
+  appUrl: string,
+  tenantSlug: string,
+) {
+  let origin = PUBLIC_SITE_URL;
   try {
-    return new URL(appUrl).origin;
+    const url = new URL(appUrl);
+    const isLocal = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (url.protocol === "https:" && !isLocal) {
+      origin = url.origin;
+    }
   } catch {
-    return appUrl;
+    // keep the public site
   }
+  return `${origin}/produtor/${encodeURIComponent(tenantSlug)}`;
 }
 
 function resolveProducerStripeBusinessType(tenant: {
@@ -232,7 +246,7 @@ export const stripeRouter = createTRPCRouter({
           ...accountProfileDefaults,
           business_profile: {
             name: tenant.name,
-            url: getStripeBusinessProfileUrl(APP_URL),
+            url: getStripeBusinessProfileUrl(APP_URL, tenant.slug),
           },
           metadata: {
             producer_legal_entity_type:
