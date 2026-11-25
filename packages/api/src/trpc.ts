@@ -19,6 +19,7 @@ export type ContextUser = {
   name?: string | null;
   role?: string | null;
   tenantId?: string | null;
+  twoFactorEnabled?: boolean | null;
 };
 
 type CreateTRPCContextOptions = {

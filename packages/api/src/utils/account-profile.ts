@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { encryptPii } from "../pii-crypto";
 
 import {
   createNormalizedTextSchema,
@@ -100,7 +101,8 @@ export function buildTenantRegistrationUpdate(
   return {
     name: input.publicName,
     producerContactName: input.contactName,
-    producerDocumentId: input.documentId,
+    // Stored encrypted (pii-crypto); only the producer reads it back.
+    producerDocumentId: encryptPii(input.documentId),
     producerLegalEntityType: input.legalEntityType,
     producerLegalName: input.legalName,
     producerPhone: input.phone,

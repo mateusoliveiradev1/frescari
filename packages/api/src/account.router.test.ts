@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+// Documents are stored encrypted; tests use a throwaway key.
+process.env.PII_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString("base64");
+
 import { withRlsMockDb } from "./test-db";
 
 type AccountCaller = {

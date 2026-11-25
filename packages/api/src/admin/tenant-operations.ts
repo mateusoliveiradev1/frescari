@@ -198,6 +198,23 @@ export function paginateByCreatedAtCursor<T>(
   };
 }
 
+// What the admin panel may see of a tenant: who they are, their stage and
+// how to reach them. Documents (CPF/CNPJ), legal name and Stripe details stay
+// on the server, so they never reach an admin's browser.
+function toAdminTenantSummary(tenant: typeof tenants.$inferSelect) {
+  return {
+    id: tenant.id,
+    name: tenant.name,
+    slug: tenant.slug,
+    type: tenant.type,
+    plan: tenant.plan,
+    createdAt: tenant.createdAt,
+    producerContactName: tenant.producerContactName,
+    producerPhone: tenant.producerPhone,
+    outreachContactedAt: tenant.outreachContactedAt,
+  };
+}
+
 function buildHealthRecord(args: {
   activeLotCount: number;
   addressCount: number;
@@ -224,7 +241,7 @@ function buildHealthRecord(args: {
       progressPercent: 0,
       sellerOperationalOrderCount: 0,
       stripeConnected: false,
-      tenant: args.tenant,
+      tenant: toAdminTenantSummary(args.tenant),
       userCount: args.userCount,
     };
   }
@@ -267,7 +284,7 @@ function buildHealthRecord(args: {
       ),
       sellerOperationalOrderCount: args.sellerOperationalOrderCount,
       stripeConnected: args.stripeConnected,
-      tenant: args.tenant,
+      tenant: toAdminTenantSummary(args.tenant),
       userCount: args.userCount,
     };
   }
@@ -303,7 +320,7 @@ function buildHealthRecord(args: {
     ),
     sellerOperationalOrderCount: 0,
     stripeConnected: false,
-    tenant: args.tenant,
+    tenant: toAdminTenantSummary(args.tenant),
     userCount: args.userCount,
   };
 }
@@ -590,7 +607,7 @@ export async function getTenantOperationDetail(
       stripeConnected: isStripeConnectReady(tenant),
       userCount,
     },
-    tenant,
+    tenant: toAdminTenantSummary(tenant),
   };
 }
 

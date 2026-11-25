@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { decryptPii, isEncryptedPii } from "./pii-crypto";
+
+// Documents are stored encrypted; tests use a throwaway key.
+process.env.PII_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString("base64");
 
 import { withRlsMockDb } from "./test-db";
 
@@ -152,7 +156,11 @@ test("onboarding.setupAccount only upgrades to producer after explicit producer 
   assert.equal(state.insertedTenant?.name, "Sitio da Ana");
   assert.equal(state.insertedTenant?.type, "PRODUCER");
   assert.equal(state.insertedTenant?.producerContactName, "Ana Maria");
-  assert.equal(state.insertedTenant?.producerDocumentId, "52998224725");
+  const storedDocument = state.insertedTenant?.producerDocumentId as
+    | string
+    | undefined;
+  assert.ok(isEncryptedPii(storedDocument));
+  assert.equal(decryptPii(storedDocument), "52998224725");
   assert.equal(state.insertedTenant?.producerLegalEntityType, "PF");
   assert.equal(state.insertedTenant?.producerLegalName, "Ana Maria de Souza");
   assert.equal(state.insertedTenant?.producerPhone, "11998765432");

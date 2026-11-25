@@ -16,35 +16,16 @@ function createTenantRecord(
 ): TenantHealthRecord {
   const now = new Date();
   const { tenant: tenantOverrides, ...recordOverrides } = overrides;
+  // The admin record carries only the safe summary of a tenant.
   const tenant = {
     createdAt: tenantOverrides.createdAt ?? now,
-    geoRegion: tenantOverrides.geoRegion ?? null,
     id: tenantOverrides.id,
     name: tenantOverrides.name,
+    outreachContactedAt: tenantOverrides.outreachContactedAt ?? null,
     plan: tenantOverrides.plan ?? "free",
     producerContactName: tenantOverrides.producerContactName ?? null,
-    producerDocumentId: tenantOverrides.producerDocumentId ?? null,
-    producerLegalEntityType: tenantOverrides.producerLegalEntityType ?? null,
-    producerLegalName: tenantOverrides.producerLegalName ?? null,
     producerPhone: tenantOverrides.producerPhone ?? null,
-    producerProfileCompletedAt:
-      tenantOverrides.producerProfileCompletedAt ?? null,
     slug: tenantOverrides.slug ?? tenantOverrides.id,
-    stripeAccountId: tenantOverrides.stripeAccountId ?? null,
-    stripeChargesEnabled: tenantOverrides.stripeChargesEnabled ?? null,
-    stripeDetailsSubmitted: tenantOverrides.stripeDetailsSubmitted ?? null,
-    stripePayoutsEnabled: tenantOverrides.stripePayoutsEnabled ?? null,
-    stripeRequirementsCurrentlyDue:
-      tenantOverrides.stripeRequirementsCurrentlyDue ?? null,
-    stripeRequirementsDisabledReason:
-      tenantOverrides.stripeRequirementsDisabledReason ?? null,
-    stripeRequirementsEventuallyDue:
-      tenantOverrides.stripeRequirementsEventuallyDue ?? null,
-    stripeRequirementsPastDue:
-      tenantOverrides.stripeRequirementsPastDue ?? null,
-    stripeStatusSyncedAt: tenantOverrides.stripeStatusSyncedAt ?? null,
-    storefrontBio: tenantOverrides.storefrontBio ?? null,
-    storefrontPhotoUrl: tenantOverrides.storefrontPhotoUrl ?? null,
     type: tenantOverrides.type ?? "PRODUCER",
   };
 
@@ -98,7 +79,6 @@ test("buildTenantOperationsOverviewFromRecords scopes summary and queues to the 
         createdAt: olderDate,
         id: "producer-live",
         name: "Produtor ativo",
-        stripeAccountId: "acct_live",
         type: "PRODUCER",
       },
       userCount: 4,
@@ -161,7 +141,6 @@ test("buildTenantOperationsOverviewFromRecords keeps cross-type counts when no t
         createdAt: now,
         id: "producer-ok",
         name: "Produtor ok",
-        stripeAccountId: "acct_ok",
         type: "PRODUCER",
       },
       userCount: 3,
@@ -215,7 +194,6 @@ test("buildTenantOperationsOverviewFromRecords paginates tenants without shrinki
         createdAt: sharedDate,
         id: "tenant-c",
         name: "Tenant C",
-        stripeAccountId: "acct_c",
         type: "PRODUCER",
       },
       userCount: 2,
@@ -230,7 +208,6 @@ test("buildTenantOperationsOverviewFromRecords paginates tenants without shrinki
         createdAt: sharedDate,
         id: "tenant-b",
         name: "Tenant B",
-        stripeAccountId: "acct_b",
         type: "PRODUCER",
       },
       userCount: 3,
@@ -245,7 +222,6 @@ test("buildTenantOperationsOverviewFromRecords paginates tenants without shrinki
         createdAt: sharedDate,
         id: "tenant-a",
         name: "Tenant A",
-        stripeAccountId: "acct_a",
         type: "PRODUCER",
       },
       userCount: 4,

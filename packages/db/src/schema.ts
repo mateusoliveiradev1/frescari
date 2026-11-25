@@ -220,6 +220,11 @@ export const tenants = pgTable("tenants", {
   // optional and edited by the producer.
   storefrontPhotoUrl: text("storefront_photo_url"),
   storefrontBio: text("storefront_bio"),
+  // Set by the operations team when they reach out to a stalled producer
+  // (admin panel), so the same person is not contacted twice.
+  outreachContactedAt: timestamp("outreach_contacted_at", {
+    withTimezone: true,
+  }),
   plan: planEnum("plan").notNull().default("free"),
   geoRegion: geometry("geo_region"),
   stripeAccountId: text("stripe_account_id"),
@@ -255,7 +260,30 @@ export const users = pgTable("user", {
   // Set when the user unsubscribes from reminders and news. Account emails
   // (verification, orders, payments) are still sent.
   marketingEmailsOptOutAt: timestamp("marketingEmailsOptOutAt"),
+  // Better Auth two-factor plugin; required for admins.
+  twoFactorEnabled: boolean("twoFactorEnabled").default(false),
 });
+
+// Better Auth two-factor plugin (TOTP). The secret is stored encrypted by
+// Better Auth with BETTER_AUTH_SECRET; backup codes too.
+export const twoFactor = pgTable(
+  "twoFactor",
+  {
+    id: text("id").primaryKey(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backupCodes").notNull(),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    verified: boolean("verified").default(true),
+    failedVerificationCount: integer("failedVerificationCount").default(0),
+    lockedUntil: timestamp("lockedUntil"),
+  },
+  (table) => [
+    index("twoFactor_secret_idx").on(table.secret),
+    index("twoFactor_userId_idx").on(table.userId),
+  ],
+);
 
 export const session = pgTable("session", {
   id: text("id").primaryKey(),

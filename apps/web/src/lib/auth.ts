@@ -1,4 +1,5 @@
 import { APIError, betterAuth } from "better-auth";
+import { twoFactor } from "better-auth/plugins";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { authDb } from "@frescari/db";
 import * as schema from "@frescari/db";
@@ -69,8 +70,12 @@ export const auth = betterAuth({
       accounts: schema.account,
       sessions: schema.session,
       verifications: schema.verification,
+      twoFactors: schema.twoFactor,
     },
   }),
+  // TOTP (authenticator app) second factor. Required for admins: the admin
+  // layout and adminProcedure refuse a session whose user has not enabled it.
+  plugins: [twoFactor({ issuer: "Frescari" })],
   user: {
     additionalFields: {
       role: {
