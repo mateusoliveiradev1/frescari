@@ -56,6 +56,7 @@ export interface PublicCatalogLot {
   categoryPath: string;
   productPath: string;
   supplierRegionPath: string | null;
+  sellerSlug: string | null;
 }
 
 export interface CatalogCategorySummary {
@@ -185,6 +186,7 @@ async function loadAllAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
         categoryPath,
         productPath,
         supplierRegionPath,
+        sellerSlug: row.sellerSlug ?? null,
       } satisfies PublicCatalogLot;
     })
     .sort((left, right) => {
@@ -219,6 +221,66 @@ async function getAllAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
 export async function getAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
   return getAllAvailableCatalogLots();
 }
+
+// Only producers with something on sale: an empty storefront is noindex,
+// so listing it in the sitemap would only waste crawl budget.
+export async function getProducerStorefrontStaticParams(): Promise<
+  Array<{ slug: string }>
+> {
+  const lots = await getAllAvailableCatalogLots();
+  const slugs = new Set(
+    lots
+      .map((lot) => lot.sellerSlug)
+      .filter((slug): slug is string => Boolean(slug)),
+  );
+
+  return Array.from(slugs, (slug) => ({ slug }));
+}
+
+export interface ProducerStorefrontPageData {
+  producer: {
+    name: string;
+    slug: string;
+    farmName: string | null;
+    city: string | null;
+    state: string | null;
+    certifications: string[];
+    deliveryRadiusKm: number | null;
+    minOrderValue: number | null;
+    freeShippingThreshold: number | null;
+    baseDeliveryFee: number | null;
+  };
+  lots: PublicCatalogLot[];
+}
+
+export const getProducerStorefrontPageData = cache(
+  async (slug: string): Promise<ProducerStorefrontPageData | null> => {
+    const trpc = await getServerTrpc();
+    const producer = await trpc.lot.getProducerStorefront({ slug });
+
+    if (!producer) {
+      return null;
+    }
+
+    const lots = (await getAllAvailableCatalogLots()).filter(
+      (lot) => lot.sellerSlug === producer.slug,
+    );
+
+    return {
+      producer: {
+        ...producer,
+        certifications: producer.certifications.map((item) =>
+          sanitizeText(item),
+        ),
+        city: producer.city ? sanitizeText(producer.city) : null,
+        state: producer.state
+          ? sanitizeText(producer.state).toUpperCase()
+          : null,
+      },
+      lots,
+    };
+  },
+);
 
 export async function getCategoryStaticParams(): Promise<
   Array<{ categoria: string }>
