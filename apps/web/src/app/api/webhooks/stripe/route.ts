@@ -31,6 +31,7 @@ import { formatDeliveryWindow } from "@frescari/api/delivery-slots";
 import { readChunkedMetadata } from "@frescari/api/stripe-metadata";
 import { parseDeliveryDetailsMetadata } from "./delivery-metadata";
 import { sanitizeEnvValue } from "@/lib/env";
+import { reportError } from "@/lib/report-error";
 import {
   sendBuyerOutOfStockEmails,
   sendProducerNewOrderEmails,
@@ -121,10 +122,7 @@ async function releasePaymentForUnfulfillableSession({
     );
     await sendBuyerOutOfStockEmails(recipients, payment.action, sessionId);
   } catch (error) {
-    console.error(
-      `[WEBHOOK] Falha ao avisar o comprador da sessao ${sessionId}:`,
-      error,
-    );
+    reportError(error, "webhook.out-of-stock-email", { sessionId });
   }
 }
 
@@ -162,10 +160,7 @@ async function emailProducersAboutNewOrders(
       );
     } catch (error) {
       // The order is committed; never fail the webhook because of an email.
-      console.error(
-        `[WEBHOOK] Falha ao enviar email de novo pedido ${order.orderId}:`,
-        error,
-      );
+      reportError(error, "webhook.new-order-email", { orderId: order.orderId });
     }
   }
 }
@@ -260,7 +255,10 @@ export async function POST(req: NextRequest) {
   console.log("[WEBHOOK] ── Incoming request ──");
 
   if (!webhookSecret) {
-    console.error("[WEBHOOK] STRIPE_WEBHOOK_SECRET is not configured.");
+    reportError(
+      new Error("STRIPE_WEBHOOK_SECRET is not configured."),
+      "webhook.config",
+    );
     return NextResponse.json(
       { error: "Webhook secret not configured" },
       { status: 500 },
@@ -286,7 +284,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Stripe client unavailable";
-    console.error("[WEBHOOK] Failed to initialize Stripe client:", message);
+    reportError(error, "webhook.stripe-client");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
@@ -314,10 +312,7 @@ export async function POST(req: NextRequest) {
         event.data.object as Stripe.Checkout.Session,
       );
     } catch (error) {
-      console.error(
-        "[WEBHOOK ERROR] Falha ao processar checkout.session.async_payment_succeeded:",
-        error,
-      );
+      reportError(error, "webhook.async-payment-succeeded");
       return NextResponse.json(
         { received: true, error: "Processing error logged" },
         { status: 500 },
@@ -386,10 +381,7 @@ export async function POST(req: NextRequest) {
           );
         });
       } catch (error) {
-        console.error(
-          `[WEBHOOK ERROR] Falha ao atualizar pedido ${orderId}:`,
-          error,
-        );
+        reportError(error, "webhook.existing-order-update", { orderId });
         // Policy: Return 200 so Stripe doesn't retry infinitely on DB failure for existing order
         return NextResponse.json(
           {
@@ -403,10 +395,9 @@ export async function POST(req: NextRequest) {
       try {
         await handleCheckoutCompleted(session);
       } catch (error) {
-        console.error(
-          "[WEBHOOK ERROR] Falha ao processar checkout.session.completed:",
-          error,
-        );
+        reportError(error, "webhook.checkout-completed", {
+          sessionId: session.id,
+        });
         // Return 500 so Stripe retries on transient errors (e.g. DB down).
         // For permanent errors (missing metadata), handleCheckoutCompleted
         // already logs the details before throwing.
