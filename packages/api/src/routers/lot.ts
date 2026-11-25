@@ -52,6 +52,12 @@ const getErrorMessage = (error: unknown) => {
   return error instanceof Error ? error.message : "Unknown error";
 };
 
+const toPositiveNumberOrNull = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
 const buildCatalogLot = (
   row: {
     lot: typeof productLots.$inferSelect;
@@ -379,7 +385,15 @@ export const lotRouter = createTRPCRouter({
         }
 
         const [farm] = await tx
-          .select({ name: farms.name, address: farms.address })
+          .select({
+            name: farms.name,
+            address: farms.address,
+            certifications: farms.certifications,
+            maxDeliveryRadiusKm: farms.maxDeliveryRadiusKm,
+            minOrderValue: farms.minOrderValue,
+            freeShippingThreshold: farms.freeShippingThreshold,
+            baseDeliveryFee: farms.baseDeliveryFee,
+          })
           .from(farms)
           .where(eq(farms.tenantId, producer.id))
           .limit(1);
@@ -390,6 +404,15 @@ export const lotRouter = createTRPCRouter({
           farmName: farm?.name ?? null,
           city: farm?.address?.city ?? null,
           state: farm?.address?.state ?? null,
+          // Commercial terms the buyer sees at checkout anyway; shown up front
+          // so they know before adding to the cart. Zero means "not set".
+          certifications: (farm?.certifications ?? []).filter(Boolean),
+          deliveryRadiusKm: toPositiveNumberOrNull(farm?.maxDeliveryRadiusKm),
+          minOrderValue: toPositiveNumberOrNull(farm?.minOrderValue),
+          freeShippingThreshold: toPositiveNumberOrNull(
+            farm?.freeShippingThreshold,
+          ),
+          baseDeliveryFee: toPositiveNumberOrNull(farm?.baseDeliveryFee),
         };
       });
     }),

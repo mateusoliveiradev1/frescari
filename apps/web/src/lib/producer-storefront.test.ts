@@ -90,3 +90,29 @@ test("WhatsApp share link carries the encoded text and no phone number", () => {
   assert.equal(url.origin + url.pathname, "https://wa.me/");
   assert.equal(url.searchParams.get("text"), text);
 });
+
+test("initials skip connectors and fall back to a placeholder", async () => {
+  const { getProducerInitials } = await import("./producer-storefront");
+
+  assert.equal(getProducerInitials("Sítio da Serra Verde"), "SS");
+  assert.equal(getProducerInitials("DANIEL"), "D");
+  assert.equal(getProducerInitials("Zé e Maria"), "ZM");
+  assert.equal(getProducerInitials("   "), "?");
+});
+
+test("lots are grouped by category, keeping their order", async () => {
+  const { groupLotsByCategory } = await import("./producer-storefront");
+  const groups = groupLotsByCategory([
+    { id: 1, categorySlug: "folhas", categoryName: "Folhas" },
+    { id: 2, categorySlug: "raizes", categoryName: "Raízes" },
+    { id: 3, categorySlug: "folhas", categoryName: "Folhas" },
+  ]);
+
+  assert.deepEqual(
+    groups.map((group) => [group.slug, group.lots.map((lot) => lot.id)]),
+    [
+      ["folhas", [1, 3]],
+      ["raizes", [2]],
+    ],
+  );
+});

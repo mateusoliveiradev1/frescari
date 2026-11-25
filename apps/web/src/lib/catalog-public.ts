@@ -244,6 +244,11 @@ export interface ProducerStorefrontPageData {
     farmName: string | null;
     city: string | null;
     state: string | null;
+    certifications: string[];
+    deliveryRadiusKm: number | null;
+    minOrderValue: number | null;
+    freeShippingThreshold: number | null;
+    baseDeliveryFee: number | null;
   };
   lots: PublicCatalogLot[];
 }
@@ -264,6 +269,9 @@ export const getProducerStorefrontPageData = cache(
     return {
       producer: {
         ...producer,
+        certifications: producer.certifications.map((item) =>
+          sanitizeText(item),
+        ),
         city: producer.city ? sanitizeText(producer.city) : null,
         state: producer.state
           ? sanitizeText(producer.state).toUpperCase()

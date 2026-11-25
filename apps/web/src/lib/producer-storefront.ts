@@ -117,3 +117,48 @@ export function buildStorefrontShareText({
 export function buildWhatsAppShareUrl(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
+
+const NAME_CONNECTORS = new Set(["de", "da", "do", "das", "dos", "e"]);
+
+export function getProducerInitials(name: string): string {
+  const words = name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .split(/\s+/)
+    .filter((word) => /^[a-z0-9]/i.test(word))
+    // Skip connectors so "Sitio da Serra" -> "SS".
+    .filter((word) => !NAME_CONNECTORS.has(word.toLowerCase()));
+
+  const initials = words
+    .slice(0, 2)
+    .map((word) => word[0]!.toUpperCase())
+    .join("");
+  return initials || "?";
+}
+
+type GroupableLot = {
+  categorySlug: string;
+  categoryName: string;
+};
+
+// Keeps the order the lots came in, for both the groups and the lots in them.
+export function groupLotsByCategory<T extends GroupableLot>(
+  lots: T[],
+): Array<{ slug: string; name: string; lots: T[] }> {
+  const groups = new Map<string, { slug: string; name: string; lots: T[] }>();
+
+  for (const lot of lots) {
+    const group = groups.get(lot.categorySlug);
+    if (group) {
+      group.lots.push(lot);
+    } else {
+      groups.set(lot.categorySlug, {
+        slug: lot.categorySlug,
+        name: lot.categoryName,
+        lots: [lot],
+      });
+    }
+  }
+
+  return Array.from(groups.values());
+}
