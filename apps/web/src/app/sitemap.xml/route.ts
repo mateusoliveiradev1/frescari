@@ -51,6 +51,7 @@ export async function GET(): Promise<Response> {
   const entryList: Array<readonly [string, SitemapEntry]> = [
     [`${siteUrl}/`, { url: `${siteUrl}/` }],
     [`${siteUrl}/catalogo`, { url: `${siteUrl}/catalogo` }],
+    [`${siteUrl}/para-restaurantes`, { url: `${siteUrl}/para-restaurantes` }],
     ...legalDocumentLinks.map(
       ({ slug }) =>
         [

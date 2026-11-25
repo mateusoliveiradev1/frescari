@@ -104,6 +104,10 @@ test("sitemap.xml includes the catalog surface and legal pages", async () => {
   assert.equal(response.status, 200);
   assert.match(body, /<loc>https:\/\/frescari\.com\.br\/<\/loc>/);
   assert.match(body, /<loc>https:\/\/frescari\.com\.br\/catalogo<\/loc>/);
+  assert.match(
+    body,
+    /<loc>https:\/\/frescari\.com\.br\/para-restaurantes<\/loc>/,
+  );
   assert.match(body, /<loc>https:\/\/frescari\.com\.br\/termos<\/loc>/);
   assert.match(body, /<loc>https:\/\/frescari\.com\.br\/privacidade<\/loc>/);
   assert.match(body, /<loc>https:\/\/frescari\.com\.br\/cookies<\/loc>/);
