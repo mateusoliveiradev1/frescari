@@ -21,7 +21,10 @@ import {
   type AppDb,
   users,
 } from "@frescari/db";
-import { isStripeConnectReady } from "../utils/stripe-connect-status";
+import {
+  deriveStripeConnectStatus,
+  isStripeConnectReady,
+} from "../utils/stripe-connect-status";
 
 const activeOrderStatuses = [
   "confirmed",
@@ -212,6 +215,10 @@ function toAdminTenantSummary(tenant: typeof tenants.$inferSelect) {
     producerContactName: tenant.producerContactName,
     producerPhone: tenant.producerPhone,
     outreachContactedAt: tenant.outreachContactedAt,
+    // Whether the producer opened the Stripe form, and what it still asks
+    // for as plain labels ("CPF", "Conta bancaria"): never the values.
+    stripeStarted: Boolean(tenant.stripeAccountId),
+    stripeMissingItems: deriveStripeConnectStatus(tenant).missingItems,
   };
 }
 

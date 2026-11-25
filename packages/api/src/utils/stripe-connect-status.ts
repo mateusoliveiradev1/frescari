@@ -1,5 +1,10 @@
 import { tenants } from "@frescari/db";
 
+import {
+  describeStripeDisabledReason,
+  describeStripeRequirements,
+} from "./stripe-requirement-labels";
+
 export type TenantStripeConnectSnapshot = Pick<
   typeof tenants.$inferSelect,
   | "stripeAccountId"
@@ -32,6 +37,10 @@ export type StripeConnectStatus = {
   hasAccount: boolean;
   headline: string;
   missingFields: string[];
+  // What is still missing, in plain Portuguese ("CPF", "Conta bancaria").
+  missingItems: string[];
+  // Why Stripe blocked the account, in plain Portuguese, when it says so.
+  blockedReason: string | null;
   needsAction: boolean;
   payoutsEnabled: boolean;
   snapshot: TenantStripeConnectSnapshot;
@@ -69,7 +78,13 @@ export function deriveStripeConnectStatus(
     state = "not_started";
   } else if (canReceivePayments) {
     state = "ready";
-  } else if (pastDue.length > 0 || Boolean(disabledReason)) {
+  } else if (
+    // A form left halfway also reads "past due" at Stripe; for the producer
+    // that is "finish the form", not "blocked". Blocked means they sent
+    // everything and Stripe still holds the account (or rejected it).
+    (detailsSubmitted || disabledReason?.startsWith("rejected")) &&
+    (pastDue.length > 0 || Boolean(disabledReason))
+  ) {
     state = "restricted";
   } else if (detailsSubmitted && currentlyDue.length === 0) {
     state = "under_review";
@@ -96,8 +111,8 @@ export function deriveStripeConnectStatus(
       actionLabel: "Continuar verificacao",
       badgeLabel: "Pendente",
       description:
-        currentlyDue.length > 0
-          ? `Ainda faltam ${currentlyDue.length} dado(s) para liberar o recebimento.`
+        currentlyDue.length + pastDue.length > 0
+          ? "Termine o cadastro no Stripe para liberar o recebimento."
           : "Complete a verificacao de recebimento para continuar.",
       headline: "Faltam dados de recebimento",
       needsAction: true,
@@ -141,6 +156,15 @@ export function deriveStripeConnectStatus(
     eventuallyDueFields: eventuallyDue,
     hasAccount,
     missingFields: state === "restricted" ? pastDue : currentlyDue,
+    missingItems: describeStripeRequirements(
+      state === "ready" || state === "under_review"
+        ? []
+        : [...currentlyDue, ...pastDue],
+    ),
+    blockedReason:
+      state === "restricted"
+        ? describeStripeDisabledReason(disabledReason)
+        : null,
     payoutsEnabled,
     snapshot,
     state,

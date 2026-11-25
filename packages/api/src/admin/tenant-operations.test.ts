@@ -22,6 +22,8 @@ function createTenantRecord(
     id: tenantOverrides.id,
     name: tenantOverrides.name,
     outreachContactedAt: tenantOverrides.outreachContactedAt ?? null,
+    stripeStarted: false,
+    stripeMissingItems: [] as string[],
     plan: tenantOverrides.plan ?? "free",
     producerContactName: tenantOverrides.producerContactName ?? null,
     producerPhone: tenantOverrides.producerPhone ?? null,

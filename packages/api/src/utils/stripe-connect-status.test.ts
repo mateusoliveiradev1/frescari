@@ -113,3 +113,42 @@ test("allows legacy unsynced accounts in catalog until the first status sync run
   assert.equal(isStripeConnectReady(snapshot), false);
   assert.equal(isStripeConnectCatalogEligible(snapshot), true);
 });
+
+test("a form left halfway reads as 'finish the form', listing what is missing", () => {
+  const status = deriveStripeConnectStatus({
+    stripeAccountId: "acct_halfway",
+    stripeChargesEnabled: false,
+    stripePayoutsEnabled: false,
+    stripeDetailsSubmitted: false,
+    stripeRequirementsCurrentlyDue: ["external_account"],
+    stripeRequirementsEventuallyDue: [],
+    stripeRequirementsPastDue: ["external_account", "tos_acceptance.date"],
+    stripeRequirementsDisabledReason: "requirements.past_due",
+    stripeStatusSyncedAt: new Date("2026-11-25T13:00:00.000Z"),
+  });
+
+  assert.equal(status.state, "pending_information");
+  assert.equal(status.blockedReason, null);
+  assert.deepEqual(status.missingItems, [
+    "Conta bancaria para receber",
+    "Aceitar os termos do Stripe",
+  ]);
+});
+
+test("an account blocked after sending everything says why", () => {
+  const status = deriveStripeConnectStatus({
+    stripeAccountId: "acct_blocked",
+    stripeChargesEnabled: false,
+    stripePayoutsEnabled: false,
+    stripeDetailsSubmitted: true,
+    stripeRequirementsCurrentlyDue: [],
+    stripeRequirementsEventuallyDue: [],
+    stripeRequirementsPastDue: ["individual.verification.document"],
+    stripeRequirementsDisabledReason: "requirements.past_due",
+    stripeStatusSyncedAt: new Date("2026-11-25T13:00:00.000Z"),
+  });
+
+  assert.equal(status.state, "restricted");
+  assert.match(status.blockedReason ?? "", /vencidos/);
+  assert.deepEqual(status.missingItems, ["Foto de um documento (RG ou CNH)"]);
+});

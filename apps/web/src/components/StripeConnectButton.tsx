@@ -63,6 +63,23 @@ export function StripeConnectButton() {
             {connectStatus.headline}
           </p>
           <p className="text-xs text-bark/80">{connectStatus.description}</p>
+          {connectStatus.blockedReason ? (
+            <p className="text-xs font-semibold text-red-700">
+              {connectStatus.blockedReason}
+            </p>
+          ) : null}
+          {connectStatus.missingItems.length > 0 ? (
+            <div className="pt-1 text-left">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-bark/70">
+                O que falta no cadastro
+              </p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-soil">
+                {connectStatus.missingItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
       <Button

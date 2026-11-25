@@ -151,6 +151,8 @@ export function TenantHealthCard({ tenant }: TenantHealthCardProps) {
           activeLotCount={tenant.activeLotCount}
           productCount={tenant.productCount}
           contactedAt={tenant.tenant.outreachContactedAt}
+          stripeStarted={tenant.tenant.stripeStarted}
+          stripeMissingItems={tenant.tenant.stripeMissingItems}
         />
       ) : null}
 
