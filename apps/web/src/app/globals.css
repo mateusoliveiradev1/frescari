@@ -22,6 +22,7 @@
   --sage: #e8f0e3;
   --soil: #2a1a0e;
   --bark: #6b4f3a;
+  --destructive: #b42318;
 
   /* ── Legacy compat ── */
   --primary: #0d3321;
@@ -48,6 +49,12 @@
   --color-sage: var(--sage);
   --color-soil: var(--soil);
   --color-bark: var(--bark);
+  /* Used by the shared Button ("danger" variant, hover states); without
+     these the classes resolve to nothing and the button is invisible. */
+  --color-destructive: var(--destructive);
+  --color-forest-hover: var(--forest-hover);
+  --color-forest-light: var(--forest-light);
+  --color-cream-dark: var(--cream-dark);
 
   --font-display: var(--font-display);
   --font-sans: var(--font-sans);
