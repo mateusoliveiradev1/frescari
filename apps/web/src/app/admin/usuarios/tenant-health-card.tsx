@@ -5,6 +5,8 @@ import { Badge } from "@frescari/ui";
 
 import { formatSaoPauloDateBR } from "@/lib/date-format";
 
+import { ProducerOutreachActions } from "./producer-outreach-actions";
+
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type TenantHealthCardProps = {
   tenant: RouterOutputs["admin"]["getTenantOperationsOverview"]["tenants"][number];
@@ -138,6 +140,19 @@ export function TenantHealthCard({ tenant }: TenantHealthCardProps) {
           </p>
         </div>
       </div>
+
+      {isProducer ? (
+        <ProducerOutreachActions
+          tenantId={tenant.tenant.id}
+          contactName={tenant.tenant.producerContactName}
+          phone={tenant.tenant.producerPhone}
+          stripeConnected={tenant.stripeConnected}
+          farmCount={tenant.farmCount}
+          activeLotCount={tenant.activeLotCount}
+          productCount={tenant.productCount}
+          contactedAt={tenant.tenant.outreachContactedAt}
+        />
+      ) : null}
 
       <div className="mt-5 flex justify-end">
         <Link

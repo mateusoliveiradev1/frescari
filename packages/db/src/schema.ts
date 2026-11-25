@@ -220,6 +220,11 @@ export const tenants = pgTable("tenants", {
   // optional and edited by the producer.
   storefrontPhotoUrl: text("storefront_photo_url"),
   storefrontBio: text("storefront_bio"),
+  // Set by the operations team when they reach out to a stalled producer
+  // (admin panel), so the same person is not contacted twice.
+  outreachContactedAt: timestamp("outreach_contacted_at", {
+    withTimezone: true,
+  }),
   plan: planEnum("plan").notNull().default("free"),
   geoRegion: geometry("geo_region"),
   stripeAccountId: text("stripe_account_id"),
