@@ -169,6 +169,16 @@ export function GlobalNav() {
           >
             Catálogo
           </Link>
+          <Link
+            aria-current={
+              pathname === "/para-restaurantes" ? "page" : undefined
+            }
+            className={linkClasses("/para-restaurantes")}
+            href="/para-restaurantes"
+            {...baseProps}
+          >
+            Para restaurantes
+          </Link>
           {isMobile ? (
             <Link
               className={getMobileLinkClasses(false)}
