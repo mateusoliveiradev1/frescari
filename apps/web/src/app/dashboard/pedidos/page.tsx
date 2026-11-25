@@ -17,6 +17,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { toast } from "sonner";
 import { trpc } from "@/trpc/react";
 import { getSaleUnitLabel } from "@/lib/sale-units";
+import { useCartStore } from "@/store/useCartStore";
 
 const statusStyles = {
   draft: "bg-gray-100 text-gray-700 border-gray-200",
@@ -143,11 +144,45 @@ export default function PedidosPage() {
     setIsDialogOpen(true);
   };
 
-  const handleRepeatOrder = (orderId: string, visualId?: string) => {
+  // Adds the order's lots that are still for sale, at today's price and up
+  // to what is available now, and says what could not be added.
+  const [repeatingOrderId, setRepeatingOrderId] = useState<string | null>(null);
+  const handleRepeatOrder = async (orderId: string, visualId?: string) => {
     const displayId = visualId || orderId.slice(-6).toUpperCase();
-    toast.success(
-      `Sucesso! Itens do pedido ${displayId} foram adicionados ao seu carrinho.`,
-    );
+    setRepeatingOrderId(orderId);
+
+    try {
+      const { items, unavailableCount } = await utils.lot.getReorderLots.fetch({
+        orderId,
+      });
+      const addItem = useCartStore.getState().addItem;
+
+      for (const { lot, quantity } of items) {
+        addItem(lot, quantity);
+      }
+
+      if (items.length === 0) {
+        toast.error(
+          `Os produtos do pedido ${displayId} nao estao mais disponiveis.`,
+        );
+      } else if (unavailableCount > 0) {
+        toast.warning(
+          `${items.length} ${items.length === 1 ? "item adicionado" : "itens adicionados"} ao carrinho. ${unavailableCount} ${unavailableCount === 1 ? "nao esta mais disponivel" : "nao estao mais disponiveis"}.`,
+        );
+      } else {
+        toast.success(
+          `Itens do pedido ${displayId} adicionados ao carrinho, com o preco de hoje.`,
+        );
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Nao foi possivel refazer o pedido.",
+      );
+    } finally {
+      setRepeatingOrderId(null);
+    }
   };
 
   const formatFriendlyDate = (date: Date | string) => {
@@ -307,10 +342,11 @@ export default function PedidosPage() {
                       <ChevronRight className="w-3.5 h-3.5 text-forest/60 opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all duration-300" />
                     </button>
                     <button
+                      disabled={repeatingOrderId === order.id}
                       onClick={() =>
-                        handleRepeatOrder(order.id, order.visualId)
+                        void handleRepeatOrder(order.id, order.visualId)
                       }
-                      className="flex items-center justify-center gap-1.5 py-4 text-[11px] font-bold uppercase tracking-wider text-forest hover:bg-forest hover:text-cream transition-colors group/btn"
+                      className="disabled:opacity-50 flex items-center justify-center gap-1.5 py-4 text-[11px] font-bold uppercase tracking-wider text-forest hover:bg-forest hover:text-cream transition-colors group/btn"
                     >
                       <RotateCw className="w-3.5 h-3.5 shrink-0 transition-transform group-hover/btn:rotate-180 duration-500 ease-in-out" />
                       <span className="truncate">Refazer Pedido</span>

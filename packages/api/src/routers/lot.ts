@@ -1,4 +1,9 @@
-import { createTRPCRouter, producerProcedure, publicProcedure } from "../trpc";
+import {
+  buyerProcedure,
+  createTRPCRouter,
+  producerProcedure,
+  publicProcedure,
+} from "../trpc";
 import {
   createLotInputSchema,
   updateLotInputSchema,
@@ -10,12 +15,14 @@ import {
   enableProductLotTenantContext,
   farms,
   masterProducts,
+  orderItems,
+  orders,
   productCategories,
   productLots,
   products,
   tenants,
 } from "@frescari/db";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, type SQL } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -125,6 +132,84 @@ const buildCatalogLot = (
     sellerSlug: row.sellerSlug ?? null,
   };
 };
+
+type CatalogTx = Parameters<
+  Parameters<typeof import("@frescari/db").db.transaction>[0]
+>[0];
+
+// The catalog's lot query (lots with product, farm, category and seller).
+function selectCatalogLotRows(tx: CatalogTx, extraWhere?: SQL) {
+  return tx
+    .select({
+      lot: productLots,
+      product: products,
+      farmName: farms.name,
+      farmAddress: farms.address,
+      farmLocation: farms.location,
+      deliveryRadiusKm: farms.maxDeliveryRadiusKm,
+      categorySlug: productCategories.slug,
+      categoryName: productCategories.name,
+      categoryDescription: productCategories.seoDescription,
+      sellerSlug: tenants.slug,
+      sellerStripeAccountId: tenants.stripeAccountId,
+      sellerStripeChargesEnabled: tenants.stripeChargesEnabled,
+      sellerStripeDetailsSubmitted: tenants.stripeDetailsSubmitted,
+      sellerStripePayoutsEnabled: tenants.stripePayoutsEnabled,
+      sellerStripeRequirementsCurrentlyDue:
+        tenants.stripeRequirementsCurrentlyDue,
+      sellerStripeRequirementsDisabledReason:
+        tenants.stripeRequirementsDisabledReason,
+      sellerStripeRequirementsEventuallyDue:
+        tenants.stripeRequirementsEventuallyDue,
+      sellerStripeRequirementsPastDue: tenants.stripeRequirementsPastDue,
+      sellerStripeStatusSyncedAt: tenants.stripeStatusSyncedAt,
+    })
+    .from(productLots)
+    .leftJoin(products, eq(productLots.productId, products.id))
+    .leftJoin(farms, eq(products.farmId, farms.id))
+    .leftJoin(tenants, eq(productLots.tenantId, tenants.id))
+    .leftJoin(productCategories, eq(products.categoryId, productCategories.id))
+    .where(activeProductLotWhere(extraWhere));
+}
+
+type CatalogLotRow = Awaited<ReturnType<typeof selectCatalogLotRows>>[number];
+
+// What a buyer may see and buy: shared by the catalog and "Refazer pedido".
+function toVisibleCatalogLots(rows: CatalogLotRow[]) {
+  const requiresConnectedProducer = !isPlatformOnlyStripeMode();
+
+  return (
+    rows
+      .filter((row) =>
+        requiresConnectedProducer
+          ? isStripeConnectCatalogEligible({
+              stripeAccountId: row.sellerStripeAccountId,
+              stripeChargesEnabled: row.sellerStripeChargesEnabled,
+              stripeDetailsSubmitted: row.sellerStripeDetailsSubmitted,
+              stripePayoutsEnabled: row.sellerStripePayoutsEnabled,
+              stripeRequirementsCurrentlyDue:
+                row.sellerStripeRequirementsCurrentlyDue,
+              stripeRequirementsDisabledReason:
+                row.sellerStripeRequirementsDisabledReason,
+              stripeRequirementsEventuallyDue:
+                row.sellerStripeRequirementsEventuallyDue,
+              stripeRequirementsPastDue: row.sellerStripeRequirementsPastDue,
+              stripeStatusSyncedAt: row.sellerStripeStatusSyncedAt,
+            })
+          : true,
+      )
+      .filter((row) => row.product?.isActive !== false)
+      // Without a farm location freight cannot be quoted, so the buyer
+      // would hit an error at checkout. Keep those lots out of the catalog;
+      // the producer dashboard tells the producer why.
+      .filter((row) => row.farmLocation != null)
+      .map((row) => buildCatalogLot(row))
+      .filter(
+        (lot) =>
+          !lot.isExpired && lot.availableQty > 0 && lot.farmId.length > 0,
+      )
+  );
+}
 
 export const lotRouter = createTRPCRouter({
   create: producerProcedure
@@ -278,85 +363,14 @@ export const lotRouter = createTRPCRouter({
       try {
         const results = await ctx.db.transaction(async (tx) => {
           await enableProductLotPublicReadContext(tx);
-
-          const baseQuery = tx
-            .select({
-              lot: productLots,
-              product: products,
-              farmName: farms.name,
-              farmAddress: farms.address,
-              farmLocation: farms.location,
-              deliveryRadiusKm: farms.maxDeliveryRadiusKm,
-              categorySlug: productCategories.slug,
-              categoryName: productCategories.name,
-              categoryDescription: productCategories.seoDescription,
-              sellerSlug: tenants.slug,
-              sellerStripeAccountId: tenants.stripeAccountId,
-              sellerStripeChargesEnabled: tenants.stripeChargesEnabled,
-              sellerStripeDetailsSubmitted: tenants.stripeDetailsSubmitted,
-              sellerStripePayoutsEnabled: tenants.stripePayoutsEnabled,
-              sellerStripeRequirementsCurrentlyDue:
-                tenants.stripeRequirementsCurrentlyDue,
-              sellerStripeRequirementsDisabledReason:
-                tenants.stripeRequirementsDisabledReason,
-              sellerStripeRequirementsEventuallyDue:
-                tenants.stripeRequirementsEventuallyDue,
-              sellerStripeRequirementsPastDue:
-                tenants.stripeRequirementsPastDue,
-              sellerStripeStatusSyncedAt: tenants.stripeStatusSyncedAt,
-            })
-            .from(productLots)
-            .leftJoin(products, eq(productLots.productId, products.id))
-            .leftJoin(farms, eq(products.farmId, farms.id))
-            .leftJoin(tenants, eq(productLots.tenantId, tenants.id))
-            .leftJoin(
-              productCategories,
-              eq(products.categoryId, productCategories.id),
-            );
-
-          return input.productId
-            ? baseQuery.where(
-                activeProductLotWhere(eq(products.id, input.productId)),
-              )
-            : baseQuery.where(activeProductLotWhere());
+          return selectCatalogLotRows(
+            tx,
+            input.productId ? eq(products.id, input.productId) : undefined,
+          );
         });
 
-        const requiresConnectedProducer = !isPlatformOnlyStripeMode();
-
-        return (
-          results
-            .filter((row) =>
-              requiresConnectedProducer
-                ? isStripeConnectCatalogEligible({
-                    stripeAccountId: row.sellerStripeAccountId,
-                    stripeChargesEnabled: row.sellerStripeChargesEnabled,
-                    stripeDetailsSubmitted: row.sellerStripeDetailsSubmitted,
-                    stripePayoutsEnabled: row.sellerStripePayoutsEnabled,
-                    stripeRequirementsCurrentlyDue:
-                      row.sellerStripeRequirementsCurrentlyDue,
-                    stripeRequirementsDisabledReason:
-                      row.sellerStripeRequirementsDisabledReason,
-                    stripeRequirementsEventuallyDue:
-                      row.sellerStripeRequirementsEventuallyDue,
-                    stripeRequirementsPastDue:
-                      row.sellerStripeRequirementsPastDue,
-                    stripeStatusSyncedAt: row.sellerStripeStatusSyncedAt,
-                  })
-                : true,
-            )
-            .filter((row) => row.product?.isActive !== false)
-            // Without a farm location freight cannot be quoted, so the buyer
-            // would hit an error at checkout. Keep those lots out of the catalog;
-            // the producer dashboard tells the producer why.
-            .filter((row) => row.farmLocation != null)
-            .map((row) => buildCatalogLot(row))
-            .filter(
-              (lot) =>
-                !lot.isExpired && lot.availableQty > 0 && lot.farmId.length > 0,
-            )
-            .sort((left, right) =>
-              left.expiryDate.localeCompare(right.expiryDate),
-            )
+        return toVisibleCatalogLots(results).sort((left, right) =>
+          left.expiryDate.localeCompare(right.expiryDate),
         );
       } catch (error: unknown) {
         console.error("[DB_CATALOG_ERROR]:", error);
@@ -365,6 +379,59 @@ export const lotRouter = createTRPCRouter({
           message: getErrorMessage(error),
         });
       }
+    }),
+
+  // "Refazer pedido": the order's lots that are still for sale, at today's
+  // price, with the same visibility rules as the catalog (not expired, in
+  // stock, active product, located farm, producer able to receive). The
+  // quantity is capped at what is available now.
+  getReorderLots: buyerProcedure
+    .input(z.object({ orderId: z.string().uuid() }).strict())
+    .query(async ({ ctx, input }) => {
+      const orderedItems = await ctx.db
+        .select({ lotId: orderItems.lotId, qty: orderItems.qty })
+        .from(orderItems)
+        .innerJoin(orders, eq(orders.id, orderItems.orderId))
+        .where(
+          and(
+            eq(orders.id, input.orderId),
+            eq(orders.buyerTenantId, ctx.tenantId),
+          ),
+        );
+
+      if (orderedItems.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Pedido nao encontrado.",
+        });
+      }
+
+      const qtyByLot = new Map<string, number>();
+      for (const item of orderedItems) {
+        if (!item.lotId) continue;
+        qtyByLot.set(
+          item.lotId,
+          (qtyByLot.get(item.lotId) ?? 0) + Number(item.qty),
+        );
+      }
+
+      const lotIds = [...qtyByLot.keys()];
+      const rows =
+        lotIds.length === 0
+          ? []
+          : await ctx.db.transaction(async (tx) => {
+              await enableProductLotPublicReadContext(tx);
+              return selectCatalogLotRows(tx, inArray(productLots.id, lotIds));
+            });
+      const available = toVisibleCatalogLots(rows);
+
+      return {
+        items: available.map((lot) => ({
+          lot,
+          quantity: Math.min(qtyByLot.get(lot.id) ?? 0, lot.availableQty),
+        })),
+        unavailableCount: orderedItems.length - available.length,
+      };
     }),
 
   // What still stops this producer's lots from showing in the public catalog.
