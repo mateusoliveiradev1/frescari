@@ -222,6 +222,21 @@ export async function getAvailableCatalogLots(): Promise<PublicCatalogLot[]> {
   return getAllAvailableCatalogLots();
 }
 
+// Only producers with something on sale: an empty storefront is noindex,
+// so listing it in the sitemap would only waste crawl budget.
+export async function getProducerStorefrontStaticParams(): Promise<
+  Array<{ slug: string }>
+> {
+  const lots = await getAllAvailableCatalogLots();
+  const slugs = new Set(
+    lots
+      .map((lot) => lot.sellerSlug)
+      .filter((slug): slug is string => Boolean(slug)),
+  );
+
+  return Array.from(slugs, (slug) => ({ slug }));
+}
+
 export interface ProducerStorefrontPageData {
   producer: {
     name: string;

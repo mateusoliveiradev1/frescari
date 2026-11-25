@@ -14,6 +14,7 @@ import {
   getSupplierRegionStaticParams,
 } from "@/lib/catalog-public";
 import { getSiteUrl, sanitizeText, serializeJsonLd } from "@/lib/catalog-seo";
+import { buildProducerStorefrontPath } from "@/lib/producer-storefront";
 import { buildSeoMetadata } from "@/lib/seo";
 
 export const revalidate = 3600;
@@ -64,6 +65,13 @@ export default async function SupplierRegionPage({
 
   const canonical = `${getSiteUrl()}${data.region.path}`;
   const farmNames = Array.from(new Set(data.lots.map((lot) => lot.farmName)));
+  // Each producer chip links to their storefront: internal links help both
+  // buyers and search engines reach the producer pages.
+  const storefrontSlugByFarm = new Map(
+    data.lots
+      .filter((lot) => lot.sellerSlug)
+      .map((lot) => [lot.farmName, lot.sellerSlug as string]),
+  );
   const productRegionPathByKey = new Map(
     data.productRegions.map((region) => [
       `${region.categorySlug}:${region.productSlug}`,
@@ -297,14 +305,25 @@ export default async function SupplierRegionPage({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            {farmNames.map((farmName) => (
-              <span
-                key={farmName}
-                className="rounded-full border border-soil/10 bg-white px-3 py-1.5 text-sm text-bark shadow-sm"
-              >
-                {farmName}
-              </span>
-            ))}
+            {farmNames.map((farmName) => {
+              const storefrontSlug = storefrontSlugByFarm.get(farmName);
+              const chipClassName =
+                "rounded-full border border-soil/10 bg-white px-3 py-1.5 text-sm text-bark shadow-sm";
+
+              return storefrontSlug ? (
+                <Link
+                  key={farmName}
+                  href={buildProducerStorefrontPath(storefrontSlug)}
+                  className={`${chipClassName} transition-colors hover:text-forest`}
+                >
+                  {farmName}
+                </Link>
+              ) : (
+                <span key={farmName} className={chipClassName}>
+                  {farmName}
+                </span>
+              );
+            })}
           </div>
         </section>
 

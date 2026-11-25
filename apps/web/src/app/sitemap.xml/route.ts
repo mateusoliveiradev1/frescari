@@ -3,6 +3,7 @@ import {
   getCategoryRegionStaticParams,
   getCategoryStaticParams,
   getProductRegionStaticParams,
+  getProducerStorefrontStaticParams,
   getProductStaticParams,
   getSupplierRegionStaticParams,
 } from "@/lib/catalog-public";
@@ -20,6 +21,7 @@ import {
   getLegalDocumentLastModifiedIso,
   legalDocumentLinks,
 } from "@/lib/legal-documents";
+import { buildProducerStorefrontPath } from "@/lib/producer-storefront";
 
 export const revalidate = 3600;
 
@@ -44,6 +46,7 @@ export async function GET(): Promise<Response> {
   const productRegions = await getProductRegionStaticParams();
   const products = await getProductStaticParams();
   const supplierRegions = await getSupplierRegionStaticParams();
+  const storefronts = await getProducerStorefrontStaticParams();
 
   const entryList: Array<readonly [string, SitemapEntry]> = [
     [`${siteUrl}/`, { url: `${siteUrl}/` }],
@@ -95,6 +98,13 @@ export async function GET(): Promise<Response> {
         [
           `${siteUrl}${buildSupplierRegionPath(estado, cidade)}`,
           { url: `${siteUrl}${buildSupplierRegionPath(estado, cidade)}` },
+        ] as const,
+    ),
+    ...storefronts.map(
+      ({ slug }) =>
+        [
+          `${siteUrl}${buildProducerStorefrontPath(slug)}`,
+          { url: `${siteUrl}${buildProducerStorefrontPath(slug)}` },
         ] as const,
     ),
   ];

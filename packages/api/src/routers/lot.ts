@@ -401,6 +401,7 @@ export const lotRouter = createTRPCRouter({
     const [tenant] = await ctx.db
       .select({
         slug: tenants.slug,
+        name: tenants.name,
         stripeAccountId: tenants.stripeAccountId,
         stripeChargesEnabled: tenants.stripeChargesEnabled,
         stripeDetailsSubmitted: tenants.stripeDetailsSubmitted,
@@ -444,6 +445,7 @@ export const lotRouter = createTRPCRouter({
       hasActiveLot,
       lotsVisibleInCatalog: paymentsReady && farmLocated,
       storefrontSlug: tenant?.slug ?? null,
+      storefrontName: tenant?.name ?? null,
     };
   }),
 

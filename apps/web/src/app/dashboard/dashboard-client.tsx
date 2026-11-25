@@ -28,9 +28,10 @@ type PublishReadiness = {
   hasActiveLot: boolean;
   lotsVisibleInCatalog: boolean;
   storefrontSlug: string | null;
+  storefrontName: string | null;
 };
 
-function StorefrontCard({ slug }: { slug: string }) {
+function StorefrontCard({ slug, name }: { slug: string; name: string }) {
   const path = buildProducerStorefrontPath(slug);
   const url = `${window.location.origin}${path}`;
 
@@ -58,10 +59,7 @@ function StorefrontCard({ slug }: { slug: string }) {
           </Link>
         </p>
       </div>
-      <StorefrontShareButtons
-        url={url}
-        shareText={`Confira meus produtos frescos na Frescari e compre direto comigo: ${url}`}
-      />
+      <StorefrontShareButtons producerName={name} url={url} fromProducer />
     </section>
   );
 }
@@ -238,7 +236,10 @@ export default function DashboardClient({ user }: { user: unknown }) {
         ) : null}
 
         {readiness && !showChecklist && readiness.storefrontSlug ? (
-          <StorefrontCard slug={readiness.storefrontSlug} />
+          <StorefrontCard
+            slug={readiness.storefrontSlug}
+            name={readiness.storefrontName ?? "Minha vitrine"}
+          />
         ) : null}
 
         {/* ── Quick stats row ── */}

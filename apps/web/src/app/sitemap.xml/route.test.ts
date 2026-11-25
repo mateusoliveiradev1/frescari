@@ -36,6 +36,9 @@ before(() => {
         getProductStaticParams: async () => [
           { categoria: "frutas", produto: "morango-organico" },
         ],
+        getProducerStorefrontStaticParams: async () => [
+          { slug: "sitio-boa-vista-abc" },
+        ],
         getSupplierRegionStaticParams: async () => [
           { estado: "sp", cidade: "campinas" },
         ],
@@ -123,6 +126,10 @@ test("sitemap.xml includes the catalog surface and legal pages", async () => {
   assert.match(
     body,
     /<loc>https:\/\/frescari\.com\.br\/catalogo\/fornecedores\/sp\/campinas<\/loc>/,
+  );
+  assert.match(
+    body,
+    /<loc>https:\/\/frescari\.com\.br\/produtor\/sitio-boa-vista-abc<\/loc>/,
   );
   assert.match(body, /<lastmod>2026-04-08<\/lastmod>/);
   assert.doesNotMatch(body, /<changefreq>/);

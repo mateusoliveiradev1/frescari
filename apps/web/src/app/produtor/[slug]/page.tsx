@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatCurrencyBRL } from "@frescari/ui";
 
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
 import { StorefrontShareButtons } from "@/components/StorefrontShareButtons";
 import { getProducerStorefrontPageData } from "@/lib/catalog-public";
-import { getSiteUrl, sanitizeText } from "@/lib/catalog-seo";
-import { buildProducerStorefrontPath } from "@/lib/producer-storefront";
+import { getSiteUrl, sanitizeText, serializeJsonLd } from "@/lib/catalog-seo";
+import {
+  buildProducerStorefrontPath,
+  pickStorefrontHighlights,
+} from "@/lib/producer-storefront";
 import { buildSeoMetadata } from "@/lib/seo";
 
 export const revalidate = 3600;
@@ -17,6 +21,11 @@ type ProducerStorefrontPageProps = {
 
 function formatPlace(city: string | null, state: string | null) {
   return [city, state].filter(Boolean).join(" - ");
+}
+
+function joinProductNames(names: string[]) {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} e ${names.at(-1)}`;
 }
 
 export async function generateMetadata({
@@ -31,8 +40,18 @@ export async function generateMetadata({
 
   const name = sanitizeText(data.producer.name);
   const place = formatPlace(data.producer.city, data.producer.state);
+  const { highlights } = pickStorefrontHighlights(
+    data.lots,
+    formatCurrencyBRL,
+    3,
+  );
+  const productNames = joinProductNames(highlights.map((item) => item.name));
+  // Product names and the town in the description are what people search
+  // for ("tomate direto do produtor em Pirangi").
   const description = sanitizeText(
-    `Produtos frescos de ${name}${place ? ` (${place})` : ""}, direto do produtor, com entrega pela propria fazenda.`,
+    productNames
+      ? `${productNames} direto de ${name}${place ? `, ${place}` : ""}. Compre online, direto do produtor, com entrega pela propria fazenda.`
+      : `Produtos frescos de ${name}${place ? ` (${place})` : ""}, direto do produtor, com entrega pela propria fazenda.`,
     160,
   );
 
@@ -41,6 +60,14 @@ export async function generateMetadata({
     // An empty storefront is a thin page: keep it out of search results
     // until the producer has something to sell.
     index: data.lots.length > 0,
+    // The storefront's own card (producer, town, prices) is what WhatsApp
+    // shows when the link is pasted, instead of the generic site image.
+    images: [
+      {
+        alt: `Vitrine de ${name} na Frescari`,
+        url: `${buildProducerStorefrontPath(data.producer.slug)}/opengraph-image`,
+      },
+    ],
     path: buildProducerStorefrontPath(data.producer.slug),
     title: `${name} | Frescari`,
   });
@@ -61,9 +88,77 @@ export default async function ProducerStorefrontPage({
   const url = `${getSiteUrl()}${buildProducerStorefrontPath(producer.slug)}`;
   const showFarmName =
     producer.farmName !== null && producer.farmName !== producer.name;
+  const { highlights, productCount } = pickStorefrontHighlights(
+    lots,
+    formatCurrencyBRL,
+  );
+
+  const storeJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": `${url}#produtor`,
+    name: sanitizeText(producer.name),
+    url,
+    ...(producer.city || producer.state
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            ...(producer.city ? { addressLocality: producer.city } : {}),
+            ...(producer.state ? { addressRegion: producer.state } : {}),
+            addressCountry: "BR",
+          },
+        }
+      : {}),
+    ...(lots.length > 0
+      ? {
+          hasOfferCatalog: {
+            "@type": "OfferCatalog",
+            name: `Ofertas de ${sanitizeText(producer.name)}`,
+            itemListElement: lots.slice(0, 50).map((lot) => ({
+              "@type": "Offer",
+              price: lot.finalPrice.toFixed(2),
+              priceCurrency: "BRL",
+              availability: "https://schema.org/InStock",
+              itemOffered: {
+                "@type": "Product",
+                name: sanitizeText(lot.productName),
+                category: sanitizeText(lot.categoryName),
+                ...(lot.imageUrl ? { image: lot.imageUrl } : {}),
+              },
+            })),
+          },
+        }
+      : {}),
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Catalogo",
+        item: `${getSiteUrl()}/catalogo`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: sanitizeText(producer.name),
+        item: url,
+      },
+    ],
+  };
 
   return (
     <main className="min-h-screen bg-cream">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(storeJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }}
+      />
       <div className="mx-auto flex max-w-[1400px] flex-col gap-10 px-6 py-16 lg:px-12">
         <nav className="flex flex-wrap items-center gap-2 text-sm text-bark/70">
           <Link
@@ -101,7 +196,13 @@ export default async function ProducerStorefrontPage({
             entrega e combinada com o produtor.
           </p>
 
-          <StorefrontShareButtons producerName={producer.name} url={url} />
+          <StorefrontShareButtons
+            producerName={producer.name}
+            place={place || null}
+            highlights={highlights}
+            productCount={productCount}
+            url={url}
+          />
         </header>
 
         {lots.length > 0 ? (
