@@ -216,8 +216,17 @@ function DeliveryCard({
   onConfirmDispatch,
   onToggleOverride,
   onUpdateStatus,
+  waveSize,
+  isWavePending,
+  onDepartWave,
+  onCancelWave,
 }: {
   delivery: PendingDelivery;
+  // Orders in this order's confirmed wave (for "Saida da onda").
+  waveSize: number;
+  isWavePending: boolean;
+  onDepartWave: () => void;
+  onCancelWave: () => void;
   visualId: string;
   isSelected: boolean;
   isPrimaryPending: boolean;
@@ -440,6 +449,40 @@ function DeliveryCard({
                     {formatDateTimeLabel(delivery.dispatch.confirmedAt)}
                   </span>
                 </div>
+                {delivery.dispatch.status === "confirmed" &&
+                delivery.status === "ready_for_dispatch" ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      className="gap-2"
+                      disabled={isWavePending}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDepartWave();
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="primary"
+                    >
+                      <Truck className="h-4 w-4" />
+                      {waveSize > 1
+                        ? `Saida da onda (${waveSize} pedidos)`
+                        : "Registrar saida"}
+                    </Button>
+                    <Button
+                      className="gap-2"
+                      disabled={isWavePending}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onCancelWave();
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      Desfazer onda
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -681,6 +724,34 @@ export function DeliveriesPageClient() {
     onError(error) {
       toast.error(error.message || "Nao foi possivel atualizar a entrega.");
       setActiveActionKey(null);
+    },
+  });
+
+  const departWaveMutation = trpc.logistics.departDispatchWave.useMutation({
+    onSuccess(data) {
+      toast.success(
+        data.departedOrderCount > 1
+          ? `Saida registrada: ${data.departedOrderCount} pedidos em rota.`
+          : "Saida registrada: pedido em rota.",
+      );
+      recommendationQueue.forceApplyNextIncomingQueue();
+      void utils.logistics.getPendingDeliveries.invalidate();
+    },
+    onError(error) {
+      toast.error(error.message || "Nao foi possivel registrar a saida.");
+    },
+  });
+
+  const cancelWaveMutation = trpc.logistics.cancelDispatchWave.useMutation({
+    onSuccess(data) {
+      toast.success(
+        `Onda desfeita: ${data.releasedOrderCount} ${data.releasedOrderCount === 1 ? "pedido voltou" : "pedidos voltaram"} para a fila.`,
+      );
+      recommendationQueue.forceApplyNextIncomingQueue();
+      void utils.logistics.getPendingDeliveries.invalidate();
+    },
+    onError(error) {
+      toast.error(error.message || "Nao foi possivel desfazer a onda.");
     },
   });
 
@@ -1222,6 +1293,37 @@ export function DeliveriesPageClient() {
                     handleStatusUpdate(delivery.orderId, status)
                   }
                   visualId={visualId}
+                  waveSize={
+                    delivery.dispatch
+                      ? deliveries.filter(
+                          (candidate) =>
+                            candidate.dispatch?.waveId ===
+                            delivery.dispatch?.waveId,
+                        ).length
+                      : 0
+                  }
+                  isWavePending={
+                    departWaveMutation.isPending || cancelWaveMutation.isPending
+                  }
+                  onDepartWave={() => {
+                    if (delivery.dispatch) {
+                      departWaveMutation.mutate({
+                        waveId: delivery.dispatch.waveId,
+                      });
+                    }
+                  }}
+                  onCancelWave={() => {
+                    if (
+                      delivery.dispatch &&
+                      window.confirm(
+                        "Desfazer esta onda? Os pedidos voltam para a fila e podem ser agrupados de novo.",
+                      )
+                    ) {
+                      cancelWaveMutation.mutate({
+                        waveId: delivery.dispatch.waveId,
+                      });
+                    }
+                  }}
                 />
               ))
             )}

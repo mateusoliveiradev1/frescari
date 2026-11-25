@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -1152,6 +1152,7 @@ async function loadDispatchQueue(
         and(
           eq(deliveryDispatchWaves.tenantId, ctx.tenantId),
           inArray(deliveryDispatchWaveOrders.orderId, orderIds),
+          ne(deliveryDispatchWaves.status, "cancelled"),
         ),
       ),
   ]);
@@ -1175,6 +1176,95 @@ async function loadDispatchQueue(
   );
 
   return { queue, vehicles };
+}
+
+// A departed wave's vehicle goes back to "available" once none of the wave's
+// orders is still out (ready or in transit).
+async function releaseWaveVehicleWhenDone(
+  db: AppDb,
+  tenantId: string,
+  orderId: string,
+) {
+  const [assignment] = await db
+    .select({
+      waveId: deliveryDispatchWaves.id,
+      vehicleId: deliveryDispatchWaves.selectedVehicleId,
+    })
+    .from(deliveryDispatchWaveOrders)
+    .innerJoin(
+      deliveryDispatchWaves,
+      eq(deliveryDispatchWaveOrders.waveId, deliveryDispatchWaves.id),
+    )
+    .where(
+      and(
+        eq(deliveryDispatchWaveOrders.orderId, orderId),
+        eq(deliveryDispatchWaves.tenantId, tenantId),
+        eq(deliveryDispatchWaves.status, "departed"),
+      ),
+    )
+    .limit(1);
+
+  if (!assignment?.vehicleId) {
+    return;
+  }
+
+  const [stillOut] = await db
+    .select({ id: orders.id })
+    .from(deliveryDispatchWaveOrders)
+    .innerJoin(orders, eq(orders.id, deliveryDispatchWaveOrders.orderId))
+    .where(
+      and(
+        eq(deliveryDispatchWaveOrders.waveId, assignment.waveId),
+        inArray(orders.status, ["ready_for_dispatch", "in_transit"]),
+      ),
+    )
+    .limit(1);
+
+  if (stillOut) {
+    return;
+  }
+
+  await db
+    .update(farmVehicles)
+    .set({ availabilityStatus: "available" })
+    .where(
+      and(
+        eq(farmVehicles.id, assignment.vehicleId),
+        eq(farmVehicles.tenantId, tenantId),
+        eq(farmVehicles.availabilityStatus, "in_use"),
+      ),
+    );
+}
+
+async function findProducerWave(db: AppDb, tenantId: string, waveId: string) {
+  const [wave] = await db
+    .select({
+      id: deliveryDispatchWaves.id,
+      status: deliveryDispatchWaves.status,
+      selectedVehicleId: deliveryDispatchWaves.selectedVehicleId,
+    })
+    .from(deliveryDispatchWaves)
+    .where(
+      and(
+        eq(deliveryDispatchWaves.id, waveId),
+        eq(deliveryDispatchWaves.tenantId, tenantId),
+      ),
+    )
+    .limit(1);
+
+  if (!wave) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Saida nao encontrada.",
+    });
+  }
+
+  const waveOrders = await db
+    .select({ orderId: deliveryDispatchWaveOrders.orderId })
+    .from(deliveryDispatchWaveOrders)
+    .where(eq(deliveryDispatchWaveOrders.waveId, wave.id));
+
+  return { wave, orderIds: waveOrders.map((row) => row.orderId) };
 }
 
 export const logisticsRouter = createTRPCRouter({
@@ -1652,6 +1742,135 @@ export const logisticsRouter = createTRPCRouter({
       };
     }),
 
+  // The whole wave leaves the farm: its ready orders go in transit together,
+  // buyers are told, and the chosen vehicle is "in use" until the last
+  // delivery of the wave is confirmed.
+  departDispatchWave: producerProcedure
+    .input(z.object({ waveId: z.string().uuid() }).strict())
+    .mutation(async ({ ctx, input }) => {
+      const { wave, orderIds } = await findProducerWave(
+        ctx.db,
+        ctx.tenantId,
+        input.waveId,
+      );
+
+      if (wave.status !== "confirmed") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            wave.status === "departed"
+              ? "Esta saida ja foi registrada."
+              : "Esta saida foi desfeita.",
+        });
+      }
+
+      // Only orders still ready: one cancelled meanwhile stays out.
+      const departed =
+        orderIds.length === 0
+          ? []
+          : await ctx.db
+              .update(orders)
+              .set({ status: "in_transit" })
+              .where(
+                and(
+                  eq(orders.sellerTenantId, ctx.tenantId),
+                  inArray(orders.id, orderIds),
+                  eq(orders.status, "ready_for_dispatch"),
+                ),
+              )
+              .returning({
+                id: orders.id,
+                buyerTenantId: orders.buyerTenantId,
+              });
+
+      if (departed.length === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Nenhum pedido desta saida esta pronto para sair. Recarregue a pagina.",
+        });
+      }
+
+      await ctx.db
+        .update(deliveryDispatchWaves)
+        .set({ status: "departed", departedAt: new Date() })
+        .where(eq(deliveryDispatchWaves.id, wave.id));
+
+      if (wave.selectedVehicleId) {
+        await ctx.db
+          .update(farmVehicles)
+          .set({ availabilityStatus: "in_use" })
+          .where(
+            and(
+              eq(farmVehicles.id, wave.selectedVehicleId),
+              eq(farmVehicles.tenantId, ctx.tenantId),
+            ),
+          );
+      }
+
+      for (const order of departed) {
+        await emitOrderNotifications({
+          tx: ctx.db,
+          type: "delivery_in_transit",
+          orderId: order.id,
+          buyerTenantId: order.buyerTenantId,
+          sellerTenantId: ctx.tenantId,
+          actorUserId: ctx.user.id,
+          metadata: {
+            orderId: order.id,
+            status: "in_transit",
+            waveId: wave.id,
+          },
+        });
+      }
+
+      return { success: true, departedOrderCount: departed.length };
+    }),
+
+  // Undo a confirmed wave before it leaves: its orders go back to the queue
+  // (confirmed) and can be grouped again.
+  cancelDispatchWave: producerProcedure
+    .input(z.object({ waveId: z.string().uuid() }).strict())
+    .mutation(async ({ ctx, input }) => {
+      const { wave, orderIds } = await findProducerWave(
+        ctx.db,
+        ctx.tenantId,
+        input.waveId,
+      );
+
+      if (wave.status !== "confirmed") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            wave.status === "departed"
+              ? "Esta saida ja partiu. Confirme as entregas uma a uma."
+              : "Esta saida ja foi desfeita.",
+        });
+      }
+
+      const released =
+        orderIds.length === 0
+          ? []
+          : await ctx.db
+              .update(orders)
+              .set({ status: "confirmed" })
+              .where(
+                and(
+                  eq(orders.sellerTenantId, ctx.tenantId),
+                  inArray(orders.id, orderIds),
+                  eq(orders.status, "ready_for_dispatch"),
+                ),
+              )
+              .returning({ id: orders.id });
+
+      await ctx.db
+        .update(deliveryDispatchWaves)
+        .set({ status: "cancelled", cancelledAt: new Date() })
+        .where(eq(deliveryDispatchWaves.id, wave.id));
+
+      return { success: true, releasedOrderCount: released.length };
+    }),
+
   updateDeliveryStatus: producerProcedure
     .input(
       z.object({
@@ -1676,15 +1895,30 @@ export const logisticsRouter = createTRPCRouter({
 
       assertDeliveryTransition(targetOrder.status, input.status);
 
-      await ctx.db
+      // Only from the status just checked (a cancel can't be overwritten).
+      const updated = await ctx.db
         .update(orders)
         .set({ status: input.status })
         .where(
           and(
             eq(orders.id, input.orderId),
             eq(orders.sellerTenantId, ctx.tenantId),
+            eq(orders.status, targetOrder.status),
           ),
-        );
+        )
+        .returning({ id: orders.id });
+
+      if (updated.length === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "O pedido mudou enquanto voce atualizava. Recarregue a pagina.",
+        });
+      }
+
+      if (input.status === "delivered") {
+        await releaseWaveVehicleWhenDone(ctx.db, ctx.tenantId, targetOrder.id);
+      }
 
       const notificationType =
         input.status === "ready_for_dispatch"
