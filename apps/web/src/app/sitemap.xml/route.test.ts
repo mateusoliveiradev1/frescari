@@ -108,6 +108,14 @@ test("sitemap.xml includes the catalog surface and legal pages", async () => {
     body,
     /<loc>https:\/\/frescari\.com\.br\/para-restaurantes<\/loc>/,
   );
+  assert.match(
+    body,
+    /<loc>https:\/\/frescari\.com\.br\/ferramentas\/calculadora-margem-hortifruti<\/loc>/,
+  );
+  assert.match(
+    body,
+    /<loc>https:\/\/frescari\.com\.br\/ferramentas\/simulador-desperdicio<\/loc>/,
+  );
   assert.match(body, /<loc>https:\/\/frescari\.com\.br\/termos<\/loc>/);
   assert.match(body, /<loc>https:\/\/frescari\.com\.br\/privacidade<\/loc>/);
   assert.match(body, /<loc>https:\/\/frescari\.com\.br\/cookies<\/loc>/);

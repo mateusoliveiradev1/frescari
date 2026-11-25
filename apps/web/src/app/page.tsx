@@ -578,6 +578,23 @@ export default function Home() {
       <footer className="border-t border-soil/8 bg-cream py-10">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 px-6 md:px-8 sm:flex-row lg:px-12">
           <BrandLogo size="sm" />
+          <nav
+            aria-label="Links do rodapé"
+            className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs font-semibold text-bark"
+          >
+            <Link className="hover:text-forest" href="/para-restaurantes">
+              Para restaurantes
+            </Link>
+            <Link className="hover:text-forest" href="/ferramentas">
+              Ferramentas grátis
+            </Link>
+            <Link className="hover:text-forest" href="/termos">
+              Termos
+            </Link>
+            <Link className="hover:text-forest" href="/privacidade">
+              Privacidade
+            </Link>
+          </nav>
           <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
             © {currentYear} Frescari - Marketplace B2B de hortifruti.
           </p>
