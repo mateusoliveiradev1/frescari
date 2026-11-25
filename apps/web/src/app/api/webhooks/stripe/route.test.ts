@@ -16,6 +16,9 @@ const dbTables = {
 
 const stripeState = {
   event: null as unknown,
+  // Status the mocked PaymentIntent reports (a Pix awaiting payment is
+  // "requires_action").
+  paymentIntentStatus: "succeeded",
   refunds: [] as Array<{
     params: Record<string, unknown>;
     idempotencyKey?: string;
@@ -43,6 +46,7 @@ const dbState = {
 function resetMockState() {
   stripeState.event = null;
   stripeState.refunds = [];
+  stripeState.paymentIntentStatus = "succeeded";
   geocodeState.callCount = 0;
   geocodeState.shouldFail = false;
   notificationState.emitCalls = [];
@@ -179,7 +183,7 @@ class StripeMock {
   paymentIntents = {
     retrieve: async (id: string) => ({
       id,
-      status: "succeeded",
+      status: stripeState.paymentIntentStatus,
       latest_charge: { id: "ch_test_123", refunded: false },
     }),
     cancel: async () => ({}),
@@ -461,4 +465,65 @@ test("stripe webhook rebuilds the order from address_snapshot metadata without l
     insertedOrder.deliveryAddress,
     "Rua das Flores, 123 - Sao Paulo/SP - CEP 01010-000",
   );
+});
+
+const unitLotRows = [
+  [],
+  [
+    {
+      lotId: "11111111-1111-4111-8111-111111111111",
+      productId: "product-1",
+      sellerTenantId: "seller-tenant-1",
+      availableQty: "10.000",
+      lotUnit: "unit",
+      saleUnit: "unit",
+      pricingType: "UNIT",
+      masterPricingType: "UNIT",
+    },
+  ],
+];
+
+test("a session completed before its Pix is paid creates no order yet", async () => {
+  stripeState.paymentIntentStatus = "requires_action";
+  stripeState.event = createCheckoutCompletedEvent({
+    payment_status: "unpaid",
+  });
+  dbState.selectQueue.push(...unitLotRows);
+
+  const { POST } = await import("./route");
+  const response = await POST(createWebhookRequest());
+
+  assert.equal(response.status, 200);
+  assert.equal(dbState.ordersInserted.length, 0);
+  assert.equal(dbState.stockUpdates.length, 0);
+  stripeState.paymentIntentStatus = "succeeded";
+});
+
+test("the Pix payment landing later (async_payment_succeeded) creates the order", async () => {
+  stripeState.event = {
+    ...createCheckoutCompletedEvent({ payment_status: "paid" }),
+    type: "checkout.session.async_payment_succeeded",
+  };
+  dbState.selectQueue.push(...unitLotRows);
+
+  const { POST } = await import("./route");
+  const response = await POST(createWebhookRequest());
+
+  assert.equal(response.status, 200);
+  assert.equal(dbState.ordersInserted.length, 1);
+});
+
+test("a weighed order (card authorized, not captured) is still created", async () => {
+  stripeState.paymentIntentStatus = "requires_capture";
+  stripeState.event = createCheckoutCompletedEvent({
+    payment_status: "unpaid",
+  });
+  dbState.selectQueue.push(...unitLotRows);
+
+  const { POST } = await import("./route");
+  const response = await POST(createWebhookRequest());
+
+  assert.equal(response.status, 200);
+  assert.equal(dbState.ordersInserted.length, 1);
+  stripeState.paymentIntentStatus = "succeeded";
 });

@@ -305,6 +305,35 @@ export async function POST(req: NextRequest) {
   console.log(`[WEBHOOK] Evento recebido: ${event.type}, ID: ${event.id}`);
 
   // ── Handle events ────────────────────────────────────────────────
+  // A Pix (or any delayed method) paid after the session completed arrives
+  // as async_payment_succeeded; it creates the order exactly like a session
+  // completed already paid (the per-session lock makes repeats a no-op).
+  if (event.type === "checkout.session.async_payment_succeeded") {
+    try {
+      await handleCheckoutCompleted(
+        event.data.object as Stripe.Checkout.Session,
+      );
+    } catch (error) {
+      console.error(
+        "[WEBHOOK ERROR] Falha ao processar checkout.session.async_payment_succeeded:",
+        error,
+      );
+      return NextResponse.json(
+        { received: true, error: "Processing error logged" },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({ received: true });
+  }
+
+  if (event.type === "checkout.session.async_payment_failed") {
+    // The Pix expired unpaid: no order was created, nothing was charged.
+    console.log(
+      `[WEBHOOK] Pagamento nao concluido na sessao ${(event.data.object as Stripe.Checkout.Session).id}; nenhum pedido criado.`,
+    );
+    return NextResponse.json({ received: true });
+  }
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.orderId;
@@ -395,6 +424,27 @@ export async function POST(req: NextRequest) {
 // ── Business logic ───────────────────────────────────────────────────
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log(`[WEBHOOK] Processando sessão: ${session.id}`);
+
+  // Only orders whose money is in (card or Pix paid) or held (card
+  // authorization for weighed items, captured after weighing). A session
+  // that completed before a delayed payment landed waits for
+  // async_payment_succeeded instead of creating an unpaid order.
+  if (session.payment_status === "unpaid") {
+    const paymentIntentId =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.payment_intent?.id;
+    const paymentIntent = paymentIntentId
+      ? await getStripeClient().paymentIntents.retrieve(paymentIntentId)
+      : null;
+
+    if (paymentIntent?.status !== "requires_capture") {
+      console.log(
+        `[WEBHOOK] Sessao ${session.id} ainda sem pagamento (${paymentIntent?.status ?? "sem PaymentIntent"}); aguardando confirmacao.`,
+      );
+      return;
+    }
+  }
 
   // ── 1. Extract & validate metadata ───────────────────────────────
   const metadata = session.metadata;

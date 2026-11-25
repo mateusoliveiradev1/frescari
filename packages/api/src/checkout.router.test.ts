@@ -98,6 +98,8 @@ const stripeState = {
   createLoginLinkError: null as Error | null,
   loginLinkAccountId: null as string | null,
   retrieveAccountError: null as Error | null,
+  rejectPix: false,
+  rejectedPixAttempts: 0,
   retrievedAccount: null as StripeRetrievedAccount | null,
 };
 
@@ -135,6 +137,24 @@ class StripeMock {
       create: async (payload: StripeSessionPayload) => {
         if (stripeState.createSessionError) {
           throw stripeState.createSessionError;
+        }
+
+        // An account without Pix rejects sessions that ask for it.
+        if (
+          stripeState.rejectPix &&
+          (
+            payload as { payment_method_types?: string[] }
+          ).payment_method_types?.includes("pix")
+        ) {
+          stripeState.rejectedPixAttempts += 1;
+          const error = new Error(
+            "The payment method type provided: pix is invalid.",
+          );
+          Object.assign(error, {
+            type: "StripeInvalidRequestError",
+            param: "payment_method_types",
+          });
+          throw error;
         }
 
         stripeState.createdSessionPayload = payload;
@@ -245,6 +265,9 @@ beforeEach(() => {
   stripeState.loginLinkAccountId = null;
   stripeState.retrieveAccountError = null;
   stripeState.retrievedAccount = null;
+  stripeState.rejectPix = false;
+  stripeState.rejectedPixAttempts = 0;
+  delete process.env.STRIPE_PIX_ENABLED;
 });
 
 function createBuyerContext(db: unknown): TestTrpcContext {
@@ -1093,4 +1116,79 @@ test("checkout images sent to Stripe are absolute https URLs or left out", async
   );
   assert.equal(toStripeImageUrl("http://insecure.example/x.jpg", app), null);
   assert.equal(toStripeImageUrl(null, app), null);
+});
+
+function createPixCheckoutDb(lotOverrides?: Record<string, unknown>) {
+  let selectCallCount = 0;
+
+  return withRlsMockDb({
+    select() {
+      selectCallCount += 1;
+
+      switch (selectCallCount) {
+        case 1:
+          return createTenantSelectChain("BUYER");
+        case 2:
+          return createAddressSelectChain();
+        case 3:
+          return createFarmSelectChain();
+        case 4:
+          return createDistanceSelectChain(5000);
+        case 5:
+          return createLotSelectChain(lotOverrides);
+        default:
+          throw new Error(`Unexpected select call #${selectCallCount}`);
+      }
+    },
+    update() {
+      return createUpdateChain(() => undefined);
+    },
+  });
+}
+
+async function startPixCheckout(lotOverrides?: Record<string, unknown>) {
+  const caller = await createCheckoutCaller(createPixCheckoutDb(lotOverrides));
+  await (caller as CheckoutCaller).checkout.createFarmCheckoutSession({
+    farmId: "22222222-2222-4222-8222-222222222222",
+    addressId: "11111111-1111-4111-8111-111111111111",
+    deliverySlot: NEXT_DELIVERY_SLOT,
+    items: [{ lotId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", quantity: 3 }],
+  });
+  return stripeState.createdSessionPayload as unknown as {
+    payment_method_types: string[];
+    payment_method_options?: { pix?: { expires_after_seconds?: number } };
+    payment_intent_data?: { capture_method?: string };
+  };
+}
+
+test("checkout stays card-only until Pix is switched on", async () => {
+  const payload = await startPixCheckout();
+  assert.deepEqual(payload.payment_method_types, ["card"]);
+  assert.equal(payload.payment_method_options, undefined);
+});
+
+test("with Pix on, a cart sold by unit offers Pix and card, QR valid 30 minutes", async () => {
+  process.env.STRIPE_PIX_ENABLED = "true";
+  const payload = await startPixCheckout();
+  assert.deepEqual(payload.payment_method_types, ["card", "pix"]);
+  assert.equal(
+    payload.payment_method_options?.pix?.expires_after_seconds,
+    1800,
+  );
+  assert.equal(payload.payment_intent_data?.capture_method, "automatic");
+});
+
+test("with Pix on, a cart with weighed items stays card-only (Pix can't hold)", async () => {
+  process.env.STRIPE_PIX_ENABLED = "true";
+  const payload = await startPixCheckout({ saleUnit: "kg", lotUnit: "kg" });
+  assert.equal(payload.payment_intent_data?.capture_method, "manual");
+  assert.deepEqual(payload.payment_method_types, ["card"]);
+});
+
+test("if Stripe refuses Pix, checkout still opens with card", async () => {
+  process.env.STRIPE_PIX_ENABLED = "true";
+  stripeState.rejectPix = true;
+  const payload = await startPixCheckout();
+  assert.equal(stripeState.rejectedPixAttempts, 1);
+  assert.deepEqual(payload.payment_method_types, ["card"]);
 });
