@@ -79,6 +79,15 @@ export const moneyFromLocale = (fieldLabel: string) =>
     ),
   );
 
+// A sale price: a lot listed at R$0 would be given away.
+export const positiveMoneyFromLocale = (fieldLabel: string) =>
+  z.preprocess(
+    preprocessLocaleNumber,
+    buildFiniteNumberSchema(fieldLabel).positive(
+      `${fieldLabel} deve ser maior que zero.`,
+    ),
+  );
+
 export const coercedPositiveNumber = (fieldLabel: string) =>
   z.preprocess(
     preprocessLocaleNumber,
