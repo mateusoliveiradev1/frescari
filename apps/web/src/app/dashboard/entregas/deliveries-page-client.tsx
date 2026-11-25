@@ -536,46 +536,49 @@ function DeliveryCard({
             </div>
           ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Button
-              className="justify-center gap-2"
-              isPending={isPinPending}
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleOverride("pin_to_top");
-              }}
-              type="button"
-              variant={
-                delivery.activeOverride?.action === "pin_to_top"
-                  ? "primary"
-                  : "secondary"
-              }
-            >
-              <Sparkles className="h-4 w-4" />
-              {delivery.activeOverride?.action === "pin_to_top"
-                ? "Remover prioridade"
-                : "Priorizar"}
-            </Button>
-            <Button
-              className="justify-center gap-2"
-              isPending={isDelayPending}
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleOverride("delay");
-              }}
-              type="button"
-              variant={
-                delivery.activeOverride?.action === "delay"
-                  ? "primary"
-                  : "secondary"
-              }
-            >
-              <Clock3 className="h-4 w-4" />
-              {delivery.activeOverride?.action === "delay"
-                ? "Retomar fila"
-                : "Adiar"}
-            </Button>
-          </div>
+          {/* Queue controls only matter before the order leaves the farm. */}
+          {delivery.status === "in_transit" ? null : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button
+                className="justify-center gap-2"
+                isPending={isPinPending}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleOverride("pin_to_top");
+                }}
+                type="button"
+                variant={
+                  delivery.activeOverride?.action === "pin_to_top"
+                    ? "primary"
+                    : "secondary"
+                }
+              >
+                <Sparkles className="h-4 w-4" />
+                {delivery.activeOverride?.action === "pin_to_top"
+                  ? "Remover prioridade"
+                  : "Priorizar"}
+              </Button>
+              <Button
+                className="justify-center gap-2"
+                isPending={isDelayPending}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleOverride("delay");
+                }}
+                type="button"
+                variant={
+                  delivery.activeOverride?.action === "delay"
+                    ? "primary"
+                    : "secondary"
+                }
+              >
+                <Clock3 className="h-4 w-4" />
+                {delivery.activeOverride?.action === "delay"
+                  ? "Retomar fila"
+                  : "Adiar"}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
