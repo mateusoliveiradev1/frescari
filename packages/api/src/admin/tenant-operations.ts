@@ -5,9 +5,9 @@ import {
   gt,
   gte,
   inArray,
-  isNotNull,
   isNull,
   sql,
+  type SQL,
 } from "drizzle-orm";
 import { z } from "zod";
 
@@ -437,70 +437,54 @@ export async function getTenantOperationsOverview(
     gte(orders.createdAt, windowStart),
     inArray(orders.status, activeOrderStatuses),
   );
-  const baseTenants = await db
-    .select()
+  // One round trip: every count is a correlated subquery computed by the
+  // database next to its tenant, instead of eight sequential queries (each
+  // a full network round trip to Neon).
+  const countOf = (from: SQL, where: SQL | undefined) =>
+    sql<number>`(select count(*)::int from ${from} where ${where})`;
+  const rows = await db
+    .select({
+      tenant: tenants,
+      userCount: countOf(sql`${users}`, eq(users.tenantId, tenants.id)),
+      farmCount: countOf(sql`${farms}`, eq(farms.tenantId, tenants.id)),
+      addressCount: countOf(
+        sql`${addresses}`,
+        eq(addresses.tenantId, tenants.id),
+      ),
+      productCount: countOf(
+        sql`${products}`,
+        and(eq(products.tenantId, tenants.id), eq(products.isActive, true)),
+      ),
+      activeLotCount: countOf(
+        sql`${productLots}`,
+        and(eq(productLots.tenantId, tenants.id), activeLotFilter),
+      ),
+      buyerOrderCount: countOf(
+        sql`${orders}`,
+        and(eq(orders.buyerTenantId, tenants.id), recentBuyerOrderFilter),
+      ),
+      sellerOperationalOrderCount: countOf(
+        sql`${orders}`,
+        and(
+          eq(orders.sellerTenantId, tenants.id),
+          inArray(orders.status, operationalOrderStatuses),
+        ),
+      ),
+    })
     .from(tenants)
     .orderBy(desc(tenants.createdAt));
-  const userCounts = createCountMap(
-    await db
-      .select({ count: sql<string>`count(*)`, key: users.tenantId })
-      .from(users)
-      .where(isNotNull(users.tenantId))
-      .groupBy(users.tenantId),
-  );
-  const farmCounts = createCountMap(
-    await db
-      .select({ count: sql<string>`count(*)`, key: farms.tenantId })
-      .from(farms)
-      .groupBy(farms.tenantId),
-  );
-  const addressCounts = createCountMap(
-    await db
-      .select({ count: sql<string>`count(*)`, key: addresses.tenantId })
-      .from(addresses)
-      .groupBy(addresses.tenantId),
-  );
-  const productCounts = createCountMap(
-    await db
-      .select({ count: sql<string>`count(*)`, key: products.tenantId })
-      .from(products)
-      .where(eq(products.isActive, true))
-      .groupBy(products.tenantId),
-  );
-  const activeLotCounts = createCountMap(
-    await db
-      .select({ count: sql<string>`count(*)`, key: productLots.tenantId })
-      .from(productLots)
-      .where(activeLotFilter)
-      .groupBy(productLots.tenantId),
-  );
-  const buyerOrderCounts = createCountMap(
-    await db
-      .select({ count: sql<string>`count(*)`, key: orders.buyerTenantId })
-      .from(orders)
-      .where(recentBuyerOrderFilter)
-      .groupBy(orders.buyerTenantId),
-  );
-  const sellerOperationalOrderCounts = createCountMap(
-    await db
-      .select({ count: sql<string>`count(*)`, key: orders.sellerTenantId })
-      .from(orders)
-      .where(inArray(orders.status, operationalOrderStatuses))
-      .groupBy(orders.sellerTenantId),
-  );
 
-  const allTenants = baseTenants.map((tenant) =>
+  const allTenants = rows.map((row) =>
     buildHealthRecord({
-      activeLotCount: activeLotCounts.get(tenant.id) ?? 0,
-      addressCount: addressCounts.get(tenant.id) ?? 0,
-      buyerOrderCount: buyerOrderCounts.get(tenant.id) ?? 0,
-      farmCount: farmCounts.get(tenant.id) ?? 0,
-      productCount: productCounts.get(tenant.id) ?? 0,
-      sellerOperationalOrderCount:
-        sellerOperationalOrderCounts.get(tenant.id) ?? 0,
-      stripeConnected: isStripeConnectReady(tenant),
-      tenant,
-      userCount: userCounts.get(tenant.id) ?? 0,
+      activeLotCount: Number(row.activeLotCount),
+      addressCount: Number(row.addressCount),
+      buyerOrderCount: Number(row.buyerOrderCount),
+      farmCount: Number(row.farmCount),
+      productCount: Number(row.productCount),
+      sellerOperationalOrderCount: Number(row.sellerOperationalOrderCount),
+      stripeConnected: isStripeConnectReady(row.tenant),
+      tenant: row.tenant,
+      userCount: Number(row.userCount),
     }),
   );
   return buildTenantOperationsOverviewFromRecords({

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { formatSaoPauloDateBR } from "@/lib/date-format";
@@ -48,14 +49,28 @@ export function ProducerOutreachActions({
       )
     : null;
 
+  // Optimistic: the marker flips on click; the list refreshes in the
+  // background and the server value takes over when it arrives.
+  const [optimistic, setOptimistic] = useState<{ value: Date | null } | null>(
+    null,
+  );
+  const shownContactedAt = optimistic ? optimistic.value : contactedAt;
+
   const mark = trpc.admin.setTenantOutreachContacted.useMutation({
+    onMutate: (variables) => {
+      setOptimistic({ value: variables.contacted ? new Date() : null });
+    },
     onSuccess: async (_data, variables) => {
       toast.success(
         variables.contacted ? "Marcado como contatado." : "Marcacao removida.",
       );
       await utils.admin.getTenantOperationsOverview.invalidate();
+      setOptimistic(null);
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error) => {
+      setOptimistic(null);
+      toast.error(error.message);
+    },
   });
 
   return (
@@ -68,8 +83,8 @@ export function ProducerOutreachActions({
           {OUTREACH_STAGE_LABELS[stage]}
         </p>
         <p className="font-sans text-xs text-bark/70">
-          {contactedAt
-            ? `Contatado em ${formatSaoPauloDateBR(contactedAt, {
+          {shownContactedAt
+            ? `Contatado em ${formatSaoPauloDateBR(shownContactedAt, {
                 day: "2-digit",
                 month: "short",
               })}`
@@ -98,10 +113,12 @@ export function ProducerOutreachActions({
         <button
           type="button"
           disabled={mark.isPending}
-          onClick={() => mark.mutate({ tenantId, contacted: !contactedAt })}
+          onClick={() =>
+            mark.mutate({ tenantId, contacted: !shownContactedAt })
+          }
           className="rounded-full border border-forest/20 bg-white px-4 py-2 font-sans text-xs font-bold uppercase tracking-[0.12em] text-forest transition-colors hover:bg-forest/5 disabled:opacity-50"
         >
-          {contactedAt ? "Desmarcar" : "Marcar contatado"}
+          {shownContactedAt ? "Desmarcar" : "Marcar contatado"}
         </button>
       </div>
     </div>
