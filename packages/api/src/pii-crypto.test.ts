@@ -52,5 +52,6 @@ test("a missing or short key is refused", () => {
 test("documents are masked for display", () => {
   assert.equal(maskDocument("12345678909"), "***.456.789-**");
   assert.equal(maskDocument("12.345.678/0001-95"), "**.***.678/0001-**");
+  assert.equal(maskDocument("12.ABC.345/01DE-35"), "**.***.345/01DE-**");
   assert.equal(maskDocument(null), null);
 });

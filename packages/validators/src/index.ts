@@ -23,6 +23,8 @@ import {
 
 export * from "./coercions";
 
+export * from "./tax-document";
+
 export const insertTenantSchema = createInsertSchema(tenants);
 export const selectTenantSchema = createSelectSchema(tenants);
 

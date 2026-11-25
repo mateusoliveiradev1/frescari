@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeProducerDocument } from "@frescari/validators";
 import * as React from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import {
@@ -149,7 +150,11 @@ function buildProducerRegistrationInput(
 ): ProducerRegistrationInput {
   return {
     contactName: normalizeWhitespace(form.contactName),
-    documentId: normalizeDigits(form.documentId),
+    // CNPJs may have letters since July 2026; a CPF is digits only.
+    documentId: normalizeProducerDocument(
+      form.documentId,
+      form.legalEntityType,
+    ),
     legalEntityType: form.legalEntityType,
     legalName: normalizeWhitespace(form.legalName),
     phone: normalizeBrazilPhone(form.phone),
@@ -508,7 +513,10 @@ function ProducerRegistrationPanel({
             <input
               className={`${inputClassName} pl-11`}
               id="registration-document-id"
-              inputMode="numeric"
+              inputMode={
+                producerForm.legalEntityType === "PJ" ? "text" : "numeric"
+              }
+              autoCapitalize="characters"
               onChange={(event) =>
                 onFieldChange("documentId", event.currentTarget.value)
               }
@@ -699,7 +707,7 @@ export function RegistrationFormView({
     producerForm.legalEntityType === "PJ" ? "CNPJ" : "CPF";
   const producerDocumentPlaceholder =
     producerForm.legalEntityType === "PJ"
-      ? "Ex: 12.345.678/0001-90"
+      ? "Ex: 12.345.678/0001-90 ou 12.ABC.345/01DE-35"
       : "Ex: 123.456.789-09";
 
   const handleBuyerNameChange = (

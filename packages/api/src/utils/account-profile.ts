@@ -7,7 +7,7 @@ import {
   isValidCnpj,
   isValidCpf,
   normalizeBrazilPhone,
-  normalizeDigits,
+  normalizeTaxDocument,
   producerLegalEntityTypeSchema,
 } from "./producer-profile";
 
@@ -27,7 +27,8 @@ const baseAccountRegistrationUpdateSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     contactName: createNormalizedTextSchema(2, 120),
-    documentId: z.string().transform(normalizeDigits),
+    // Keeps letters: alphanumeric CNPJs; a CPF with letters fails validation.
+    documentId: z.string().transform(normalizeTaxDocument),
     legalEntityType: producerLegalEntityTypeSchema,
     legalName: createNormalizedTextSchema(2, 160),
     phone: z.string().transform(normalizeBrazilPhone),
