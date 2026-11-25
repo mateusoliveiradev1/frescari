@@ -21,8 +21,9 @@ import {
   orderItems,
   tenants,
   masterProducts,
+  type AppDb,
 } from "@frescari/db";
-import { eq, inArray, sql, and } from "drizzle-orm";
+import { eq, inArray, sql, and, type SQL } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   isWeighableSaleUnit,
@@ -145,11 +146,14 @@ const allowedProducerStatusTransitions: Record<
   string,
   ReadonlyArray<string>
 > = {
-  awaiting_weight: ["confirmed", "cancelled"],
-  payment_authorized: ["confirmed", "cancelled"],
-  confirmed: ["picking", "ready_for_dispatch", "cancelled"],
-  picking: ["ready_for_dispatch", "cancelled"],
-  ready_for_dispatch: ["in_transit", "delivered", "cancelled"],
+  // Leaving awaiting_weight / payment_authorized needs the payment captured
+  // (captureWeighedOrder), and cancelling needs the money returned
+  // (cancelOrderAsSeller): neither is a plain status change.
+  awaiting_weight: [],
+  payment_authorized: [],
+  confirmed: ["picking", "ready_for_dispatch"],
+  picking: ["ready_for_dispatch"],
+  ready_for_dispatch: ["in_transit", "delivered"],
   in_transit: ["delivered"],
   delivered: [],
   cancelled: [],
@@ -209,6 +213,138 @@ function buildWeighedCaptureFingerprint(
         `${orderItemId}:${finalWeight.toFixed(3)}`,
     )
     .join("|");
+}
+
+const SELLER_CANCELLABLE_STATUSES = new Set<string>([
+  "payment_authorized",
+  "awaiting_weight",
+  "confirmed",
+  "picking",
+]);
+
+async function runOrderCancellation<T>(run: () => Promise<T>) {
+  try {
+    return await run();
+  } catch (error) {
+    console.error("[ERRO_CANCELAR_PEDIDO]: ", error);
+    if (error instanceof TRPCError) {
+      throw error;
+    }
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Ocorreu um erro ao cancelar o pedido.",
+    });
+  }
+}
+
+/**
+ * Cancels an order and gives the buyer their money back. Used by both the
+ * buyer and the producer, so no cancel can skip the refund or the restock.
+ *
+ * The order row is locked (FOR UPDATE) before anything else: two cancels at
+ * once (two tabs, buyer and producer) wait for each other, the second sees
+ * "cancelled" and stops, so stock is restored once.
+ */
+async function cancelOrderAndReleasePayment({
+  tx,
+  orderId,
+  ownerFilter,
+  allowedStatuses,
+  notAllowedMessage,
+  actorUserId,
+  cancelledBy,
+}: {
+  tx: AppDb;
+  orderId: string;
+  ownerFilter: SQL;
+  allowedStatuses: ReadonlySet<string>;
+  notAllowedMessage: string;
+  actorUserId: string;
+  cancelledBy: "buyer" | "seller";
+}) {
+  await enableProductLotBypassContext(tx);
+
+  const [targetOrder] = await tx
+    .select({
+      id: orders.id,
+      status: orders.status,
+      paymentIntentId: orders.paymentIntentId,
+      buyerTenantId: orders.buyerTenantId,
+      sellerTenantId: orders.sellerTenantId,
+    })
+    .from(orders)
+    .where(and(eq(orders.id, orderId), ownerFilter))
+    .for("update");
+
+  if (!targetOrder) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message:
+        "Pedido não encontrado ou você não tem permissão para acessá-lo.",
+    });
+  }
+
+  if (!allowedStatuses.has(targetOrder.status)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: notAllowedMessage });
+  }
+
+  // Give the money back before touching the order: if Stripe fails, the
+  // transaction aborts and the order stays as it was, instead of showing
+  // "cancelled" while the buyer's money is still held.
+  let payment;
+  try {
+    payment = await releaseOrderPayment({
+      stripe: getStripeClient(),
+      orderId: targetOrder.id,
+      paymentIntentId: targetOrder.paymentIntentId,
+      platformOnly: isPlatformOnlyStripeMode(),
+    });
+  } catch (error) {
+    if (error instanceof PaymentNotReleasableError) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message:
+          "O pagamento ainda esta sendo processado. Tente cancelar novamente em alguns minutos.",
+      });
+    }
+    throw error;
+  }
+
+  const items = await tx.query.orderItems.findMany({
+    where: eq(orderItems.orderId, targetOrder.id),
+  });
+
+  await tx
+    .update(orders)
+    .set({ status: "cancelled" })
+    .where(eq(orders.id, targetOrder.id));
+
+  for (const item of items) {
+    if (!item.lotId) continue;
+
+    await tx
+      .update(productLots)
+      .set({
+        availableQty: sql`${productLots.availableQty} + ${item.qty}::numeric`,
+      })
+      .where(eq(productLots.id, item.lotId));
+  }
+
+  await emitOrderNotifications({
+    tx,
+    type: "order_cancelled",
+    orderId: targetOrder.id,
+    buyerTenantId: targetOrder.buyerTenantId,
+    sellerTenantId: targetOrder.sellerTenantId,
+    actorUserId,
+    metadata: {
+      orderId: targetOrder.id,
+      cancelledBy,
+      payment: payment.action,
+    },
+  });
+
+  return { success: true, payment: payment.action };
 }
 
 export const orderRouter = createTRPCRouter({
@@ -631,107 +767,41 @@ export const orderRouter = createTRPCRouter({
   cancelOrder: buyerProcedure
     .input(orderIdInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const { db, tenantId } = ctx;
-
-      try {
-        return await db.transaction(async (tx) => {
-          await enableProductLotBypassContext(tx);
-
-          // Check if order exists, belongs to the buyer, and is in allowed state
-          const targetOrder = await tx.query.orders.findFirst({
-            where: and(
-              eq(orders.id, input.orderId),
-              eq(orders.buyerTenantId, tenantId),
-            ),
-          });
-
-          if (!targetOrder) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message:
-                "Pedido não encontrado ou você não tem permissão para acessá-lo.",
-            });
-          }
-
-          if (!BUYER_CANCELLABLE_STATUSES.has(targetOrder.status)) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message:
-                "Este pedido nao pode mais ser cancelado pelo comprador. Fale com o suporte.",
-            });
-          }
-
-          // Give the money back before touching the order: if Stripe fails,
-          // the transaction aborts and the order stays as it was, instead of
-          // showing "cancelled" while the buyer's money is still held.
-          let payment;
-          try {
-            payment = await releaseOrderPayment({
-              stripe: getStripeClient(),
-              orderId: targetOrder.id,
-              paymentIntentId: targetOrder.paymentIntentId,
-              platformOnly: isPlatformOnlyStripeMode(),
-            });
-          } catch (error) {
-            if (error instanceof PaymentNotReleasableError) {
-              throw new TRPCError({
-                code: "PRECONDITION_FAILED",
-                message:
-                  "O pagamento ainda esta sendo processado. Tente cancelar novamente em alguns minutos.",
-              });
-            }
-            throw error;
-          }
-
-          // Fetch order items to refund stock
-          const items = await tx.query.orderItems.findMany({
-            where: eq(orderItems.orderId, targetOrder.id),
-          });
-
-          // Update order status to 'cancelled'
-          await tx
-            .update(orders)
-            .set({ status: "cancelled" })
-            .where(eq(orders.id, targetOrder.id));
-
-          // Refund stock to product lots
-          for (const item of items) {
-            if (!item.lotId) continue;
-
-            await tx
-              .update(productLots)
-              .set({
-                availableQty: sql`${productLots.availableQty} + ${item.qty}::numeric`,
-              })
-              .where(eq(productLots.id, item.lotId));
-          }
-
-          await emitOrderNotifications({
+      return runOrderCancellation(() =>
+        ctx.db.transaction((tx) =>
+          cancelOrderAndReleasePayment({
             tx,
-            type: "order_cancelled",
-            orderId: targetOrder.id,
-            buyerTenantId: targetOrder.buyerTenantId,
-            sellerTenantId: targetOrder.sellerTenantId,
+            orderId: input.orderId,
+            ownerFilter: eq(orders.buyerTenantId, ctx.tenantId),
+            allowedStatuses: BUYER_CANCELLABLE_STATUSES,
+            notAllowedMessage:
+              "Este pedido nao pode mais ser cancelado pelo comprador. Fale com o suporte.",
             actorUserId: ctx.user.id,
-            metadata: {
-              orderId: targetOrder.id,
-              cancelledBy: "buyer",
-              payment: payment.action,
-            },
-          });
+            cancelledBy: "buyer",
+          }),
+        ),
+      );
+    }),
 
-          return { success: true, payment: payment.action };
-        });
-      } catch (error) {
-        console.error("[ERRO_CANCELAR_PEDIDO]: ", error);
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Ocorreu um erro ao cancelar o pedido.",
-        });
-      }
+  // Producer cancels (out of stock, cannot deliver). Same path as the
+  // buyer's cancel: the buyer gets their money back and the stock returns.
+  cancelOrderAsSeller: producerProcedure
+    .input(orderIdInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      return runOrderCancellation(() =>
+        ctx.db.transaction((tx) =>
+          cancelOrderAndReleasePayment({
+            tx,
+            orderId: input.orderId,
+            ownerFilter: eq(orders.sellerTenantId, ctx.tenantId),
+            allowedStatuses: SELLER_CANCELLABLE_STATUSES,
+            notAllowedMessage:
+              "Este pedido ja saiu para entrega e nao pode mais ser cancelado. Fale com o suporte.",
+            actorUserId: ctx.user.id,
+            cancelledBy: "seller",
+          }),
+        ),
+      );
     }),
 
   // â”€â”€â”€ Seller-side: list orders received by the producer â”€â”€â”€
@@ -840,10 +910,26 @@ export const orderRouter = createTRPCRouter({
 
       assertOrderStatusTransition(targetOrder.status, input.status);
 
-      await db
+      // Only from the status we just checked: if the buyer cancelled in the
+      // meantime, this must not turn a refunded order back into an active one.
+      const updated = await db
         .update(orders)
         .set({ status: input.status })
-        .where(eq(orders.id, input.orderId));
+        .where(
+          and(
+            eq(orders.id, input.orderId),
+            eq(orders.status, targetOrder.status),
+          ),
+        )
+        .returning({ id: orders.id });
+
+      if (updated.length === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "O pedido mudou enquanto voce atualizava (talvez foi cancelado). Recarregue a pagina.",
+        });
+      }
 
       const notificationType = resolveOrderNotificationType(input.status);
 
@@ -1243,11 +1329,55 @@ export const orderRouter = createTRPCRouter({
       // 6. Persist local state and notifications atomically after Stripe succeeds.
       try {
         await withAuthenticatedTransaction(db, user, async (tx) => {
+          // Lock the order: if the buyer cancelled while Stripe was
+          // capturing, their cancel already refunded the capture, and this
+          // must not turn the order back into one to deliver.
+          const [current] = await tx
+            .select({ status: orders.status })
+            .from(orders)
+            .where(eq(orders.id, targetOrder.id))
+            .for("update");
+
+          if (current?.status === "cancelled") {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message:
+                "O comprador cancelou este pedido durante a pesagem e o valor foi devolvido a ele. Nao envie os produtos.",
+            });
+          }
+
+          if (
+            current?.status !== "awaiting_weight" &&
+            current?.status !== "payment_authorized"
+          ) {
+            // Already confirmed by an earlier attempt of this same capture.
+            return;
+          }
+
           for (const uItem of updatedItemsParams) {
+            const [previous] = await tx
+              .select({ qty: orderItems.qty, lotId: orderItems.lotId })
+              .from(orderItems)
+              .where(eq(orderItems.id, uItem.id));
+
             await tx
               .update(orderItems)
               .set({ qty: uItem.qty })
               .where(eq(orderItems.id, uItem.id));
+
+            // Checkout took the ordered quantity out of the lot; settle the
+            // difference to the weighed quantity so stock matches what left.
+            if (previous?.lotId) {
+              const delta = Number(previous.qty) - Number(uItem.qty);
+              if (delta !== 0) {
+                await tx
+                  .update(productLots)
+                  .set({
+                    availableQty: sql`GREATEST(${productLots.availableQty} + ${delta.toString()}::numeric, 0)`,
+                  })
+                  .where(eq(productLots.id, previous.lotId));
+              }
+            }
           }
 
           await tx
@@ -1275,6 +1405,9 @@ export const orderRouter = createTRPCRouter({
           });
         });
       } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
         console.error("[DB_UPDATE_ERROR]", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",

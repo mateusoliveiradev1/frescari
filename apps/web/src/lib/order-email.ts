@@ -121,3 +121,57 @@ export async function sendProducerNewOrderEmails(
 
   return sent;
 }
+
+export function buildBuyerOutOfStockEmail(
+  input: { buyerName: string; payment: "voided" | "refunded" | "none" },
+  appUrl: string,
+) {
+  const name = firstName(input.buyerName) || "cliente";
+  const moneyLine =
+    input.payment === "voided"
+      ? "A reserva no seu cartão foi cancelada: nada foi cobrado."
+      : "O valor foi estornado integralmente no seu cartão. Dependendo do banco, o estorno aparece na fatura em até 10 dias úteis.";
+  const catalogUrl = `${appUrl}/catalogo`;
+  const subject = "Seu pedido não pôde ser concluído: estoque esgotado";
+  const text = [
+    `Olá, ${name}.`,
+    "",
+    "Enquanto você finalizava o pagamento, o estoque de um ou mais itens do seu pedido acabou, e o pedido não pôde ser criado.",
+    moneyLine,
+    "",
+    `Veja o que ainda está disponível: ${catalogUrl}`,
+    "",
+    "Equipe Frescari",
+  ].join("\n");
+  const html = `<p>Olá, ${escapeHtml(name)}.</p>
+<p>Enquanto você finalizava o pagamento, o estoque de um ou mais itens do seu pedido acabou, e o pedido não pôde ser criado.</p>
+<p>${escapeHtml(moneyLine)}</p>
+<p><a href="${escapeHtml(catalogUrl)}">Ver o que ainda está disponível</a></p>
+<p>Equipe Frescari</p>`;
+  return { subject, text, html };
+}
+
+/** Never throws: the refund already happened, the email is best effort. */
+export async function sendBuyerOutOfStockEmails(
+  recipients: Array<{ email: string; name: string }>,
+  payment: "voided" | "refunded" | "none",
+  sessionId: string,
+) {
+  const appUrl = getAppUrl();
+  let sent = 0;
+  for (const recipient of recipients) {
+    const email = buildBuyerOutOfStockEmail(
+      { buyerName: recipient.name, payment },
+      appUrl,
+    );
+    const ok = await sendTransactionalEmail({
+      to: recipient.email,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      logLabel: `out-of-stock refund email for session ${sessionId}`,
+    });
+    if (ok) sent += 1;
+  }
+  return sent;
+}

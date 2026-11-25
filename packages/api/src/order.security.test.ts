@@ -189,3 +189,110 @@ test("order.updateOrderStatus blocks skipping dispatch before delivery transitio
 
   assert.equal(state.updatedStatus, null);
 });
+
+function createStatusUpdateDb(
+  order: Record<string, unknown>,
+  updatedRows: Array<{ id: string }>,
+) {
+  const state = { attemptedStatus: null as string | null };
+  const db = withRlsMockDb({
+    select() {
+      return createTenantSelectChain("PRODUCER");
+    },
+    query: {
+      orders: {
+        findFirst: async () => order,
+      },
+    },
+    update() {
+      return {
+        set(values: Record<string, unknown>) {
+          return {
+            where() {
+              state.attemptedStatus = String(values.status);
+              return { returning: async () => updatedRows };
+            },
+          };
+        },
+      };
+    },
+  });
+  return { db, state };
+}
+
+const producerUser = {
+  id: "producer-user-1",
+  tenantId: "producer-tenant-1",
+  role: "producer" as const,
+  name: "Produtor Teste",
+};
+
+test("order.updateOrderStatus cannot cancel: cancelling must refund (cancelOrderAsSeller)", async () => {
+  const { db, state } = createStatusUpdateDb(
+    {
+      id: "44444444-4444-4444-8444-444444444444",
+      buyerTenantId: "buyer-tenant-1",
+      sellerTenantId: "producer-tenant-1",
+      status: "confirmed",
+    },
+    [],
+  );
+  const caller = await createOrderCaller(db, producerUser);
+
+  await assert.rejects(
+    () =>
+      (caller as OrderCaller).order.updateOrderStatus({
+        orderId: "44444444-4444-4444-8444-444444444444",
+        status: "cancelled",
+      }),
+    /Nao e possivel/i,
+  );
+  assert.equal(state.attemptedStatus, null);
+});
+
+test("order.updateOrderStatus cannot confirm a weighed order without capturing it", async () => {
+  const { db, state } = createStatusUpdateDb(
+    {
+      id: "55555555-5555-4555-8555-555555555555",
+      buyerTenantId: "buyer-tenant-1",
+      sellerTenantId: "producer-tenant-1",
+      status: "awaiting_weight",
+    },
+    [],
+  );
+  const caller = await createOrderCaller(db, producerUser);
+
+  await assert.rejects(
+    () =>
+      (caller as OrderCaller).order.updateOrderStatus({
+        orderId: "55555555-5555-4555-8555-555555555555",
+        status: "confirmed",
+      }),
+    /Nao e possivel/i,
+  );
+  assert.equal(state.attemptedStatus, null);
+});
+
+test("order.updateOrderStatus refuses when the order changed meanwhile (e.g. buyer cancelled)", async () => {
+  const { db, state } = createStatusUpdateDb(
+    {
+      id: "66666666-6666-4666-8666-666666666666",
+      buyerTenantId: "buyer-tenant-1",
+      sellerTenantId: "producer-tenant-1",
+      status: "confirmed",
+    },
+    // The conditional UPDATE ... WHERE status = 'confirmed' matched nothing.
+    [],
+  );
+  const caller = await createOrderCaller(db, producerUser);
+
+  await assert.rejects(
+    () =>
+      (caller as OrderCaller).order.updateOrderStatus({
+        orderId: "66666666-6666-4666-8666-666666666666",
+        status: "picking",
+      }),
+    /mudou enquanto voce atualizava/i,
+  );
+  assert.equal(state.attemptedStatus, "picking");
+});
