@@ -245,7 +245,7 @@ export default function ForRestaurantsPage() {
         <p className="text-center text-sm text-bark">
           É produtor?{" "}
           <Link
-            href="/auth/register"
+            href="/para-produtores"
             className="font-semibold text-forest hover:underline"
           >
             Venda na Frescari

@@ -200,7 +200,7 @@ export default function Home() {
                   Ver o catálogo
                 </Button>
               </Link>
-              <Link href="/auth/register" className="w-full sm:w-auto">
+              <Link href="/para-produtores" className="w-full sm:w-auto">
                 <Button
                   variant="ghost"
                   size="lg"
@@ -443,7 +443,7 @@ export default function Home() {
                   Ver o catálogo
                 </Button>
               </Link>
-              <Link href="/auth/register" className="w-full sm:w-auto">
+              <Link href="/para-produtores" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   className="h-14 w-full border-cream bg-cream text-forest shadow-[0_8px_28px_-18px_rgba(249,246,240,0.35)] hover:border-cream-dark hover:bg-cream-dark sm:h-12 sm:w-auto"
@@ -465,6 +465,9 @@ export default function Home() {
           >
             <Link className="hover:text-forest" href="/para-restaurantes">
               Para restaurantes
+            </Link>
+            <Link className="hover:text-forest" href="/para-produtores">
+              Para produtores
             </Link>
             <Link className="hover:text-forest" href="/ferramentas">
               Ferramentas grátis

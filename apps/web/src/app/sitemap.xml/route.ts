@@ -53,6 +53,7 @@ export async function GET(): Promise<Response> {
     [`${siteUrl}/catalogo`, { url: `${siteUrl}/catalogo` }],
     [`${siteUrl}/para-restaurantes`, { url: `${siteUrl}/para-restaurantes` }],
     ...[
+      "/para-produtores",
       "/ferramentas",
       "/ferramentas/calculadora-margem-hortifruti",
       "/ferramentas/simulador-desperdicio",

@@ -1,0 +1,31 @@
+# Frescari
+
+> Frescari (frescari.com.br) é um marketplace B2B de hortifruti no Brasil: restaurantes, mercados e cozinhas compram frutas, legumes e verduras direto de produtores da própria região.
+
+## Para quem compra (restaurantes, mercados, cozinhas)
+
+- Cadastro grátis, sem mensalidade: o comprador paga só os produtos e o frete.
+- Cada lote mostra o produtor, o preço, a unidade de venda (quilo, caixa ou unidade), a quantidade disponível e a data de colheita.
+- Lotes nas últimas 24 horas de validade ficam 40% mais baratos automaticamente.
+- O frete é calculado pelo endereço antes de pagar; o comprador escolhe o dia e o período de entrega entre os que o produtor atende.
+- Em itens vendidos por quilo, o pagamento é autorizado com uma pequena margem e só o peso real informado pelo produtor é cobrado.
+- Pagamento com cartão pelo Stripe. Cancelamento antes da separação, com estorno automático.
+- O carrinho separa os itens por produtor; cada pedido tem o seu frete e a sua entrega.
+
+## Para quem vende (produtores)
+
+- Cadastro grátis, sem mensalidade.
+- Comissão: 10% sobre o valor dos produtos de cada pedido, cobrada só quando há venda. A comissão não incide sobre o frete, que fica 100% com o produtor.
+- Exemplo: pedido de R$ 200 em produtos + R$ 20 de frete -> comissão de R$ 20; o produtor recebe R$ 200.
+- O repasse é automático para a conta de recebimento do produtor no Stripe quando o pagamento é confirmado (em itens por peso, depois que o produtor informa o peso final).
+- O produtor define preço, unidade de venda, raio de entrega, taxa de frete (base + valor por km), pedido mínimo, valor para frete grátis e os dias e períodos de entrega.
+- A entrega é feita pelo próprio produtor, dentro do raio que ele escolher.
+
+## Páginas principais
+
+- [Catálogo](https://frescari.com.br/catalogo): lotes à venda, por categoria e por cidade.
+- [Para restaurantes](https://frescari.com.br/para-restaurantes): como comprar.
+- [Para produtores](https://frescari.com.br/para-produtores): como vender e quanto custa.
+- [Ferramentas grátis](https://frescari.com.br/ferramentas): calculadora de margem com quebra e simulador de desperdício.
+- [Pagamentos, comissões e repasses](https://frescari.com.br/pagamentos-e-repasses): regras financeiras completas.
+- [Termos de uso](https://frescari.com.br/termos) e [Privacidade](https://frescari.com.br/privacidade).
