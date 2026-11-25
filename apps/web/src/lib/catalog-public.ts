@@ -251,6 +251,7 @@ export interface ProducerStorefrontPageData {
     minOrderValue: number | null;
     freeShippingThreshold: number | null;
     baseDeliveryFee: number | null;
+    deliveryScheduleLabel: string | null;
   };
   lots: PublicCatalogLot[];
 }

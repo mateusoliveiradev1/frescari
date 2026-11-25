@@ -41,6 +41,7 @@ import {
   type FarmCoordinates,
   type FarmMapInteractionSource,
 } from "./farm-map.types";
+import { DeliveryScheduleSection } from "./delivery-schedule-section";
 
 type FarmFormValues = {
   name: string;
@@ -1289,6 +1290,7 @@ export function FarmPageClient() {
           </form>
 
           <aside className="space-y-6">
+            <DeliveryScheduleSection />
             <section className="rounded-[18px_24px_18px_22px] border border-soil/8 bg-cream p-6 shadow-card">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>

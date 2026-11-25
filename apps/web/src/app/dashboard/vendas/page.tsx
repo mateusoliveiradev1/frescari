@@ -82,6 +82,9 @@ interface ReceivedOrder {
   createdAt: Date | string;
   buyerTenantId: string;
   buyerName: string;
+  deliveryAddress?: string;
+  deliveryNotes?: string | null;
+  deliveryWindowLabel?: string | null;
   visualId: string;
   items: ReceivedOrderItem[];
 }
@@ -379,6 +382,19 @@ export default function VendasPage() {
                               {order.buyerName}
                             </span>
                           </div>
+                          {order.deliveryWindowLabel ? (
+                            <p className="mt-1 pl-6 font-sans text-xs font-semibold text-forest">
+                              Entregar: {order.deliveryWindowLabel}
+                            </p>
+                          ) : null}
+                          {order.deliveryNotes ? (
+                            <p
+                              className="mt-0.5 max-w-[260px] truncate pl-6 font-sans text-xs text-bark/80"
+                              title={order.deliveryNotes}
+                            >
+                              Obs.: {order.deliveryNotes}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-1.5 text-xs text-bark">

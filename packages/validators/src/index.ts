@@ -524,3 +524,19 @@ export const updateStorefrontProfileSchema = z.object({
 export type UpdateStorefrontProfileInput = z.input<
   typeof updateStorefrontProfileSchema
 >;
+
+// Delivery windows (see packages/api/src/delivery-slots.ts).
+export const deliveryPeriodSchema = z.enum(["manha", "tarde"]);
+
+export const saveDeliveryScheduleInputSchema = z.object({
+  days: z
+    .array(z.number().int().min(0).max(6))
+    .min(1, "Escolha pelo menos um dia de entrega.")
+    .max(7)
+    .transform((days) => Array.from(new Set(days)).sort((a, b) => a - b)),
+  periods: z
+    .array(deliveryPeriodSchema)
+    .min(1, "Escolha pelo menos um periodo de entrega.")
+    .transform((periods) => Array.from(new Set(periods))),
+  leadDays: z.number().int().min(0).max(7),
+});

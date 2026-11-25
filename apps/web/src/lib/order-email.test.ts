@@ -35,3 +35,22 @@ test("new-order email escapes producer names in HTML", () => {
   assert.doesNotMatch(email.html, /<script>/);
   assert.match(email.subject, /^Novo pedido #ABCD1234/);
 });
+
+test("new-order email shows the delivery window the buyer picked", () => {
+  const email = buildProducerNewOrderEmail(
+    {
+      producerName: "Ana",
+      orderId: "abcd1234-0000-4000-8000-000000000000",
+      totalAmount: 80,
+      awaitingWeight: false,
+      deliveryWindowLabel: "Qui, 26/11 · Manhã (8h–12h)",
+    },
+    "https://frescari.com.br",
+  );
+
+  assert.match(
+    email.text,
+    /Entrega combinada: Qui, 26\/11 · Manhã \(8h–12h\)\./,
+  );
+  assert.match(email.html, /Entrega combinada: Qui, 26\/11/);
+});

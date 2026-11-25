@@ -9,6 +9,7 @@ import {
   tenantProcedure,
   withAuthenticatedTransaction,
 } from "../trpc";
+import { formatDeliveryWindow } from "../delivery-slots";
 import {
   activeProductLotWhere,
   enableProductLotBypassContext,
@@ -553,6 +554,8 @@ export const orderRouter = createTRPCRouter({
           createdAt: orders.createdAt,
           sellerTenantId: orders.sellerTenantId,
           sellerName: tenants.name,
+          deliveryWindowStart: orders.deliveryWindowStart,
+          deliveryWindowEnd: orders.deliveryWindowEnd,
         })
         .from(orders)
         .innerJoin(tenants, eq(orders.sellerTenantId, tenants.id))
@@ -611,6 +614,10 @@ export const orderRouter = createTRPCRouter({
       // Group items into their respective orders
       return allOrders.map((order) => ({
         ...order,
+        deliveryWindowLabel: formatDeliveryWindow(
+          order.deliveryWindowStart,
+          order.deliveryWindowEnd,
+        ),
         items: items
           .filter((item) => item.orderId === order.id)
           .map((item) => ({
@@ -742,6 +749,10 @@ export const orderRouter = createTRPCRouter({
           createdAt: orders.createdAt,
           buyerTenantId: orders.buyerTenantId,
           buyerName: tenants.name,
+          deliveryAddress: orders.deliveryAddress,
+          deliveryNotes: orders.deliveryNotes,
+          deliveryWindowStart: orders.deliveryWindowStart,
+          deliveryWindowEnd: orders.deliveryWindowEnd,
         })
         .from(orders)
         .innerJoin(tenants, eq(orders.buyerTenantId, tenants.id))
@@ -797,6 +808,10 @@ export const orderRouter = createTRPCRouter({
 
       return allOrders.map((order, index, arr) => ({
         ...order,
+        deliveryWindowLabel: formatDeliveryWindow(
+          order.deliveryWindowStart,
+          order.deliveryWindowEnd,
+        ),
         visualId: (arr.length - index).toString().padStart(4, "0"),
         items: items.filter((item) => item.orderId === order.id),
       }));

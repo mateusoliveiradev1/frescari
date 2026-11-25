@@ -3,6 +3,13 @@ import { after, before, beforeEach, test } from "node:test";
 import Module from "node:module";
 
 import { withRlsMockDb } from "./test-db";
+import { DEFAULT_DELIVERY_SCHEDULE, listDeliverySlots } from "./delivery-slots";
+
+// The farm fixture has no schedule, so the default one applies.
+const NEXT_DELIVERY_SLOT = listDeliverySlots(
+  DEFAULT_DELIVERY_SCHEDULE,
+  new Date(),
+)[0]!.id;
 
 process.env.STRIPE_SECRET_KEY ??= "sk_test_mocked";
 process.env.NEXT_PUBLIC_APP_URL ??= "https://app.example.com";
@@ -431,6 +438,7 @@ test("checkout.createFarmCheckoutSession rejects unexpected legacy financial fie
       (caller as CheckoutCaller).checkout.createFarmCheckoutSession({
         farmId: "22222222-2222-4222-8222-222222222222",
         addressId: "11111111-1111-4111-8111-111111111111",
+        deliverySlot: NEXT_DELIVERY_SLOT,
         deliveryFee: 1,
         items: [
           {
@@ -476,6 +484,7 @@ test("checkout.createFarmCheckoutSession recalculates freight on the server and 
   ).checkout.createFarmCheckoutSession({
     farmId: "22222222-2222-4222-8222-222222222222",
     addressId: "11111111-1111-4111-8111-111111111111",
+    deliverySlot: NEXT_DELIVERY_SLOT,
     items: [
       {
         lotId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -500,6 +509,13 @@ test("checkout.createFarmCheckoutSession recalculates freight on the server and 
   assert.ok(payload.metadata.address_snapshot);
   assert.equal("address" in payload.metadata, false);
   assert.equal(Number(payload.metadata.delivery_fee), 18);
+  const [slotDate, slotPeriod] = NEXT_DELIVERY_SLOT.split(":");
+  const expectedStartHourUtc = slotPeriod === "manha" ? "11" : "16";
+  assert.equal(
+    payload.metadata.delivery_window_start,
+    `${slotDate}T${expectedStartHourUtc}:00:00.000Z`,
+  );
+  assert.ok(payload.metadata.delivery_window_end);
 
   const addressSnapshot = JSON.parse(
     payload.metadata.address_snapshot,
@@ -568,6 +584,7 @@ test("checkout.createFarmCheckoutSession normalizes weighable items to a single 
   ).checkout.createFarmCheckoutSession({
     farmId: "22222222-2222-4222-8222-222222222222",
     addressId: "11111111-1111-4111-8111-111111111111",
+    deliverySlot: NEXT_DELIVERY_SLOT,
     items: [
       {
         lotId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -663,6 +680,7 @@ test("checkout.createFarmCheckoutSession rejects lots that do not belong to the 
       (caller as CheckoutCaller).checkout.createFarmCheckoutSession({
         farmId: "22222222-2222-4222-8222-222222222222",
         addressId: "11111111-1111-4111-8111-111111111111",
+        deliverySlot: NEXT_DELIVERY_SLOT,
         items: [
           {
             lotId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -711,6 +729,7 @@ test("checkout.createFarmCheckoutSession surfaces invalid producer Stripe destin
       (caller as CheckoutCaller).checkout.createFarmCheckoutSession({
         farmId: "22222222-2222-4222-8222-222222222222",
         addressId: "11111111-1111-4111-8111-111111111111",
+        deliverySlot: NEXT_DELIVERY_SLOT,
         items: [
           {
             lotId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -760,6 +779,7 @@ test("checkout.createFarmCheckoutSession supports platform-only Stripe mode with
     ).checkout.createFarmCheckoutSession({
       farmId: "22222222-2222-4222-8222-222222222222",
       addressId: "11111111-1111-4111-8111-111111111111",
+      deliverySlot: NEXT_DELIVERY_SLOT,
       items: [
         {
           lotId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -969,4 +989,52 @@ test("stripe.createStripeConnect surfaces pending Stripe platform profile setup 
 
   assert.equal(stripeState.createdAccountPayload, null);
   assert.equal(stripeState.createdAccountLinkPayload, null);
+});
+
+test("checkout.createFarmCheckoutSession rejects a delivery window the farm does not offer", async () => {
+  let selectCallCount = 0;
+
+  const db = withRlsMockDb({
+    select() {
+      selectCallCount += 1;
+
+      switch (selectCallCount) {
+        case 1:
+          return createTenantSelectChain("BUYER");
+        case 2:
+          return createAddressSelectChain();
+        case 3:
+          return createFarmSelectChain();
+        case 4:
+          return createDistanceSelectChain(5000);
+        case 5:
+          return createLotSelectChain();
+        default:
+          throw new Error(`Unexpected select call #${selectCallCount}`);
+      }
+    },
+    update() {
+      return createUpdateChain(() => undefined);
+    },
+  });
+
+  stripeState.createdSessionPayload = null;
+  const caller = await createCheckoutCaller(db);
+
+  // A date in the past is never offered.
+  await assert.rejects(
+    (caller as CheckoutCaller).checkout.createFarmCheckoutSession({
+      farmId: "22222222-2222-4222-8222-222222222222",
+      addressId: "11111111-1111-4111-8111-111111111111",
+      deliverySlot: "2020-01-06:manha",
+      items: [
+        {
+          lotId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          quantity: 3,
+        },
+      ],
+    }),
+    /janela de entrega/i,
+  );
+  assert.equal(stripeState.createdSessionPayload, null);
 });

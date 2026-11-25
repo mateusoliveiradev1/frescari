@@ -25,6 +25,11 @@ import { sanitizeEnvValue } from "../env";
 import { syncTenantStripeConnectStatus } from "../stripe-connect";
 import { isPlatformOnlyStripeMode } from "../stripe-connect-mode";
 import { deriveStripeConnectStatus } from "../utils/stripe-connect-status";
+import {
+  DELIVERY_SLOT_ID_PATTERN,
+  findDeliverySlot,
+  resolveDeliverySchedule,
+} from "../delivery-slots";
 
 const stripeSecretKey = sanitizeEnvValue(process.env.STRIPE_SECRET_KEY);
 
@@ -76,6 +81,9 @@ const createFarmCheckoutSessionInputSchema = z
     addressId: z.string().uuid(),
     items: z.array(checkoutItemSchema).min(1, "Carrinho vazio."),
     deliveryNotes: z.string().trim().max(500).optional(),
+    deliverySlot: z
+      .string()
+      .regex(DELIVERY_SLOT_ID_PATTERN, "Escolha a janela de entrega."),
   })
   .strict();
 
@@ -105,6 +113,9 @@ type CheckoutFarmRecord = {
   maxDeliveryRadiusKm: string | null;
   minOrderValue: string | null;
   freeShippingThreshold: string | null;
+  deliveryDays: number[] | null;
+  deliveryPeriods: string[] | null;
+  deliveryLeadDays: number | null;
 };
 
 type SafeCheckoutItem = {
@@ -259,6 +270,7 @@ function buildCheckoutSessionParams({
   addressId,
   addressSnapshot,
   deliveryNotes,
+  deliveryWindow,
 }: {
   buyerTenantId: string;
   captureMethod: "manual" | "automatic";
@@ -277,7 +289,14 @@ function buildCheckoutSessionParams({
   addressId?: string;
   addressSnapshot?: string;
   deliveryNotes?: string;
+  deliveryWindow?: { start: Date; end: Date };
 }) {
+  const deliveryWindowMetadata: Record<string, string> = deliveryWindow
+    ? {
+        delivery_window_start: deliveryWindow.start.toISOString(),
+        delivery_window_end: deliveryWindow.end.toISOString(),
+      }
+    : {};
   const usePlatformOnlyMode = isPlatformOnlyStripeMode();
   const paymentIntentMetadata = {
     buyer_tenant_id: buyerTenantId,
@@ -291,6 +310,7 @@ function buildCheckoutSessionParams({
     ...(addressId ? { address_id: addressId } : {}),
     ...(addressSnapshot ? { address_snapshot: addressSnapshot } : {}),
     ...(deliveryNotes ? { delivery_notes: deliveryNotes } : {}),
+    ...deliveryWindowMetadata,
   };
 
   const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData =
@@ -325,6 +345,7 @@ function buildCheckoutSessionParams({
       ...(addressId ? { address_id: addressId } : {}),
       ...(addressSnapshot ? { address_snapshot: addressSnapshot } : {}),
       ...(deliveryNotes ? { delivery_notes: deliveryNotes } : {}),
+      ...deliveryWindowMetadata,
     },
   } satisfies Stripe.Checkout.SessionCreateParams;
 }
@@ -412,6 +433,9 @@ export const checkoutRouter = createTRPCRouter({
               maxDeliveryRadiusKm: farms.maxDeliveryRadiusKm,
               minOrderValue: farms.minOrderValue,
               freeShippingThreshold: farms.freeShippingThreshold,
+              deliveryDays: farms.deliveryDays,
+              deliveryPeriods: farms.deliveryPeriods,
+              deliveryLeadDays: farms.deliveryLeadDays,
             })
             .from(farms)
             .where(eq(farms.id, input.farmId))
@@ -700,6 +724,19 @@ export const checkoutRouter = createTRPCRouter({
         Math.round(itemsTotalBRL * 100) * PLATFORM_FEE_RATE,
       );
       const deliveryNotes = input.deliveryNotes?.trim() || undefined;
+      const deliverySlot = findDeliverySlot(
+        resolveDeliverySchedule(farmRecord),
+        input.deliverySlot,
+        new Date(),
+      );
+
+      if (!deliverySlot) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Esta janela de entrega nao esta mais disponivel. Escolha outra.",
+        });
+      }
 
       try {
         const session = await getStripeClient().checkout.sessions.create(
@@ -720,6 +757,10 @@ export const checkoutRouter = createTRPCRouter({
             addressId: input.addressId,
             addressSnapshot: addressSnapshotJson,
             deliveryNotes,
+            deliveryWindow: {
+              start: deliverySlot.start,
+              end: deliverySlot.end,
+            },
           }),
         );
 
