@@ -110,6 +110,10 @@ test("sitemap.xml includes the catalog surface and legal pages", async () => {
   );
   assert.match(
     body,
+    /<loc>https:\/\/frescari\.com\.br\/para-produtores<\/loc>/,
+  );
+  assert.match(
+    body,
     /<loc>https:\/\/frescari\.com\.br\/ferramentas\/calculadora-margem-hortifruti<\/loc>/,
   );
   assert.match(

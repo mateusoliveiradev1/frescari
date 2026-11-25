@@ -95,7 +95,7 @@ async function LotsList() {
             É produtor?{" "}
             <Link
               className="font-semibold text-forest hover:underline"
-              href="/auth/register"
+              href="/para-produtores"
             >
               Venda na Frescari
             </Link>
