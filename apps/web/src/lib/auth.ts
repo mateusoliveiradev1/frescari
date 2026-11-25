@@ -10,6 +10,7 @@ import { sendAuthVerificationEmail } from "@/lib/auth-email";
 import { getRequestOrigins } from "@/lib/auth-origin";
 import { getLocalDevelopmentTrustedOrigins } from "@/lib/auth-trusted-origins";
 import { createEmailAndPasswordConfig } from "@/lib/auth-password";
+import { userAdditionalFields } from "@/lib/auth-user-fields";
 import {
   extractIpAddress,
   extractLegalConsentPayload,
@@ -77,17 +78,7 @@ export const auth = betterAuth({
   // layout and adminProcedure refuse a session whose user has not enabled it.
   plugins: [twoFactor({ issuer: "Frescari" })],
   user: {
-    additionalFields: {
-      role: {
-        type: "string",
-        required: false,
-        defaultValue: "buyer",
-      },
-      tenantId: {
-        type: "string",
-        required: false,
-      },
-    },
+    additionalFields: userAdditionalFields,
   },
   emailAndPassword: createEmailAndPasswordConfig(),
   emailVerification: {
