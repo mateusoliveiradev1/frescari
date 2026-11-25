@@ -60,3 +60,26 @@ test("chat URL targets the number with the encoded text", () => {
   assert.equal(url.pathname, "/5517991234567");
   assert.equal(url.searchParams.get("text"), "Oi, Ana!\nTudo bem?");
 });
+
+test("the payments message names what is still missing in Stripe", () => {
+  const text = buildOutreachMessage({
+    contactName: "Maria Souza",
+    stage: "payments",
+    stripeMissingItems: [
+      "CPF",
+      "Foto de um documento (RG ou CNH)",
+      "Conta bancaria para receber",
+    ],
+  });
+  assert.match(
+    text,
+    /ainda falta: CPF, foto de um documento \(RG ou CNH\) e conta bancaria para receber\./,
+  );
+
+  const farm = buildOutreachMessage({
+    contactName: "Maria",
+    stage: "farm",
+    stripeMissingItems: ["CPF"],
+  });
+  assert.doesNotMatch(farm, /ainda falta/);
+});

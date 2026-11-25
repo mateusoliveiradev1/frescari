@@ -59,9 +59,17 @@ function firstName(name: string | null | undefined) {
 
 // No emoji: wa.me turns characters outside the Basic Multilingual Plane into
 // "?" on WhatsApp Web and Desktop.
+// "a, b e c"
+function joinPortuguese(items: string[]) {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} e ${items[items.length - 1]}`;
+}
+
 export function buildOutreachMessage(args: {
   contactName: string | null | undefined;
   stage: OutreachStage;
+  // Plain labels of what the Stripe form still asks for, when known.
+  stripeMissingItems?: string[];
 }) {
   const name = firstName(args.contactName);
   const greeting = name
@@ -77,7 +85,19 @@ export function buildOutreachMessage(args: {
       "Sua conta está pronta para vender. Precisa de alguma ajuda para divulgar sua vitrine ou cadastrar mais produtos?",
   };
 
-  return `${greeting}\n\n${body[args.stage]}\n\nSeu painel: ${DASHBOARD_URL}`;
+  // "Foto de um documento" -> "foto de um documento"; acronyms ("CPF",
+  // "CNPJ") stay as they are.
+  const missing = (args.stripeMissingItems ?? []).map((item) =>
+    /^[A-Z]{2}/.test(item)
+      ? item
+      : item.charAt(0).toLowerCase() + item.slice(1),
+  );
+  const missingLine =
+    args.stage === "payments" && missing.length > 0
+      ? `\n\nPelo que vejo, no cadastro do Stripe ainda falta: ${joinPortuguese(missing)}.`
+      : "";
+
+  return `${greeting}\n\n${body[args.stage]}${missingLine}\n\nSeu painel: ${DASHBOARD_URL}`;
 }
 
 export function buildWhatsAppChatUrl(phone: string, text: string) {

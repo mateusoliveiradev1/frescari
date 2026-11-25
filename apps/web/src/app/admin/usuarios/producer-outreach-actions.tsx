@@ -24,6 +24,8 @@ export function ProducerOutreachActions({
   activeLotCount,
   productCount,
   contactedAt,
+  stripeStarted,
+  stripeMissingItems,
 }: {
   tenantId: string;
   contactName: string | null;
@@ -33,6 +35,8 @@ export function ProducerOutreachActions({
   activeLotCount: number;
   productCount: number;
   contactedAt: Date | string | null;
+  stripeStarted: boolean;
+  stripeMissingItems: string[];
 }) {
   const utils = trpc.useUtils();
   const stage = getOutreachStage({
@@ -45,7 +49,7 @@ export function ProducerOutreachActions({
   const whatsAppUrl = normalizedPhone
     ? buildWhatsAppChatUrl(
         normalizedPhone,
-        buildOutreachMessage({ contactName, stage }),
+        buildOutreachMessage({ contactName, stage, stripeMissingItems }),
       )
     : null;
 
@@ -82,6 +86,15 @@ export function ProducerOutreachActions({
         <p className="font-sans text-sm font-semibold text-soil">
           {OUTREACH_STAGE_LABELS[stage]}
         </p>
+        {stage === "payments" ? (
+          <p className="font-sans text-xs text-bark/80">
+            {!stripeStarted
+              ? "Ainda nao abriu o cadastro do Stripe."
+              : stripeMissingItems.length > 0
+                ? `Falta no Stripe: ${stripeMissingItems.join(", ")}.`
+                : "Cadastro do Stripe enviado; aguardando a analise do Stripe."}
+          </p>
+        ) : null}
         <p className="font-sans text-xs text-bark/70">
           {shownContactedAt
             ? `Contatado em ${formatSaoPauloDateBR(shownContactedAt, {
