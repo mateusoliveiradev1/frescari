@@ -8,7 +8,7 @@ import {
   normalizeBrazilianPhone,
 } from "./producer-outreach";
 
-test("phones are normalized to 55 + area code + number", () => {
+test("phones are normalized to 55 + área code + number", () => {
   assert.equal(normalizeBrazilianPhone("(17) 99123-4567"), "5517991234567");
   assert.equal(normalizeBrazilianPhone("017991234567"), "5517991234567");
   assert.equal(normalizeBrazilianPhone("+55 17 99123-4567"), "5517991234567");

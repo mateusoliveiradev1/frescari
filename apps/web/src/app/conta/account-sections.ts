@@ -26,7 +26,7 @@ const ACCOUNT_SECTION_DEFINITIONS: Record<
   enderecos: {
     href: "/conta/enderecos",
     key: "enderecos",
-    label: "Enderecos",
+    label: "Endereços",
   },
   perfil: {
     href: "/conta/perfil",
@@ -36,7 +36,7 @@ const ACCOUNT_SECTION_DEFINITIONS: Record<
   seguranca: {
     href: "/conta/seguranca",
     key: "seguranca",
-    label: "Seguranca",
+    label: "Segurança",
   },
 };
 
@@ -67,7 +67,7 @@ export function getAccountSectionsForRole(role: AccountRole) {
 
     return {
       ...section,
-      label: normalizedRole === "producer" ? "Negocio" : "Empresa",
+      label: normalizedRole === "producer" ? "Negócio" : "Empresa",
     };
   });
 }

@@ -102,7 +102,7 @@ export function DirectProducerIcon({
 
 export function LowCarbonIcon({
   className,
-  title = "Rota curta com menor emissao",
+  title = "Rota curta com menor emissão",
 }: FrescariIconProps) {
   return (
     <FeatureGlyph className={className} title={title}>

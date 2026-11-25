@@ -37,9 +37,9 @@ type ForgotPasswordFormProps = {
 const GENERIC_SUCCESS_MESSAGE =
   "Se o email informado puder receber acesso, enviaremos um link para redefinir sua senha.";
 const LOCAL_LOG_ONLY_SUCCESS_MESSAGE =
-  "O envio por e-mail nao esta configurado neste ambiente. O link de redefinicao foi registrado apenas no log do servidor.";
+  "O envio por e-mail não esta configurado neste ambiente. O link de redefinição foi registrado apenas no log do servidor.";
 const GENERIC_ERROR_MESSAGE =
-  "Nao foi possivel solicitar a redefinicao agora. Aguarde um instante e tente novamente.";
+  "Não foi possível solicitar a redefinição agora. Aguarde um instante e tente novamente.";
 
 function getDefaultResetRedirectUrl() {
   if (typeof window !== "undefined") {
@@ -129,7 +129,7 @@ export function ForgotPasswordForm({
             didError = true;
             const code = context.error.code ?? "";
             const messageMap: Record<string, string> = {
-              INVALID_EMAIL: "Use um email valido para receber o link.",
+              INVALID_EMAIL: "Use um email válido para receber o link.",
               TOO_MANY_REQUESTS:
                 "Muitas tentativas em pouco tempo. Aguarde um instante antes de tentar novamente.",
               RATE_LIMITED:
@@ -162,14 +162,14 @@ export function ForgotPasswordForm({
             </h1>
             <p className="max-w-2xl font-sans text-sm leading-6 text-bark/76">
               Informe o email da sua conta para receber um link seguro de
-              redefinicao.
+              redefinição.
             </p>
           </div>
 
           <div className="mt-6 space-y-5">
             {error ? (
               <StatusCard
-                eyebrow="Nao foi possivel enviar"
+                eyebrow="Não foi possível enviar"
                 message={error}
                 tone="error"
               />
@@ -221,7 +221,7 @@ export function ForgotPasswordForm({
                     type="email"
                   />
                   <p className="font-sans text-xs leading-5 text-bark/68">
-                    O retorno sera sempre discreto para proteger o acesso da sua
+                    O retorno será sempre discreto para proteger o acesso da sua
                     conta.
                   </p>
                 </div>
@@ -234,7 +234,7 @@ export function ForgotPasswordForm({
                   type="submit"
                   variant="primary"
                 >
-                  {loading ? "Enviando..." : "Enviar link de redefinicao"}
+                  {loading ? "Enviando..." : "Enviar link de redefinição"}
                 </Button>
               </form>
             )}
@@ -243,7 +243,7 @@ export function ForgotPasswordForm({
           {!success ? (
             <div className="mt-8 flex flex-col gap-3 border-t border-soil/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <p className="font-sans text-sm leading-6 text-bark/74">
-                Se voce lembrar da senha, pode voltar e entrar normalmente.
+                Se você lembrar da senha, pode voltar e entrar normalmente.
               </p>
               <Link
                 className="font-sans text-sm font-bold text-forest underline-offset-4 transition-[color] hover:text-soil hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"

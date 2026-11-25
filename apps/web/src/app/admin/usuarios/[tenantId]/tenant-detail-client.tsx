@@ -190,8 +190,8 @@ function AddressesList({
   if (addresses.length === 0) {
     return (
       <EmptyState
-        body="Esta conta comercial ainda nao cadastrou enderecos de entrega."
-        title="Sem enderecos"
+        body="Esta conta comercial ainda não cadastrou endereços de entrega."
+        title="Sem endereços"
       />
     );
   }
@@ -213,7 +213,7 @@ function AddressesList({
             {address.city}, {address.state}
           </p>
         </div>
-        {address.isDefault ? <Badge variant="secondary">padrao</Badge> : null}
+        {address.isDefault ? <Badge variant="secondary">padrão</Badge> : null}
       </div>
     </div>
   ));
@@ -240,7 +240,7 @@ function FarmsList({ farms }: { farms: TenantFarmsPage["items"] }) {
       <p className="mt-2 font-sans text-sm leading-6 text-bark/72">
         {farm.address?.city && farm.address?.state
           ? `${farm.address.city}, ${farm.address.state}`
-          : "Endereco da fazenda ainda incompleto"}
+          : "Endereço da fazenda ainda incompleto"}
       </p>
       <p className="mt-2 font-sans text-xs text-bark/58">
         criada em {formatDateTime(farm.createdAt)}
@@ -253,8 +253,8 @@ function ProductsList({ products }: { products: TenantProductsPage["items"] }) {
   if (products.length === 0) {
     return (
       <EmptyState
-        body="Ainda nao existe catalogo publicado para esta conta comercial."
-        title="Sem catalogo"
+        body="Ainda não existe catálogo publicado para esta conta comercial."
+        title="Sem catálogo"
       />
     );
   }
@@ -385,7 +385,7 @@ function PaginatedSectionFooter(props: {
   return (
     <div className="flex flex-col gap-3 rounded-[22px] border border-dashed border-forest/14 bg-cream/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
       <p className="font-sans text-sm leading-6 text-bark/68">
-        {props.loadedCount} itens carregados nesta secao.
+        {props.loadedCount} itens carregados nesta seção.
       </p>
       <Button
         disabled={props.isFetchingNextPage}
@@ -509,9 +509,9 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
       return (
         <Card className="border-forest/8 bg-white/95 shadow-[0_24px_52px_-40px_rgba(13,51,33,0.48)]">
           <CardHeader>
-            <CardTitle className="text-soil">Conta nao encontrada</CardTitle>
+            <CardTitle className="text-soil">Conta não encontrada</CardTitle>
             <CardDescription>
-              Nao encontramos uma conta comercial com esse identificador.
+              Não encontramos uma conta comercial com esse identificador.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -536,7 +536,7 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
     ? [
         {
           icon: Users,
-          label: "Usuarios",
+          label: "Usuários",
           value: detail.summary.userCount,
         },
         {
@@ -558,12 +558,12 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
     : [
         {
           icon: Users,
-          label: "Usuarios",
+          label: "Usuários",
           value: detail.summary.userCount,
         },
         {
           icon: MapPin,
-          label: "Enderecos",
+          label: "Endereços",
           value: detail.summary.addressCount,
         },
         {
@@ -599,13 +599,13 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
               </h1>
               <p className="max-w-2xl font-sans text-sm leading-7 text-bark/76 sm:text-base">
                 Leitura de uma conta comercial em profundidade: pessoas, base,
-                catalogo, pedidos e sinais de prontidao.
+                catálogo, pedidos e sinais de prontidão.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.16em] text-bark/58">
               <span>identificador {detail.tenant.slug}</span>
               <span>desde {formatDateTime(detail.tenant.createdAt)}</span>
-              <span>prontidao {detail.health.progressPercent}%</span>
+              <span>prontidão {detail.health.progressPercent}%</span>
             </div>
           </div>
 
@@ -690,10 +690,10 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
         <InfoCard
           description={
             isProducer
-              ? "Base fisica e operacional do produtor."
-              : "Enderecos prontos para o ciclo comercial."
+              ? "Base física e operacional do produtor."
+              : "Endereços prontos para o ciclo comercial."
           }
-          title={isProducer ? "Base operacional" : "Enderecos"}
+          title={isProducer ? "Base operacional" : "Endereços"}
         >
           {isProducer ? (
             farmsQuery.data ? (
@@ -726,8 +726,8 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
 
         {isProducer ? (
           <InfoCard
-            description="Catalogo ativo e quantidade de lotes vivos por produto."
-            title="Catalogo vivo"
+            description="Catálogo ativo e quantidade de lotes vivos por produto."
+            title="Catálogo vivo"
           >
             {productsQuery.data ? (
               <>
@@ -747,7 +747,7 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
 
         {isProducer ? (
           <InfoCard
-            description="Lotes recentes para entender disponibilidade e expiracao."
+            description="Lotes recentes para entender disponibilidade e expiração."
             title="Lotes recentes"
           >
             {lotsQuery.data ? (
@@ -811,7 +811,7 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
         </InfoCard>
 
         <InfoCard
-          description="Leitura curta dos bloqueios e sinais que mais pesam na prontidao."
+          description="Leitura curta dos bloqueios e sinais que mais pesam na prontidão."
           title="Sinais operacionais"
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -824,7 +824,7 @@ export function TenantDetailClient({ tenantId }: { tenantId: string }) {
                   {item.label}
                 </p>
                 <p className="mt-2 font-sans text-sm leading-6 text-bark/72">
-                  {item.done ? "Concluido" : "Pendente"}
+                  {item.done ? "Concluído" : "Pendente"}
                 </p>
               </div>
             ))}

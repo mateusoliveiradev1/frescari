@@ -137,7 +137,7 @@ test("blocks submit when the new password confirmation does not match", async (c
 
   assert.match(container.textContent ?? "", /Proteja seu acesso/i);
   assert.equal(
-    container.textContent?.includes("Atualizacao autenticada"),
+    container.textContent?.includes("Atualização autenticada"),
     false,
   );
   assert.equal(container.textContent?.includes("Antes de confirmar"), false);
@@ -351,5 +351,5 @@ test("surfaces session freshness errors separately from generic failures", async
 
   await submitForm(form, window);
 
-  assert.match(container.textContent ?? "", /sessao precisa ser revalidada/i);
+  assert.match(container.textContent ?? "", /sessão precisa ser revalidada/i);
 });

@@ -47,7 +47,7 @@ function getSafeMessage(error: unknown) {
     return error.message;
   }
 
-  return "Nao foi possivel atualizar seu perfil.";
+  return "Não foi possível atualizar seu perfil.";
 }
 
 function getProfileInitial(
@@ -121,10 +121,10 @@ function ProfileErrorState({
           Perfil
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Nao conseguimos abrir seu perfil.
+          Não conseguimos abrir seu perfil.
         </h2>
         <p className="font-sans text-sm text-bark">
-          Nao foi possivel carregar o perfil agora.
+          Não foi possível carregar o perfil agora.
         </p>
       </div>
 
@@ -197,7 +197,7 @@ export function ProfileFormView({
       <div className="space-y-3">
         <h2 className="font-display text-3xl font-black text-soil">Perfil</h2>
         <p className="font-sans text-sm text-bark">
-          Os dados do perfil nao ficaram disponiveis para esta sessao.
+          Os dados do perfil não ficaram disponíveis para esta sessão.
         </p>
       </div>
     );
@@ -211,7 +211,7 @@ export function ProfileFormView({
   const helperMessage = !hasValidName
     ? "Informe o nome que deve aparecer na sua conta."
     : hasChanges
-      ? "Voce esta atualizando como seu nome aparece na Frescari."
+      ? "Você esta atualizando como seu nome aparece na Frescari."
       : "Atualize o nome somente quando quiser refletir uma mudanca real.";
 
   const handleNameChange = (
@@ -258,7 +258,7 @@ export function ProfileFormView({
           Seu perfil na Frescari.
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          Mantenha seu nome de exibicao atualizado para que pedidos, mensagens e
+          Mantenha seu nome de exibição atualizado para que pedidos, mensagens e
           documentos aparecam com clareza.
         </p>
       </div>
@@ -270,7 +270,7 @@ export function ProfileFormView({
               {user.image ? (
                 // eslint-disable-next-line @next/next/no-img-element -- auth avatars may come from arbitrary providers.
                 <img
-                  alt={`Avatar de ${user.name ?? "usuario"}`}
+                  alt={`Avatar de ${user.name ?? "usuário"}`}
                   className="h-full w-full object-cover"
                   src={user.image}
                 />
@@ -291,7 +291,7 @@ export function ProfileFormView({
             </div>
           </div>
           <p className="rounded-full border border-forest/12 bg-sage/35 px-4 py-2 font-sans text-xs font-bold text-forest">
-            Seu email fica visivel para conferencia e continua protegido.
+            Seu email fica visível para conferência e continua protegido.
           </p>
         </div>
 
@@ -399,10 +399,10 @@ export default function ProfileForm({ initialOverview }: ProfileFormProps) {
       if (result.error) {
         logProfileUpdateError(result.error);
         toast.error(
-          result.error.message || "Nao foi possivel atualizar seu perfil.",
+          result.error.message || "Não foi possível atualizar seu perfil.",
         );
         throw new Error(
-          result.error.message || "Nao foi possivel atualizar seu perfil.",
+          result.error.message || "Não foi possível atualizar seu perfil.",
         );
       }
 

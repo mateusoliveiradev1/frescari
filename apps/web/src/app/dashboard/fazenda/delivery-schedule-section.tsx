@@ -34,17 +34,17 @@ export function DeliveryScheduleSection() {
         Janela de entrega
       </p>
       <h2 className="mt-2 font-display text-2xl font-black text-soil">
-        Quando voce entrega
+        Quando você entrega
       </h2>
       <p className="mt-2 font-sans text-sm leading-relaxed text-bark">
-        O comprador escolhe um destes dias e periodos ao fechar o pedido.
+        O comprador escolhe um destes dias e períodos ao fechar o pedido.
       </p>
 
       {farmQuery.isLoading ? (
         <div className="mt-5 h-40 animate-pulse rounded-sm bg-soil/10" />
       ) : !farm ? (
         <p className="mt-5 rounded-sm border border-soil/10 bg-white p-4 font-sans text-sm text-bark">
-          Salve a localizacao da fazenda primeiro. Depois voce define os dias de
+          Salve a localização da fazenda primeiro. Depois você define os dias de
           entrega aqui.
         </p>
       ) : (
@@ -112,7 +112,7 @@ function DeliveryScheduleForm({
     >
       {initial.isDefault ? (
         <p className="rounded-sm border border-amber-300/60 bg-amber-50 px-3 py-2 font-sans text-xs text-amber-900">
-          Usando o padrao (segunda a sabado, manha e tarde). Ajuste e salve para
+          Usando o padrão (segunda a sábado, manhã e tarde). Ajuste e salve para
           valer o seu.
         </p>
       ) : null}
@@ -138,7 +138,7 @@ function DeliveryScheduleForm({
 
       <fieldset className="space-y-2">
         <legend className="font-sans text-xs font-bold uppercase tracking-[0.14em] text-bark/70">
-          Periodos
+          Períodos
         </legend>
         <div className="flex flex-wrap gap-2">
           {DELIVERY_PERIOD_IDS.map((period) => {
@@ -160,7 +160,7 @@ function DeliveryScheduleForm({
 
       <label className="block space-y-2">
         <span className="font-sans text-xs font-bold uppercase tracking-[0.14em] text-bark/70">
-          Antecedencia do pedido
+          Antecedência do pedido
         </span>
         <select
           value={leadDays}
@@ -177,7 +177,7 @@ function DeliveryScheduleForm({
 
       {!isValid ? (
         <p className="font-sans text-xs text-red-700">
-          Escolha pelo menos um dia e um periodo.
+          Escolha pelo menos um dia e um período.
         </p>
       ) : null}
 

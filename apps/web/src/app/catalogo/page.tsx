@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import { Suspense } from "react";
-import { Leaf, MapPin, Store } from "lucide-react";
+import { Leaf } from "lucide-react";
 import { Button, ProductCardSkeleton } from "@frescari/ui";
 
 import { CatalogReserveNotice } from "@/components/CatalogReserveNotice";
@@ -42,11 +42,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const categoryRegions = buildCategoryRegionSummaries(lots);
   const productRegions = buildProductRegionSummaries(lots);
   const regions = buildSupplierRegionSummaries(lots);
-  const title = "Catalogo Frescari | Hortifruti direto do produtor";
+  const title = "Catálogo Frescari | Hortifruti direto do produtor";
   const description = sanitizeText(
     lots.length > 0
-      ? `Catalogo Frescari com ${lots.length} lotes ativos em ${categories.length} categorias, ${regions.length} regioes, ${categoryRegions.length} rotas categoria-regiao e ${productRegions.length} rotas produto-regiao com oferta publicada.`
-      : "Catalogo Frescari com leitura viva da oferta local, categorias indexaveis e lotes publicados pelos produtores.",
+      ? `Catálogo Frescari com ${lots.length} lotes ativos em ${categories.length} categorias, ${regions.length} regiões, ${categoryRegions.length} rotas categoria-região e ${productRegions.length} rotas produto-região com oferta publicada.`
+      : "Catálogo Frescari com leitura viva da oferta local, categorias indexáveis e lotes publicados pelos produtores.",
     160,
   );
   return buildSeoMetadata({
@@ -74,23 +74,32 @@ async function LotsList() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sage/60 text-forest">
             <Leaf className="h-8 w-8" />
           </div>
-          <p className="field-label mt-6">Atualizacao de oferta</p>
+          <p className="field-label mt-6">Primeiros produtores chegando</p>
           <h2 className="mt-3 font-display text-3xl font-black tracking-[-0.04em] text-soil">
-            Nenhum lote disponivel agora
+            Ainda não há lotes à venda
           </h2>
           <p className="mx-auto mt-4 max-w-xl font-sans text-base leading-7 text-bark/78">
-            Os produtores estao fechando a proxima janela de colheita. O
-            catalogo continua sendo atualizado ao longo do dia com novos lotes,
-            unidade de venda e disponibilidade real.
+            Os produtores estão cadastrando os primeiros lotes. Crie sua conta
+            de comprador agora, sem custo, e compre assim que a oferta da sua
+            região aparecer aqui.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild variant="primary">
-              <Link href="/">Voltar para a apresentacao</Link>
+              <Link href="/auth/register">Criar conta de comprador</Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link href="/auth/register">Quero vender na Frescari</Link>
+              <Link href="/ferramentas">Usar as ferramentas grátis</Link>
             </Button>
           </div>
+          <p className="mt-6 font-sans text-sm text-bark/78">
+            É produtor?{" "}
+            <Link
+              className="font-semibold text-forest hover:underline"
+              href="/auth/register"
+            >
+              Venda na Frescari
+            </Link>
+          </p>
         </div>
       </div>
     );
@@ -101,6 +110,7 @@ async function LotsList() {
 
   return (
     <div className="space-y-12">
+      <CatalogReserveNotice />
       <div className="grid gap-4 rounded-[28px] border border-forest/10 bg-white px-5 py-5 shadow-[0_18px_40px_-34px_rgba(13,51,33,0.42)] lg:grid-cols-[auto,1fr] lg:items-center">
         <div className="surface-muted inline-flex items-center gap-2 rounded-full px-3 py-2">
           <span className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
@@ -108,25 +118,24 @@ async function LotsList() {
           </span>
         </div>
         <p className="font-sans text-sm leading-6 text-bark/78">
-          Cada lote mostra fazenda, unidade comercial e disponibilidade real. O
-          checkout continua separado por produtor para reduzir friccao logistica
-          e dar clareza ao frete.
+          Cada lote mostra a fazenda, a unidade de venda e quanto ainda há. O
+          pagamento é separado por produtor, e cada um tem o seu frete.
           {lastChanceLots.length > 0 ? (
             <span className="font-semibold text-ember">
               {" "}
-              {lastChanceLots.length} em ultima chamada.
+              {lastChanceLots.length} em última chamada.
             </span>
           ) : null}
         </p>
       </div>
 
       {lastChanceLots.length > 0 ? (
-        <section aria-label="Ultima chamada" className="space-y-6">
+        <section aria-label="Última chamada" className="space-y-6">
           <div className="flex items-center gap-4">
             <div className="h-px flex-1 bg-ember/20" />
             <div className="rounded-full border border-ember/20 bg-ember/10 px-4 py-1.5">
               <span className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-ember">
-                Ultima chamada
+                Última chamada
               </span>
             </div>
             <div className="h-px flex-1 bg-ember/20" />
@@ -192,11 +201,11 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
   const catalogJsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: "Catalogo Frescari",
+    name: "Catálogo Frescari",
     description: sanitizeText(
       lots.length > 0
-        ? `Catalogo Frescari com ${lots.length} lotes ativos, ${categories.length} categorias, ${regions.length} regioes, ${categoryRegions.length} rotas categoria-regiao e ${productRegions.length} rotas produto-regiao.`
-        : "Catalogo Frescari com leitura viva da oferta local publicada pelos produtores.",
+        ? `Catálogo Frescari com ${lots.length} lotes ativos, ${categories.length} categorias, ${regions.length} regiões, ${categoryRegions.length} rotas categoria-região e ${productRegions.length} rotas produto-região.`
+        : "Catálogo Frescari com leitura viva da oferta local publicada pelos produtores.",
       200,
     ),
     url: `${siteUrl}/catalogo`,
@@ -243,7 +252,7 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
       />
 
       <main className="max-w-[1400px] mx-auto px-6 py-16 lg:px-12 lg:py-20 space-y-12">
-        <header className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr] xl:items-end">
+        <header className="space-y-6">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2.5 rounded-full border border-forest/16 bg-forest/6 px-3.5 py-1.5">
               <span className="relative flex h-2 w-2">
@@ -257,21 +266,19 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
 
             <div className="space-y-4">
               <h1 className="font-display text-5xl font-black leading-[0.92] tracking-[-0.05em] text-soil sm:text-6xl lg:text-7xl">
-                Catalogo <span className="italic text-forest">Frescari</span>
+                Catálogo <span className="italic text-forest">Frescari</span>
               </h1>
               <p className="max-w-2xl font-sans text-lg leading-relaxed text-bark/82">
-                Descubra lotes publicados pelos produtores com unidade
-                comercial, origem local e disponibilidade real. A leitura da
-                oferta e o fechamento do pedido foram desenhados para
-                abastecimento B2B, nao para vitrine generica.
+                Hortifruti direto dos produtores, com preço, data de colheita e
+                quantidade disponível em cada lote.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
               {[
-                "Compra por lote",
-                "Checkout por fazenda",
-                "Origem local visivel",
+                "Preço do produtor",
+                "Colheita em cada lote",
+                "Entrega no dia que você escolhe",
               ].map((item) => (
                 <span
                   className="rounded-full border border-forest/10 bg-white px-3.5 py-2 font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-bark/78"
@@ -282,60 +289,36 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
               ))}
             </div>
           </div>
-
-          <aside className="surface-panel rounded-[30px] p-6">
-            <p className="field-label">O que muda na jornada</p>
-            <div className="mt-5 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
-              <div className="rounded-[22px] border border-forest/10 bg-white px-4 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sage/60 text-forest">
-                    <MapPin className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-bark/65">
-                      Origem
-                    </p>
-                    <p className="font-display text-xl font-black text-soil">
-                      Mais contexto
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[22px] border border-forest/10 bg-white px-4 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sage/60 text-forest">
-                    <Leaf className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-bark/65">
-                      Frescor
-                    </p>
-                    <p className="font-display text-xl font-black text-soil">
-                      Leitura rapida
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[22px] border border-forest/10 bg-white px-4 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sage/60 text-forest">
-                    <Store className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-bark/65">
-                      Operacao
-                    </p>
-                    <p className="font-display text-xl font-black text-soil">
-                      Sem ruido
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </aside>
         </header>
+
+        <section className="space-y-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-2">
+              <p className="field-label">Seleção do dia</p>
+              <h2 className="font-display text-3xl font-black tracking-[-0.04em] text-soil">
+                Lotes publicados hoje
+              </h2>
+            </div>
+            <p className="font-sans text-sm leading-6 text-bark/70">
+              Atualizado a cada hora, com o preço e a quantidade de cada lote.
+            </p>
+          </div>
+
+          <Suspense
+            fallback={
+              <div
+                aria-busy="true"
+                className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              >
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <ProductCardSkeleton isLastChance={index < 2} key={index} />
+                ))}
+              </div>
+            }
+          >
+            <LotsList />
+          </Suspense>
+        </section>
 
         {categories.length > 0 ||
         regions.length > 0 ||
@@ -345,7 +328,7 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
               <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="field-label">Malha editorial</p>
+                    <p className="field-label">Atalhos</p>
                     <h2
                       id="atalhos-indexaveis"
                       className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil"
@@ -374,13 +357,13 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
               <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="field-label">Cobertura local</p>
+                    <p className="field-label">Atalhos</p>
                     <h2 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil">
-                      Explore por regiao
+                      Explore por região
                     </h2>
                   </div>
                   <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-                    {regions.length} regioes
+                    {regions.length} regiões
                   </span>
                 </div>
 
@@ -407,9 +390,9 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
               <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="field-label">Rotas locais</p>
+                    <p className="field-label">Por região</p>
                     <h2 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil">
-                      Categoria + regiao com maior densidade
+                      Categorias por região
                     </h2>
                   </div>
                   <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
@@ -445,9 +428,9 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
               <div className="rounded-[28px] border border-soil/10 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="field-label">Rotas de produto</p>
+                    <p className="field-label">Por região</p>
                     <h2 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] text-soil">
-                      Produto + regiao com mais prontidao
+                      Produtos por região
                     </h2>
                   </div>
                   <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
@@ -481,38 +464,6 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
             ) : null}
           </section>
         ) : null}
-
-        <section className="space-y-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-2">
-              <p className="field-label">Selecao viva</p>
-              <h2 className="font-display text-3xl font-black tracking-[-0.04em] text-soil">
-                Lotes publicados hoje
-              </h2>
-            </div>
-            <p className="font-sans text-sm leading-6 text-bark/70">
-              Atualizacao automatica a cada hora para manter disponibilidade e
-              preco alinhados ao lote.
-            </p>
-          </div>
-
-          <CatalogReserveNotice />
-
-          <Suspense
-            fallback={
-              <div
-                aria-busy="true"
-                className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-              >
-                {Array.from({ length: 8 }).map((_, index) => (
-                  <ProductCardSkeleton isLastChance={index < 2} key={index} />
-                ))}
-              </div>
-            }
-          >
-            <LotsList />
-          </Suspense>
-        </section>
       </main>
     </div>
   );

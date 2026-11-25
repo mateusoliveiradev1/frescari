@@ -49,7 +49,7 @@ export default function BuyerDashboard({ user }: BuyerDashboardProps) {
             </h1>
           </div>
           <Button variant="secondary" asChild>
-            <Link href="/conta/enderecos">Gerenciar Enderecos</Link>
+            <Link href="/conta/enderecos">Gerenciar Endereços</Link>
           </Button>
         </div>
 
@@ -67,7 +67,7 @@ export default function BuyerDashboard({ user }: BuyerDashboardProps) {
                   <h2 className="font-display text-2xl font-bold text-soil flex items-center gap-2">
                     Oportunidades do Dia
                     <span className="text-ember font-sans text-sm font-semibold uppercase tracking-wider">
-                      Ultima Colheita
+                      Última Colheita
                     </span>
                   </h2>
                 </div>
@@ -155,15 +155,15 @@ export default function BuyerDashboard({ user }: BuyerDashboardProps) {
                 </div>
                 <div>
                   <h3 className="font-display text-2xl font-bold text-soil mb-2">
-                    Nada disponivel no momento.
+                    Nada disponível no momento.
                   </h3>
                   <p className="font-sans text-sm text-bark max-w-md mx-auto leading-relaxed">
-                    O catalogo esta sendo atualizado pelos produtores. Volte em
+                    O catálogo esta sendo atualizado pelos produtores. Volte em
                     alguns minutos para ver as novidades.
                   </p>
                 </div>
                 <Button variant="secondary" asChild className="mt-4">
-                  <Link href="/catalogo">Ver Catalogo Publico</Link>
+                  <Link href="/catalogo">Ver Catálogo Público</Link>
                 </Button>
               </div>
             ) : null}

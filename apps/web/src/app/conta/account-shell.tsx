@@ -68,15 +68,15 @@ export function AccountShellView({
       <main className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
         <header className="px-1 py-2 sm:px-2">
           <p className="font-sans text-[11px] font-bold uppercase tracking-[0.22em] text-bark/70">
-            Area Frescari
+            Área Frescari
           </p>
           <div className="mt-3 max-w-3xl space-y-2">
             <h1 className="font-display text-4xl font-black leading-none text-soil sm:text-5xl">
-              {firstName ? `Oi, ${firstName}.` : "Sua area Frescari."}
+              {firstName ? `Oi, ${firstName}.` : "Sua área Frescari."}
             </h1>
             <p className="font-sans text-sm leading-6 text-bark/80 sm:text-base">
-              Seu espaco para manter a Frescari do seu jeito. {sectionList}{" "}
-              ficam juntos, faceis de revisar quando precisar.
+              Seu espaço para manter a Frescari do seu jeito. {sectionList}{" "}
+              ficam juntos, fáceis de revisar quando precisar.
             </p>
           </div>
         </header>
@@ -84,7 +84,7 @@ export function AccountShellView({
         <div className="grid min-w-0 gap-5 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-start">
           <aside className="surface-panel min-w-0 rounded-[24px] p-3 lg:sticky lg:top-24">
             <nav
-              aria-label="Navegacao interna de Minha Conta"
+              aria-label="Navegação interna de Minha Conta"
               className="flex flex-wrap gap-2 lg:flex-col"
             >
               {sections.map((section) => {

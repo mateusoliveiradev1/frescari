@@ -63,9 +63,9 @@ const statusStyles: Record<string, string> = {
 const statusLabels: Record<string, string> = {
   payment_authorized: "Pagamento autorizado",
   confirmed: "Confirmado",
-  picking: "Em separacao",
+  picking: "Em separação",
   ready_for_dispatch: "Pronto para sair",
-  in_transit: "Em transito",
+  in_transit: "Em trânsito",
   delivered: "Entregue",
 };
 
@@ -100,34 +100,34 @@ const overrideReasonLabels: Record<string, string> = {
   customer_priority: "Cliente prioritario",
   delivery_window: "Janela de entrega",
   vehicle_load: "Ajuste de carga",
-  address_issue: "Endereco em revisao",
+  address_issue: "Endereço em revisão",
   awaiting_picking: "Aguardando picking",
-  commercial_decision: "Decisao comercial",
+  commercial_decision: "Decisão comercial",
   other: "Outro motivo",
 };
 
 const overrideReasonOptions = [
   { value: "customer_priority", label: "Cliente prioritario" },
   { value: "delivery_window", label: "Janela combinada" },
-  { value: "vehicle_load", label: "Carga ou veiculo" },
-  { value: "address_issue", label: "Endereco em revisao" },
+  { value: "vehicle_load", label: "Carga ou veículo" },
+  { value: "address_issue", label: "Endereço em revisão" },
   { value: "awaiting_picking", label: "Aguardar picking" },
-  { value: "commercial_decision", label: "Decisao comercial" },
+  { value: "commercial_decision", label: "Decisão comercial" },
   { value: "other", label: "Outro" },
 ] as const;
 
 type DispatchOverrideReason = (typeof overrideReasonOptions)[number]["value"];
 
 const dispatchStatusLabels: Record<string, string> = {
-  confirmed: "Saida confirmada",
+  confirmed: "Saída confirmada",
   departed: "Saiu da fazenda",
-  cancelled: "Saida cancelada",
+  cancelled: "Saída cancelada",
 };
 
 const vehicleAvailabilityLabels: Record<string, string> = {
-  available: "Disponivel",
+  available: "Disponível",
   in_use: "Em rota",
-  maintenance: "Manutencao",
+  maintenance: "Manutenção",
   offline: "Offline",
 };
 
@@ -149,10 +149,10 @@ function getEstimatedWeight(delivery: PendingDelivery) {
 
 function formatMappedPointsLabel(total: number) {
   if (total === 1) {
-    return "1 ponto util";
+    return "1 ponto útil";
   }
 
-  return `${total} pontos uteis`;
+  return `${total} pontos úteis`;
 }
 
 function formatOrdersLabel(total: number) {
@@ -309,7 +309,7 @@ function DeliveryCard({
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-sm border border-soil/10 bg-white/70 px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-bark/60">
-                Distancia
+                Distância
               </p>
               <p className="mt-2 font-display text-xl font-black text-soil">
                 {formatDistanceKm(delivery.distanceKm)}
@@ -362,7 +362,7 @@ function DeliveryCard({
                 Origem
               </p>
               <p className="mt-2 leading-6 text-soil">
-                {delivery.origin?.farmName ?? "Fazenda sem geolocalizacao"}
+                {delivery.origin?.farmName ?? "Fazenda sem geolocalização"}
               </p>
             </div>
           </div>
@@ -373,7 +373,7 @@ function DeliveryCard({
                 <div>
                   <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
                     <Sparkles className="h-3.5 w-3.5" />
-                    Saida recomendada
+                    Saída recomendada
                   </p>
                   <p className="mt-2 font-semibold text-soil">
                     {suggestedVehicleLabel}
@@ -409,7 +409,7 @@ function DeliveryCard({
                 </div>
                 <div className="rounded-sm border border-white/70 bg-white/70 px-3 py-2">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-bark/60">
-                    Frescor minimo
+                    Frescor mínimo
                   </p>
                   <p className="mt-2 font-display text-xl font-black text-soil">
                     {delivery.minFreshnessScore ?? "--"}
@@ -430,14 +430,14 @@ function DeliveryCard({
               <div className="rounded-sm border border-violet-200 bg-violet-50 px-4 py-4">
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">
                   {dispatchStatusLabels[delivery.dispatch.status] ??
-                    "Saida operacional"}
+                    "Saída operacional"}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-violet-900">
                   <span className="font-semibold">
                     Ordem #{delivery.dispatch.sequence}
                   </span>
                   <span>
-                    Veiculo:{" "}
+                    Veículo:{" "}
                     {delivery.dispatch.selectedVehicleLabel ??
                       vehicleTypeLabels[
                         delivery.dispatch.recommendedVehicleType
@@ -465,8 +465,8 @@ function DeliveryCard({
                     >
                       <Truck className="h-4 w-4" />
                       {waveSize > 1
-                        ? `Saida da onda (${waveSize} pedidos)`
-                        : "Registrar saida"}
+                        ? `Saída da onda (${waveSize} pedidos)`
+                        : "Registrar saída"}
                     </Button>
                     <Button
                       className="gap-2"
@@ -715,14 +715,14 @@ export function DeliveriesPageClient() {
           ? "Entrega pronta para sair."
           : variables.status === "in_transit"
             ? "Entrega despachada."
-            : "Entrega marcada como concluida.",
+            : "Entrega marcada como concluída.",
       );
       setActiveActionKey(null);
       recommendationQueue.forceApplyNextIncomingQueue();
       void utils.logistics.getPendingDeliveries.invalidate();
     },
     onError(error) {
-      toast.error(error.message || "Nao foi possivel atualizar a entrega.");
+      toast.error(error.message || "Não foi possível atualizar a entrega.");
       setActiveActionKey(null);
     },
   });
@@ -731,14 +731,14 @@ export function DeliveriesPageClient() {
     onSuccess(data) {
       toast.success(
         data.departedOrderCount > 1
-          ? `Saida registrada: ${data.departedOrderCount} pedidos em rota.`
-          : "Saida registrada: pedido em rota.",
+          ? `Saída registrada: ${data.departedOrderCount} pedidos em rota.`
+          : "Saída registrada: pedido em rota.",
       );
       recommendationQueue.forceApplyNextIncomingQueue();
       void utils.logistics.getPendingDeliveries.invalidate();
     },
     onError(error) {
-      toast.error(error.message || "Nao foi possivel registrar a saida.");
+      toast.error(error.message || "Não foi possível registrar a saída.");
     },
   });
 
@@ -751,7 +751,7 @@ export function DeliveriesPageClient() {
       void utils.logistics.getPendingDeliveries.invalidate();
     },
     onError(error) {
-      toast.error(error.message || "Nao foi possivel desfazer a onda.");
+      toast.error(error.message || "Não foi possível desfazer a onda.");
     },
   });
 
@@ -760,8 +760,8 @@ export function DeliveriesPageClient() {
       onSuccess(data) {
         toast.success(
           data.updatedOrderCount > 1
-            ? `Saida confirmada para ${data.updatedOrderCount} pedidos.`
-            : "Saida confirmada com dados operacionais.",
+            ? `Saída confirmada para ${data.updatedOrderCount} pedidos.`
+            : "Saída confirmada com dados operacionais.",
         );
         setActiveActionKey(null);
         setDispatchReviewCandidate(null);
@@ -771,7 +771,7 @@ export function DeliveriesPageClient() {
         void utils.logistics.getPendingDeliveries.invalidate();
       },
       onError(error) {
-        toast.error(error.message || "Nao foi possivel confirmar a saida.");
+        toast.error(error.message || "Não foi possível confirmar a saída.");
         setActiveActionKey(null);
       },
     });
@@ -782,7 +782,7 @@ export function DeliveriesPageClient() {
         toast.success(
           variables.action === "pin_to_top"
             ? "Pedido priorizado na fila."
-            : "Pedido marcado para segurar a saida.",
+            : "Pedido marcado para segurar a saída.",
         );
         setActiveActionKey(null);
         setOverrideDialog(null);
@@ -793,7 +793,7 @@ export function DeliveriesPageClient() {
         void utils.logistics.getPendingDeliveries.invalidate();
       },
       onError(error) {
-        toast.error(error.message || "Nao foi possivel aplicar o override.");
+        toast.error(error.message || "Não foi possível aplicar o override.");
         setActiveActionKey(null);
       },
     });
@@ -808,7 +808,7 @@ export function DeliveriesPageClient() {
         void utils.logistics.getPendingDeliveries.invalidate();
       },
       onError(error) {
-        toast.error(error.message || "Nao foi possivel limpar o override.");
+        toast.error(error.message || "Não foi possível limpar o override.");
         setActiveActionKey(null);
       },
     });
@@ -879,7 +879,7 @@ export function DeliveriesPageClient() {
         ?.dispatchSuggestion ?? null;
 
     if (!candidate) {
-      toast.error("Nao ha uma saida valida para confirmar neste pedido.");
+      toast.error("Não ha uma saída valida para confirmar neste pedido.");
       return;
     }
 
@@ -1004,7 +1004,7 @@ export function DeliveriesPageClient() {
   const handleApplyLatestRecommendation = () => {
     recommendationQueue.applyLatestRecommendation();
     toast.success(
-      "Nova recomendacao aplicada sem sobrescrever o override manual.",
+      "Nova recomendação aplicada sem sobrescrever o override manual.",
     );
   };
 
@@ -1018,7 +1018,7 @@ export function DeliveriesPageClient() {
 
     if (result.error) {
       toast.error(
-        result.error.message || "Nao foi possivel atualizar a recomendacao.",
+        result.error.message || "Não foi possível atualizar a recomendação.",
       );
     }
   };
@@ -1035,8 +1035,8 @@ export function DeliveriesPageClient() {
               Entregas
             </h1>
             <p className="max-w-3xl text-sm leading-6 text-bark/80">
-              Operacao logistica dos pedidos prontos para sair da fazenda, com
-              distancia em linha reta calculada no banco e mapa sincronizado com
+              Operação logística dos pedidos prontos para sair da fazenda, com
+              distância em linha reta calculada no banco e mapa sincronizado com
               cada destino.
             </p>
           </div>
@@ -1055,8 +1055,8 @@ export function DeliveriesPageClient() {
                 className={`h-4 w-4 ${isRefreshingRecommendations ? "animate-spin" : ""}`}
               />
               {hasPendingRecommendationUpdate
-                ? "Aplicar nova recomendacao"
-                : "Atualizar recomendacao"}
+                ? "Aplicar nova recomendação"
+                : "Atualizar recomendação"}
             </Button>
             <Button asChild className="justify-center" variant="ghost">
               <Link href="/dashboard">
@@ -1109,17 +1109,17 @@ export function DeliveriesPageClient() {
             <CardContent className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-800">
-                  Nova recomendacao disponivel
+                  Nova recomendação disponível
                 </p>
                 <p className="text-sm leading-6 text-bark/80">
                   Existe override manual ativo. A fila atual foi preservada e a
-                  nova leitura da IA ficou aguardando sua aprovacao.
+                  nova leitura da IA ficou aguardando sua aprovação.
                 </p>
               </div>
 
               <Button onClick={handleApplyLatestRecommendation} type="button">
                 <Sparkles className="h-4 w-4" />
-                Aplicar nova recomendacao
+                Aplicar nova recomendação
               </Button>
             </CardContent>
           </Card>
@@ -1132,7 +1132,7 @@ export function DeliveriesPageClient() {
                 <div className="space-y-2">
                   <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-forest/75">
                     <Sparkles className="h-3.5 w-3.5" />
-                    Proxima acao agora
+                    Próxima ação agora
                   </p>
                   <h2 className="font-display text-3xl font-black text-soil">
                     {nextDispatchAction.title}
@@ -1147,7 +1147,7 @@ export function DeliveriesPageClient() {
                     {formatOrdersLabel(nextDispatchAction.totalOrders)}
                   </span>
                   <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1.5">
-                    Veiculo sugerido: {nextDispatchAction.suggestedVehicleLabel}
+                    Veículo sugerido: {nextDispatchAction.suggestedVehicleLabel}
                   </span>
                   <span className="rounded-full border border-forest/10 bg-sage/35 px-3 py-1.5">
                     Confianca{" "}
@@ -1211,7 +1211,7 @@ export function DeliveriesPageClient() {
               </div>
               <div className="rounded-[24px_16px_20px_16px] border border-soil/8 bg-white/85 px-5 py-4 shadow-card">
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
-                  Distancia media
+                  Distância media
                 </p>
                 <p className="mt-2 font-display text-3xl font-black text-soil">
                   {formatDistanceKm(averageDistanceKm, { fallback: "--" })}
@@ -1239,11 +1239,11 @@ export function DeliveriesPageClient() {
                   </div>
                   <div className="space-y-2">
                     <h2 className="font-display text-2xl font-black text-soil">
-                      Missao cumprida!
+                      Missão cumprida!
                     </h2>
                     <p className="max-w-xl text-sm leading-6 text-bark/75">
-                      Todas as entregas ja foram despachadas. Quando novos
-                      pedidos entrarem na operacao, esta mesa logistica volta a
+                      Todas as entregas já foram despachadas. Quando novos
+                      pedidos entrarem na operação, esta mesa logística volta a
                       ser preenchida automaticamente.
                     </p>
                   </div>
@@ -1358,7 +1358,7 @@ export function DeliveriesPageClient() {
                     {formatOrdersLabel(selectedWaveMapContext.stops.length)}
                   </span>
                   <span className="rounded-full border border-soil/10 bg-cream-dark/35 px-3 py-1.5">
-                    Sequencia{" "}
+                    Sequência{" "}
                     {selectedWaveMapContext.kind === "confirmed"
                       ? "confirmada"
                       : "sugerida"}
@@ -1388,10 +1388,10 @@ export function DeliveriesPageClient() {
         <DialogContent className="max-w-3xl border-soil/10 bg-cream p-0">
           <DialogHeader className="border-b border-soil/10 px-6 py-5">
             <DialogTitle className="font-display text-2xl font-black text-soil">
-              Confirmar saida operacional
+              Confirmar saída operacional
             </DialogTitle>
             <DialogDescription className="text-sm leading-6 text-bark/70">
-              Revise os pedidos da wave e o veiculo antes de marcar a saida.
+              Revise os pedidos da wave e o veículo antes de marcar a saída.
             </DialogDescription>
           </DialogHeader>
 
@@ -1400,7 +1400,7 @@ export function DeliveriesPageClient() {
               <div className="space-y-5 px-6 py-6">
                 <div className="rounded-[20px] border border-forest/10 bg-sage/40 px-4 py-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
-                    Recomendacao ativa
+                    Recomendação ativa
                   </p>
                   <p className="mt-2 font-semibold text-soil">
                     {dispatchReviewCandidate.title}
@@ -1410,7 +1410,7 @@ export function DeliveriesPageClient() {
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs text-bark/70">
                     <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1">
-                      Veiculo sugerido:{" "}
+                      Veículo sugerido:{" "}
                       {dispatchReviewCandidate.primaryDelivery.recommendation
                         .suggestedVehicle?.label ??
                         vehicleTypeLabels[
@@ -1441,7 +1441,7 @@ export function DeliveriesPageClient() {
                       Pedidos na wave
                     </p>
                     <span className="text-xs font-semibold text-bark/65">
-                      Ancora fixa + pedidos compativeis opcionais
+                      Ancora fixa + pedidos compatíveis opcionais
                     </span>
                   </div>
 
@@ -1510,7 +1510,7 @@ export function DeliveriesPageClient() {
 
                 <div className="space-y-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60">
-                    Escolha do veiculo
+                    Escolha do veículo
                   </p>
 
                   <button
@@ -1526,7 +1526,7 @@ export function DeliveriesPageClient() {
                       Usar apenas o tipo recomendado
                     </p>
                     <p className="mt-1 text-sm leading-6 text-bark/70">
-                      A wave fica confirmada sem travar um veiculo especifico
+                      A wave fica confirmada sem travar um veículo específico
                       neste momento.
                     </p>
                   </button>
@@ -1582,7 +1582,7 @@ export function DeliveriesPageClient() {
                     </div>
                   ) : (
                     <div className="rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-4 text-sm leading-6 text-bark/75">
-                      Nenhum veiculo disponivel no catalogo. A confirmacao pode
+                      Nenhum veículo disponível no catálogo. A confirmação pode
                       seguir apenas com o tipo recomendado.
                     </div>
                   )}
@@ -1605,7 +1605,7 @@ export function DeliveriesPageClient() {
                 >
                   {selectedDispatchDeliveries.length > 1
                     ? "Confirmar wave"
-                    : "Confirmar saida"}
+                    : "Confirmar saída"}
                 </Button>
               </DialogFooter>
             </>
@@ -1670,7 +1670,7 @@ export function DeliveriesPageClient() {
                     className="text-[10px] font-bold uppercase tracking-[0.16em] text-bark/60"
                     htmlFor="override-reason-notes"
                   >
-                    Observacao{" "}
+                    Observação{" "}
                     {overrideReason === "other"
                       ? "(obrigatoria)"
                       : "(opcional)"}

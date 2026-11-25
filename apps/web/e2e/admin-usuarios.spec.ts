@@ -87,7 +87,7 @@ async function mockBuyerTenantDetailPagination(page: Page) {
               ],
               farmCount: 0,
               health: "needs_setup",
-              healthLabel: "Sem endereco",
+              healthLabel: "Sem endereço",
               productCount: 0,
               progressPercent: 0,
               sellerOperationalOrderCount: 0,
@@ -242,7 +242,7 @@ test.beforeEach(async ({ context }) => {
   await authenticateWithSessionHeader(context, sessionCookie);
 });
 
-test("admin usuarios aplica o fix do scroll e envia os filtros corretos", async ({
+test("admin usuários aplica o fix do scroll e envia os filtros corretos", async ({
   page,
 }) => {
   const consoleMessages: string[] = [];
@@ -275,7 +275,7 @@ test("admin usuarios aplica o fix do scroll e envia os filtros corretos", async 
     page.getByRole("heading", { name: "Produtores sem recebimento" }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Compradores sem endereco" }),
+    page.getByRole("heading", { name: "Compradores sem endereço" }),
   ).toBeVisible();
 
   const producerRequestPromise = page.waitForRequest(
@@ -293,7 +293,7 @@ test("admin usuarios aplica o fix do scroll e envia os filtros corretos", async 
     page.getByRole("heading", { name: "Produtores sem recebimento" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Compradores sem endereco" }),
+    page.getByRole("heading", { name: "Compradores sem endereço" }),
   ).toHaveCount(0);
 
   expect(
@@ -307,7 +307,7 @@ test("admin usuarios aplica o fix do scroll e envia os filtros corretos", async 
   ).toBe(false);
 });
 
-test("admin usuarios abre o drill-down da conta comercial", async ({
+test("admin usuários abre o drill-down da conta comercial", async ({
   page,
 }) => {
   await mockTenantOverviewPagination(page);
@@ -322,7 +322,7 @@ test("admin usuarios abre o drill-down da conta comercial", async ({
 
   await expect(page).toHaveURL(/\/admin\/usuarios\/[0-9a-f-]+$/i);
   await expect(
-    page.getByRole("link", { name: "Voltar para usuarios" }),
+    page.getByRole("link", { name: "Voltar para usuários" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pessoas" })).toBeVisible();
   await expect(
@@ -330,7 +330,7 @@ test("admin usuarios abre o drill-down da conta comercial", async ({
   ).toBeVisible();
 });
 
-test("admin usuarios carrega mais pessoas no drill-down", async ({ page }) => {
+test("admin usuários carrega mais pessoas no drill-down", async ({ page }) => {
   await mockTenantOverviewPagination(page);
   await mockBuyerTenantDetailPagination(page);
 
@@ -360,7 +360,7 @@ test("admin usuarios carrega mais pessoas no drill-down", async ({ page }) => {
   );
 });
 
-test("admin usuarios carrega mais contas no overview", async ({ page }) => {
+test("admin usuários carrega mais contas no overview", async ({ page }) => {
   await mockTenantOverviewPagination(page);
 
   await page.goto("/admin/usuarios");

@@ -60,14 +60,14 @@ test.describe.serial("fluxo core do comprador", () => {
     await authenticateBuyer(context, fixture);
   });
 
-  test("comprador navega no catalogo e visualiza os lotes publicados", async ({
+  test("comprador navega no catálogo e visualiza os lotes publicados", async ({
     page,
   }) => {
     await page.goto("/catalogo");
 
     await expect(page).toHaveURL(/\/catalogo$/i);
     await expect(
-      page.getByRole("heading", { name: "Catalogo Frescari" }),
+      page.getByRole("heading", { name: "Catálogo Frescari" }),
     ).toBeVisible();
     await expect(page.getByText("Lotes publicados hoje")).toBeVisible();
     await expect(
@@ -153,17 +153,17 @@ test.describe.serial("fluxo core do comprador", () => {
     expect(checkoutRequestBody).not.toContain(fixture.secondaryLotId);
   });
 
-  test("comprador acessa perfil e historico de pedidos nas rotas privadas", async ({
+  test("comprador acessa perfil e histórico de pedidos nas rotas privadas", async ({
     page,
   }) => {
     await page.goto("/dashboard/perfil");
 
     await expect(page).toHaveURL(/\/conta\/enderecos$/i);
     await expect(
-      page.getByRole("heading", { name: /^Enderecos$/i }),
+      page.getByRole("heading", { name: /^Endereços$/i }),
     ).toBeVisible();
     await expect(
-      page.getByText("Endereco padrao do checkout").first(),
+      page.getByText("Endereço padrão do checkout").first(),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: fixture.addressTitle }).first(),

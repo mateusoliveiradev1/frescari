@@ -66,7 +66,7 @@ export function ProducerOutreachActions({
     },
     onSuccess: async (_data, variables) => {
       toast.success(
-        variables.contacted ? "Marcado como contatado." : "Marcacao removida.",
+        variables.contacted ? "Marcado como contatado." : "Marcação removida.",
       );
       await utils.admin.getTenantOperationsOverview.invalidate();
       setOptimistic(null);
@@ -81,7 +81,7 @@ export function ProducerOutreachActions({
     <div className="mt-5 flex flex-col gap-3 rounded-[20px] border border-forest/10 bg-sage/25 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="space-y-1">
         <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-          Ativacao
+          Ativação
         </p>
         <p className="font-sans text-sm font-semibold text-soil">
           {OUTREACH_STAGE_LABELS[stage]}
@@ -89,10 +89,10 @@ export function ProducerOutreachActions({
         {stage === "payments" ? (
           <p className="font-sans text-xs text-bark/80">
             {!stripeStarted
-              ? "Ainda nao abriu o cadastro do Stripe."
+              ? "Ainda não abriu o cadastro do Stripe."
               : stripeMissingItems.length > 0
                 ? `Falta no Stripe: ${stripeMissingItems.join(", ")}.`
-                : "Cadastro do Stripe enviado; aguardando a analise do Stripe."}
+                : "Cadastro do Stripe enviado; aguardando a análise do Stripe."}
           </p>
         ) : null}
         <p className="font-sans text-xs text-bark/70">
@@ -101,7 +101,7 @@ export function ProducerOutreachActions({
                 day: "2-digit",
                 month: "short",
               })}`
-            : "Ainda nao contatado"}
+            : "Ainda não contatado"}
           {contactName ? ` · ${contactName}` : ""}
         </p>
       </div>
@@ -119,7 +119,7 @@ export function ProducerOutreachActions({
         ) : (
           <span className="font-sans text-xs text-bark/60">
             {phone
-              ? "Telefone invalido no cadastro"
+              ? "Telefone inválido no cadastro"
               : "Sem telefone no cadastro"}
           </span>
         )}

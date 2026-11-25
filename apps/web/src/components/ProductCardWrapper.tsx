@@ -44,14 +44,14 @@ export function ProductCardWrapper({
 
     if (accessState === "forbidden") {
       toast.error(
-        "Esta conta nao pode comprar. Entre com uma conta de comprador para continuar.",
+        "Esta conta não pode comprar. Entre com uma conta de comprador para continuar.",
       );
       return;
     }
 
     if (accessState === "error") {
       toast.error(
-        "Nao foi possivel validar sua sessao agora. Tente novamente.",
+        "Não foi possível validar sua sessão agora. Tente novamente.",
       );
       return;
     }

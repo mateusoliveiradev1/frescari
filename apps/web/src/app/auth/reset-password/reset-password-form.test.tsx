@@ -308,5 +308,5 @@ test("shows invalid-link state when the token is missing or invalid", async (con
     root.render(<ResetPasswordForm error="INVALID_TOKEN" token={null} />);
   });
 
-  assert.match(container.textContent ?? "", /Link invalido ou expirado\./i);
+  assert.match(container.textContent ?? "", /Link inválido ou expirado\./i);
 });

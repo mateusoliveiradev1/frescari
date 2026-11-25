@@ -8,7 +8,7 @@ import {
   getDefaultAccountPathForRole,
 } from "./account-sections";
 
-test("buyer sees perfil, cadastro, enderecos e seguranca", () => {
+test("buyer sees perfil, cadastro, endereços e segurança", () => {
   const sections = getAccountSectionsForRole("buyer");
 
   assert.deepEqual(
@@ -17,13 +17,13 @@ test("buyer sees perfil, cadastro, enderecos e seguranca", () => {
   );
   assert.deepEqual(
     sections.map((section) => section.label),
-    ["Perfil", "Empresa", "Enderecos", "Seguranca"],
+    ["Perfil", "Empresa", "Endereços", "Segurança"],
   );
   assert.equal(getDefaultAccountPathForRole("buyer"), "/conta/perfil");
   assert.equal(canAccessAccountSection("buyer", "enderecos"), true);
 });
 
-test("producer does not see enderecos", () => {
+test("producer does not see endereços", () => {
   const sections = getAccountSectionsForRole("producer");
 
   assert.deepEqual(
@@ -32,12 +32,12 @@ test("producer does not see enderecos", () => {
   );
   assert.deepEqual(
     sections.map((section) => section.label),
-    ["Perfil", "Negocio", "Seguranca"],
+    ["Perfil", "Negócio", "Segurança"],
   );
   assert.equal(canAccessAccountSection("producer", "enderecos"), false);
 });
 
-test("admin sees only perfil e seguranca", () => {
+test("admin sees only perfil e segurança", () => {
   const sections = getAccountSectionsForRole("admin");
 
   assert.deepEqual(

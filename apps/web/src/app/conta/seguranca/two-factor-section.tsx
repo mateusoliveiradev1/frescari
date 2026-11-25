@@ -52,7 +52,7 @@ export function TwoFactorSection({
     setPassword("");
     const data = result.data;
     if (result.error || !data || !("totpURI" in data)) {
-      toast.error("Senha incorreta ou nao foi possivel iniciar a ativacao.");
+      toast.error("Senha incorreta ou não foi possível iniciar a ativação.");
       return;
     }
     setStep({
@@ -71,10 +71,10 @@ export function TwoFactorSection({
     });
     setLoading(false);
     if (result.error) {
-      toast.error("Codigo invalido. Confira o app e tente de novo.");
+      toast.error("Código inválido. Confira o app e tente de novo.");
       return;
     }
-    toast.success("Verificacao em duas etapas ativada.");
+    toast.success("Verificação em duas etapas ativada.");
     window.location.reload();
   };
 
@@ -88,7 +88,7 @@ export function TwoFactorSection({
       toast.error("Senha incorreta.");
       return;
     }
-    toast.success("Verificacao em duas etapas desativada.");
+    toast.success("Verificação em duas etapas desativada.");
     window.location.reload();
   };
 
@@ -99,16 +99,16 @@ export function TwoFactorSection({
     >
       <div className="space-y-1">
         <h2 className="font-display text-2xl font-bold text-soil">
-          Verificacao em duas etapas
+          Verificação em duas etapas
         </h2>
         <p className="text-sm text-bark">
-          Alem da senha, o login pede um codigo de 6 digitos do app autenticador
-          no seu celular. Mesmo que alguem descubra sua senha, nao entra sem o
+          Além da senha, o login pede um código de 6 digitos do app autenticador
+          no seu celular. Mesmo que alguém descubra sua senha, não entra sem o
           celular.
         </p>
         {required && !enabled ? (
           <p className="rounded-sm border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-            Obrigatoria para administradores: ative para acessar o painel
+            Obrigatória para administradores: ative para acessar o painel
             administrativo.
           </p>
         ) : null}
@@ -119,7 +119,7 @@ export function TwoFactorSection({
           <p className="text-sm font-semibold text-forest">Ativada.</p>
           {required ? (
             <p className="text-xs text-bark/80">
-              Se desativar, voce perde o acesso ao painel administrativo ate
+              Se desativar, você perde o acesso ao painel administrativo até
               ativar de novo.
             </p>
           ) : null}
@@ -168,8 +168,8 @@ export function TwoFactorSection({
               No app autenticador, adicione uma conta com esta chave
             </p>
             <p className="text-xs text-bark/80">
-              No Google Authenticator: + &gt; Inserir chave de configuracao.
-              Nome: Frescari. Tipo: baseada em tempo. No celular, voce tambem
+              No Google Authenticator: + &gt; Inserir chave de configuração.
+              Nome: Frescari. Tipo: baseada em tempo. No celular, você também
               pode tocar em &quot;Abrir no app&quot;.
             </p>
             <code className="block select-all break-all rounded-sm bg-cream px-3 py-3 font-mono text-base tracking-wider text-soil">
@@ -185,10 +185,10 @@ export function TwoFactorSection({
 
           <div className="space-y-2">
             <p className="text-sm font-semibold text-soil">
-              Guarde estes codigos de backup
+              Guarde estes códigos de backup
             </p>
             <p className="text-xs text-bark/80">
-              Cada um entra uma vez se voce perder o celular. Guarde num lugar
+              Cada um entra uma vez se você perder o celular. Guarde num lugar
               seguro (gerenciador de senhas ou papel), fora deste computador.
             </p>
             <ul className="grid grid-cols-2 gap-2 rounded-sm bg-cream p-3 font-mono text-sm text-soil">
@@ -201,11 +201,11 @@ export function TwoFactorSection({
               onClick={() => {
                 void navigator.clipboard
                   .writeText(step.backupCodes.join("\n"))
-                  .then(() => toast.success("Codigos copiados."));
+                  .then(() => toast.success("Códigos copiados."));
               }}
               className="text-sm font-semibold text-forest hover:underline"
             >
-              Copiar codigos
+              Copiar códigos
             </button>
           </div>
 
@@ -214,7 +214,7 @@ export function TwoFactorSection({
               htmlFor="totp-confirm"
               className="text-sm font-semibold text-soil"
             >
-              Digite o codigo de 6 digitos que o app mostra
+              Digite o código de 6 digitos que o app mostra
             </label>
             <input
               id="totp-confirm"

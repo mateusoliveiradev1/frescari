@@ -42,7 +42,7 @@ after(() => {
   )._load = originalModuleLoad;
 });
 
-test("robots.txt blocks internal areas and advertises the sitemap", async () => {
+test("robots.txt blocks internal áreas and advertises the sitemap", async () => {
   const { GET } = await import("./route");
 
   const response = await GET();

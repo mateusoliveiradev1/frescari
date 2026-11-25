@@ -213,8 +213,8 @@ export function FarmMapClient({
       )}
     >
       <p className="sr-only" id="farm-map-instructions">
-        Arraste o pino para o local exato da sua porteira ou producao. Tambem e
-        possivel clicar no mapa para reposicionar o ponto.
+        Arraste o pino para o local exato da sua porteira ou produção. Também e
+        possível clicar no mapa para reposicionar o ponto.
       </p>
 
       <div className="border-b border-soil/8 bg-white/75 px-4 py-3">
@@ -223,7 +223,7 @@ export function FarmMapClient({
         </p>
         <p className="mt-1 text-sm leading-6 text-bark/75">
           Marque a porteira, o patio de carga ou o centro produtivo com
-          precisao.
+          precisão.
         </p>
       </div>
 
@@ -262,7 +262,7 @@ export function FarmMapClient({
             permanent
           >
             <span>
-              Arraste-me para o local exato da sua porteira / producao
+              Arraste-me para o local exato da sua porteira / produção
             </span>
           </Tooltip>
         </Marker>

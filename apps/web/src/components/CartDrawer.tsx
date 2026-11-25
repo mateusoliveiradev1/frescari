@@ -312,14 +312,14 @@ function FarmCheckoutSection({
     const minimum = getQuantityMin(item);
     const unclamped = normalizeQuantity(item, parsed, { clampMin: false });
     if (unclamped < minimum) {
-      toast.error(`A quantidade minima e ${getQuantityMinLabel(item)}.`);
+      toast.error(`A quantidade mínima e ${getQuantityMinLabel(item)}.`);
       return;
     }
 
     const safeQty = normalizeQuantity(item, parsed);
     if (parsed > getMaximumQuantity(item)) {
       toast.error(
-        "Quantidade acima do disponivel. Ajustamos para o maximo em estoque.",
+        "Quantidade acima do disponível. Ajustamos para o máximo em estoque.",
       );
     }
 
@@ -447,19 +447,19 @@ function FarmCheckoutSection({
     }
 
     if (!defaultAddress) {
-      toast.error("Cadastre um endereco padrao antes de concluir o pedido.");
+      toast.error("Cadastre um endereço padrão antes de concluir o pedido.");
       return;
     }
 
     if (!hasReachedMinimumOrder) {
       toast.error(
-        `Faltam ${formatCurrency(remainingForMinimumOrder)} para atingir o pedido minimo desta fazenda.`,
+        `Faltam ${formatCurrency(remainingForMinimumOrder)} para atingir o pedido mínimo desta fazenda.`,
       );
       return;
     }
 
     if (freightCost === null) {
-      toast.error("Aguarde o calculo do frete desta fazenda.");
+      toast.error("Aguarde o cálculo do frete desta fazenda.");
       return;
     }
 
@@ -625,15 +625,15 @@ function FarmCheckoutSection({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-soil">
-                    Compra por peso com transparencia
+                    Compra por peso com transparência
                   </p>
                   <CartInfoTooltip
-                    content="Itens vendidos por peso podem variar um pouco na separacao. O checkout reserva uma margem de 10 por cento para absorver a pesagem final, mas a cobranca considera apenas o peso real."
+                    content="Itens vendidos por peso podem variar um pouco na separação. O checkout reserva uma margem de 10 por cento para absorver a pesagem final, mas a cobrança considera apenas o peso real."
                     label="Entenda como funciona a compra por peso"
                   />
                 </div>
                 <p className="mt-1 text-xs leading-5 text-bark/80">
-                  O total abaixo continua estimado ate a pesagem final desta
+                  O total abaixo continua estimado até a pesagem final desta
                   fazenda.
                 </p>
                 {estimatedPreAuthorizationTotal !== null && (
@@ -642,7 +642,7 @@ function FarmCheckoutSection({
                       {`Estimativa atual: ${formatCurrency(total ?? 0)}`}
                     </span>
                     <span className="rounded-full border border-forest/10 bg-white px-3 py-1.5">
-                      {`Limite maximo reservado: ${formatCurrency(estimatedPreAuthorizationTotal)}`}
+                      {`Limite máximo reservado: ${formatCurrency(estimatedPreAuthorizationTotal)}`}
                     </span>
                   </div>
                 )}
@@ -680,7 +680,7 @@ function FarmCheckoutSection({
                       {formatCurrency(baseFreightCost)}
                     </span>
                   ) : null}
-                  <span>Gratis</span>
+                  <span>Grátis</span>
                 </span>
               ) : (
                 <span className="font-semibold text-soil">
@@ -688,18 +688,18 @@ function FarmCheckoutSection({
                 </span>
               )
             ) : (
-              <span className="font-semibold text-bark/65">Indisponivel</span>
+              <span className="font-semibold text-bark/65">Indisponível</span>
             )}
           </div>
           {minOrderValue > 0 && !hasReachedMinimumOrder ? (
             <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-              {`Faltam ${formatCurrency(remainingForMinimumOrder)} para atingir o pedido minimo de ${formatCurrency(minOrderValue)}.`}
+              {`Faltam ${formatCurrency(remainingForMinimumOrder)} para atingir o pedido mínimo de ${formatCurrency(minOrderValue)}.`}
             </div>
           ) : null}
           {freeShippingThreshold !== null ? (
             <div className="rounded-[18px] border border-forest/10 bg-sage/20 px-4 py-3">
               <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-bark/70">
-                <span>Frete Gratis</span>
+                <span>Frete Grátis</span>
                 <span>
                   {hasReachedFreeShipping
                     ? "Liberado"
@@ -727,18 +727,18 @@ function FarmCheckoutSection({
               </div>
               <p className="mt-2 text-sm text-bark/80">
                 {hasReachedFreeShipping
-                  ? "Frete gratis liberado para esta fazenda."
-                  : `Faltam ${formatCurrency(remainingForFreeShipping ?? 0)} para frete gratis.`}
+                  ? "Frete grátis liberado para esta fazenda."
+                  : `Faltam ${formatCurrency(remainingForFreeShipping ?? 0)} para frete grátis.`}
               </p>
             </div>
           ) : null}
           {hasWeightBasedItems && (
             <div className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2 text-bark">
-                Margem de pre-autorizacao (10%)
+                Margem de pré-autorização (10%)
                 <CartInfoTooltip
-                  content="Essa margem serve apenas para garantir a aprovacao do pagamento caso o peso real fique um pouco acima da estimativa. Se ela nao for usada, nao entra na cobranca final."
-                  label="Entenda a margem de pre-autorizacao"
+                  content="Essa margem serve apenas para garantir a aprovação do pagamento caso o peso real fique um pouco acima da estimativa. Se ela não for usada, não entra na cobrança final."
+                  label="Entenda a margem de pré-autorização"
                 />
               </span>
               <span className="font-semibold text-soil">
@@ -767,7 +767,7 @@ function FarmCheckoutSection({
             </div>
             {hasWeightBasedItems && total !== null && (
               <p className="mt-2 text-[11px] leading-5 text-bark/70">
-                O valor final sera confirmado apos a pesagem exata dos itens
+                O valor final será confirmado após a pesagem exata dos itens
                 desta fazenda.
               </p>
             )}
@@ -776,13 +776,13 @@ function FarmCheckoutSection({
 
         {isOutOfRange ? (
           <p className="mt-4 rounded-[18px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            Endereco fora da area de entrega
+            Endereço fora da área de entrega
           </p>
         ) : null}
 
         {!isOutOfRange && freightQuery.isError ? (
           <p className="mt-4 rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-3 text-sm font-medium text-bark/80">
-            Nao foi possivel calcular o frete desta fazenda agora.
+            Não foi possível calcular o frete desta fazenda agora.
           </p>
         ) : null}
 
@@ -921,7 +921,7 @@ export function CartDrawer() {
                       Carrinho vazio
                     </p>
                     <p className="mt-3 font-sans text-sm leading-6 text-bark/72">
-                      Explore o catalogo para montar pedidos por fazenda com
+                      Explore o catálogo para montar pedidos por fazenda com
                       frete e total calculados de forma transparente.
                     </p>
                     <Button
@@ -930,7 +930,7 @@ export function CartDrawer() {
                       variant="primary"
                     >
                       <Link href="/catalogo" onClick={() => setIsOpen(false)}>
-                        Ir para o catalogo
+                        Ir para o catálogo
                       </Link>
                     </Button>
                   </div>
@@ -955,7 +955,7 @@ export function CartDrawer() {
                           <>
                             {savedAddresses.length > 1 ? (
                               <select
-                                aria-label="Endereco de entrega"
+                                aria-label="Endereço de entrega"
                                 className="mt-2 w-full rounded-[14px] border border-forest/15 bg-cream px-3 py-2 text-sm font-semibold text-soil focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20"
                                 onChange={(event) =>
                                   chooseAddress(event.target.value)
@@ -965,7 +965,7 @@ export function CartDrawer() {
                                 {savedAddresses.map((address) => (
                                   <option key={address.id} value={address.id}>
                                     {address.title}
-                                    {address.isDefault ? " (padrao)" : ""}
+                                    {address.isDefault ? " (padrão)" : ""}
                                   </option>
                                 ))}
                               </select>
@@ -982,13 +982,13 @@ export function CartDrawer() {
                               href="/conta/enderecos"
                               onClick={() => setIsOpen(false)}
                             >
-                              Gerenciar enderecos
+                              Gerenciar endereços
                             </Link>
                           </>
                         ) : isBuyerSignedIn ? (
                           <div className="mt-3 space-y-3">
                             <p className="font-sans text-sm leading-6 text-bark/80">
-                              Cadastre um endereco padrao para liberar o frete
+                              Cadastre um endereço padrão para liberar o frete
                               por fazenda.
                             </p>
                             <Button asChild size="sm">
@@ -996,7 +996,7 @@ export function CartDrawer() {
                                 href="/conta/enderecos"
                                 onClick={() => setIsOpen(false)}
                               >
-                                Cadastrar Endereco de Entrega
+                                Cadastrar Endereço de Entrega
                               </Link>
                             </Button>
                           </div>
@@ -1007,7 +1007,7 @@ export function CartDrawer() {
                         ) : (
                           <div className="mt-2 space-y-3">
                             <p className="font-sans text-sm leading-6 text-bark/80">
-                              Entre ou crie sua conta gratis para calcular o
+                              Entre ou crie sua conta grátis para calcular o
                               frete e fechar o pedido. Seu carrinho fica salvo.
                             </p>
                             <div className="flex flex-wrap gap-2">
@@ -1055,7 +1055,7 @@ export function CartDrawer() {
                   <p className="font-sans text-sm leading-6 text-bark/80">
                     {farmGroups.length} fazenda
                     {farmGroups.length > 1 ? "s" : ""} no carrinho. Cada pedido
-                    fecha separadamente para manter frete e operacao claros.
+                    fecha separadamente para manter frete e operação claros.
                   </p>
                   <Button
                     className="rounded-[16px]"

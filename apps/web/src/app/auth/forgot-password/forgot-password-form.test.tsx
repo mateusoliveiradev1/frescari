@@ -217,7 +217,7 @@ test("shows a local-log message when email delivery is unavailable", async (cont
   assert.match(container.textContent ?? "", /Ambiente local/i);
   assert.match(
     container.textContent ?? "",
-    /O envio por e-mail nao esta configurado neste ambiente\./i,
+    /O envio por e-mail não esta configurado neste ambiente\./i,
   );
   assert.doesNotMatch(
     container.textContent ?? "",
@@ -271,6 +271,6 @@ test("maps invalid email errors without breaking the generic flow", async (conte
 
   assert.match(
     container.textContent ?? "",
-    /Use um email valido para receber o link\./i,
+    /Use um email válido para receber o link\./i,
   );
 });

@@ -96,7 +96,7 @@ function StatusAlert({
       <p
         className={`font-sans text-[10px] font-bold uppercase tracking-[0.18em] ${eyebrowTone}`}
       >
-        {tone === "error" ? "Nao foi possivel criar a conta" : "Conta criada"}
+        {tone === "error" ? "Não foi possível criar a conta" : "Conta criada"}
       </p>
       <p className="mt-2 font-sans text-sm leading-6">{message}</p>
     </div>
@@ -106,7 +106,7 @@ function StatusAlert({
 export function RegisterForm() {
   const router = useRouter();
   const genericRegisterError =
-    "Nao foi possivel concluir o cadastro agora. Revise os dados e tente novamente.";
+    "Não foi possível concluir o cadastro agora. Revise os dados e tente novamente.";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -121,7 +121,7 @@ export function RegisterForm() {
     {
       key: "min-length",
       met: passwordCriteria.hasMinLength,
-      text: `Minimo de ${PASSWORD_MIN_LENGTH} caracteres`,
+      text: `Mínimo de ${PASSWORD_MIN_LENGTH} caracteres`,
     },
     {
       key: "uppercase",
@@ -136,7 +136,7 @@ export function RegisterForm() {
     {
       key: "number",
       met: passwordCriteria.hasNumber,
-      text: "Numero",
+      text: "Número",
     },
   ];
   const canSubmit =
@@ -194,7 +194,7 @@ export function RegisterForm() {
         onError: (context) => {
           const code = context.error.code ?? "";
           const messageMap: Record<string, string> = {
-            INVALID_EMAIL: "Use um email valido para continuar.",
+            INVALID_EMAIL: "Use um email válido para continuar.",
             PASSWORD_TOO_SHORT: `A senha precisa ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`,
             WEAK_PASSWORD: PASSWORD_POLICY_MESSAGE,
             TOO_MANY_REQUESTS:
@@ -202,7 +202,7 @@ export function RegisterForm() {
             [LEGAL_CONSENT_REQUIRED_CODE]:
               "Para criar a conta, aceite os documentos juridicos da plataforma.",
             [LEGAL_VERSION_MISMATCH_CODE]:
-              "Os documentos juridicos foram atualizados. Recarregue a pagina e confirme novamente.",
+              "Os documentos juridicos foram atualizados. Recarregue a página e confirme novamente.",
           };
 
           setError(messageMap[code] || genericRegisterError);
@@ -230,7 +230,7 @@ export function RegisterForm() {
               <div className="max-w-[35rem] space-y-8">
                 <div className="space-y-4">
                   <h2 className="max-w-[30rem] font-display text-5xl font-black italic leading-[0.92] tracking-[-0.05em] text-cream xl:text-[4.4rem]">
-                    Seu acesso comeca aqui.
+                    Seu acesso começa aqui.
                   </h2>
                   <p className="max-w-[30rem] font-sans text-base leading-7 text-sage/78">
                     Crie sua conta, confirme o email e entre na plataforma com
@@ -241,7 +241,7 @@ export function RegisterForm() {
                 <div className="rounded-[30px] border border-white/12 bg-white/7 px-6 py-6 shadow-[0_30px_70px_-44px_rgba(0,0,0,0.6)] backdrop-blur-sm">
                   <div className="border-b border-white/10 pb-4">
                     <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-sage/64">
-                      O que voce encontra aqui
+                      O que você encontra aqui
                     </p>
                     <p className="mt-2 font-sans text-sm leading-6 text-cream">
                       Um cadastro direto, com o essencial para entrar bem.
@@ -252,15 +252,15 @@ export function RegisterForm() {
                     {[
                       [
                         "Preencha o essencial",
-                        "Nome, email e senha segura em uma unica etapa objetiva.",
+                        "Nome, email e senha segura em uma única etapa objetiva.",
                       ],
                       [
                         "Confirme seu email",
-                        "A verificacao protege o acesso e deixa a entrada mais segura.",
+                        "A verificação protege o acesso e deixa a entrada mais segura.",
                       ],
                       [
                         "Entre na plataforma",
-                        "Depois da confirmacao, sua conta fica pronta para seguir.",
+                        "Depois da confirmação, sua conta fica pronta para seguir.",
                       ],
                     ].map(([title, copy]) => (
                       <div className="flex gap-4" key={title}>
@@ -281,7 +281,7 @@ export function RegisterForm() {
                 <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-sm">
                   <span className="h-2.5 w-2.5 rounded-full bg-sage" />
                   <p className="font-sans text-xs leading-5 text-sage/76">
-                    A confirmacao por email libera o acesso com mais seguranca.
+                    A confirmação por email libera o acesso com mais segurança.
                   </p>
                 </div>
               </div>
@@ -397,7 +397,7 @@ export function RegisterForm() {
                       <PasswordRequirements items={passwordRequirementItems} />
                     ) : (
                       <p className="px-1 font-sans text-xs leading-5 text-bark/62">
-                        Use uma senha unica para sua conta.
+                        Use uma senha única para sua conta.
                       </p>
                     )}
                   </div>
@@ -421,7 +421,7 @@ export function RegisterForm() {
                           className="font-sans text-sm leading-6 text-bark/82"
                           htmlFor="accept-legal"
                         >
-                          Ao criar a conta, voce confirma que leu e aceita os
+                          Ao criar a conta, você confirma que leu e aceita os
                           documentos essenciais da Frescari.
                         </label>
                         <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -439,7 +439,7 @@ export function RegisterForm() {
                         </div>
                         <details className="rounded-[18px] border border-soil/10 bg-white/60 px-4 py-3">
                           <summary className="cursor-pointer font-sans text-[11px] font-bold uppercase tracking-[0.14em] text-bark/72">
-                            Ver politicas complementares
+                            Ver políticas complementares
                           </summary>
                           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
                             {complementaryLegalLinks.map((item) => (
@@ -476,7 +476,7 @@ export function RegisterForm() {
 
               <div className="mt-6 flex flex-col gap-2 border-t border-soil/10 pt-5 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
                 <p className="font-sans text-sm leading-6 text-bark/74">
-                  Ja possui uma conta?
+                  Já possui uma conta?
                 </p>
                 <Link
                   className="font-sans text-sm font-bold text-forest underline-offset-4 transition-[color] hover:text-soil hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"

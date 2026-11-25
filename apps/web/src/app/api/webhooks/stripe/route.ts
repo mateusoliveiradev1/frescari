@@ -344,7 +344,7 @@ export async function POST(req: NextRequest) {
 
           if (!targetOrder) {
             throw new Error(
-              `Pedido ${orderId} nao encontrado para atualizacao do webhook.`,
+              `Pedido ${orderId} não encontrado para atualização do webhook.`,
             );
           }
 
@@ -514,7 +514,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   if (!resolvedDeliveryPoint) {
     throw new Error(
-      `[WEBHOOK] Nao foi possivel determinar delivery_point para a sessao ${session.id}.`,
+      `[WEBHOOK] Não foi possível determinar delivery_point para a sessão ${session.id}.`,
     );
   }
 
@@ -589,7 +589,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
         if (fetchedLots.length !== lockedFlowLotIds.length) {
           throw new Error(
-            `[WEBHOOK] Um ou mais lotes nao foram encontrados para IDs: ${lockedFlowLotIds.join(", ")}`,
+            `[WEBHOOK] Um ou mais lotes não foram encontrados para IDs: ${lockedFlowLotIds.join(", ")}`,
           );
         }
 
@@ -600,13 +600,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
           if (!lotData) {
             throw new Error(
-              `[WEBHOOK] Lote ${item.lotId} nao encontrado no banco.`,
+              `[WEBHOOK] Lote ${item.lotId} não encontrado no banco.`,
             );
           }
 
           if (Number(lotData.availableQty) < item.qty) {
             throw new InsufficientStockError(
-              `[WEBHOOK] Estoque insuficiente para o lote ${item.lotId}. Disponivel=${lotData.availableQty}, solicitado=${item.qty}.`,
+              `[WEBHOOK] Estoque insuficiente para o lote ${item.lotId}. Disponível=${lotData.availableQty}, solicitado=${item.qty}.`,
             );
           }
 
@@ -672,7 +672,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           } catch (error) {
             if (isPgUniqueViolation(error)) {
               throw new DuplicateCheckoutSessionError(
-                `Sessao ${session.id} ja persistida para o vendedor ${sellerId}.`,
+                `Sessão ${session.id} já persistida para o vendedor ${sellerId}.`,
               );
             }
 
@@ -908,7 +908,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         } catch (error) {
           if (isPgUniqueViolation(error)) {
             throw new DuplicateCheckoutSessionError(
-              `Sessao ${session.id} ja persistida para o vendedor ${sellerId}.`,
+              `Sessão ${session.id} já persistida para o vendedor ${sellerId}.`,
             );
           }
 

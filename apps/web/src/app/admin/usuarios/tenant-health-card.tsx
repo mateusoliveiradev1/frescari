@@ -67,7 +67,7 @@ export function TenantHealthCard({ tenant }: TenantHealthCardProps) {
 
         <div className="min-w-[12rem] space-y-2">
           <div className="flex items-center justify-between font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-bark/58">
-            <span>Prontidao</span>
+            <span>Prontidão</span>
             <span>{tenant.progressPercent}%</span>
           </div>
           <div className="h-2 rounded-full bg-cream-dark">
@@ -98,7 +98,7 @@ export function TenantHealthCard({ tenant }: TenantHealthCardProps) {
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-[20px] border border-forest/10 bg-cream/45 px-4 py-4">
           <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-            Usuarios
+            Usuários
           </p>
           <p className="mt-2 font-display text-2xl font-black tracking-[-0.04em] text-soil">
             {tenant.userCount}
@@ -106,7 +106,7 @@ export function TenantHealthCard({ tenant }: TenantHealthCardProps) {
         </div>
         <div className="rounded-[20px] border border-forest/10 bg-cream/45 px-4 py-4">
           <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-            {isProducer ? "Fazendas" : "Enderecos"}
+            {isProducer ? "Fazendas" : "Endereços"}
           </p>
           <p className="mt-2 font-display text-2xl font-black tracking-[-0.04em] text-soil">
             {isProducer ? tenant.farmCount : tenant.addressCount}

@@ -41,14 +41,14 @@ export function DeliveryWindowPicker({
           <div className="h-10 animate-pulse rounded-[14px] bg-forest/5" />
         ) : isError ? (
           <p className="text-sm text-red-700">
-            Nao foi possivel carregar as janelas de entrega. Tente reabrir o
+            Não foi possível carregar as janelas de entrega. Tente reabrir o
             carrinho.
           </p>
         ) : slots.length === 0 ? (
           <p className="rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             {weighed
-              ? "Itens vendidos por peso precisam ser entregues em ate 6 dias, e este produtor nao tem entregas nesse prazo."
-              : "Este produtor nao tem entregas disponiveis nas proximas 2 semanas."}
+              ? "Itens vendidos por peso precisam ser entregues em até 6 dias, e este produtor não tem entregas nesse prazo."
+              : "Este produtor não tem entregas disponíveis nas próximas 2 semanas."}
           </p>
         ) : (
           <select
@@ -66,8 +66,8 @@ export function DeliveryWindowPicker({
         )}
         {weighed && slots.length > 0 ? (
           <p className="text-xs text-bark/70">
-            Itens por peso: entrega em ate 6 dias. O valor final e cobrado
-            depois da pesagem, e a reserva no cartao vale 7 dias.
+            Itens por peso: entrega em até 6 dias. O valor final e cobrado
+            depois da pesagem, e a reserva no cartão vale 7 dias.
           </p>
         ) : null}
       </div>
@@ -77,7 +77,7 @@ export function DeliveryWindowPicker({
           htmlFor={notesId}
           className="block font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/60"
         >
-          Observacoes para a entrega (opcional)
+          Observações para a entrega (opcional)
         </label>
         <input
           id={notesId}

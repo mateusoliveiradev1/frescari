@@ -130,8 +130,8 @@ export function OnboardingClient() {
             Bem-vindo ao Frescari
           </h1>
           <p className="font-sans text-sm text-bark mt-2 max-w-md mx-auto">
-            Para comecar, escolha seu perfil e preencha apenas o minimo
-            necessario para liberar sua conta.
+            Para começar, escolha seu perfil e preencha apenas o mínimo
+            necessário para liberar sua conta.
           </p>
         </div>
 
@@ -264,7 +264,7 @@ export function OnboardingClient() {
               <div className="rounded-lg border border-forest/15 bg-forest/5 px-4 py-3">
                 <p className="font-sans text-xs text-bark">
                   Primeiro coletamos seus dados basicos. Banco, documentos e
-                  exigencias regulatorias ficam para a proxima etapa de
+                  exigências regulatorias ficam para a próxima etapa de
                   recebimento.
                 </p>
               </div>
@@ -287,7 +287,7 @@ export function OnboardingClient() {
                           : "border-soil/10 bg-white text-soil hover:border-forest/40"
                       }`}
                     >
-                      {option === "PF" ? "Pessoa fisica" : "Pessoa juridica"}
+                      {option === "PF" ? "Pessoa física" : "Pessoa jurídica"}
                     </button>
                   ))}
                 </div>
@@ -299,7 +299,7 @@ export function OnboardingClient() {
                     htmlFor="producerPublicName"
                     className="block font-sans text-xs font-bold uppercase tracking-wider text-bark"
                   >
-                    Nome publico da fazenda / marca
+                    Nome público da fazenda / marca
                   </label>
                   <input
                     id="producerPublicName"
@@ -308,7 +308,7 @@ export function OnboardingClient() {
                     onChange={(event) =>
                       updateProducerField("publicName", event.target.value)
                     }
-                    placeholder="Ex: Fazenda Sao Joao"
+                    placeholder="Ex: Fazenda São Joao"
                     className={inputClassName}
                     autoFocus
                     required
@@ -333,7 +333,7 @@ export function OnboardingClient() {
                     }
                     placeholder={
                       producerForm.legalEntityType === "PJ"
-                        ? "Ex: Sao Joao Hortifruti Ltda"
+                        ? "Ex: São Joao Hortifruti Ltda"
                         : "Ex: Maria Aparecida Silva"
                     }
                     className={inputClassName}
@@ -374,7 +374,7 @@ export function OnboardingClient() {
                     htmlFor="producerContactName"
                     className="block font-sans text-xs font-bold uppercase tracking-wider text-bark"
                   >
-                    Responsavel principal
+                    Responsável principal
                   </label>
                   <input
                     id="producerContactName"

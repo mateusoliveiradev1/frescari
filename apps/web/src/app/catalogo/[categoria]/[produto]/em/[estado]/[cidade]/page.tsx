@@ -51,7 +51,7 @@ export async function generateMetadata({
 
   if (!data) {
     return {
-      title: "Rota local nao encontrada | Frescari",
+      title: "Rota local não encontrada | Frescari",
     };
   }
 
@@ -177,7 +177,7 @@ export default async function ProductRegionPage({
       {
         "@type": "ListItem",
         position: 1,
-        name: "Catalogo",
+        name: "Catálogo",
         item: `${getSiteUrl()}/catalogo`,
       },
       {
@@ -227,7 +227,7 @@ export default async function ProductRegionPage({
             href="/catalogo"
             className="transition-colors hover:text-forest"
           >
-            Catalogo
+            Catálogo
           </Link>
           <span>/</span>
           <Link
@@ -254,7 +254,7 @@ export default async function ProductRegionPage({
             <div className="inline-flex items-center gap-2 rounded-full border border-forest/20 bg-forest/10 px-3 py-1.5">
               <span className="h-2 w-2 rounded-full bg-forest" />
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-forest">
-                Produto + regiao com densidade valida
+                Produto + região com densidade valida
               </span>
             </div>
 
@@ -271,7 +271,7 @@ export default async function ProductRegionPage({
                 href={data.product.path}
                 className="rounded-full border border-soil/10 bg-white px-3 py-1.5 text-sm text-bark shadow-sm transition-colors hover:text-forest"
               >
-                Ver pagina do produto
+                Ver página do produto
               </Link>
               <Link
                 href={categoryRegionPath}
@@ -291,13 +291,13 @@ export default async function ProductRegionPage({
           <aside className="grid gap-4 rounded-[28px] border border-soil/10 bg-white/75 p-6 shadow-sm backdrop-blur">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
-                Faixa de preco local
+                Faixa de preço local
               </p>
               <p className="mt-2 font-display text-4xl font-black text-soil">
                 {formatCurrencyBRL(data.region.lowestPrice)}
               </p>
               <p className="mt-1 text-sm text-bark/70">
-                ate {formatCurrencyBRL(data.region.highestPrice)}/
+                até {formatCurrencyBRL(data.region.highestPrice)}/
                 {data.region.saleUnit}
               </p>
             </div>

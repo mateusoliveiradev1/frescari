@@ -5,9 +5,9 @@ import { buildNoIndexMetadata, buildSeoMetadata, getHomeJsonLd } from "./seo";
 
 test("buildSeoMetadata adds canonical, robots and social preview defaults", () => {
   const metadata = buildSeoMetadata({
-    description: "Catalogo vivo de oferta local",
+    description: "Catálogo vivo de oferta local",
     path: "/catalogo",
-    title: "Catalogo | Frescari",
+    title: "Catálogo | Frescari",
   });
   const robots = metadata.robots;
 
@@ -25,7 +25,7 @@ test("buildSeoMetadata adds canonical, robots and social preview defaults", () =
 
 test("buildNoIndexMetadata disables indexing and link following", () => {
   const metadata = buildNoIndexMetadata({
-    description: "Area autenticada",
+    description: "Área autenticada",
     path: "/auth/login",
     title: "Acesso | Frescari",
   });

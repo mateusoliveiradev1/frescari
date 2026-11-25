@@ -116,9 +116,9 @@ export default function PedidosPage() {
       onSuccess: (result) => {
         toast.success(
           result?.payment === "refunded"
-            ? "Pedido cancelado. O estorno foi solicitado e costuma aparecer na fatura em 5 a 10 dias uteis."
+            ? "Pedido cancelado. O estorno foi solicitado e costuma aparecer na fatura em 5 a 10 dias úteis."
             : result?.payment === "voided"
-              ? "Pedido cancelado. A cobranca no seu cartao foi cancelada."
+              ? "Pedido cancelado. A cobrança no seu cartão foi cancelada."
               : "Pedido cancelado.",
         );
         setIsConfirmingCancel(false);
@@ -163,22 +163,22 @@ export default function PedidosPage() {
 
       if (items.length === 0) {
         toast.error(
-          `Os produtos do pedido ${displayId} nao estao mais disponiveis.`,
+          `Os produtos do pedido ${displayId} não estão mais disponíveis.`,
         );
       } else if (unavailableCount > 0) {
         toast.warning(
-          `${items.length} ${items.length === 1 ? "item adicionado" : "itens adicionados"} ao carrinho. ${unavailableCount} ${unavailableCount === 1 ? "nao esta mais disponivel" : "nao estao mais disponiveis"}.`,
+          `${items.length} ${items.length === 1 ? "item adicionado" : "itens adicionados"} ao carrinho. ${unavailableCount} ${unavailableCount === 1 ? "não esta mais disponível" : "não estão mais disponíveis"}.`,
         );
       } else {
         toast.success(
-          `Itens do pedido ${displayId} adicionados ao carrinho, com o preco de hoje.`,
+          `Itens do pedido ${displayId} adicionados ao carrinho, com o preço de hoje.`,
         );
       }
     } catch (error) {
       toast.error(
         error instanceof Error && error.message
           ? error.message
-          : "Nao foi possivel refazer o pedido.",
+          : "Não foi possível refazer o pedido.",
       );
     } finally {
       setRepeatingOrderId(null);
@@ -493,7 +493,7 @@ export default function PedidosPage() {
                       ) : (
                         <div className="animate-in slide-in-from-bottom-2 fade-in duration-300 flex flex-col gap-3">
                           <p className="text-sm font-medium text-forest text-center">
-                            Cancelar o pedido? O valor pago volta para voce.
+                            Cancelar o pedido? O valor pago volta para você.
                           </p>
                           <div className="flex items-center gap-3">
                             <button

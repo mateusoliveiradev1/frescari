@@ -124,33 +124,33 @@ export function AdminOverview({
       value: formatCompactNumber(dashboard.kpis.ordersInWindow),
     },
     {
-      copy: "Valor bruto vendido na janela para leitura rapida do momento.",
+      copy: "Valor bruto vendido na janela para leitura rápida do momento.",
       icon: BarChart3,
       label: "Venda bruta na janela",
       value: formatCurrency(dashboard.kpis.gmvInWindow),
     },
     {
-      copy: "Produtores com lotes validos e saldo disponivel agora.",
+      copy: "Produtores com lotes validos e saldo disponível agora.",
       icon: Sprout,
       label: "Produtores com estoque",
       value: formatCompactNumber(dashboard.kpis.activeProducerTenants),
     },
     {
-      copy: "Compradores com pedidos ativos no periodo selecionado.",
+      copy: "Compradores com pedidos ativos no período selecionado.",
       icon: Users,
       label: "Compradores ativos",
       value: formatCompactNumber(dashboard.kpis.activeBuyersInWindow),
     },
     {
-      copy: "Lotes vivos no catalogo, sem expiracao e com saldo positivo.",
+      copy: "Lotes vivos no catálogo, sem expiração e com saldo positivo.",
       icon: Boxes,
-      label: "Lotes disponiveis",
+      label: "Lotes disponíveis",
       value: formatCompactNumber(dashboard.kpis.activeLots),
     },
     {
-      copy: "Itens com lacuna de cadastro, imagem ou expiracao com saldo.",
+      copy: "Itens com lacuna de cadastro, imagem ou expiração com saldo.",
       icon: AlertTriangle,
-      label: "Alertas de catalogo",
+      label: "Alertas de catálogo",
       value: formatCompactNumber(dashboard.kpis.catalogAlerts),
     },
   ];
@@ -160,13 +160,13 @@ export function AdminOverview({
       <section className="overflow-hidden rounded-[34px] border border-forest/10 bg-[radial-gradient(circle_at_top_left,_rgba(213,229,216,0.9),_rgba(248,245,237,0.96)_45%,_rgba(255,255,255,1)_100%)] p-6 shadow-[0_30px_80px_-56px_rgba(13,51,33,0.58)] sm:p-8">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl space-y-4">
-            <Badge variant="secondary">visao geral da operacao</Badge>
+            <Badge variant="secondary">visão geral da operação</Badge>
             <div className="space-y-3">
               <h1 className="font-display text-4xl font-black tracking-[-0.06em] text-soil sm:text-5xl">
-                A operacao da Frescari em uma tela.
+                A operação da Frescari em uma tela.
               </h1>
               <p className="max-w-2xl font-sans text-sm leading-7 text-bark/76 sm:text-base">
-                Pedidos, catalogo, produtores e compradores aparecem juntos para
+                Pedidos, catálogo, produtores e compradores aparecem juntos para
                 decidir onde agir primeiro.
               </p>
             </div>
@@ -260,7 +260,7 @@ export function AdminOverview({
               <div className="space-y-2">
                 <CardTitle className="text-soil">Ritmo operacional</CardTitle>
                 <CardDescription>
-                  Tendencia da janela selecionada para pedidos, venda bruta e
+                  Tendência da janela selecionada para pedidos, venda bruta e
                   entrada de produtores.
                 </CardDescription>
               </div>
@@ -285,16 +285,16 @@ export function AdminOverview({
 
         <Card className={metricCardClassName}>
           <CardHeader className="border-b border-forest/6 bg-cream/45">
-            <CardTitle className="text-soil">Leitura de atencao</CardTitle>
+            <CardTitle className="text-soil">Leitura de atenção</CardTitle>
             <CardDescription>
-              O que pede acao agora, sem precisar navegar o painel inteiro.
+              O que pede ação agora, sem precisar navegar o painel inteiro.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
             {[
               {
                 copy: "Pedidos aguardando peso, picking ou entrega.",
-                label: "Operacao",
+                label: "Operação",
                 value: dashboard.attention.operationalOrders,
               },
               {
@@ -304,7 +304,7 @@ export function AdminOverview({
               },
               {
                 copy: `${dashboard.catalogBreakdown.productsWithoutMaster} produtos sem cadastro base, ${dashboard.catalogBreakdown.masterProductsWithoutImage} produtos base sem imagem e ${dashboard.catalogBreakdown.expiredLotsWithStock} lotes vencidos com saldo.`,
-                label: "Catalogo",
+                label: "Catálogo",
                 value: dashboard.attention.catalogAlerts,
               },
             ].map((item) => (
@@ -330,10 +330,10 @@ export function AdminOverview({
 
             <div className="grid gap-3 pt-2 sm:grid-cols-2">
               <Button asChild variant="primary">
-                <Link href="/admin/catalogo">Abrir catalogo base</Link>
+                <Link href="/admin/catalogo">Abrir catálogo base</Link>
               </Button>
               <Button asChild variant="ghost">
-                <Link href="/catalogo">Ver catalogo publico</Link>
+                <Link href="/catalogo">Ver catálogo público</Link>
               </Button>
             </div>
           </CardContent>
@@ -375,7 +375,7 @@ export function AdminOverview({
               ))
             ) : (
               <div className="rounded-[22px] border border-dashed border-forest/14 bg-cream/40 px-4 py-6 font-sans text-sm leading-6 text-bark/68">
-                Nenhum pedido precisa de acao manual agora.
+                Nenhum pedido precisa de ação manual agora.
               </div>
             )}
           </CardContent>
@@ -385,7 +385,7 @@ export function AdminOverview({
           <CardHeader className="border-b border-forest/6 bg-cream/45">
             <CardTitle className="text-soil">Produtores em preparo</CardTitle>
             <CardDescription>
-              Produtores que ainda precisam completar a base minima para vender.
+              Produtores que ainda precisam completar a base mínima para vender.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-6">
@@ -413,7 +413,7 @@ export function AdminOverview({
 
         <Card className={metricCardClassName}>
           <CardHeader className="border-b border-forest/6 bg-cream/45">
-            <CardTitle className="text-soil">Pontos de catalogo</CardTitle>
+            <CardTitle className="text-soil">Pontos de catálogo</CardTitle>
             <CardDescription>
               Itens que merecem ajuste antes de aparecerem mal para o comprador.
             </CardDescription>
@@ -441,7 +441,7 @@ export function AdminOverview({
               ))
             ) : (
               <div className="rounded-[22px] border border-dashed border-forest/14 bg-cream/40 px-4 py-6 font-sans text-sm leading-6 text-bark/68">
-                Nenhuma ruptura de catalogo relevante apareceu nesta leitura.
+                Nenhuma ruptura de catálogo relevante apareceu nesta leitura.
               </div>
             )}
           </CardContent>

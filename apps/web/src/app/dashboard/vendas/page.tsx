@@ -220,7 +220,7 @@ export default function VendasPage() {
       onSuccess: (data) => {
         toast.success(
           data?.payment === "voided"
-            ? "Pedido cancelado. A reserva no cartao do comprador foi liberada."
+            ? "Pedido cancelado. A reserva no cartão do comprador foi liberada."
             : "Pedido cancelado. O valor foi estornado ao comprador.",
         );
         void utils.order.listReceivedOrders.invalidate();
@@ -233,7 +233,7 @@ export default function VendasPage() {
   const handleCancelAsSeller = (orderId: string) => {
     if (
       !window.confirm(
-        "Cancelar este pedido? O comprador recebe o valor de volta e o estoque volta para o lote. Isso nao pode ser desfeito.",
+        "Cancelar este pedido? O comprador recebe o valor de volta e o estoque volta para o lote. Isso não pode ser desfeito.",
       )
     ) {
       return;

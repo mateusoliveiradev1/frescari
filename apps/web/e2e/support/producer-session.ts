@@ -119,7 +119,7 @@ function makeFutureDate(hoursFromNow) {
   });
 
   if (!producerUser) {
-    throw new Error("Nao foi possivel localizar o usuario produtor recem-criado.");
+    throw new Error("Não foi possível localizar o usuário produtor recem-criado.");
   }
 
   const result = await authDb.transaction(async (tx) => {
@@ -155,7 +155,7 @@ function makeFutureDate(hoursFromNow) {
         .insert(farms)
         .values({
           tenantId: producerTenant.id,
-          name: "Sitio Horizonte E2E",
+          name: "Sítio Horizonte E2E",
           address: {
             street: "Estrada do Campo",
             number: "1200",
@@ -188,7 +188,7 @@ function makeFutureDate(hoursFromNow) {
           capacityKg: "900.000",
           refrigeration: true,
           availabilityStatus: "available",
-          notes: "Veiculo seeded para a mesa logistica.",
+          notes: "Veículo seeded para a mesa logística.",
         })
         .returning({ id: farmVehicles.id });
 
@@ -212,7 +212,7 @@ function makeFutureDate(hoursFromNow) {
         .insert(masterProducts)
         .values({
           name: \`Tomate E2E \${suffix}\`,
-          category: "Hortalicas",
+          category: "Hortaliças",
           pricingType: "WEIGHT",
         })
         .returning({ id: masterProducts.id });
@@ -278,10 +278,10 @@ function makeFutureDate(hoursFromNow) {
             deliveryStreet: "Rua das Palmeiras",
             deliveryNumber: String(45 + index),
             deliveryCep: "01010-000",
-            deliveryCity: "Sao Paulo",
+            deliveryCity: "São Paulo",
             deliveryState: "SP",
-            deliveryAddress: \`Rua das Palmeiras, \${45 + index} - Sao Paulo/SP\`,
-            deliveryNotes: "Receber ate as 10h",
+            deliveryAddress: \`Rua das Palmeiras, \${45 + index} - São Paulo/SP\`,
+            deliveryNotes: "Receber até as 10h",
             deliveryPoint: {
               type: "Point",
               coordinates: [-46.6503 - index * 0.002, -23.5631 - index * 0.0015],
@@ -310,7 +310,7 @@ function makeFutureDate(hoursFromNow) {
 
       if (options.seedConfirmedDispatch) {
         if (!seededVehicleId) {
-          throw new Error("Seed de dispatch confirmado exige veiculo selecionado.");
+          throw new Error("Seed de dispatch confirmado exige veículo selecionado.");
         }
 
         const operationDate = new Date().toISOString().slice(0, 10);
@@ -385,7 +385,7 @@ function makeFutureDate(hoursFromNow) {
     responseCookies["__Secure-better-auth.session_token"]?.value;
 
   if (!signedSessionCookie) {
-    throw new Error("Nao foi possivel extrair o cookie assinado da sessao do produtor.");
+    throw new Error("Não foi possível extrair o cookie assinado da sessão do produtor.");
   }
 
   console.log(
@@ -436,7 +436,7 @@ function makeFutureDate(hoursFromNow) {
 
   if (!fixture?.cookie || !fixture.producerTenantId) {
     throw new Error(
-      `Nao foi possivel criar a fixture do produtor para o fluxo E2E.${formatFixtureDebugLog(stdout, stderr)}`,
+      `Não foi possível criar a fixture do produtor para o fluxo E2E.${formatFixtureDebugLog(stdout, stderr)}`,
     );
   }
 

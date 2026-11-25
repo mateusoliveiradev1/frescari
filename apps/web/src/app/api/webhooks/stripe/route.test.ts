@@ -311,7 +311,7 @@ function createCheckoutCompletedEvent(
             street: "Rua das Flores",
             number: "123",
             cep: "01010-000",
-            city: "Sao Paulo",
+            city: "São Paulo",
             state: "SP",
           }),
           delivery_fee: "12.50",
@@ -412,9 +412,9 @@ test("stripe webhook rebuilds the order from address_snapshot metadata without l
         street: "Rua das Flores",
         number: "123",
         zipcode: "01010-000",
-        city: "Sao Paulo",
+        city: "São Paulo",
         state: "SP",
-        formattedAddress: "Rua das Flores, 123 - Sao Paulo/SP - CEP 01010-000",
+        formattedAddress: "Rua das Flores, 123 - São Paulo/SP - CEP 01010-000",
         latitude: -23.55,
         longitude: -46.63,
       }),
@@ -459,11 +459,11 @@ test("stripe webhook rebuilds the order from address_snapshot metadata without l
   assert.equal(insertedOrder.deliveryStreet, "Rua das Flores");
   assert.equal(insertedOrder.deliveryNumber, "123");
   assert.equal(insertedOrder.deliveryCep, "01010-000");
-  assert.equal(insertedOrder.deliveryCity, "Sao Paulo");
+  assert.equal(insertedOrder.deliveryCity, "São Paulo");
   assert.equal(insertedOrder.deliveryState, "SP");
   assert.equal(
     insertedOrder.deliveryAddress,
-    "Rua das Flores, 123 - Sao Paulo/SP - CEP 01010-000",
+    "Rua das Flores, 123 - São Paulo/SP - CEP 01010-000",
   );
 });
 

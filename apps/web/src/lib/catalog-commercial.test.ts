@@ -14,7 +14,7 @@ test("buildProductCommercialSnapshot converts live lots into commercial metrics 
       {
         deliveryRadiusKm: 18,
         farmCity: "Campinas",
-        farmName: "Sitio Primavera",
+        farmName: "Sítio Primavera",
         farmState: "SP",
         finalPrice: 6.5,
         freshnessScore: 91,
@@ -60,7 +60,7 @@ test("buildProductCommercialSnapshot falls back when freshness and delivery meta
       {
         deliveryRadiusKm: null,
         farmCity: "Campinas",
-        farmName: "Sitio Primavera",
+        farmName: "Sítio Primavera",
         farmState: "SP",
         finalPrice: 4.4,
         freshnessScore: null,
@@ -88,7 +88,7 @@ test("buildSupplierRegionCommercialSnapshot summarises local supplier density", 
       {
         categoryName: "Folhosos",
         deliveryRadiusKm: 14,
-        farmName: "Sitio Primavera",
+        farmName: "Sítio Primavera",
         finalPrice: 4.4,
         freshnessScore: 89,
         pricingType: "UNIT",
@@ -128,7 +128,7 @@ test("buildSupplierRegionCommercialSnapshot summarises local supplier density", 
   );
 
   assert.equal(snapshot.metrics.length, 4);
-  assert.equal(snapshot.metrics[0]?.label, "Entrada de preco");
+  assert.equal(snapshot.metrics[0]?.label, "Entrada de preço");
   assert.match(snapshot.metrics[0]?.value ?? "", /R\$/);
   assert.equal(snapshot.metrics[1]?.value, "2 produtores");
   assert.equal(snapshot.metrics[2]?.value, "2 categorias");

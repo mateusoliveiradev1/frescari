@@ -12,7 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Preferencias de e-mail | Frescari",
+  title: "Preferências de e-mail | Frescari",
   robots: { index: false, follow: false },
 };
 
@@ -34,7 +34,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main className="flex min-h-[70vh] items-center justify-center bg-cream px-6 py-16">
       <div className="w-full max-w-md space-y-5 rounded-[28px] border border-soil/10 bg-white p-8 shadow-sm">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-forest">
-          Preferencias de e-mail
+          Preferências de e-mail
         </p>
         {children}
       </div>
@@ -51,10 +51,10 @@ export default async function UnsubscribePage({ searchParams }: PageProps) {
     return (
       <Shell>
         <h1 className="font-display text-3xl font-black text-soil">
-          Link invalido
+          Link inválido
         </h1>
         <p className="text-bark">
-          Este link de descadastro nao e valido. Use o link do e-mail mais
+          Este link de descadastro não e válido. Use o link do e-mail mais
           recente ou fale com a gente em suporte@frescari.com.br.
         </p>
         <Link href="/" className="inline-block font-semibold text-forest">
@@ -74,11 +74,11 @@ export default async function UnsubscribePage({ searchParams }: PageProps) {
       </h1>
       <p className="text-bark">
         {optedOut
-          ? `${email} nao recebe mais lembretes e novidades da Frescari.`
+          ? `${email} não recebe mais lembretes e novidades da Frescari.`
           : `${email} deixa de receber lembretes e novidades da Frescari.`}
       </p>
       <p className="text-sm text-bark/80">
-        E-mails da sua conta continuam chegando: confirmacao de cadastro,
+        E-mails da sua conta continuam chegando: confirmação de cadastro,
         pedidos e avisos de pagamento.
       </p>
       <form action={updatePreference}>

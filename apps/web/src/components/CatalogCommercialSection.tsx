@@ -55,7 +55,7 @@ export function CatalogCommercialSection({
             FAQ de compra
           </p>
           <p className="mt-2 text-sm leading-relaxed text-bark">
-            Respostas curtas para as duvidas comerciais mais comuns deste
+            Respostas curtas para as dúvidas comerciais mais comuns deste
             recorte.
           </p>
         </div>

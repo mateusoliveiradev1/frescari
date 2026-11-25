@@ -144,7 +144,7 @@ export const auth = betterAuth({
             throw APIError.from("BAD_REQUEST", {
               code: LEGAL_VERSION_MISMATCH_CODE,
               message:
-                "Os documentos juridicos foram atualizados. Recarregue a pagina e confirme novamente.",
+                "Os documentos juridicos foram atualizados. Recarregue a página e confirme novamente.",
             });
           }
 

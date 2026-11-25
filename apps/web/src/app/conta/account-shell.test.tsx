@@ -63,7 +63,7 @@ test("renders buyer sections and marks the current section as active", async (co
         pathname="/conta/cadastro"
         role="buyer"
       >
-        <div data-testid="content">conteudo</div>
+        <div data-testid="content">conteúdo</div>
       </AccountShellView>,
     );
   });
@@ -80,7 +80,7 @@ test("renders buyer sections and marks the current section as active", async (co
   const aside = container.querySelector("aside");
   const contentPanel = container.querySelector("section");
 
-  assert.deepEqual(links, ["Perfil", "Empresa", "Enderecos", "Seguranca"]);
+  assert.deepEqual(links, ["Perfil", "Empresa", "Endereços", "Segurança"]);
   assert.ok(cadastroLink);
   assert.ok(shellRoot);
   assert.ok(layoutGrid);
@@ -127,10 +127,10 @@ test("uses a business label for producer registration", async (context) => {
     link.textContent?.trim(),
   );
   const businessLink = Array.from(container.querySelectorAll("a")).find(
-    (link) => link.textContent?.trim() === "Negocio",
+    (link) => link.textContent?.trim() === "Negócio",
   );
 
-  assert.deepEqual(links, ["Perfil", "Negocio", "Seguranca"]);
+  assert.deepEqual(links, ["Perfil", "Negócio", "Segurança"]);
   assert.ok(businessLink);
   assert.equal(businessLink.getAttribute("aria-current"), "page");
 });
@@ -164,20 +164,20 @@ test("uses a customer-facing account header instead of an internal card", async 
   const header = container.querySelector("header");
 
   assert.ok(header);
-  assert.match(container.textContent ?? "", /Area Frescari/);
+  assert.match(container.textContent ?? "", /Área Frescari/);
   assert.match(container.textContent ?? "", /Oi, Mateus\./);
   assert.match(
     container.textContent ?? "",
-    /Seu espaco para manter a Frescari do seu jeito\./,
+    /Seu espaço para manter a Frescari do seu jeito\./,
   );
   assert.match(
     container.textContent ?? "",
-    /perfil, empresa, enderecos e seguranca ficam juntos/,
+    /perfil, empresa, endereços e segurança ficam juntos/,
   );
   assert.equal(container.textContent?.includes("Minha Conta"), false);
   assert.equal(container.textContent?.includes("Conta de"), false);
   assert.equal(container.textContent?.includes("sem burocracia"), false);
-  assert.equal(container.textContent?.includes("resolver rapido"), false);
+  assert.equal(container.textContent?.includes("resolver rápido"), false);
   assert.equal(header.className.includes("surface-panel"), false);
 });
 
@@ -210,7 +210,7 @@ test("hides buyer-only sections for admin", async (context) => {
     link.textContent?.trim(),
   );
 
-  assert.deepEqual(links, ["Perfil", "Seguranca"]);
-  assert.equal(container.textContent?.includes("Enderecos"), false);
+  assert.deepEqual(links, ["Perfil", "Segurança"]);
+  assert.equal(container.textContent?.includes("Endereços"), false);
   assert.equal(container.textContent?.includes("Cadastro"), false);
 });

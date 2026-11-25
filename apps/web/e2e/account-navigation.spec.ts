@@ -21,11 +21,11 @@ async function openPersonalMenu(page: Page) {
 
 function getAccountNavigation(page: Page) {
   return page.getByRole("navigation", {
-    name: "Navegacao interna de Minha Conta",
+    name: "Navegação interna de Minha Conta",
   });
 }
 
-test.describe.serial("navegacao da area Minha Conta", () => {
+test.describe.serial("navegação da área Minha Conta", () => {
   let buyerFixture: BuyerJourneyFixture;
   let producerCookie: string;
   let adminCookie: string;
@@ -49,7 +49,7 @@ test.describe.serial("navegacao da area Minha Conta", () => {
     adminCookie = admin;
   });
 
-  test("menu pessoal mostra Minha Conta e leva o comprador para a nova area", async ({
+  test("menu pessoal mostra Minha Conta e leva o comprador para a nova área", async ({
     page,
   }) => {
     await authenticateWithCookie(page, buyerFixture.cookie);
@@ -66,7 +66,7 @@ test.describe.serial("navegacao da area Minha Conta", () => {
     await expect(getAccountNavigation(page)).toBeVisible();
   });
 
-  test("comprador ve as secoes corretas e navega entre perfil, cadastro e seguranca", async ({
+  test("comprador ve as seções corretas e navega entre perfil, cadastro e segurança", async ({
     page,
   }) => {
     await authenticateWithCookie(page, buyerFixture.cookie);
@@ -84,14 +84,14 @@ test.describe.serial("navegacao da area Minha Conta", () => {
       navigation.getByRole("link", { name: "Cadastro" }),
     ).toBeVisible();
     await expect(
-      navigation.getByRole("link", { name: "Enderecos" }),
+      navigation.getByRole("link", { name: "Endereços" }),
     ).toBeVisible();
     await expect(
-      navigation.getByRole("link", { name: "Seguranca" }),
+      navigation.getByRole("link", { name: "Segurança" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", {
-        name: /Ajuste os dados que representam voce\./i,
+        name: /Ajuste os dados que representam você\./i,
       }),
     ).toBeVisible();
 
@@ -99,11 +99,11 @@ test.describe.serial("navegacao da area Minha Conta", () => {
 
     await expect(page).toHaveURL(/\/conta\/cadastro$/i);
     await expect(
-      page.getByRole("heading", { name: "Dados do seu negocio." }),
+      page.getByRole("heading", { name: "Dados do seu negócio." }),
     ).toBeVisible();
 
     await getAccountNavigation(page)
-      .getByRole("link", { name: "Seguranca" })
+      .getByRole("link", { name: "Segurança" })
       .click();
 
     await expect(page).toHaveURL(/\/conta\/seguranca$/i);
@@ -123,17 +123,17 @@ test.describe.serial("navegacao da area Minha Conta", () => {
 
     await expect(page).toHaveURL(/\/conta\/enderecos$/i);
     await expect(
-      navigation.getByRole("link", { name: "Enderecos" }),
+      navigation.getByRole("link", { name: "Endereços" }),
     ).toHaveAttribute("aria-current", "page");
     await expect(
-      page.getByRole("heading", { name: /^Enderecos$/i }),
+      page.getByRole("heading", { name: /^Endereços$/i }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: buyerFixture.addressTitle }).first(),
     ).toBeVisible();
   });
 
-  test("produtor nao ve Enderecos e acessos proibidos voltam para uma secao valida", async ({
+  test("produtor não ve Endereços e acessos proibidos voltam para uma seção valida", async ({
     page,
   }) => {
     await authenticateWithCookie(page, producerCookie);
@@ -151,10 +151,10 @@ test.describe.serial("navegacao da area Minha Conta", () => {
       navigation.getByRole("link", { name: "Cadastro" }),
     ).toBeVisible();
     await expect(
-      navigation.getByRole("link", { name: "Seguranca" }),
+      navigation.getByRole("link", { name: "Segurança" }),
     ).toBeVisible();
     await expect(
-      navigation.getByRole("link", { name: "Enderecos" }),
+      navigation.getByRole("link", { name: "Endereços" }),
     ).toHaveCount(0);
 
     await page.goto("/conta/enderecos");
@@ -162,12 +162,12 @@ test.describe.serial("navegacao da area Minha Conta", () => {
     await expect(page).toHaveURL(/\/conta\/perfil$/i);
     await expect(
       page.getByRole("heading", {
-        name: /Ajuste os dados que representam voce\./i,
+        name: /Ajuste os dados que representam você\./i,
       }),
     ).toBeVisible();
   });
 
-  test("admin cai sempre em uma secao permitida e nao recebe links de buyer ou producer", async ({
+  test("admin cai sempre em uma seção permitida e não recebe links de buyer ou producer", async ({
     page,
   }) => {
     await authenticateWithCookie(page, adminCookie);
@@ -182,13 +182,13 @@ test.describe.serial("navegacao da area Minha Conta", () => {
       navigation.getByRole("link", { name: "Perfil" }),
     ).toHaveAttribute("aria-current", "page");
     await expect(
-      navigation.getByRole("link", { name: "Seguranca" }),
+      navigation.getByRole("link", { name: "Segurança" }),
     ).toBeVisible();
     await expect(
       navigation.getByRole("link", { name: "Cadastro" }),
     ).toHaveCount(0);
     await expect(
-      navigation.getByRole("link", { name: "Enderecos" }),
+      navigation.getByRole("link", { name: "Endereços" }),
     ).toHaveCount(0);
 
     await page.goto("/conta/cadastro");

@@ -48,7 +48,7 @@ function requireFixtureValue(value: string | null, field: string): string {
   return value;
 }
 
-test("produtor cadastra a fazenda e gerencia a frota operacional", async ({
+test("produtor cadastra a fazenda e gerência a frota operacional", async ({
   context,
   page,
 }) => {
@@ -83,10 +83,10 @@ test("produtor cadastra a fazenda e gerencia a frota operacional", async ({
 
   await expect(page.getByText("Dados da fazenda salvos.")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Cadastrar veiculo" }),
+    page.getByRole("button", { name: "Cadastrar veículo" }),
   ).toBeEnabled();
 
-  await page.getByRole("button", { name: "Cadastrar veiculo" }).click();
+  await page.getByRole("button", { name: "Cadastrar veículo" }).click();
 
   const createVehicleDialog = page.getByRole("dialog");
 
@@ -99,7 +99,7 @@ test("produtor cadastra a fazenda e gerencia a frota operacional", async ({
     .locator("#fleet-vehicle-status")
     .selectOption("available");
   await createVehicleDialog
-    .getByLabel("Usa refrigeracao para pereciveis")
+    .getByLabel("Usa refrigeração para perecíveis")
     .check();
   await createVehicleDialog
     .locator("#fleet-vehicle-notes")
@@ -108,13 +108,13 @@ test("produtor cadastra a fazenda e gerencia a frota operacional", async ({
   const createVehicleResponse = waitForTrpcMutation(page, "farm.upsertVehicle");
 
   await createVehicleDialog
-    .getByRole("button", { name: "Cadastrar veiculo" })
+    .getByRole("button", { name: "Cadastrar veículo" })
     .click();
 
   expect((await createVehicleResponse).ok()).toBeTruthy();
   await expect(createVehicleDialog).toBeHidden();
 
-  await expect(page.getByText("Veiculo cadastrado.")).toBeVisible();
+  await expect(page.getByText("Veículo cadastrado.")).toBeVisible();
   await expect(page.getByRole("button", { name: /Van E2E/i })).toBeVisible();
 
   await page.getByRole("button", { name: /Van E2E/i }).click();
@@ -135,7 +135,7 @@ test("produtor cadastra a fazenda e gerencia a frota operacional", async ({
   const updateVehicleResponse = waitForTrpcMutation(page, "farm.upsertVehicle");
 
   await editVehicleDialog
-    .getByRole("button", { name: "Salvar alteracoes" })
+    .getByRole("button", { name: "Salvar alterações" })
     .click();
 
   expect((await updateVehicleResponse).ok()).toBeTruthy();
@@ -146,10 +146,10 @@ test("produtor cadastra a fazenda e gerencia a frota operacional", async ({
   const updatedVehicleCard = page.getByRole("button", { name: /^Van E2E/i });
 
   await expect(updatedVehicleCard).toContainText("900 kg");
-  await expect(updatedVehicleCard).toContainText("Manutencao");
+  await expect(updatedVehicleCard).toContainText("Manutenção");
 });
 
-test("produtor confirma a saida e registra override manual na mesa logistica", async ({
+test("produtor confirma a saída e registra override manual na mesa logística", async ({
   context,
   page,
 }) => {
@@ -177,7 +177,7 @@ test("produtor confirma a saida e registra override manual na mesa logistica", a
   ).toBeVisible();
 
   await page
-    .getByRole("button", { name: /^Confirmar saida$/ })
+    .getByRole("button", { name: /^Confirmar saída$/ })
     .first()
     .click();
 
@@ -194,7 +194,7 @@ test("produtor confirma a saida e registra override manual na mesa logistica", a
     "logistics.confirmDispatchWave",
   );
   const confirmDispatchButton = dispatchDialog.getByRole("button", {
-    name: /^Confirmar (saida|wave)(?: \(\d+ pedidos\))?$/,
+    name: /^Confirmar (saída|wave)(?: \(\d+ pedidos\))?$/,
   });
   await expect(confirmDispatchButton).toBeVisible();
   await confirmDispatchButton.evaluate((button: HTMLButtonElement) =>
@@ -203,7 +203,7 @@ test("produtor confirma a saida e registra override manual na mesa logistica", a
 
   expect((await confirmDispatchResponse).ok()).toBeTruthy();
   await expect(
-    page.getByText("Saida confirmada com dados operacionais."),
+    page.getByText("Saída confirmada com dados operacionais."),
   ).toBeVisible();
   await expect(page.getByText(/Ordem #1/i)).toBeVisible();
 
@@ -219,7 +219,7 @@ test("produtor confirma a saida e registra override manual na mesa logistica", a
     .click();
   await overrideDialog
     .locator("#override-reason-notes")
-    .fill("Cliente pediu entrega ate as 10h");
+    .fill("Cliente pediu entrega até as 10h");
 
   const applyOverrideResponse = waitForTrpcMutation(
     page,
@@ -298,7 +298,7 @@ test("produtor consolida dois pedidos na mesma wave sugerida", async ({
     "logistics.confirmDispatchWave",
   );
   const confirmDispatchButton = dispatchDialog.getByRole("button", {
-    name: /^Confirmar (saida|wave)(?: \(\d+ pedidos\))?$/,
+    name: /^Confirmar (saída|wave)(?: \(\d+ pedidos\))?$/,
   });
   await expect(confirmDispatchButton).toBeVisible();
   await confirmDispatchButton.evaluate((button: HTMLButtonElement) =>
@@ -313,7 +313,7 @@ test("produtor consolida dois pedidos na mesma wave sugerida", async ({
   expect(requestBody).toContain(secondOrderId);
 });
 
-test("produtor nao consegue excluir um veiculo que ja foi usado em uma saida confirmada", async ({
+test("produtor não consegue excluir um veículo que já foi usado em uma saída confirmada", async ({
   context,
   page,
 }) => {
@@ -338,14 +338,14 @@ test("produtor nao consegue excluir um veiculo que ja foi usado em uma saida con
 
   const vehicleDialog = page.getByRole("dialog");
 
-  await vehicleDialog.getByRole("button", { name: "Remover veiculo" }).click();
+  await vehicleDialog.getByRole("button", { name: "Remover veículo" }).click();
 
   await expect(
-    page.getByText("Nao foi possivel remover o veiculo."),
+    page.getByText("Não foi possível remover o veículo."),
   ).toBeVisible();
   await expect(
     page.getByText(
-      "Este veiculo ja aparece em saidas confirmadas. Marque-o como offline em vez de excluir.",
+      "Este veículo já aparece em saidas confirmadas. Marque-o como offline em vez de excluir.",
     ),
   ).toBeVisible();
 });

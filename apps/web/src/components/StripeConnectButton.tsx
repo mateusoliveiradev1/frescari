@@ -34,7 +34,7 @@ export function StripeConnectButton() {
         toast.error("Erro ao ativar recebimento", {
           description:
             error.message ||
-            "Nao foi possivel iniciar a verificacao de recebimento. Tente novamente.",
+            "Não foi possível iniciar a verificação de recebimento. Tente novamente.",
         });
       },
     });

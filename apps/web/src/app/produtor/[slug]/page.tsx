@@ -61,7 +61,7 @@ export async function generateMetadata({
   const data = await getProducerStorefrontPageData(slug);
 
   if (!data) {
-    return { title: "Produtor nao encontrado | Frescari" };
+    return { title: "Produtor não encontrado | Frescari" };
   }
 
   const name = sanitizeText(data.producer.name);
@@ -76,10 +76,10 @@ export async function generateMetadata({
   // for ("tomate direto do produtor em Pirangi").
   const description = sanitizeText(
     productNames
-      ? `${productNames} direto de ${name}${place ? `, ${place}` : ""}. Compre online, direto do produtor, com entrega pela propria fazenda.`
+      ? `${productNames} direto de ${name}${place ? `, ${place}` : ""}. Compre online, direto do produtor, com entrega pela própria fazenda.`
       : data.producer.bio
         ? data.producer.bio
-        : `Produtos frescos de ${name}${place ? ` (${place})` : ""}, direto do produtor, com entrega pela propria fazenda.`,
+        : `Produtos frescos de ${name}${place ? ` (${place})` : ""}, direto do produtor, com entrega pela própria fazenda.`,
     160,
   );
 
@@ -199,7 +199,7 @@ export default async function ProducerStorefrontPage({
       {
         "@type": "ListItem",
         position: 1,
-        name: "Catalogo",
+        name: "Catálogo",
         item: `${getSiteUrl()}/catalogo`,
       },
       {

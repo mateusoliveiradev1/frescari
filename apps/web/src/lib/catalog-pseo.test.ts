@@ -35,11 +35,11 @@ test("buildProductRegionPath nests local product pages under the product", () =>
 test("buildSupplierRegionSummaries groups lots by city and state", () => {
   const summaries = buildSupplierRegionSummaries([
     {
-      farmName: "Sitio Primavera",
+      farmName: "Sítio Primavera",
       productName: "Tomate",
       categoryName: "Hortalicas",
       finalPrice: 4.99,
-      farmCity: "Sao Paulo",
+      farmCity: "São Paulo",
       farmState: "SP",
     },
     {
@@ -47,7 +47,7 @@ test("buildSupplierRegionSummaries groups lots by city and state", () => {
       productName: "Alface",
       categoryName: "Folhosas",
       finalPrice: 3.49,
-      farmCity: "Sao Paulo",
+      farmCity: "São Paulo",
       farmState: "SP",
     },
     {
@@ -59,7 +59,7 @@ test("buildSupplierRegionSummaries groups lots by city and state", () => {
       farmState: "SP",
     },
     {
-      farmName: "Sem Endereco",
+      farmName: "Sem Endereço",
       productName: "Rucula",
       categoryName: "Folhosas",
       finalPrice: 1.99,
@@ -75,20 +75,20 @@ test("buildSupplierRegionSummaries groups lots by city and state", () => {
   );
 
   assert.ok(saoPaulo);
-  assert.equal(saoPaulo.cityName, "Sao Paulo");
+  assert.equal(saoPaulo.cityName, "São Paulo");
   assert.equal(saoPaulo.stateName, "SP");
   assert.equal(saoPaulo.farmCount, 2);
   assert.equal(saoPaulo.productCount, 2);
   assert.equal(saoPaulo.lotCount, 2);
   assert.equal(saoPaulo.lowestPrice, 3.49);
-  assert.match(saoPaulo.description, /sao paulo/i);
+  assert.match(saoPaulo.description, /são paulo/i);
   assert.match(saoPaulo.description, /2 lotes/i);
 });
 
 test("buildOfferAreaServed returns a GeoCircle when the farm has coordinates", () => {
   assert.deepEqual(
     buildOfferAreaServed({
-      farmCity: "Sao Paulo",
+      farmCity: "São Paulo",
       farmState: "SP",
       farmLatitude: -23.55,
       farmLongitude: -46.63,
@@ -127,7 +127,7 @@ test("buildCategoryRegionSummaries groups by category and filters thin local pag
     {
       categorySlug: "folhosas",
       categoryName: "Folhosas",
-      farmName: "Sitio Primavera",
+      farmName: "Sítio Primavera",
       productName: "Alface",
       finalPrice: 3.49,
       farmCity: "Campinas",
@@ -145,7 +145,7 @@ test("buildCategoryRegionSummaries groups by category and filters thin local pag
     {
       categorySlug: "raizes",
       categoryName: "Raizes",
-      farmName: "Sitio Primavera",
+      farmName: "Sítio Primavera",
       productName: "Beterraba",
       finalPrice: 4.89,
       farmCity: "Campinas",
@@ -181,7 +181,7 @@ test("buildProductRegionSummaries groups by product and filters thin local pages
       productName: "Alface",
       saleUnit: "kg",
       imageUrl: "https://example.com/alface.jpg",
-      farmName: "Sitio Primavera",
+      farmName: "Sítio Primavera",
       finalPrice: 3.49,
       farmCity: "Campinas",
       farmState: "SP",
@@ -205,7 +205,7 @@ test("buildProductRegionSummaries groups by product and filters thin local pages
       productName: "Rucula",
       saleUnit: "maco",
       imageUrl: null,
-      farmName: "Sitio Primavera",
+      farmName: "Sítio Primavera",
       finalPrice: 2.59,
       farmCity: "Campinas",
       farmState: "SP",
@@ -225,7 +225,7 @@ test("buildProductRegionSummaries groups by product and filters thin local pages
   assert.equal(summaries[0]?.offerCount, 2);
   assert.equal(summaries[0]?.lowestPrice, 3.49);
   assert.equal(summaries[0]?.highestPrice, 3.99);
-  assert.deepEqual(summaries[0]?.farmNames, ["Sitio Primavera", "Vale Verde"]);
+  assert.deepEqual(summaries[0]?.farmNames, ["Sítio Primavera", "Vale Verde"]);
   assert.match(summaries[0]?.description ?? "", /Alface em Campinas, SP/i);
   assert.match(summaries[0]?.description ?? "", /2 ofertas ativas/i);
 });

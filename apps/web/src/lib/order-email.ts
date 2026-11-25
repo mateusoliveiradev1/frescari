@@ -41,7 +41,7 @@ export function buildProducerNewOrderEmail(
   const salesUrl = `${appUrl.replace(/\/$/, "")}/dashboard/vendas`;
   const nextStep = input.awaitingWeight
     ? "O pedido tem itens vendidos por peso. Pese, informe o peso final no painel e o pagamento e capturado pelo valor real."
-    : "O pagamento ja foi aprovado. Separe os itens e prepare a entrega pelo painel.";
+    : "O pagamento já foi aprovado. Separe os itens e prepare a entrega pelo painel.";
 
   const subject = input.awaitingWeight
     ? `Novo pedido #${shortId}: informe o peso para confirmar`
@@ -54,7 +54,7 @@ export function buildProducerNewOrderEmail(
   const text = [
     greeting,
     "",
-    `Voce recebeu um novo pedido na Frescari (#${shortId}), no valor estimado de ${total}.`,
+    `Você recebeu um novo pedido na Frescari (#${shortId}), no valor estimado de ${total}.`,
     ...(deliveryLine ? [deliveryLine] : []),
     nextStep,
     "",
@@ -68,7 +68,7 @@ export function buildProducerNewOrderEmail(
           Frescari
         </p>
         <h1 style="margin:0 0 16px;font-size:28px;line-height:1.1;color:#0d3321;">
-          Voce tem um novo pedido
+          Você tem um novo pedido
         </h1>
         <p style="margin:0 0 12px;font-size:16px;line-height:1.7;">${escapeHtml(greeting)}</p>
         <p style="margin:0 0 12px;font-size:16px;line-height:1.7;">

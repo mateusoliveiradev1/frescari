@@ -40,7 +40,7 @@ export async function generateMetadata({
 
   if (!data) {
     return {
-      title: "Regiao nao encontrada | Frescari",
+      title: "Região não encontrada | Frescari",
     };
   }
 
@@ -106,7 +106,7 @@ export default async function SupplierRegionPage({
       {
         "@type": "ListItem",
         position: 1,
-        name: "Catalogo",
+        name: "Catálogo",
         item: `${getSiteUrl()}/catalogo`,
       },
       {
@@ -154,7 +154,7 @@ export default async function SupplierRegionPage({
             href="/catalogo"
             className="transition-colors hover:text-forest"
           >
-            Catalogo
+            Catálogo
           </Link>
           <span>/</span>
           <span className="font-medium text-soil">{data.region.name}</span>
@@ -165,7 +165,7 @@ export default async function SupplierRegionPage({
             <div className="inline-flex items-center gap-2 rounded-full border border-forest/20 bg-forest/10 px-3 py-1.5">
               <span className="h-2 w-2 rounded-full bg-forest" />
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-forest">
-                Oferta regional indexavel
+                Oferta regional indexável
               </span>
             </div>
 
@@ -193,7 +193,7 @@ export default async function SupplierRegionPage({
           <aside className="grid gap-4 rounded-[28px] border border-soil/10 bg-white/75 p-6 shadow-sm backdrop-blur">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
-                Faixa de preco
+                Faixa de preço
               </p>
               <p className="mt-2 font-display text-4xl font-black text-soil">
                 {formatCurrencyBRL(data.region.lowestPrice)}
@@ -245,13 +245,13 @@ export default async function SupplierRegionPage({
         <section aria-labelledby="produtos-da-regiao" className="space-y-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
-              Navegacao de produto
+              Navegação de produto
             </p>
             <h2
               id="produtos-da-regiao"
               className="font-display text-3xl font-bold text-soil"
             >
-              Produtos ativos nesta regiao
+              Produtos ativos nesta região
             </h2>
           </div>
 
@@ -334,7 +334,7 @@ export default async function SupplierRegionPage({
               id="lotes-da-regiao"
               className="text-[10px] font-bold uppercase tracking-[0.2em] text-bark"
             >
-              Lotes ativos nesta regiao
+              Lotes ativos nesta região
             </h2>
             <div className="h-px flex-1 bg-forest/10" />
           </div>

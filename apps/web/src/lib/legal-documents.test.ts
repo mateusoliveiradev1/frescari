@@ -33,7 +33,7 @@ test("legal registry exposes the current legal documents", () => {
     assert.equal(document.slug, entry.slug);
     assert.ok(document.title.length > 0);
     assert.ok(document.sections.length > 0);
-    assert.equal(document.status, "Versao vigente");
+    assert.equal(document.status, "Versão vigente");
     assert.equal(document.effectiveDate, "8 de abril de 2026");
     assert.equal(document.effectiveDateIso, "2026-04-08");
     assert.equal(document.updatedAt, "8 de abril de 2026");
@@ -44,9 +44,9 @@ test("legal registry exposes the current legal documents", () => {
     assert.ok(metadata.alternates?.canonical);
     assert.ok(metadata.openGraph?.url);
     assert.ok(metadata.twitter?.images);
-    assert.equal(allText.includes("[RAZAO SOCIAL]"), false);
+    assert.equal(allText.includes("[RAZÃO SOCIAL]"), false);
     assert.equal(allText.includes("[XX.XXX.XXX/XXXX-XX]"), false);
-    assert.equal(allText.includes("[ENDERECO COMPLETO, CIDADE/UF]"), false);
+    assert.equal(allText.includes("[ENDEREÇO COMPLETO, CIDADE/UF]"), false);
     assert.equal(allText.includes("[EMAIL DE SUPORTE]"), false);
     assert.equal(allText.includes("[EMAIL DE PRIVACIDADE]"), false);
     assert.equal(allText.includes("[CIDADE/UF]"), false);

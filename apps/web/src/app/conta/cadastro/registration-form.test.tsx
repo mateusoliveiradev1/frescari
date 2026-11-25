@@ -277,7 +277,7 @@ test("submits the producer registration payload with normalized tenant fields", 
         }}
         tenant={{
           id: "tenant_producer_123",
-          name: "Sitio da Ana",
+          name: "Sítio da Ana",
           producerContactName: "Ana Maria",
           producerDocumentId: "52998224725",
           producerLegalEntityType: "PF",
@@ -324,13 +324,13 @@ test("submits the producer registration payload with normalized tenant fields", 
   assert.ok(phoneInput);
   assert.ok(form);
   assert.ok(submitButton);
-  assert.match(container.textContent ?? "", /Negocio/);
-  assert.match(container.textContent ?? "", /Visivel para compradores/);
+  assert.match(container.textContent ?? "", /Negócio/);
+  assert.match(container.textContent ?? "", /Visível para compradores/);
   assert.equal(container.textContent?.includes("Empresa"), false);
   assert.equal(container.textContent?.includes("Nome da empresa"), false);
 
   await act(async () => {
-    setInputValue(publicNameInput, "  Sitio da Ana Premium  ", window);
+    setInputValue(publicNameInput, "  Sítio da Ana Premium  ", window);
     setInputValue(legalNameInput, "  Ana Maria de Souza  ", window);
     setInputValue(documentInput, "529.982.247-25", window);
     setInputValue(contactNameInput, "  Ana   Maria  ", window);
@@ -348,7 +348,7 @@ test("submits the producer registration payload with normalized tenant fields", 
       legalEntityType: "PF",
       legalName: "Ana Maria de Souza",
       phone: "11998765432",
-      publicName: "Sitio da Ana Premium",
+      publicName: "Sítio da Ana Premium",
       type: "producer",
     },
   ]);
@@ -395,7 +395,7 @@ test("shows a blocked state when the authenticated role cannot manage registrati
     );
   });
 
-  assert.match(container.textContent ?? "", /dados da conta indisponiveis/i);
+  assert.match(container.textContent ?? "", /dados da conta indisponíveis/i);
   assert.equal(container.textContent?.includes("Empresa"), false);
   assert.equal(container.querySelector("form"), null);
 });

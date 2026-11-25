@@ -41,10 +41,10 @@ type LegalDocumentDraft = Omit<
 
 const LEGAL_PUBLICATION_DATE = "8 de abril de 2026";
 const LEGAL_PUBLICATION_DATE_ISO = "2026-04-08";
-const LEGAL_STATUS = "Versao vigente";
+const LEGAL_STATUS = "Versão vigente";
 const LEGAL_OPERATOR_NAME =
   sanitizeEnvValue(process.env.NEXT_PUBLIC_LEGAL_OPERATOR_NAME) ||
-  "Titular responsavel pela operacao Frescari";
+  "Titular responsável pela operação Frescari";
 const LEGAL_OPERATOR_DOCUMENT_KIND =
   sanitizeEnvValue(
     process.env.NEXT_PUBLIC_LEGAL_OPERATOR_DOCUMENT_KIND,
@@ -65,34 +65,34 @@ const LEGAL_PRIVACY_EMAIL =
   LEGAL_SUPPORT_EMAIL;
 const LEGAL_OPERATOR_REGISTRY_LINE = LEGAL_OPERATOR_DOCUMENT
   ? LEGAL_OPERATOR_DOCUMENT_KIND === "CNPJ"
-    ? `inscrita no CNPJ sob o numero ${LEGAL_OPERATOR_DOCUMENT}`
-    : `inscrito(a) no CPF sob o numero ${LEGAL_OPERATOR_DOCUMENT}`
+    ? `inscrita no CNPJ sob o número ${LEGAL_OPERATOR_DOCUMENT}`
+    : `inscrito(a) no CPF sob o número ${LEGAL_OPERATOR_DOCUMENT}`
   : LEGAL_OPERATOR_DOCUMENT_KIND === "CNPJ"
     ? "identificada pelo CNPJ informado nos canais oficiais de atendimento"
     : "identificado(a) pelo CPF informado nos canais oficiais de atendimento";
 const LEGAL_OPERATOR_ADDRESS_LINE = LEGAL_OPERATOR_ADDRESS
-  ? `com endereco em ${LEGAL_OPERATOR_ADDRESS}`
-  : "com endereco comercial informado pelos canais oficiais de atendimento";
+  ? `com endereço em ${LEGAL_OPERATOR_ADDRESS}`
+  : "com endereço comercial informado pelos canais oficiais de atendimento";
 const LEGAL_OPERATOR_LEGAL_LINE = `${LEGAL_OPERATOR_NAME}, ${LEGAL_OPERATOR_REGISTRY_LINE}, ${LEGAL_OPERATOR_ADDRESS_LINE}`;
 const LEGAL_DOCUMENT_FALLBACK = `${LEGAL_OPERATOR_DOCUMENT_KIND} informado nos canais oficiais de atendimento`;
 const CONSUMER_FORUM_PARAGRAPH =
-  "Sem prejuizo do foro especial previsto em lei para consumidores, eventuais controversias serao submetidas ao foro competente definido pela legislacao brasileira aplicavel.";
+  "Sem prejuizo do foro especial previsto em lei para consumidores, eventuais controversias serão submetidas ao foro competente definido pela legislação brasileira aplicável.";
 const GENERAL_FORUM_PARAGRAPH =
-  "Eventuais controversias serao submetidas ao foro competente definido pela legislacao brasileira aplicavel.";
+  "Eventuais controversias serão submetidas ao foro competente definido pela legislação brasileira aplicável.";
 
 function resolveLegalContent(value: string): string {
   return (
     value
       .replaceAll(
-        "Para exercicio de direitos ou duvidas sobre privacidade, o titular pode entrar em contato com o encarregado de dados (DPO) pelo endeco de e-mail: [EMAIL DE PRIVACIDADE].",
-        `Para exercicio de direitos ou duvidas sobre privacidade, o titular pode entrar em contato pelo canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}.`,
+        "Para exercicio de direitos ou dúvidas sobre privacidade, o titular pode entrar em contato com o encarregado de dados (DPO) pelo endeco de e-mail: [EMAIL DE PRIVACIDADE].",
+        `Para exercicio de direitos ou dúvidas sobre privacidade, o titular pode entrar em contato pelo canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}.`,
       )
       .replaceAll(
-        "Solicitacoes relacionadas ao exercicio de direitos, duvidas sobre tratamento e reclamacoes de privacidade devem ser encaminhadas ao encarregado de dados da Frescari pelo e-mail: [EMAIL DE PRIVACIDADE]. A Frescari se compromete a responder dentro do prazo razoavel exigido pela LGPD.",
-        `Solicitacoes relacionadas ao exercicio de direitos, duvidas sobre tratamento e reclamacoes de privacidade devem ser encaminhadas ao canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}. A Frescari se compromete a responder dentro de prazo razoavel, observado o regime aplicavel da LGPD.`,
+        "Solicitações relacionadas ao exercicio de direitos, dúvidas sobre tratamento e reclamações de privacidade devem ser encaminhadas ao encarregado de dados da Frescari pelo e-mail: [EMAIL DE PRIVACIDADE]. A Frescari se compromete a responder dentro do prazo razoável exigido pela LGPD.",
+        `Solicitações relacionadas ao exercicio de direitos, dúvidas sobre tratamento e reclamações de privacidade devem ser encaminhadas ao canal de privacidade da Frescari: ${LEGAL_PRIVACY_EMAIL}. A Frescari se compromete a responder dentro de prazo razoável, observado o regime aplicável da LGPD.`,
       )
       .replaceAll(
-        "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias oriundas deste instrumento, sem prejuizo da competencia de foro especial prevista em lei para consumidores.",
+        "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias oriundas deste instrumento, sem prejuizo da competência de foro especial prevista em lei para consumidores.",
         CONSUMER_FORUM_PARAGRAPH,
       )
       .replaceAll(
@@ -112,16 +112,16 @@ function resolveLegalContent(value: string): string {
         GENERAL_FORUM_PARAGRAPH,
       )
       .replaceAll(
-        "[RAZAO SOCIAL], inscrita no CNPJ sob o numero [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF]",
+        "[RAZÃO SOCIAL], inscrita no CNPJ sob o número [XX.XXX.XXX/XXXX-XX], com sede em [ENDEREÇO COMPLETO, CIDADE/UF]",
         LEGAL_OPERATOR_LEGAL_LINE,
       )
       .replaceAll(
-        "[RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF]",
+        "[RAZÃO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], com sede em [ENDEREÇO COMPLETO, CIDADE/UF]",
         LEGAL_OPERATOR_LEGAL_LINE,
       )
       .replaceAll(
-        "[RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDERECO COMPLETO, CIDADE/UF]",
-        `${LEGAL_OPERATOR_NAME}, ${LEGAL_OPERATOR_REGISTRY_LINE}, responsavel pela operacao da plataforma Frescari, ${LEGAL_OPERATOR_ADDRESS_LINE}`,
+        "[RAZÃO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDEREÇO COMPLETO, CIDADE/UF]",
+        `${LEGAL_OPERATOR_NAME}, ${LEGAL_OPERATOR_REGISTRY_LINE}, responsável pela operação da plataforma Frescari, ${LEGAL_OPERATOR_ADDRESS_LINE}`,
       )
       // Safety net for any other template sentence: never label a CPF as CNPJ.
       .replaceAll(
@@ -130,11 +130,11 @@ function resolveLegalContent(value: string): string {
           ? `${LEGAL_OPERATOR_DOCUMENT_KIND} ${LEGAL_OPERATOR_DOCUMENT}`
           : LEGAL_DOCUMENT_FALLBACK,
       )
-      .replaceAll("[RAZAO SOCIAL]", LEGAL_OPERATOR_NAME)
+      .replaceAll("[RAZÃO SOCIAL]", LEGAL_OPERATOR_NAME)
       .replaceAll(
-        "[ENDERECO COMPLETO, CIDADE/UF]",
+        "[ENDEREÇO COMPLETO, CIDADE/UF]",
         LEGAL_OPERATOR_ADDRESS ||
-          "endereco comercial informado pelos canais oficiais de atendimento",
+          "endereço comercial informado pelos canais oficiais de atendimento",
       )
       .replaceAll(
         "[XX.XXX.XXX/XXXX-XX]",
@@ -157,84 +157,84 @@ const legalDocuments = {
     description:
       "Regras gerais de acesso e uso da plataforma Frescari por compradores, produtores e administradores.",
     summary:
-      "Estes Termos de Uso disciplinam o acesso ao aplicativo, a criacao de conta, o uso das funcionalidades da plataforma e as regras gerais de conduta dentro da Frescari.",
-    status: "Versao final — V2",
+      "Estes Termos de Uso disciplinam o acesso ao aplicativo, a criação de conta, o uso das funcionalidades da plataforma e as regras gerais de conduta dentro da Frescari.",
+    status: "Versão final — V2",
     effectiveDate: "2 de abril de 2026",
     updatedAt: "2 de abril de 2026",
     reviewNote: "",
     sections: [
       {
-        title: "1. Identificacao da plataforma",
+        title: "1. Identificação da plataforma",
         paragraphs: [
-          "A plataforma Frescari e operada por [RAZAO SOCIAL], inscrita no CNPJ sob o numero [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF] (doravante 'Frescari').",
-          "Para duvidas, suporte ou exercicio de direitos, o usuario pode entrar em contato pelo canal oficial de atendimento: [EMAIL DE SUPORTE].",
+          "A plataforma Frescari e operada por [RAZÃO SOCIAL], inscrita no CNPJ sob o número [XX.XXX.XXX/XXXX-XX], com sede em [ENDEREÇO COMPLETO, CIDADE/UF] (doravante 'Frescari').",
+          "Para dúvidas, suporte ou exercicio de direitos, o usuário pode entrar em contato pelo canal oficial de atendimento: [EMAIL DE SUPORTE].",
         ],
       },
       {
         title: "2. Plataforma e escopo",
         paragraphs: [
-          "A Frescari opera como ambiente digital de intermediacao entre produtores, compradores e administradores, oferecendo infraestrutura de cadastro, descoberta, negociacao, pagamento e gestao operacional.",
-          "A utilizacao da plataforma depende de conta valida, observancia destes Termos de Uso e respeito a todas as politicas complementares publicadas pela Frescari.",
+          "A Frescari opera como ambiente digital de intermediação entre produtores, compradores e administradores, oferecendo infraestrutura de cadastro, descoberta, negociação, pagamento e gestão operacional.",
+          "A utilização da plataforma depende de conta valida, observância destes Termos de Uso e respeito a todas as políticas complementares publicadas pela Frescari.",
         ],
       },
       {
         title: "3. Cadastro e acesso",
         paragraphs: [
-          "O usuario deve fornecer informacoes verdadeiras, atualizadas e suficientes para identificacao e funcionamento regular da conta.",
-          "A conta e pessoal e nao pode ser compartilhada com terceiros sem autorizacao expressa da Frescari. O usuario responde pela guarda de suas credenciais e pela atividade realizada a partir da propria conta.",
+          "O usuário deve fornecer informações verdadeiras, atualizadas e suficientes para identificação e funcionamento regular da conta.",
+          "A conta e pessoal e não pode ser compartilhada com terceiros sem autorização expressa da Frescari. O usuário responde pela guarda de suas credenciais e pela atividade realizada a partir da própria conta.",
         ],
         bullets: [
-          "A Frescari pode exigir verificacao de email, telefone, identidade ou dados complementares antes de liberar funcionalidades sensiveis.",
+          "A Frescari pode exigir verificação de email, telefone, identidade ou dados complementares antes de liberar funcionalidades sensíveis.",
           "Cadastros incompletos, inconsistentes ou potencialmente fraudulentos podem ser suspensos preventivamente.",
         ],
       },
       {
         title: "4. Regras de conduta",
         paragraphs: [
-          "E vedado usar a plataforma para fraudar operacoes, manipular precos, burlar controles de acesso, publicar conteudo enganoso ou praticar qualquer conduta contraria a lei, a boa-fe ou as politicas da Frescari.",
-          "Tambem e vedado tentar explorar falhas tecnicas, automatizar acessos nao autorizados, utilizar dados de terceiros sem base legal ou praticar condutas que comprometam a confianca da Frescari.",
+          "E vedado usar a plataforma para fraudar operações, manipular preços, burlar controles de acesso, publicar conteúdo enganoso ou praticar qualquer conduta contraria a lei, a boa-fe ou as políticas da Frescari.",
+          "Também e vedado tentar explorar falhas tecnicas, automatizar acessos não autorizados, utilizar dados de terceiros sem base legal ou praticar condutas que comprometam a confianca da Frescari.",
         ],
       },
       {
         title: "5. Direito de arrependimento",
         paragraphs: [
-          "O consumidor que realizar compra por meio da plataforma Frescari tem o direito de se arrepender e solicitar o cancelamento em ate 7 (sete) dias corridos contados da data de recebimento do produto, sem necessidade de justificativa, nos termos do artigo 49 do Codigo de Defesa do Consumidor e do artigo 5o do Decreto no 7.962/2013.",
-          "Para exercer o direito de arrependimento, o usuario deve entrar em contato com o suporte da Frescari pelo canal oficial dentro do prazo. O reembolso sera processado conforme os fluxos descritos na Politica de Cancelamento, Estorno e Chargeback.",
+          "O consumidor que realizar compra por meio da plataforma Frescari tem o direito de se arrepender e solicitar o cancelamento em até 7 (sete) dias corridos contados da data de recebimento do produto, sem necessidade de justificativa, nos termos do artigo 49 do Código de Defesa do Consumidor e do artigo 5o do Decreto no 7.962/2013.",
+          "Para exercer o direito de arrependimento, o usuário deve entrar em contato com o suporte da Frescari pelo canal oficial dentro do prazo. O reembolso será processado conforme os fluxos descritos na Política de Cancelamento, Estorno e Chargeback.",
         ],
       },
       {
-        title: "6. Disponibilidade e alteracoes",
+        title: "6. Disponibilidade e alterações",
         paragraphs: [
-          "A Frescari podera evoluir, ajustar, restringir ou descontinuar funcionalidades para fins de seguranca, adequacao regulatoria, manutencao tecnica ou melhoria de produto.",
-          "Quando houver alteracoes materiais nestes Termos, a plataforma podera exigir novo aceite antes da continuidade da operacao.",
+          "A Frescari poderá evoluir, ajustar, restringir ou descontinuar funcionalidades para fins de segurança, adequação regulatoria, manutenção técnica ou melhoria de produto.",
+          "Quando houver alterações materiais nestes Termos, a plataforma poderá exigir novo aceite antes da continuidade da operação.",
         ],
       },
       {
-        title: "7. Suspensao, limitacao e encerramento",
+        title: "7. Suspensão, limitação e encerramento",
         paragraphs: [
-          "A Frescari podera limitar funcionalidades, bloquear acessos, suspender contas ou encerrar relacoes de uso quando houver descumprimento contratual, risco de fraude, exigencia regulatoria, disputa operacional relevante ou uso indevido da plataforma.",
-          "Sempre que possivel e compativel com a seguranca do sistema, a plataforma apresentara comunicacao do motivo e orientacao sobre eventual regularizacao.",
+          "A Frescari poderá limitar funcionalidades, bloquear acessos, suspender contas ou encerrar relações de uso quando houver descumprimento contratual, risco de fraude, exigência regulatoria, disputa operacional relevante ou uso indevido da plataforma.",
+          "Sempre que possível e compatível com a segurança do sistema, a plataforma apresentara comunicação do motivo e orientação sobre eventual regularização.",
         ],
       },
       {
         title: "8. Responsabilidade geral",
         paragraphs: [
-          "A Frescari envidara esforcos tecnicos e operacionais razoaveis para manter a plataforma disponivel, segura e funcional, sem assumir garantia absoluta de funcionamento ininterrupto ou livre de erros.",
-          "Cada usuario responde pelas informacoes que fornece, pelas obrigacoes legais e tributarias que lhe cabem e pela regularidade da propria atuacao dentro da Frescari.",
+          "A Frescari envidara esforcos tecnicos e operacionais razoáveis para manter a plataforma disponível, segura e funcional, sem assumir garantia absoluta de funcionamento ininterrupto ou livre de erros.",
+          "Cada usuário responde pelas informações que fornece, pelas obrigações legais e tributarias que lhe cabem e pela regularidade da própria atuação dentro da Frescari.",
         ],
       },
       {
-        title: "9. Reclamacoes e canais de atendimento",
+        title: "9. Reclamações e canais de atendimento",
         paragraphs: [
-          "O usuario pode registrar reclamacoes, sugestoes e solicitacoes pelo canal oficial de suporte da Frescari em [EMAIL DE SUPORTE]. A Frescari compromete-se a responder em prazo razoavel conforme a natureza da solicitacao.",
-          "Caso a demanda nao seja resolvida diretamente com a Frescari, o usuario tambem pode recorrer ao Procon de sua municipalidade ou ao portal consumidor.gov.br, conforme previsto na legislacao de defesa do consumidor.",
+          "O usuário pode registrar reclamações, sugestoes e solicitações pelo canal oficial de suporte da Frescari em [EMAIL DE SUPORTE]. A Frescari compromete-se a responder em prazo razoável conforme a natureza da solicitação.",
+          "Caso a demanda não seja resolvida diretamente com a Frescari, o usuário também pode recorrer ao Procon de sua municipalidade ou ao portal consumidor.gov.br, conforme previsto na legislação de defesa do consumidor.",
         ],
       },
       {
-        title: "10. Lei aplicavel e foro",
+        title: "10. Lei aplicável e foro",
         paragraphs: [
-          "Estes Termos de Uso sao regidos pela legislacao brasileira, em especial pelo Codigo Civil, pelo Codigo de Defesa do Consumidor (Lei no 8.078/1990) e pelo Marco Civil da Internet (Lei no 12.965/2014).",
-          "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias oriundas deste instrumento, sem prejuizo da competencia de foro especial prevista em lei para consumidores.",
+          "Estes Termos de Uso são regidos pela legislação brasileira, em especial pelo Código Civil, pelo Código de Defesa do Consumidor (Lei no 8.078/1990) e pelo Marco Civil da Internet (Lei no 12.965/2014).",
+          "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias oriundas deste instrumento, sem prejuizo da competência de foro especial prevista em lei para consumidores.",
         ],
       },
     ],
@@ -247,7 +247,7 @@ const legalDocuments = {
       "Como a Frescari coleta, utiliza, compartilha e protege dados pessoais no contexto da plataforma.",
     summary:
       "Este Aviso de Privacidade descreve as principais atividades de tratamento de dados pessoais realizadas pela Frescari, os direitos do titular e os canais de contato para assuntos de privacidade.",
-    status: "Versao final — V2",
+    status: "Versão final — V2",
     effectiveDate: "2 de abril de 2026",
     updatedAt: "2 de abril de 2026",
     reviewNote: "",
@@ -255,76 +255,76 @@ const legalDocuments = {
       {
         title: "1. Controlador de dados",
         paragraphs: [
-          "O controlador responsavel pelo tratamento dos dados pessoais coletados por esta plataforma e [RAZAO SOCIAL], inscrita no CNPJ sob o numero [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF] (doravante 'Frescari').",
-          "Para exercicio de direitos ou duvidas sobre privacidade, o titular pode entrar em contato com o encarregado de dados (DPO) pelo endeco de e-mail: [EMAIL DE PRIVACIDADE].",
+          "O controlador responsável pelo tratamento dos dados pessoais coletados por esta plataforma e [RAZÃO SOCIAL], inscrita no CNPJ sob o número [XX.XXX.XXX/XXXX-XX], com sede em [ENDEREÇO COMPLETO, CIDADE/UF] (doravante 'Frescari').",
+          "Para exercicio de direitos ou dúvidas sobre privacidade, o titular pode entrar em contato com o encarregado de dados (DPO) pelo endeco de e-mail: [EMAIL DE PRIVACIDADE].",
         ],
       },
       {
         title: "2. Dados tratados",
         paragraphs: [
-          "A Frescari pode tratar dados cadastrais, dados de contato, dados de autenticacao, dados operacionais de pedidos e dados necessarios para viabilizar pagamentos, repasses, suporte, seguranca e prevencao a fraude.",
-          "Para produtores, a Frescari podera tratar tambem dados de perfil profissional, nome publico da fazenda ou marca, informacoes de cadastro inicial e dados minimos para preenchimento financeiro.",
+          "A Frescari pode tratar dados cadastrais, dados de contato, dados de autenticação, dados operacionais de pedidos e dados necessários para viabilizar pagamentos, repasses, suporte, segurança e prevenção a fraude.",
+          "Para produtores, a Frescari poderá tratar também dados de perfil profissional, nome público da fazenda ou marca, informações de cadastro inicial e dados mínimos para preenchimento financeiro.",
         ],
       },
       {
         title: "3. Finalidades e bases legais (LGPD)",
         paragraphs: [
-          "Os dados pessoais sao tratados para finalidades especificas, cada uma amparada por uma base legal prevista na Lei Geral de Protecao de Dados (Lei no 13.709/2018):",
+          "Os dados pessoais são tratados para finalidades especificas, cada uma amparada por uma base legal prevista na Lei Geral de Proteção de Dados (Lei no 13.709/2018):",
         ],
         bullets: [
-          "Criacao e manutencao de conta, autenticacao e acesso ao servico: execucao de contrato (Art. 7o, V).",
-          "Processamento de pagamentos e repasses ao produtor: execucao de contrato e cumprimento de obrigacao legal (Art. 7o, V e II).",
-          "Prevencao a fraude, seguranca da informacao e integridade da operacao Frescari: legitimo interesse (Art. 7o, IX).",
-          "Cumprimento de obrigacoes regulatorias, fiscais e de prevencao a lavagem de dinheiro: obrigacao legal (Art. 7o, II).",
-          "Comunicacoes transacionais (confirmacao de pedido, atualizacao de status): execucao de contrato (Art. 7o, V).",
-          "Aperfeicoamento do servico e analise de uso anonimizado: legitimo interesse (Art. 7o, IX), com respeito ao direito de oposicao.",
+          "Criação e manutenção de conta, autenticação e acesso ao serviço: execução de contrato (Art. 7o, V).",
+          "Processamento de pagamentos e repasses ao produtor: execução de contrato e cumprimento de obrigação legal (Art. 7o, V e II).",
+          "Prevenção a fraude, segurança da informação e integridade da operação Frescari: legítimo interesse (Art. 7o, IX).",
+          "Cumprimento de obrigações regulatorias, fiscais e de prevenção a lavagem de dinheiro: obrigação legal (Art. 7o, II).",
+          "Comunicações transacionais (confirmação de pedido, atualização de status): execução de contrato (Art. 7o, V).",
+          "Aperfeicoamento do serviço e análise de uso anonimizado: legítimo interesse (Art. 7o, IX), com respeito ao direito de oposição.",
         ],
       },
       {
-        title: "4. Compartilhamento e transferencia internacional",
+        title: "4. Compartilhamento e transferência internacional",
         paragraphs: [
-          "A Frescari podera compartilhar dados com operadores e parceiros estritamente necessarios para a prestacao do servico, incluindo provedores de autenticacao, infraestrutura em nuvem, armazenamento de arquivos e processamento financeiro.",
-          "Para viabilizar pagamentos e repasses, dados necessarios a verificacao financeira e validacoes regulatorias sao compartilhados com a Stripe, Inc. (Estados Unidos). Esse compartilhamento constitui transferencia internacional de dados pessoais, realizada com base nas garantias adequadas aplicaveis nos termos da LGPD e das regulamentacoes da ANPD.",
+          "A Frescari poderá compartilhar dados com operadores e parceiros estritamente necessários para a prestação do serviço, incluindo provedores de autenticação, infraestrutura em nuvem, armazenamento de arquivos e processamento financeiro.",
+          "Para viabilizar pagamentos e repasses, dados necessários a verificação financeira e validações regulatorias são compartilhados com a Stripe, Inc. (Estados Unidos). Esse compartilhamento constitui transferência internacional de dados pessoais, realizada com base nas garantias adequadas aplicáveis nos termos da LGPD e das regulamentações da ANPD.",
         ],
         bullets: [
-          "O compartilhamento observa os principios de necessidade, adequacao e minimizacao.",
-          "A Frescari nao compartilha dados para fins alheios ao funcionamento regular do produto sem base legal adequada.",
+          "O compartilhamento observa os principios de necessidade, adequação e minimização.",
+          "A Frescari não compartilha dados para fins alheios ao funcionamento regular do produto sem base legal adequada.",
         ],
       },
       {
-        title: "5. Retencao e seguranca",
+        title: "5. Retenção e segurança",
         paragraphs: [
-          "Os dados serao conservados pelo prazo necessario para cumprir as finalidades de tratamento e, apos o encerramento da relacao contratual, pelo prazo prescricional aplicavel, que pode chegar a 5 (cinco) anos nos termos do artigo 206 do Codigo Civil, salvo prazo maior exigido por lei especifica.",
-          "A Frescari adota medidas tecnicas e organizacionais razoaveis para proteger dados pessoais contra acesso nao autorizado, alteracao indevida, perda, vazamento e uso abusivo, incluindo criptografia em transito, autenticacao segura e controles de acesso por funcao.",
+          "Os dados serão conservados pelo prazo necessário para cumprir as finalidades de tratamento e, após o encerramento da relação contratual, pelo prazo prescricional aplicável, que pode chegar a 5 (cinco) anos nos termos do artigo 206 do Código Civil, salvo prazo maior exigido por lei especifica.",
+          "A Frescari adota medidas tecnicas e organizacionais razoáveis para proteger dados pessoais contra acesso não autorizado, alteração indevida, perda, vazamento e uso abusivo, incluindo criptografia em trânsito, autenticação segura e controles de acesso por função.",
         ],
       },
       {
         title: "6. Direitos do titular",
         paragraphs: [
-          "Nos termos da LGPD, o titular tem os seguintes direitos em relacao aos seus dados pessoais tratados pela Frescari:",
+          "Nos termos da LGPD, o titular tem os seguintes direitos em relação aos seus dados pessoais tratados pela Frescari:",
         ],
         bullets: [
-          "Confirmacao da existencia de tratamento e acesso aos dados.",
-          "Correcao de dados incompletos, inexatos ou desatualizados.",
-          "Anonimizacao, bloqueio ou eliminacao de dados desnecessarios, excessivos ou tratados em desconformidade com a lei.",
-          "Portabilidade dos dados a outro fornecedor de servico, quando aplicavel.",
-          "Informacao sobre entidades publicas e privadas com as quais a Frescari realizou uso compartilhado de dados.",
-          "Revogacao do consentimento, quando o tratamento for baseado nessa base legal.",
-          "Oposicao ao tratamento realizado com fundamento em outras bases legais, em caso de descumprimento da lei.",
+          "Confirmação da existência de tratamento e acesso aos dados.",
+          "Correção de dados incompletos, inexatos ou desatualizados.",
+          "Anonimização, bloqueio ou eliminação de dados desnecessarios, excessivos ou tratados em desconformidade com a lei.",
+          "Portabilidade dos dados a outro fornecedor de serviço, quando aplicável.",
+          "Informação sobre entidades publicas e privadas com as quais a Frescari realizou uso compartilhado de dados.",
+          "Revogação do consentimento, quando o tratamento for baseado nessa base legal.",
+          "Oposição ao tratamento realizado com fundamento em outras bases legais, em caso de descumprimento da lei.",
         ],
       },
       {
         title: "7. Contato, DPO e autoridade regulatoria",
         paragraphs: [
-          "Solicitacoes relacionadas ao exercicio de direitos, duvidas sobre tratamento e reclamacoes de privacidade devem ser encaminhadas ao encarregado de dados da Frescari pelo e-mail: [EMAIL DE PRIVACIDADE]. A Frescari se compromete a responder dentro do prazo razoavel exigido pela LGPD.",
-          "Caso o titular considere que seus direitos nao foram adequadamente atendidos, pode apresentar reclamacao perante a Autoridade Nacional de Protecao de Dados (ANPD), conforme previsto no artigo 18, paragrafo 1o da LGPD.",
+          "Solicitações relacionadas ao exercicio de direitos, dúvidas sobre tratamento e reclamações de privacidade devem ser encaminhadas ao encarregado de dados da Frescari pelo e-mail: [EMAIL DE PRIVACIDADE]. A Frescari se compromete a responder dentro do prazo razoável exigido pela LGPD.",
+          "Caso o titular considere que seus direitos não foram adequadamente atendidos, pode apresentar reclamação perante a Autoridade Nacional de Proteção de Dados (ANPD), conforme previsto no artigo 18, paragrafo 1o da LGPD.",
         ],
       },
       {
-        title: "8. Atualizacoes e lei aplicavel",
+        title: "8. Atualizações e lei aplicável",
         paragraphs: [
-          "Este Aviso podera ser atualizado para refletir evolucoes regulatorias, tecnicas ou operacionais. Mudancas materiais serao destacadas com antecedencia razoavel e, quando exigirem novo consentimento, serao apresentadas ao titular antes da continuidade do tratamento.",
-          "Este Aviso e regido pela Lei Geral de Protecao de Dados (Lei no 13.709/2018) e pela legislacao brasileira aplicavel. O foro competente para eventuais controversias e o da comarca de [CIDADE/UF].",
+          "Este Aviso poderá ser atualizado para refletir evoluções regulatorias, tecnicas ou operacionais. Mudancas materiais serão destacadas com antecedência razoável e, quando exigirem novo consentimento, serão apresentadas ao titular antes da continuidade do tratamento.",
+          "Este Aviso e regido pela Lei Geral de Proteção de Dados (Lei no 13.709/2018) e pela legislação brasileira aplicável. O foro competente para eventuais controversias e o da comarca de [CIDADE/UF].",
         ],
       },
     ],
@@ -332,63 +332,63 @@ const legalDocuments = {
   marketplace: {
     slug: "marketplace",
     title: "Termos Comerciais",
-    eyebrow: "Regras da operacao comercial",
+    eyebrow: "Regras da operação comercial",
     description:
-      "Regras especificas para compradores, produtores e operacao comercial dentro da Frescari.",
+      "Regras especificas para compradores, produtores e operação comercial dentro da Frescari.",
     summary:
-      "Estes Termos Comerciais regulam a utilizacao comercial da Frescari, definindo papeis, responsabilidades, limites operacionais e regras de publicacao, negociacao e execucao das operacoes.",
-    status: "Versao final — V2",
+      "Estes Termos Comerciais regulam a utilização comercial da Frescari, definindo papeis, responsabilidades, limites operacionais e regras de publicação, negociação e execução das operações.",
+    status: "Versão final — V2",
     effectiveDate: "2 de abril de 2026",
     updatedAt: "2 de abril de 2026",
     reviewNote: "",
     sections: [
       {
-        title: "1. Identificacao e escopo",
+        title: "1. Identificação e escopo",
         paragraphs: [
-          "O ambiente comercial Frescari e operado por [RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], com sede em [ENDERECO COMPLETO, CIDADE/UF].",
-          "Estes Termos Comerciais regulam especificamente as relacoes entre produtores e compradores intermediadas pela Frescari, complementando os Termos de Uso gerais.",
+          "O ambiente comercial Frescari e operado por [RAZÃO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], com sede em [ENDEREÇO COMPLETO, CIDADE/UF].",
+          "Estes Termos Comerciais regulam especificamente as relações entre produtores e compradores intermediadas pela Frescari, complementando os Termos de Uso gerais.",
         ],
       },
       {
         title: "2. Papeis das partes",
         paragraphs: [
-          "A Frescari disponibiliza a infraestrutura comercial e nao substitui a responsabilidade legal, comercial, tributaria e operacional das partes pelos atos que lhes competem.",
-          "O produtor e responsavel pela regularidade do cadastro, pela legitimidade da oferta, pela veracidade das informacoes do item e pela capacidade de cumprir a operacao. O comprador responde pela veracidade das informacoes de compra, pagamento e recebimento.",
-          "A separacao, o transporte e a entrega dos pedidos sao de responsabilidade do produtor, que define as condicoes de frete da sua operacao, como taxa base, valor por quilometro, raio maximo de entrega e pedido minimo. A Frescari calcula o frete a partir dessas condicoes e intermedia o pagamento, mas nao presta servico de transporte.",
+          "A Frescari disponibiliza a infraestrutura comercial e não substitui a responsabilidade legal, comercial, tributaria e operacional das partes pelos atos que lhes competem.",
+          "O produtor e responsável pela regularidade do cadastro, pela legitimidade da oferta, pela veracidade das informações do item e pela capacidade de cumprir a operação. O comprador responde pela veracidade das informações de compra, pagamento e recebimento.",
+          "A separação, o transporte e a entrega dos pedidos são de responsabilidade do produtor, que define as condições de frete da sua operação, como taxa base, valor por quilometro, raio máximo de entrega e pedido mínimo. A Frescari calcula o frete a partir dessas condições e intermedia o pagamento, mas não presta serviço de transporte.",
         ],
       },
       {
-        title: "3. Ofertas, publicacao e disponibilidade",
+        title: "3. Ofertas, publicação e disponibilidade",
         paragraphs: [
-          "A publicacao de itens depende do atendimento aos requisitos tecnicos, cadastrais e financeiros definidos pela plataforma. A Frescari podera restringir publicacoes quando houver pendencias cadastrais, financeiras, documentais ou de seguranca.",
-          "Informacoes de produto, lote, disponibilidade, origem, peso, unidade de venda e prazo estimado devem ser mantidas atualizadas pelo produtor nos termos operacionais da plataforma.",
+          "A publicação de itens depende do atendimento aos requisitos tecnicos, cadastrais e financeiros definidos pela plataforma. A Frescari poderá restringir publicações quando houver pendências cadastrais, financeiras, documentais ou de segurança.",
+          "Informações de produto, lote, disponibilidade, origem, peso, unidade de venda e prazo estimado devem ser mantidas atualizadas pelo produtor nos termos operacionais da plataforma.",
         ],
       },
       {
         title: "4. Produtos proibidos ou condicionados",
         paragraphs: [
-          "Nao e permitido utilizar a Frescari para anunciar, negociar ou circular itens vedados por lei, produtos sem regularidade minima exigivel, mercadorias de origem ilicita ou itens em desacordo com as politicas de seguranca e qualidade da plataforma.",
-          "Sao exemplos de produtos proibidos ou condicionados: alimentos sem registro sanitario aplicavel, produtos de origem animal sem inspecao competente (SIF/SIE/SIM), agrotoxicos nao registrados, embalagens irregulares e qualquer item cuja comercializacao requeira licenca nao apresentada pelo produtor.",
+          "Não e permitido utilizar a Frescari para anunciar, negociar ou circular itens vedados por lei, produtos sem regularidade mínima exigível, mercadorias de origem ilicita ou itens em desacordo com as políticas de segurança e qualidade da plataforma.",
+          "São exemplos de produtos proibidos ou condicionados: alimentos sem registro sanitario aplicável, produtos de origem animal sem inspeção competente (SIF/SIE/SIM), agrotoxicos não registrados, embalagens irregulares e qualquer item cuja comercialização requeira licenca não apresentada pelo produtor.",
         ],
       },
       {
         title: "5. Disputas, cancelamentos e medidas de controle",
         paragraphs: [
-          "Conflitos relacionados a pedido, divergencia de informacoes, indisponibilidade, atraso relevante, suspeita de fraude, chargeback ou descumprimento contratual poderao levar a bloqueio preventivo de funcionalidades, retencao temporaria de valores e abertura de analise interna. A Frescari buscara responder a disputas em ate 10 (dez) dias uteis contados da abertura formal da ocorrencia.",
-          "A Frescari podera solicitar documentos, comprovacoes e registros adicionais para apuracao, conciliacao e resolucao de disputas entre as partes.",
+          "Conflitos relacionados a pedido, divergência de informações, indisponibilidade, atraso relevante, suspeita de fraude, chargeback ou descumprimento contratual poderão levar a bloqueio preventivo de funcionalidades, retenção temporaria de valores e abertura de análise interna. A Frescari buscara responder a disputas em até 10 (dez) dias úteis contados da abertura formal da ocorrência.",
+          "A Frescari poderá solicitar documentos, comprovações e registros adicionais para apuração, conciliação e resolução de disputas entre as partes.",
         ],
       },
       {
         title: "6. Compliance operacional",
         paragraphs: [
-          "A utilizacao comercial da Frescari depende da manutencao de conta regular, verificacao financeira compativel com a categoria do usuario e respeito aos fluxos de pagamento e repasse definidos pela plataforma.",
-          "Produtores que nao atenderem aos requisitos de cadastro, verificacao, aceite e recebimentos poderao ter a operacao limitada ate regularizacao.",
+          "A utilização comercial da Frescari depende da manutenção de conta regular, verificação financeira compatível com a categoria do usuário e respeito aos fluxos de pagamento e repasse definidos pela plataforma.",
+          "Produtores que não atenderem aos requisitos de cadastro, verificação, aceite e recebimentos poderão ter a operação limitada até regularização.",
         ],
       },
       {
-        title: "7. Lei aplicavel e foro",
+        title: "7. Lei aplicável e foro",
         paragraphs: [
-          "Estes Termos Comerciais sao regidos pela legislacao brasileira, incluindo o Codigo de Defesa do Consumidor (Lei no 8.078/1990), o Marco Civil da Internet (Lei no 12.965/2014) e demais normas aplicaveis.",
+          "Estes Termos Comerciais são regidos pela legislação brasileira, incluindo o Código de Defesa do Consumidor (Lei no 8.078/1990), o Marco Civil da Internet (Lei no 12.965/2014) e demais normas aplicáveis.",
           "Fica eleito o foro da comarca de [CIDADE/UF] como competente para dirimir eventuais controversias, sem prejuizo do foro especial previsto em lei para consumidores.",
         ],
       },
@@ -396,62 +396,62 @@ const legalDocuments = {
   },
   "pagamentos-e-repasses": {
     slug: "pagamentos-e-repasses",
-    title: "Politica de Pagamentos, Comissoes e Repasses",
+    title: "Política de Pagamentos, Comissões e Repasses",
     eyebrow: "Financeiro Frescari",
     description:
-      "Como pagamentos, comissoes, repasses, cancelamentos, estornos e chargebacks devem funcionar na Frescari.",
+      "Como pagamentos, comissões, repasses, cancelamentos, estornos e chargebacks devem funcionar na Frescari.",
     summary:
-      "Esta politica define a logica financeira da plataforma, incluindo intermediacao de pagamentos, cobranca de comissao, repasse ao produtor e tratamento de eventos financeiros excepcionais.",
-    status: "Versao final — V2",
+      "Esta política define a logica financeira da plataforma, incluindo intermediação de pagamentos, cobrança de comissão, repasse ao produtor e tratamento de eventos financeiros excepcionais.",
+    status: "Versão final — V2",
     effectiveDate: "2 de abril de 2026",
     updatedAt: "2 de abril de 2026",
     reviewNote: "",
     sections: [
       {
-        title: "1. Identificacao",
+        title: "1. Identificação",
         paragraphs: [
-          "Esta Politica e publicada por [RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDERECO COMPLETO, CIDADE/UF].",
+          "Esta Política e publicada por [RAZÃO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDEREÇO COMPLETO, CIDADE/UF].",
         ],
       },
       {
-        title: "2. Intermediacao financeira",
+        title: "2. Intermediação financeira",
         paragraphs: [
-          "Os pagamentos realizados na Frescari sao processados por parceiro financeiro habilitado pela plataforma, conforme o fluxo tecnico e regulatorio aplicavel.",
-          "Para produtores, o recebimento depende da criacao e manutencao regular da conta de recebimento, da verificacao financeira e do atendimento aos requisitos do parceiro de pagamento.",
+          "Os pagamentos realizados na Frescari são processados por parceiro financeiro habilitado pela plataforma, conforme o fluxo técnico e regulatorio aplicável.",
+          "Para produtores, o recebimento depende da criação e manutenção regular da conta de recebimento, da verificação financeira e do atendimento aos requisitos do parceiro de pagamento.",
         ],
       },
       {
-        title: "3. Comissao da plataforma",
+        title: "3. Comissão da plataforma",
         paragraphs: [
-          "A Frescari cobra uma comissao de 10% (dez por cento) sobre o valor dos produtos de cada pedido intermediado pela plataforma. A comissao nao incide sobre o frete: o valor do frete e repassado integralmente ao produtor responsavel pela entrega.",
-          "A comissao e separada automaticamente no momento em que o pagamento do pedido e confirmado. Taxas adicionais do parceiro financeiro, instituicao financeira, adquirente, bandeira, banco ou meio de pagamento podem ser descontadas conforme os termos aplicaveis e serao comunicadas ao produtor na area do produtor ou por comunicado especifico.",
+          "A Frescari cobra uma comissão de 10% (dez por cento) sobre o valor dos produtos de cada pedido intermediado pela plataforma. A comissão não incide sobre o frete: o valor do frete e repassado integralmente ao produtor responsável pela entrega.",
+          "A comissão e separada automaticamente no momento em que o pagamento do pedido e confirmado. Taxas adicionais do parceiro financeiro, instituição financeira, adquirente, bandeira, banco ou meio de pagamento podem ser descontadas conforme os termos aplicáveis e serão comunicadas ao produtor na área do produtor ou por comunicado específico.",
         ],
       },
       {
         title: "4. Repasse ao produtor",
         paragraphs: [
-          "Quando o pagamento do pedido e confirmado, o valor do produtor (o valor dos produtos menos a comissao, mais o frete) e transferido automaticamente para a conta de recebimento do produtor no parceiro financeiro. Em pedidos com itens vendidos por peso, a transferencia ocorre quando o produtor informa o peso final e o pagamento e capturado pelo valor real. O deposito na conta bancaria do produtor segue o calendario de repasses do parceiro financeiro.",
-          "A Frescari podera reter temporariamente valores quando houver necessidade de conciliacao, investigacao de fraude, contestacao de pagamento, determinacao regulatoria ou descumprimento material das politicas da plataforma.",
+          "Quando o pagamento do pedido e confirmado, o valor do produtor (o valor dos produtos menos a comissão, mais o frete) e transferido automaticamente para a conta de recebimento do produtor no parceiro financeiro. Em pedidos com itens vendidos por peso, a transferência ocorre quando o produtor informa o peso final e o pagamento e capturado pelo valor real. O depósito na conta bancaria do produtor segue o calendario de repasses do parceiro financeiro.",
+          "A Frescari poderá reter temporariamente valores quando houver necessidade de conciliação, investigação de fraude, contestação de pagamento, determinação regulatoria ou descumprimento material das políticas da plataforma.",
         ],
       },
       {
         title: "5. Cancelamentos, estornos e chargebacks",
         paragraphs: [
-          "Quando um pedido e cancelado com estorno ao comprador, o valor transferido ao produtor e a comissao da plataforma sao revertidos junto com o estorno, inclusive por debito no saldo da conta de recebimento do produtor quando o valor ja tiver sido transferido. Operacoes objeto de chargeback poderao gerar compensacoes, ajustes ou debitamentos conforme o caso concreto e a responsabilidade identificada.",
-          "A plataforma podera priorizar a preservacao da integridade financeira da Frescari, inclusive com bloqueio temporario de saque, ajuste de saldo ou exigencia de informacoes adicionais.",
+          "Quando um pedido e cancelado com estorno ao comprador, o valor transferido ao produtor e a comissão da plataforma são revertidos junto com o estorno, inclusive por debito no saldo da conta de recebimento do produtor quando o valor já tiver sido transferido. Operações objeto de chargeback poderão gerar compensações, ajustes ou debitamentos conforme o caso concreto e a responsabilidade identificada.",
+          "A plataforma poderá priorizar a preservação da integridade financeira da Frescari, inclusive com bloqueio temporario de saque, ajuste de saldo ou exigência de informações adicionais.",
         ],
       },
       {
-        title: "6. Limitacoes de operacao financeira",
+        title: "6. Limitações de operação financeira",
         paragraphs: [
-          "A Frescari nao garante liberacao imediata de valores nem continuidade irrestrita de recebimentos quando o produtor estiver em estado de pendencia cadastral, verificacao, risco elevado, inconsistencias documentais ou restricoes impostas pelo parceiro financeiro.",
-          "A conta so deve ser tratada como apta para receber quando o parceiro financeiro confirmar a habilitacao efetiva de cobranca e repasse.",
+          "A Frescari não garante liberação imediata de valores nem continuidade irrestrita de recebimentos quando o produtor estiver em estado de pendência cadastral, verificação, risco elevado, inconsistências documentais ou restrições impostas pelo parceiro financeiro.",
+          "A conta so deve ser tratada como apta para receber quando o parceiro financeiro confirmar a habilitação efetiva de cobrança e repasse.",
         ],
       },
       {
-        title: "7. Lei aplicavel e foro",
+        title: "7. Lei aplicável e foro",
         paragraphs: [
-          "Esta Politica e regida pela legislacao brasileira, incluindo o Codigo de Defesa do Consumidor, a Lei de Meios de Pagamento e normas do Banco Central quando aplicaveis.",
+          "Esta Política e regida pela legislação brasileira, incluindo o Código de Defesa do Consumidor, a Lei de Meios de Pagamento e normas do Banco Central quando aplicáveis.",
           "Fica eleito o foro da comarca de [CIDADE/UF] para dirimir eventuais controversias, sem prejuizo do foro especial do consumidor.",
         ],
       },
@@ -459,74 +459,74 @@ const legalDocuments = {
   },
   "cancelamento-estorno-e-chargeback": {
     slug: "cancelamento-estorno-e-chargeback",
-    title: "Politica de Cancelamento, Estorno e Chargeback",
-    eyebrow: "Excecoes financeiras e operacionais",
+    title: "Política de Cancelamento, Estorno e Chargeback",
+    eyebrow: "Exceções financeiras e operacionais",
     description:
-      "Regras de tratamento para cancelamentos, estornos, contestacoes e chargebacks dentro da operacao Frescari.",
+      "Regras de tratamento para cancelamentos, estornos, contestações e chargebacks dentro da operação Frescari.",
     summary:
-      "Esta politica organiza os criterios minimos para cancelamento de operacoes, estorno de valores, tratamento de chargebacks e medidas preventivas de integridade financeira na Frescari.",
-    status: "Versao final — V2",
+      "Esta política organiza os criterios mínimos para cancelamento de operações, estorno de valores, tratamento de chargebacks e medidas preventivas de integridade financeira na Frescari.",
+    status: "Versão final — V2",
     effectiveDate: "2 de abril de 2026",
     updatedAt: "2 de abril de 2026",
     reviewNote: "",
     sections: [
       {
-        title: "1. Identificacao e escopo",
+        title: "1. Identificação e escopo",
         paragraphs: [
-          "Esta Politica e publicada por [RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDERECO COMPLETO, CIDADE/UF].",
-          "Este documento complementa os Termos Comerciais e a Politica de Pagamentos, Comissoes e Repasses, detalhando como a Frescari trata eventos de cancelamento, estorno, contestacao e chargeback.",
+          "Esta Política e publicada por [RAZÃO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDEREÇO COMPLETO, CIDADE/UF].",
+          "Este documento complementa os Termos Comerciais e a Política de Pagamentos, Comissões e Repasses, detalhando como a Frescari trata eventos de cancelamento, estorno, contestação e chargeback.",
         ],
       },
       {
-        title: "2. Cancelamentos de operacao",
+        title: "2. Cancelamentos de operação",
         paragraphs: [
-          "Pedidos poderao ser cancelados quando houver indisponibilidade material do item, divergencia relevante de informacoes, falha de pagamento, suspeita de fraude, impossibilidade operacional comprovada ou acordo valido entre as partes.",
-          "A Frescari podera suspender temporariamente a continuidade do pedido enquanto apura documentos, historico de comunicacao, comprovacoes logisticas e demais evidencias necessarias para decidir sobre a manutencao ou cancelamento da operacao.",
+          "Pedidos poderão ser cancelados quando houver indisponibilidade material do item, divergência relevante de informações, falha de pagamento, suspeita de fraude, impossibilidade operacional comprovada ou acordo válido entre as partes.",
+          "A Frescari poderá suspender temporariamente a continuidade do pedido enquanto apura documentos, histórico de comunicação, comprovações logisticas e demais evidências necessarias para decidir sobre a manutenção ou cancelamento da operação.",
         ],
         bullets: [
-          "Cancelamentos antes da confirmacao financeira podem resultar apenas em encerramento do pedido sem repasse.",
-          "Cancelamentos apos confirmacao financeira poderao exigir estorno, ajuste de saldo, retencao temporaria ou compensacao posterior.",
+          "Cancelamentos antes da confirmação financeira podem resultar apenas em encerramento do pedido sem repasse.",
+          "Cancelamentos após confirmação financeira poderão exigir estorno, ajuste de saldo, retenção temporaria ou compensação posterior.",
         ],
       },
       {
-        title: "3. Direito de arrependimento e devolucao",
+        title: "3. Direito de arrependimento e devolução",
         paragraphs: [
-          "O consumidor tem direito ao arrependimento em ate 7 (sete) dias corridos do recebimento do produto, conforme o artigo 49 do Codigo de Defesa do Consumidor e o artigo 5o do Decreto no 7.962/2013. Nesse caso, o reembolso integral sera processado, descontadas eventuais taxas irrecuperaveis do parceiro financeiro.",
-          "Para alimentos e produtos perecíveis, o exercicio do direito de arrependimento esta sujeito ao estado de conservacao do produto no momento da devolucao e as restricoes sanitarias e logisticas aplicaveis.",
+          "O consumidor tem direito ao arrependimento em até 7 (sete) dias corridos do recebimento do produto, conforme o artigo 49 do Código de Defesa do Consumidor e o artigo 5o do Decreto no 7.962/2013. Nesse caso, o reembolso integral será processado, descontadas eventuais taxas irrecuperáveis do parceiro financeiro.",
+          "Para alimentos e produtos perecíveis, o exercicio do direito de arrependimento esta sujeito ao estado de conservação do produto no momento da devolução e as restrições sanitarias e logisticas aplicáveis.",
         ],
       },
       {
         title: "4. Estornos e ajustes",
         paragraphs: [
-          "Quando houver devolucao de valor ao comprador, a plataforma podera realizar estorno integral ou parcial conforme a natureza do evento, a extensao do prejuizo identificado e as limitacoes do parceiro de pagamento.",
-          "Custos de intermediacao, taxas de terceiros, despesas operacionais e outros encargos associados ao evento poderao compor o calculo final de ajuste quando isso estiver alinhado com a regra comercial vigente e com a responsabilidade apurada.",
+          "Quando houver devolução de valor ao comprador, a plataforma poderá realizar estorno integral ou parcial conforme a natureza do evento, a extensão do prejuizo identificado e as limitações do parceiro de pagamento.",
+          "Custos de intermediação, taxas de terceiros, despesas operacionais e outros encargos associados ao evento poderão compor o cálculo final de ajuste quando isso estiver alinhado com a regra comercial vigente e com a responsabilidade apurada.",
         ],
       },
       {
-        title: "5. Chargebacks e contestacoes",
+        title: "5. Chargebacks e contestações",
         paragraphs: [
-          "Chargebacks, contestacoes bancarias ou disputas abertas junto ao parceiro financeiro poderao levar a bloqueio preventivo de repasses, reserva de saldo, solicitacao de documentos e restricao temporaria de funcionalidades da conta envolvida.",
-          "A Frescari podera consolidar comprovantes, historico transacional, registros de entrega e evidencias operacionais para subsidiar a defesa da transacao ou reconhecer a necessidade de ajuste financeiro.",
+          "Chargebacks, contestações bancarias ou disputas abertas junto ao parceiro financeiro poderão levar a bloqueio preventivo de repasses, reserva de saldo, solicitação de documentos e restrição temporaria de funcionalidades da conta envolvida.",
+          "A Frescari poderá consolidar comprovantes, histórico transacional, registros de entrega e evidências operacionais para subsidiar a defesa da transação ou reconhecer a necessidade de ajuste financeiro.",
         ],
       },
       {
         title: "6. Medidas de integridade financeira",
         paragraphs: [
-          "Sempre que houver risco razoavel de perda, fraude, reincidencia ou inconsistencias materiais, a plataforma podera reter valores, interromper novos recebimentos, exigir regularizacao documental ou limitar saques e repasses ate a conclusao da analise.",
-          "Essas medidas poderao ser adotadas mesmo antes da definicao final da disputa quando forem necessarias para proteger compradores, produtores, a propria operacao da Frescari e o equilibrio financeiro da plataforma.",
+          "Sempre que houver risco razoável de perda, fraude, reincidência ou inconsistências materiais, a plataforma poderá reter valores, interromper novos recebimentos, exigir regularização documental ou limitar saques e repasses até a conclusão da análise.",
+          "Essas medidas poderão ser adotadas mesmo antes da definição final da disputa quando forem necessarias para proteger compradores, produtores, a própria operação da Frescari e o equilibrio financeiro da plataforma.",
         ],
       },
       {
-        title: "7. Cooperacao das partes",
+        title: "7. Cooperação das partes",
         paragraphs: [
-          "Compradores e produtores devem colaborar com a apuracao, apresentando informacoes verdadeiras, documentos solicitados e historico suficiente para conciliacao da ocorrencia em prazo razoavel.",
-          "A omissao de dados, a apresentacao de informacoes inveridicas ou a recusa injustificada em cooperar poderao influenciar a decisao operacional da plataforma e a manutencao das medidas preventivas aplicadas.",
+          "Compradores e produtores devem colaborar com a apuração, apresentando informações verdadeiras, documentos solicitados e histórico suficiente para conciliação da ocorrência em prazo razoável.",
+          "A omissão de dados, a apresentação de informações inverídicas ou a recusa injustificada em cooperar poderão influenciar a decisão operacional da plataforma e a manutenção das medidas preventivas aplicadas.",
         ],
       },
       {
-        title: "8. Lei aplicavel e foro",
+        title: "8. Lei aplicável e foro",
         paragraphs: [
-          "Esta Politica e regida pela legislacao brasileira, em especial pelo Codigo de Defesa do Consumidor (Lei no 8.078/1990) e pelo Decreto no 7.962/2013.",
+          "Esta Política e regida pela legislação brasileira, em especial pelo Código de Defesa do Consumidor (Lei no 8.078/1990) e pelo Decreto no 7.962/2013.",
           "Fica eleito o foro da comarca de [CIDADE/UF] para dirimir eventuais controversias, sem prejuizo do foro especial do consumidor.",
         ],
       },
@@ -534,60 +534,60 @@ const legalDocuments = {
   },
   cookies: {
     slug: "cookies",
-    title: "Politica de Cookies",
-    eyebrow: "Sessao, autenticacao e seguranca",
+    title: "Política de Cookies",
+    eyebrow: "Sessão, autenticação e segurança",
     description:
-      "Como a Frescari utiliza cookies estritamente necessarios para autenticacao, continuidade da sessao e protecao basica da operacao.",
+      "Como a Frescari utiliza cookies estritamente necessários para autenticação, continuidade da sessão e proteção básica da operação.",
     summary:
-      "Na versao atual da Frescari, o uso de cookies esta concentrado em autenticacao, continuidade de sessao e seguranca operacional. Nao ha, nesta etapa, ativacao de cookies de publicidade ou medicao nao essencial.",
-    status: "Versao final — V2",
+      "Na versão atual da Frescari, o uso de cookies esta concentrado em autenticação, continuidade de sessão e segurança operacional. Não ha, nesta etapa, ativação de cookies de publicidade ou medição não essencial.",
+    status: "Versão final — V2",
     effectiveDate: "2 de abril de 2026",
     updatedAt: "2 de abril de 2026",
     reviewNote: "",
     sections: [
       {
-        title: "1. Identificacao",
+        title: "1. Identificação",
         paragraphs: [
-          "Esta Politica de Cookies e publicada por [RAZAO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDERECO COMPLETO, CIDADE/UF].",
+          "Esta Política de Cookies e publicada por [RAZÃO SOCIAL], CNPJ [XX.XXX.XXX/XXXX-XX], operadora da plataforma Frescari, com sede em [ENDEREÇO COMPLETO, CIDADE/UF].",
         ],
       },
       {
-        title: "2. O que sao cookies",
+        title: "2. O que são cookies",
         paragraphs: [
-          "Cookies sao pequenos arquivos ou identificadores associados ao navegador para viabilizar funcionalidades tecnicas, lembrar estados de navegacao e reforcar controles de seguranca.",
-          "No contexto atual da Frescari, eles sao usados de forma restrita para manter a experiencia autenticada e proteger fluxos sensiveis do produto.",
+          "Cookies são pequenos arquivos ou identificadores associados ao navegador para viabilizar funcionalidades tecnicas, lembrar estados de navegação e reforcar controles de segurança.",
+          "No contexto atual da Frescari, eles são usados de forma restrita para manter a experiência autenticada e proteger fluxos sensíveis do produto.",
         ],
       },
       {
         title: "3. Cookies atualmente utilizados",
         paragraphs: [
-          "A aplicacao web utiliza exclusivamente cookies estritamente necessarios para autenticar o usuario, manter a sessao ativa, encerrar o acesso com seguranca e apoiar controles basicos contra abuso do fluxo autenticado.",
-          "Esses cookies nao sao usados, nesta versao do produto, para publicidade comportamental, remarketing ou medicao nao essencial na experiencia publica.",
+          "A aplicação web utiliza exclusivamente cookies estritamente necessários para autenticar o usuário, manter a sessão ativa, encerrar o acesso com segurança e apoiar controles basicos contra abuso do fluxo autenticado.",
+          "Esses cookies não são usados, nesta versão do produto, para publicidade comportamental, remarketing ou medição não essencial na experiência publica.",
         ],
         bullets: [
-          "Cookies de sessao e autenticacao para manter o usuario conectado (HttpOnly, Secure, SameSite=Lax).",
-          "Cookies tecnicos para continuidade do login e encerramento seguro da sessao.",
-          "Cookies relacionados a seguranca operacional do fluxo autenticado, quando aplicavel.",
+          "Cookies de sessão e autenticação para manter o usuário conectado (HttpOnly, Secure, SameSite=Lax).",
+          "Cookies tecnicos para continuidade do login e encerramento seguro da sessão.",
+          "Cookies relacionados a segurança operacional do fluxo autenticado, quando aplicável.",
         ],
       },
       {
         title: "4. Base legal para uso de cookies essenciais",
         paragraphs: [
-          "O uso de cookies estritamente necessarios nao requer consentimento previo, pois e indispensavel para a prestacao do servico solicitado pelo usuario, conforme o artigo 7o, inciso V da LGPD (execucao de contrato) e as diretrizes da ANPD sobre cookies tecnicos.",
-          "Sem esses cookies, funcionalidades como entrar na conta, permanecer autenticado, concluir verificacoes de acesso e navegar por areas protegidas podem deixar de funcionar corretamente.",
+          "O uso de cookies estritamente necessários não requer consentimento previo, pois e indispensável para a prestação do serviço solicitado pelo usuário, conforme o artigo 7o, inciso V da LGPD (execução de contrato) e as diretrizes da ANPD sobre cookies tecnicos.",
+          "Sem esses cookies, funcionalidades como entrar na conta, permanecer autenticado, concluir verificações de acesso e navegar por áreas protegidas podem deixar de funcionar corretamente.",
         ],
       },
       {
-        title: "5. Preferencias futuras e atualizacoes",
+        title: "5. Preferências futuras e atualizações",
         paragraphs: [
-          "Caso a Frescari venha a introduzir cookies nao estritamente necessarios, como mensuracao, personalizacao opcional ou publicidade, esta politica sera atualizada com transparencia e, quando exigido, sera solicitado consentimento especifico antes da ativacao desses recursos.",
-          "Mudancas materiais nesta politica serao destacadas no produto ou em canais oficiais.",
+          "Caso a Frescari venha a introduzir cookies não estritamente necessários, como mensuração, personalização opcional ou publicidade, esta política será atualizada com transparência e, quando exigido, será solicitado consentimento específico antes da ativação desses recursos.",
+          "Mudancas materiais nesta política serão destacadas no produto ou em canais oficiais.",
         ],
       },
       {
-        title: "6. Lei aplicavel e foro",
+        title: "6. Lei aplicável e foro",
         paragraphs: [
-          "Esta Politica e regida pela legislacao brasileira, em especial pela LGPD (Lei no 13.709/2018) e pelo Marco Civil da Internet (Lei no 12.965/2014).",
+          "Esta Política e regida pela legislação brasileira, em especial pela LGPD (Lei no 13.709/2018) e pelo Marco Civil da Internet (Lei no 12.965/2014).",
           "Fica eleito o foro da comarca de [CIDADE/UF] para dirimir eventuais controversias.",
         ],
       },
@@ -629,7 +629,7 @@ export const legalDocumentLinks = [
   { href: "/marketplace", label: "Termos Comerciais", slug: "marketplace" },
   {
     href: "/pagamentos-e-repasses",
-    label: "Pagamentos, Comissoes e Repasses",
+    label: "Pagamentos, Comissões e Repasses",
     slug: "pagamentos-e-repasses",
   },
   {
@@ -639,7 +639,7 @@ export const legalDocumentLinks = [
   },
   {
     href: "/cookies",
-    label: "Politica de Cookies",
+    label: "Política de Cookies",
     slug: "cookies",
   },
 ] as const;

@@ -41,9 +41,9 @@ type ResetPasswordFormProps = {
   resetPassword?: ResetPasswordFn;
 };
 
-const INVALID_LINK_MESSAGE = "Link invalido ou expirado.";
+const INVALID_LINK_MESSAGE = "Link inválido ou expirado.";
 const GENERIC_ERROR_MESSAGE =
-  "Nao foi possivel redefinir a senha agora. Tente novamente em instantes.";
+  "Não foi possível redefinir a senha agora. Tente novamente em instantes.";
 
 function StatusCard({
   eyebrow,
@@ -101,7 +101,7 @@ export function ResetPasswordForm({
     {
       key: "min-length",
       met: passwordCriteria.hasMinLength,
-      text: `Minimo de ${PASSWORD_MIN_LENGTH} caracteres`,
+      text: `Mínimo de ${PASSWORD_MIN_LENGTH} caracteres`,
     },
     {
       key: "uppercase",
@@ -116,7 +116,7 @@ export function ResetPasswordForm({
     {
       key: "number",
       met: passwordCriteria.hasNumber,
-      text: "Numero",
+      text: "Número",
     },
     {
       key: "match",
@@ -250,13 +250,13 @@ export function ResetPasswordForm({
         <div className="flex min-h-screen items-center justify-center px-6 py-10 lg:px-12">
           <section className="surface-panel w-full max-w-[38rem] rounded-[32px] p-7 sm:p-9">
             <StatusCard
-              eyebrow="Link indisponivel"
+              eyebrow="Link indisponível"
               message={INVALID_LINK_MESSAGE}
               tone="error"
             />
             <div className="mt-6 flex flex-col gap-3 border-t border-soil/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <p className="font-sans text-sm leading-6 text-bark/72">
-                Solicite um novo email para continuar com seguranca.
+                Solicite um novo email para continuar com segurança.
               </p>
               <Link
                 className="font-sans text-sm font-bold text-forest underline-offset-4 transition-[color] hover:text-soil hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
@@ -281,14 +281,14 @@ export function ResetPasswordForm({
               Redefina sua senha
             </h1>
             <p className="max-w-2xl font-sans text-sm leading-6 text-bark/76">
-              Escolha uma senha forte para concluir o acesso com seguranca.
+              Escolha uma senha forte para concluir o acesso com segurança.
             </p>
           </div>
 
           <div className="mt-6 space-y-5">
             {feedback ? (
               <StatusCard
-                eyebrow="Nao foi possivel redefinir"
+                eyebrow="Não foi possível redefinir"
                 message={feedback}
                 tone="error"
               />

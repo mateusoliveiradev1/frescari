@@ -24,13 +24,13 @@ test("user can request a password reset from the login screen", async ({
     "**/api/auth/request-password-reset*",
   );
   await page
-    .getByRole("button", { name: /enviar link de redefinicao/i })
+    .getByRole("button", { name: /enviar link de redefinição/i })
     .click();
   await requestPromise;
 
   await expect(
     page.getByText(
-      /Se o email informado puder receber acesso, enviaremos um link para redefinir sua senha\.|O envio por e-mail nao esta configurado neste ambiente\./i,
+      /Se o email informado puder receber acesso, enviaremos um link para redefinir sua senha\.|O envio por e-mail não esta configurado neste ambiente\./i,
     ),
   ).toBeVisible();
   expect(capturedRequestBody).toContain("/auth/reset-password");

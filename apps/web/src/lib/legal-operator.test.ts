@@ -26,6 +26,6 @@ test("an operator identified by CPF is never labelled CNPJ, and no placeholder l
     .join("\n");
   assert.match(
     cookies,
-    /Fulano de Tal, inscrito\(a\) no CPF sob o numero 12345678909/,
+    /Fulano de Tal, inscrito\(a\) no CPF sob o número 12345678909/,
   );
 });

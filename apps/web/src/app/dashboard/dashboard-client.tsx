@@ -48,7 +48,7 @@ function StorefrontCard({ slug, name }: { slug: string; name: string }) {
           Sua vitrine
         </h2>
         <p className="font-sans text-sm text-bark max-w-xl">
-          Uma pagina so com os seus produtos. Mande para os seus clientes e
+          Uma página so com os seus produtos. Mande para os seus clientes e
           grupos: eles compram direto por ela.{" "}
           <Link
             href={path}
@@ -93,8 +93,8 @@ function ProducerSetupChecklist({
       key: "farm",
       title: "Localizar a fazenda",
       description: readiness.farmLocated
-        ? "Pronto: o frete ja pode ser calculado."
-        : "Marque no mapa onde fica a fazenda e ate onde voce entrega. Leva 1 minuto.",
+        ? "Pronto: o frete já pode ser calculado."
+        : "Marque no mapa onde fica a fazenda e até onde você entrega. Leva 1 minuto.",
       done: readiness.farmLocated,
       action: readiness.farmLocated
         ? undefined
@@ -104,8 +104,8 @@ function ProducerSetupChecklist({
       key: "lot",
       title: "Publicar o primeiro lote",
       description: readiness.hasActiveLot
-        ? "Pronto: voce tem lote ativo."
-        : "Escolha o produto, informe quantidade e preco. Leva cerca de 1 minuto.",
+        ? "Pronto: você tem lote ativo."
+        : "Escolha o produto, informe quantidade e preço. Leva cerca de 1 minuto.",
       done: readiness.hasActiveLot,
       action: readiness.hasActiveLot
         ? undefined
@@ -113,12 +113,12 @@ function ProducerSetupChecklist({
     },
     {
       key: "payments",
-      title: "Ativar o recebimento e comecar a vender",
+      title: "Ativar o recebimento e começar a vender",
       description: readiness.paymentsReady
-        ? "Pronto: voce ja pode receber pagamentos."
+        ? "Pronto: você já pode receber pagamentos."
         : readiness.paymentsStarted
-          ? "Cadastro iniciado no Stripe. Termine o que falta (veja a lista no alto da pagina) para seus lotes aparecerem aos compradores."
-          : "Ultimo passo: cadastro no Stripe, que deposita suas vendas direto na sua conta. Tenha em maos documento com foto e dados bancarios. Use o botao 'Ativar recebimento' acima.",
+          ? "Cadastro iniciado no Stripe. Termine o que falta (veja a lista no alto da página) para seus lotes aparecerem aos compradores."
+          : "Último passo: cadastro no Stripe, que deposita suas vendas direto na sua conta. Tenha em maos documento com foto e dados bancarios. Use o botão 'Ativar recebimento' acima.",
       done: readiness.paymentsReady,
     },
   ];
@@ -145,10 +145,10 @@ function ProducerSetupChecklist({
         </div>
         <p className="font-sans text-sm text-bark max-w-md">
           {readiness.lotsVisibleInCatalog
-            ? "Seus lotes ja aparecem para compradores."
+            ? "Seus lotes já aparecem para compradores."
             : readiness.farmLocated && readiness.hasActiveLot
               ? "Sua oferta esta montada. Falta so ativar o recebimento para os compradores verem e comprarem."
-              : "Seus lotes aparecem para compradores quando os tres passos estiverem prontos."}
+              : "Seus lotes aparecem para compradores quando os três passos estiverem prontos."}
         </p>
       </div>
 
@@ -176,13 +176,13 @@ function ProducerSetupChecklist({
               <p className="font-sans text-sm font-semibold text-soil">
                 {step.title}
                 <span className="sr-only">
-                  {step.done ? " (concluido)" : " (pendente)"}
+                  {step.done ? " (concluído)" : " (pendente)"}
                 </span>
               </p>
             </div>
             {step.key === nextStepKey ? (
               <span className="w-fit rounded-full bg-forest px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-cream">
-                Proximo passo
+                Próximo passo
               </span>
             ) : null}
             <p className="font-sans text-xs text-bark leading-relaxed">
@@ -234,7 +234,7 @@ export default function DashboardClient({ user }: { user: unknown }) {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
           <div className="space-y-1">
             <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/70">
-              Area do produtor
+              Área do produtor
             </p>
             <h1 className="font-display text-4xl font-black text-soil">
               Oferta viva
@@ -268,7 +268,7 @@ export default function DashboardClient({ user }: { user: unknown }) {
           {/* Metric 1 */}
           <div className="p-6 bg-cream border border-soil/8 rounded-sm shadow-card flex flex-col justify-between min-h-[140px]">
             <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/60">
-              Lotes no catalogo
+              Lotes no catálogo
             </p>
             {isMetricsLoading ? (
               <Skeleton className="h-10 w-20 mt-4" />
@@ -321,19 +321,19 @@ export default function DashboardClient({ user }: { user: unknown }) {
                 <thead>
                   <tr className="border-b border-soil/10 bg-cream-dark/30">
                     <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80">
-                      Codigo
+                      Código
                     </th>
                     <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80">
                       Produto
                     </th>
                     <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80 text-right">
-                      Disponivel
+                      Disponível
                     </th>
                     <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80">
                       Validade
                     </th>
                     <th className="py-4 px-6 font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark/80 text-center">
-                      Situacao
+                      Situação
                     </th>
                   </tr>
                 </thead>
@@ -393,7 +393,7 @@ export default function DashboardClient({ user }: { user: unknown }) {
                             <span
                               title={
                                 isHidden
-                                  ? "Ainda nao aparece para compradores: conclua os passos de recebimento e localizacao da fazenda."
+                                  ? "Ainda não aparece para compradores: conclua os passos de recebimento e localização da fazenda."
                                   : undefined
                               }
                               className={`inline-flex items-center px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider ${
@@ -418,7 +418,7 @@ export default function DashboardClient({ user }: { user: unknown }) {
                         colSpan={5}
                         className="py-12 px-6 text-center text-bark text-sm font-sans"
                       >
-                        Seu catalogo ainda nao tem lote recente.{" "}
+                        Seu catálogo ainda não tem lote recente.{" "}
                         <Link
                           href="/dashboard/inventario"
                           className="text-forest hover:underline font-semibold"

@@ -40,7 +40,7 @@ function StatusNotice({
       <p
         className={`font-sans text-[10px] font-bold uppercase tracking-[0.18em] ${eyebrowTone}`}
       >
-        {tone === "error" ? "Nao foi possivel reenviar" : "Link reenviado"}
+        {tone === "error" ? "Não foi possível reenviar" : "Link reenviado"}
       </p>
       <p className="mt-2 font-sans text-sm leading-6">{message}</p>
     </div>
@@ -53,7 +53,7 @@ function getIntentCopy(intent?: EmailVerificationIntent) {
       eyebrow: "Cadastro em espera",
       heading: "Verifique seu email para liberar o primeiro acesso",
       supporting:
-        "Se o email informado puder receber acesso, voce vai encontrar um link de confirmacao na caixa de entrada. Depois disso, seguimos para concluir seu cadastro.",
+        "Se o email informado puder receber acesso, você vai encontrar um link de confirmação na caixa de entrada. Depois disso, seguimos para concluir seu cadastro.",
       secondaryLabel: "Voltar ao cadastro",
       secondaryHref: "/auth/register",
     };
@@ -76,7 +76,7 @@ export function VerifyEmailClient({
 }: VerifyEmailClientProps) {
   const copy = getIntentCopy(initialIntent);
   const genericResendError =
-    "Nao foi possivel solicitar um novo link agora. Aguarde um instante e tente novamente.";
+    "Não foi possível solicitar um novo link agora. Aguarde um instante e tente novamente.";
   const [email, setEmail] = useState(initialEmail);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -90,7 +90,7 @@ export function VerifyEmailClient({
     const normalizedEmail = email.trim();
 
     if (!normalizedEmail) {
-      setError("Informe o email que deve receber o link de confirmacao.");
+      setError("Informe o email que deve receber o link de confirmação.");
       return;
     }
 
@@ -105,13 +105,13 @@ export function VerifyEmailClient({
         {
           onSuccess: () => {
             setSuccess(
-              "Se o email informado puder receber acesso, enviamos um novo link de confirmacao.",
+              "Se o email informado puder receber acesso, enviamos um novo link de confirmação.",
             );
           },
           onError: (context) => {
             const code = context.error.code ?? "";
             const messageMap: Record<string, string> = {
-              INVALID_EMAIL: "Use um email valido para reenviar o link.",
+              INVALID_EMAIL: "Use um email válido para reenviar o link.",
               TOO_MANY_REQUESTS:
                 "Muitos pedidos em pouco tempo. Aguarde um instante antes de tentar novamente.",
             };
@@ -156,8 +156,8 @@ export function VerifyEmailClient({
               </p>
               <p className="mt-3 font-sans text-sm leading-6 text-bark/70">
                 {signedIn
-                  ? "Sua sessao so fica pronta depois da confirmacao."
-                  : "Abra o link mais recente recebido nesse endereco para seguir."}
+                  ? "Sua sessão so fica pronta depois da confirmação."
+                  : "Abra o link mais recente recebido nesse endereço para seguir."}
               </p>
             </div>
 
@@ -192,7 +192,7 @@ export function VerifyEmailClient({
                     value={email}
                   />
                   <p className="font-sans text-xs leading-5 text-bark/68">
-                    O reenvio usa sempre um link novo e invalida o link antigo.
+                    O reenvio usa sempre um link novo e inválida o link antigo.
                   </p>
                 </div>
 
@@ -204,14 +204,14 @@ export function VerifyEmailClient({
                   type="submit"
                   variant="primary"
                 >
-                  {loading ? "Reenviando..." : "Reenviar link de confirmacao"}
+                  {loading ? "Reenviando..." : "Reenviar link de confirmação"}
                 </Button>
               </form>
             </div>
 
             <div className="mt-8 flex flex-col gap-3 border-t border-soil/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <p className="font-sans text-sm leading-6 text-bark/74">
-                Se o link expirou ou a caixa de entrada atrasou, voce pode pedir
+                Se o link expirou ou a caixa de entrada atrasou, você pode pedir
                 outro acima sem perder o fluxo.
               </p>
               <Link

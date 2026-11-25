@@ -78,7 +78,7 @@ function ErrorAlert({ message }: { message: string }) {
 export function LoginForm() {
   const router = useRouter();
   const genericLoginError =
-    "Nao foi possivel entrar. Revise suas credenciais e tente novamente.";
+    "Não foi possível entrar. Revise suas credenciais e tente novamente.";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -150,7 +150,7 @@ export function LoginForm() {
             }
 
             const messageMap: Record<string, string> = {
-              INVALID_EMAIL: "Use um email valido para continuar.",
+              INVALID_EMAIL: "Use um email válido para continuar.",
               INVALID_EMAIL_OR_PASSWORD:
                 "Email ou senha invalidos. Revise as credenciais e tente novamente.",
               TOO_MANY_REQUESTS:
@@ -186,7 +186,7 @@ export function LoginForm() {
                     Entre e continue de onde parou.
                   </h2>
                   <p className="max-w-[30rem] font-sans text-base leading-7 text-sage/78">
-                    Use seu email e senha para voltar ao catalogo, acompanhar
+                    Use seu email e senha para voltar ao catálogo, acompanhar
                     pedidos e manter o contato com produtores em um fluxo direto
                     e elegante.
                   </p>
@@ -198,7 +198,7 @@ export function LoginForm() {
                       Ao entrar
                     </p>
                     <p className="mt-2 font-sans text-sm leading-6 text-cream">
-                      Seu acesso devolve a voce o que importa, sem excesso de
+                      Seu acesso devolve a você o que importa, sem excesso de
                       interface.
                     </p>
                   </div>
@@ -207,15 +207,15 @@ export function LoginForm() {
                     {[
                       [
                         "Acompanhe pedidos",
-                        "Consulte historico, status e proximos passos em poucos cliques.",
+                        "Consulte histórico, status e próximos passos em poucos cliques.",
                       ],
                       [
                         "Veja disponibilidade",
                         "Retome a busca por produtos com leitura clara e sem atrito.",
                       ],
                       [
-                        "Fale com seguranca",
-                        "Volte para a sua conta com direcionamento automatico para a area certa.",
+                        "Fale com segurança",
+                        "Volte para a sua conta com direcionamento automático para a área certa.",
                       ],
                     ].map(([title, copy]) => (
                       <div className="flex gap-4" key={title}>
@@ -236,8 +236,8 @@ export function LoginForm() {
                 <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/6 px-4 py-3 backdrop-blur-sm">
                   <span className="h-2.5 w-2.5 rounded-full bg-sage" />
                   <p className="font-sans text-xs leading-5 text-sage/76">
-                    Se o email ainda nao estiver confirmado, o fluxo leva voce
-                    para a verificacao automaticamente.
+                    Se o email ainda não estiver confirmado, o fluxo leva você
+                    para a verificação automaticamente.
                   </p>
                 </div>
               </div>
@@ -261,7 +261,7 @@ export function LoginForm() {
                 </h1>
                 <p className="mt-3 max-w-xl font-sans text-sm leading-6 text-bark/76 sm:text-[15px]">
                   Use seu email e senha para voltar ao seu painel com um fluxo
-                  mais claro, rapido e confiavel.
+                  mais claro, rápido e confiável.
                 </p>
               </div>
 
@@ -360,7 +360,7 @@ export function LoginForm() {
 
               <div className="mt-4 flex flex-col gap-2 border-t border-soil/10 pt-4 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
                 <p className="font-sans text-sm leading-6 text-bark/74">
-                  Ainda nao tem conta?
+                  Ainda não tem conta?
                 </p>
                 <Link
                   className="font-sans text-sm font-bold text-forest underline-offset-4 transition-[color] hover:text-soil hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
