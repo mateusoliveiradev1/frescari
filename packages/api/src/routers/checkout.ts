@@ -778,8 +778,10 @@ export const checkoutRouter = createTRPCRouter({
             deliveryPoint: deliveryPointJson,
             isAllUnitOrder,
             itemsMetadata: itemsJson,
-            successUrl: `${APP_URL}/sucesso?session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl: `${APP_URL}/catalogo?checkout=cancelled`,
+            // The farm tells the cart which items were paid (success) or
+            // are still waiting (cancel); the cart is per farm.
+            successUrl: `${APP_URL}/sucesso?session_id={CHECKOUT_SESSION_ID}&farm=${input.farmId}`,
+            cancelUrl: `${APP_URL}/catalogo?checkout=cancelled&farm=${input.farmId}`,
             lineItems,
             farmId: input.farmId,
             addressId: input.addressId,

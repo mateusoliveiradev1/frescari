@@ -6,6 +6,7 @@ import { Leaf, MapPin, Store } from "lucide-react";
 import { Button, ProductCardSkeleton } from "@frescari/ui";
 
 import { CatalogReserveNotice } from "@/components/CatalogReserveNotice";
+import { CheckoutCancelledNotice } from "@/components/CheckoutCancelledNotice";
 import { ProductCardWrapper } from "@/components/ProductCardWrapper";
 import {
   buildCategoryRegionSummaries,
@@ -235,6 +236,7 @@ async function CatalogPageContent({ siteUrl }: { siteUrl: string }) {
 
   return (
     <div className="min-h-screen bg-cream">
+      <CheckoutCancelledNotice />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(catalogJsonLd) }}

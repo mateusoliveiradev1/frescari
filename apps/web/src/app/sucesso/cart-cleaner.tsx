@@ -1,20 +1,27 @@
 "use client";
 
 import { useEffect } from "react";
+
+import { readCheckoutReturn } from "@/lib/checkout-return";
 import { useCartStore } from "@/store/useCartStore";
 
 /**
- * Client component that clears the cart and closes the drawer
- * when the user lands on the success page after Stripe checkout.
+ * After a paid checkout, removes only that farm's items from the cart: the
+ * buyer may still have items from other farms to pay for. Items stay in the
+ * cart until this point, so going back from Stripe without paying loses
+ * nothing.
  */
 export function CartCleaner() {
-    useEffect(() => {
-        const store = useCartStore.getState();
-        // Close the cart drawer if it's open
-        store.setIsOpen(false);
-        // Clear all items from the cart
-        store.clearCart();
-    }, []);
+  useEffect(() => {
+    const store = useCartStore.getState();
+    store.setIsOpen(false);
 
-    return null;
+    const { farmId } = readCheckoutReturn(window.location.search);
+
+    if (farmId) {
+      store.removeItemsByFarm(farmId);
+    }
+  }, []);
+
+  return null;
 }

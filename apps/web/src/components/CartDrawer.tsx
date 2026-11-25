@@ -247,9 +247,6 @@ function FarmCheckoutSection({
   isBuyerSignedIn: boolean;
 }) {
   const removeItem = useCartStore((state: CartStore) => state.removeItem);
-  const removeItemsByFarm = useCartStore(
-    (state: CartStore) => state.removeItemsByFarm,
-  );
   const updateItemQty = useCartStore((state: CartStore) => state.updateItemQty);
   const setIsOpen = useCartStore((state: CartStore) => state.setIsOpen);
   const [drafts, setDrafts] = React.useState<Record<string, string>>({});
@@ -370,7 +367,8 @@ function FarmCheckoutSection({
 
   const checkoutMutation = trpc.checkout.createFarmCheckoutSession.useMutation({
     onSuccess: (data) => {
-      removeItemsByFarm(group.farmId);
+      // Items stay in the cart until the payment succeeds (/sucesso removes
+      // this farm's items); going back from Stripe loses nothing.
       setIsOpen(false);
       window.location.href = data.url;
     },
