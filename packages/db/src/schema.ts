@@ -252,6 +252,9 @@ export const users = pgTable("user", {
   createdAt: timestamp("createdAt").notNull(),
   updatedAt: timestamp("updatedAt").notNull(),
   role: roleEnum("role").default("buyer").notNull(),
+  // Set when the user unsubscribes from reminders and news. Account emails
+  // (verification, orders, payments) are still sent.
+  marketingEmailsOptOutAt: timestamp("marketingEmailsOptOutAt"),
 });
 
 export const session = pgTable("session", {

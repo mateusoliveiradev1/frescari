@@ -6,10 +6,15 @@ import {
   tenants,
   users,
 } from "@frescari/db";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, sql } from "drizzle-orm";
 
 import { sendTransactionalEmail } from "@/lib/auth-email";
 import { getAppUrl } from "@/lib/app-url";
+import {
+  buildUnsubscribeFooter,
+  buildUnsubscribeHeaders,
+  buildUnsubscribePageUrl,
+} from "@/lib/email-unsubscribe";
 
 /**
  * Producers who verified their email but never created a lot get two nudges:
@@ -46,6 +51,7 @@ export function getReminderDay(signupAt: Date, now: Date): ReminderDay | null {
 }
 
 export type ActivationCandidate = {
+  userId: string;
   email: string;
   name: string;
   createdAt: Date;
@@ -76,7 +82,9 @@ export function buildActivationReminderEmail(
   >,
   day: ReminderDay,
   appUrl: string,
+  unsubscribeUrl?: string,
 ) {
+  const footer = unsubscribeUrl ? buildUnsubscribeFooter(unsubscribeUrl) : null;
   const nome = firstName(candidate.name);
   const greeting = nome ? `Oi, ${nome}!` : "Oi!";
   const ctaUrl = `${appUrl.replace(/\/$/, "")}/dashboard`;
@@ -126,6 +134,7 @@ export function buildActivationReminderEmail(
     "",
     "Mateus Oliveira",
     "Fundador da Frescari",
+    ...(footer ? ["", footer.text] : []),
   ].join("\n");
 
   const stepsHtml = steps
@@ -164,6 +173,7 @@ export function buildActivationReminderEmail(
         </p>
         <p style="margin:0 0 14px;font-size:16px;line-height:1.6;">Se precisar de ajuda, é só <strong>responder este e-mail</strong>.</p>
         <p style="margin:0;font-size:16px;line-height:1.6;">Mateus Oliveira<br><span style="color:#5d5248;">Fundador da Frescari</span></p>
+        ${footer ? footer.html : ""}
       </div>
     </div>
   `.trim();
@@ -183,6 +193,7 @@ async function loadActivationCandidates(
 
     return tx
       .select({
+        userId: users.id,
         email: users.email,
         name: users.name,
         createdAt: users.createdAt,
@@ -195,6 +206,8 @@ async function loadActivationCandidates(
         and(
           eq(users.role, "producer"),
           eq(users.emailVerified, true),
+          // Unsubscribed people get no reminders.
+          isNull(users.marketingEmailsOptOutAt),
           gte(users.createdAt, since),
           sql`not exists (select 1 from ${productLots} where ${productLots.tenantId} = ${tenants.id})`,
         ),
@@ -232,13 +245,19 @@ export async function runActivationReminders(
     }
 
     due += 1;
-    const email = buildActivationReminderEmail(candidate, day, appUrl);
+    const email = buildActivationReminderEmail(
+      candidate,
+      day,
+      appUrl,
+      buildUnsubscribePageUrl(appUrl, candidate.userId),
+    );
     const ok = await send({
       to: candidate.email,
       subject: email.subject,
       html: email.html,
       text: email.text,
       logLabel: `activation reminder day ${day}`,
+      headers: buildUnsubscribeHeaders(appUrl, candidate.userId),
     });
     if (ok) {
       sent += 1;

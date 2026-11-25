@@ -236,6 +236,8 @@ export async function sendTransactionalEmail(input: {
   html: string;
   text: string;
   logLabel: string;
+  // Extra headers, e.g. List-Unsubscribe on reminder emails.
+  headers?: Record<string, string>;
 }): Promise<boolean> {
   const { apiKey, from, fromName, replyTo } = getResendConfig();
 
@@ -260,6 +262,7 @@ export async function sendTransactionalEmail(input: {
         subject: input.subject,
         html: input.html,
         text: input.text,
+        ...(input.headers ? { headers: input.headers } : {}),
       }),
     });
 

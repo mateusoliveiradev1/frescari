@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+// Unsubscribe links are signed with the auth secret.
+process.env.BETTER_AUTH_SECRET ??= "test-secret-not-real";
+
 import {
   buildActivationReminderEmail,
   daysSinceSignup,
@@ -46,6 +49,7 @@ test("reminder email reflects the producer's real progress", () => {
 test("runner emails only producers due today and counts what was sent", async () => {
   const candidates: ActivationCandidate[] = [
     {
+      userId: "user_a",
       email: "a@example.com",
       name: "Ana",
       createdAt: new Date("2026-11-24T15:00:00Z"),
@@ -53,6 +57,7 @@ test("runner emails only producers due today and counts what was sent", async ()
       farmLocated: false,
     },
     {
+      userId: "user_b",
       email: "b@example.com",
       name: "Bia",
       createdAt: new Date("2026-11-23T15:00:00Z"),
@@ -60,6 +65,7 @@ test("runner emails only producers due today and counts what was sent", async ()
       farmLocated: false,
     },
     {
+      userId: "user_c",
       email: "c@example.com",
       name: "Caio",
       createdAt: new Date("2026-11-21T15:00:00Z"),
@@ -80,4 +86,40 @@ test("runner emails only producers due today and counts what was sent", async ()
 
   assert.deepEqual(sentTo, ["a@example.com", "c@example.com"]);
   assert.deepEqual(summary, { candidates: 3, due: 2, sent: 1 });
+});
+
+test("reminders carry an unsubscribe link and one-click headers", async () => {
+  const sent: Array<{ text: string; headers?: Record<string, string> }> = [];
+
+  await runActivationReminders(cronRun, {
+    loadCandidates: async () => [
+      {
+        userId: "user_a",
+        email: "a@example.com",
+        name: "Ana",
+        createdAt: new Date("2026-11-24T15:00:00Z"),
+        paymentsStarted: false,
+        farmLocated: false,
+      },
+    ],
+    send: async ({ text, headers }) => {
+      sent.push({ text, headers });
+      return true;
+    },
+    appUrl: "https://frescari.com.br",
+  });
+
+  assert.equal(sent.length, 1);
+  assert.match(
+    sent[0]!.text,
+    /Descadastre-se: https:\/\/frescari\.com\.br\/descadastro\?t=/,
+  );
+  assert.match(
+    sent[0]!.headers?.["List-Unsubscribe"] ?? "",
+    /^<https:\/\/frescari\.com\.br\/api\/email\/unsubscribe\?t=.+>$/,
+  );
+  assert.equal(
+    sent[0]!.headers?.["List-Unsubscribe-Post"],
+    "List-Unsubscribe=One-Click",
+  );
 });
