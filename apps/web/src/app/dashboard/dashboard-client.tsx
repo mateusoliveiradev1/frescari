@@ -56,6 +56,13 @@ function StorefrontCard({ slug, name }: { slug: string; name: string }) {
             className="font-semibold text-forest hover:underline"
           >
             Ver vitrine
+          </Link>{" "}
+          ·{" "}
+          <Link
+            href="/dashboard/vitrine"
+            className="font-semibold text-forest hover:underline"
+          >
+            Editar foto e descrição
           </Link>
         </p>
       </div>

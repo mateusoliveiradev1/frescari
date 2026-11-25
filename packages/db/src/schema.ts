@@ -215,6 +215,10 @@ export const tenants = pgTable("tenants", {
   producerProfileCompletedAt: timestamp("producer_profile_completed_at", {
     withTimezone: true,
   }),
+  // Public storefront (/produtor/[slug]): photo and "about" text, both
+  // optional and edited by the producer.
+  storefrontPhotoUrl: text("storefront_photo_url"),
+  storefrontBio: text("storefront_bio"),
   plan: planEnum("plan").notNull().default("free"),
   geoRegion: geometry("geo_region"),
   stripeAccountId: text("stripe_account_id"),

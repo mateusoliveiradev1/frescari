@@ -66,7 +66,9 @@ test("share text lists the products, the remainder and ends with the link", () =
     url,
   });
 
-  assert.match(text, /^🥬 \*Sítio Boa Vista\* · Pirangi - SP/);
+  assert.match(text, /^\*Sítio Boa Vista\* · Pirangi - SP/);
+  // Emoji (astral characters) arrive as "?" on WhatsApp Web via wa.me.
+  assert.doesNotMatch(text, /[\u{10000}-\u{10FFFF}]/u);
   assert.match(text, /• Tomate: R\$ 7,50\/kg/);
   assert.match(text, /…e mais 3 produtos/);
   assert.equal(text.split("\n").at(-1), url);
@@ -84,7 +86,7 @@ test("share text without products still ends with the link", () => {
 });
 
 test("WhatsApp share link carries the encoded text and no phone number", () => {
-  const text = "🥬 *Sítio & Filhos*\nhttps://frescari.com.br/produtor/x";
+  const text = "*Sítio & Filhos*\nhttps://frescari.com.br/produtor/x";
   const url = new URL(buildWhatsAppShareUrl(text));
 
   assert.equal(url.origin + url.pathname, "https://wa.me/");

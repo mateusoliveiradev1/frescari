@@ -483,3 +483,44 @@ export const registerSchema = z.object({
   password: z.string().min(6),
   role: z.enum(["producer", "buyer"]),
 });
+
+export const STOREFRONT_BIO_MAX_LENGTH = 600;
+
+// Photos come only from our UploadThing storage, so a producer cannot point
+// the public page (or its preview card) at an arbitrary host.
+const STOREFRONT_PHOTO_HOST_PATTERN =
+  /^(?:[a-z0-9-]+\.)*(?:ufs\.sh|utfs\.io)$/i;
+
+export function isAllowedStorefrontPhotoUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      STOREFRONT_PHOTO_HOST_PATTERN.test(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+export const updateStorefrontProfileSchema = z.object({
+  photoUrl: z
+    .string()
+    .trim()
+    .refine(isAllowedStorefrontPhotoUrl, "Envie a foto pelo botao de upload.")
+    .nullable(),
+  // Blank text clears the description.
+  bio: z
+    .string()
+    .trim()
+    .max(
+      STOREFRONT_BIO_MAX_LENGTH,
+      `Use no maximo ${STOREFRONT_BIO_MAX_LENGTH} caracteres.`,
+    )
+    .transform((value) => (value.length > 0 ? value : null))
+    .nullable(),
+});
+
+export type UpdateStorefrontProfileInput = z.input<
+  typeof updateStorefrontProfileSchema
+>;

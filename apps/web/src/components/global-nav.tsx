@@ -230,12 +230,22 @@ export function GlobalNav() {
             Vendas
           </Link>
           <Link
+            aria-current={
+              pathname.startsWith("/dashboard/vitrine") ? "page" : undefined
+            }
+            className={linkClasses("/dashboard/vitrine")}
+            href="/dashboard/vitrine"
+            {...baseProps}
+          >
+            Minha Vitrine
+          </Link>
+          <Link
             aria-current={pathname.startsWith("/catalogo") ? "page" : undefined}
             className={linkClasses("/catalogo")}
             href="/catalogo"
             {...baseProps}
           >
-            Vitrine
+            Catálogo
           </Link>
           <Link
             aria-current={

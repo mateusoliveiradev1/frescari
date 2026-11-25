@@ -36,9 +36,7 @@ export function assertProducerUploadActor(user: UploadUser): UploadActor {
   }
 
   if (user.role !== "producer") {
-    throw new UploadThingError(
-      "Apenas produtores podem enviar imagens de lote.",
-    );
+    throw new UploadThingError("Apenas produtores podem enviar imagens.");
   }
 
   if (!user.tenantId) {
@@ -75,6 +73,25 @@ export const ourFileRouter = {
         userId: metadata.userId,
       });
 
+      return {
+        url: file.ufsUrl,
+        tenantId: metadata.tenantId,
+      };
+    }),
+  storefrontPhoto: f({
+    image: {
+      maxFileSize: "4MB",
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async ({ req }) => {
+      const session = await auth.api.getSession({
+        headers: req.headers,
+      });
+
+      return assertProducerUploadActor(session?.user);
+    })
+    .onUploadComplete(async ({ file, metadata }) => {
       return {
         url: file.ufsUrl,
         tenantId: metadata.tenantId,

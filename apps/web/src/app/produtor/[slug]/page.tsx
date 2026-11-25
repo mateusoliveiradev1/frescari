@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatCurrencyBRL } from "@frescari/ui";
@@ -76,7 +77,9 @@ export async function generateMetadata({
   const description = sanitizeText(
     productNames
       ? `${productNames} direto de ${name}${place ? `, ${place}` : ""}. Compre online, direto do produtor, com entrega pela propria fazenda.`
-      : `Produtos frescos de ${name}${place ? ` (${place})` : ""}, direto do produtor, com entrega pela propria fazenda.`,
+      : data.producer.bio
+        ? data.producer.bio
+        : `Produtos frescos de ${name}${place ? ` (${place})` : ""}, direto do produtor, com entrega pela propria fazenda.`,
     160,
   );
 
@@ -153,6 +156,8 @@ export default async function ProducerStorefrontPage({
     "@id": `${url}#produtor`,
     name: sanitizeText(producer.name),
     url,
+    ...(producer.photoUrl ? { image: producer.photoUrl } : {}),
+    ...(producer.bio ? { description: sanitizeText(producer.bio, 500) } : {}),
     ...(producer.city || producer.state
       ? {
           address: {
@@ -229,12 +234,23 @@ export default async function ProducerStorefrontPage({
         <header className="grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,1fr)] lg:items-start">
           <div className="space-y-5">
             <div className="flex items-center gap-4">
-              <span
-                aria-hidden="true"
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-forest font-display text-2xl font-black text-cream shadow-sm"
-              >
-                {getProducerInitials(producer.name)}
-              </span>
+              {producer.photoUrl ? (
+                <Image
+                  src={producer.photoUrl}
+                  alt={`Foto de ${producer.name}`}
+                  width={96}
+                  height={96}
+                  priority
+                  className="h-20 w-20 shrink-0 rounded-full object-cover shadow-sm ring-4 ring-white sm:h-24 sm:w-24"
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-forest font-display text-2xl font-black text-cream shadow-sm"
+                >
+                  {getProducerInitials(producer.name)}
+                </span>
+              )}
               <div className="inline-flex items-center gap-2 rounded-full border border-forest/20 bg-forest/10 px-3 py-1.5">
                 <span className="h-2 w-2 rounded-full bg-forest" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-forest">
@@ -270,10 +286,24 @@ export default async function ProducerStorefrontPage({
               </ul>
             ) : null}
 
-            <p className="max-w-2xl text-base leading-relaxed text-bark">
-              Compre direto de quem produz. O pagamento é feito com segurança
-              pela Frescari e a entrega sai da própria fazenda.
-            </p>
+            {producer.bio ? (
+              <section aria-labelledby="sobre-o-produtor" className="max-w-2xl">
+                <h2
+                  id="sobre-o-produtor"
+                  className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60"
+                >
+                  Sobre o produtor
+                </h2>
+                <p className="mt-2 whitespace-pre-line text-base leading-relaxed text-soil">
+                  {producer.bio}
+                </p>
+              </section>
+            ) : (
+              <p className="max-w-2xl text-base leading-relaxed text-bark">
+                Compre direto de quem produz. O pagamento é feito com segurança
+                pela Frescari e a entrega sai da própria fazenda.
+              </p>
+            )}
 
             <StorefrontShareButtons
               producerName={producer.name}
