@@ -144,14 +144,16 @@ export function ToolField({
       <div className="flex items-center rounded-xl border border-soil/15 bg-white focus-within:border-forest focus-within:ring-2 focus-within:ring-forest/20">
         <input
           id={id}
-          className="w-full rounded-xl bg-transparent px-4 py-3 text-base text-soil outline-none"
+          className="w-full min-w-0 flex-1 rounded-xl bg-transparent px-4 py-3 text-base text-soil outline-none"
           inputMode="decimal"
           autoComplete="off"
           value={value}
           onChange={(event) => onChange(event.target.value)}
           aria-describedby={hint ? `${id}-hint` : undefined}
         />
-        <span className="pr-4 text-sm font-semibold text-bark">{suffix}</span>
+        <span className="shrink-0 pr-4 text-sm font-semibold text-bark">
+          {suffix}
+        </span>
       </div>
       {hint ? (
         <p id={`${id}-hint`} className="text-xs text-bark/80">
