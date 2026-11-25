@@ -273,7 +273,43 @@ function throwCheckoutStripeError(error: unknown): never {
   });
 }
 
+// Pix has to be switched on for the platform's Stripe account (Dashboard >
+// Settings > Payment methods) before checkout may ask for it: a session that
+// requests a payment method the account doesn't accept is rejected, which
+// would break checkout for everyone. Until STRIPE_PIX_ENABLED=true, card only.
+export function isPixCheckoutEnabled() {
+  return sanitizeEnvValue(process.env.STRIPE_PIX_ENABLED) === "true";
+}
+
+// How long the Pix QR code stays payable. Stock is checked again when the
+// payment lands (and refunded if it ran out), so a short window is safer.
+export const PIX_QR_EXPIRES_SECONDS = 30 * 60;
+
+// Stripe's answer when the account can't take a requested payment method
+// (read by content, not class, so it holds across SDK versions).
+function isPaymentMethodRejection(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const details = error as {
+    message?: string;
+    param?: string;
+    raw?: { message?: string; param?: string };
+  };
+  const text = [
+    details.param,
+    details.raw?.param,
+    details.message,
+    details.raw?.message,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return text.includes("pix") || text.includes("payment_method_types");
+}
+
 function buildCheckoutSessionParams({
+  allowPix,
   buyerTenantId,
   captureMethod,
   calculatedFeeCents,
@@ -293,6 +329,7 @@ function buildCheckoutSessionParams({
   deliveryNotes,
   deliveryWindow,
 }: {
+  allowPix: boolean;
   buyerTenantId: string;
   captureMethod: "manual" | "automatic";
   calculatedFeeCents: number;
@@ -349,11 +386,18 @@ function buildCheckoutSessionParams({
 
   return {
     mode: "payment",
-    // Card only: the webhook creates the order as paid on
-    // checkout.session.completed, which for boleto or other delayed methods
-    // arrives before the money does. Manual capture (weighed items) is also
-    // card-only.
-    payment_method_types: ["card"],
+    // Card, plus Pix when enabled. Pix completes the session only once it is
+    // paid (the webhook also re-checks the payment status). Pix can't hold an
+    // authorization, so carts with weighed items (manual capture) stay
+    // card-only. No boleto: it completes before the money arrives.
+    payment_method_types: allowPix ? ["card", "pix"] : ["card"],
+    ...(allowPix
+      ? {
+          payment_method_options: {
+            pix: { expires_after_seconds: PIX_QR_EXPIRES_SECONDS },
+          },
+        }
+      : {}),
     payment_intent_data: paymentIntentData,
     line_items: lineItems,
     success_url: successUrl,
@@ -766,33 +810,53 @@ export const checkoutRouter = createTRPCRouter({
         });
       }
 
+      const allowPix = isPixCheckoutEnabled() && captureMethod === "automatic";
+
       try {
-        const session = await getStripeClient().checkout.sessions.create(
-          buildCheckoutSessionParams({
-            buyerTenantId,
-            captureMethod,
-            calculatedFeeCents,
-            connectDestinationAccountId: producerStripeAccountId,
-            deliveryAddress: addressLine,
-            deliveryFee: effectiveDeliveryFee,
-            deliveryPoint: deliveryPointJson,
-            isAllUnitOrder,
-            itemsMetadata: itemsJson,
-            // The farm tells the cart which items were paid (success) or
-            // are still waiting (cancel); the cart is per farm.
-            successUrl: `${APP_URL}/sucesso?session_id={CHECKOUT_SESSION_ID}&farm=${input.farmId}`,
-            cancelUrl: `${APP_URL}/catalogo?checkout=cancelled&farm=${input.farmId}`,
-            lineItems,
-            farmId: input.farmId,
-            addressId: input.addressId,
-            addressSnapshot: addressSnapshotJson,
-            deliveryNotes,
-            deliveryWindow: {
-              start: deliverySlot.start,
-              end: deliverySlot.end,
-            },
-          }),
-        );
+        const createSession = (withPix: boolean) =>
+          getStripeClient().checkout.sessions.create(
+            buildCheckoutSessionParams({
+              allowPix: withPix,
+              buyerTenantId,
+              captureMethod,
+              calculatedFeeCents,
+              connectDestinationAccountId: producerStripeAccountId,
+              deliveryAddress: addressLine,
+              deliveryFee: effectiveDeliveryFee,
+              deliveryPoint: deliveryPointJson,
+              isAllUnitOrder,
+              itemsMetadata: itemsJson,
+              // The farm tells the cart which items were paid (success) or
+              // are still waiting (cancel); the cart is per farm.
+              successUrl: `${APP_URL}/sucesso?session_id={CHECKOUT_SESSION_ID}&farm=${input.farmId}`,
+              cancelUrl: `${APP_URL}/catalogo?checkout=cancelled&farm=${input.farmId}`,
+              lineItems,
+              farmId: input.farmId,
+              addressId: input.addressId,
+              addressSnapshot: addressSnapshotJson,
+              deliveryNotes,
+              deliveryWindow: {
+                start: deliverySlot.start,
+                end: deliverySlot.end,
+              },
+            }),
+          );
+
+        let session: Stripe.Checkout.Session;
+        try {
+          session = await createSession(allowPix);
+        } catch (error) {
+          // Pix requested but the Stripe account doesn't accept it (not
+          // activated, or turned off): sell by card instead of failing.
+          if (!allowPix || !isPaymentMethodRejection(error)) {
+            throw error;
+          }
+          console.error(
+            "[CHECKOUT] Stripe recusou Pix; seguindo so com cartao. Ative o Pix no Stripe ou desligue STRIPE_PIX_ENABLED.",
+            error,
+          );
+          session = await createSession(false);
+        }
 
         if (!session.url) {
           throw new TRPCError({
