@@ -6,6 +6,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  Star,
   Trash2,
   Truck,
   X,
@@ -222,8 +223,22 @@ export default function BuyerProfilePageClient() {
     },
   });
 
+  const setDefaultAddress = trpc.addresses.setDefaultAddress.useMutation({
+    onSuccess: async () => {
+      await invalidateAddressQueries();
+      toast.success("Endereco padrao atualizado.");
+    },
+    onError: (error) => {
+      logAddressMutationError("[addresses.setDefaultAddress]", error);
+      toast.error(
+        error.message || "Nao foi possivel definir o endereco padrao.",
+      );
+    },
+  });
+
   const isSubmitting = createAddress.isPending || updateAddress.isPending;
-  const isMutating = isSubmitting || deleteAddress.isPending;
+  const isMutating =
+    isSubmitting || deleteAddress.isPending || setDefaultAddress.isPending;
 
   const handleChange =
     (field: keyof AddressFormState) =>
@@ -361,6 +376,20 @@ export default function BuyerProfilePageClient() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        {address.isDefault ? null : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={isMutating}
+                            onClick={() =>
+                              setDefaultAddress.mutate({ id: address.id })
+                            }
+                          >
+                            <Star className="h-4 w-4" />
+                            Tornar padrao
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"

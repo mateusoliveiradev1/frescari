@@ -59,6 +59,26 @@ type DefaultAddress = {
   state: string;
 } | null;
 
+// The address chosen in the cart, remembered on this device only.
+const CHOSEN_ADDRESS_KEY = "frescari-cart-address-id";
+
+function readChosenAddressId() {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(CHOSEN_ADDRESS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function rememberChosenAddressId(addressId: string) {
+  try {
+    window.localStorage.setItem(CHOSEN_ADDRESS_KEY, addressId);
+  } catch {
+    // Non-critical: the cart falls back to the default address.
+  }
+}
+
 type FarmGroup = {
   farmId: string;
   farmName: string;
@@ -831,13 +851,24 @@ export function CartDrawer() {
 
   const totalItems = items.reduce((sum, item) => sum + item.cartQty, 0);
   const farmGroups = buildFarmGroups(items);
-  const defaultAddressQuery = trpc.addresses.getDefaultAddress.useQuery(
-    undefined,
-    {
-      enabled: isBuyerSignedIn,
-      retry: false,
-    },
+  // Every saved address, default first; the buyer picks where this cart
+  // goes (freight and checkout follow the choice).
+  const addressesQuery = trpc.addresses.getAddresses.useQuery(undefined, {
+    enabled: isBuyerSignedIn,
+    retry: false,
+  });
+  const savedAddresses = addressesQuery.data ?? [];
+  const [chosenAddressId, setChosenAddressId] = React.useState<string | null>(
+    () => readChosenAddressId(),
   );
+  const deliveryAddress =
+    savedAddresses.find((address) => address.id === chosenAddressId) ??
+    savedAddresses[0] ??
+    null;
+  const chooseAddress = (addressId: string) => {
+    setChosenAddressId(addressId);
+    rememberChosenAddressId(addressId);
+  };
 
   if (!isMounted) {
     return null;
@@ -913,21 +944,46 @@ export function CartDrawer() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-                          Endereco base do frete
+                          Entregar em
                         </p>
-                        {defaultAddressQuery.isPending ? (
+                        {isBuyerSignedIn && addressesQuery.isPending ? (
                           <div className="mt-3 space-y-2">
                             <Skeleton className="h-4 w-36" />
                             <Skeleton className="h-4 w-5/6" />
                           </div>
-                        ) : defaultAddressQuery.data ? (
+                        ) : deliveryAddress ? (
                           <>
-                            <p className="mt-2 font-sans text-sm font-semibold text-soil">
-                              {defaultAddressQuery.data.title}
-                            </p>
+                            {savedAddresses.length > 1 ? (
+                              <select
+                                aria-label="Endereco de entrega"
+                                className="mt-2 w-full rounded-[14px] border border-forest/15 bg-cream px-3 py-2 text-sm font-semibold text-soil focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20"
+                                onChange={(event) =>
+                                  chooseAddress(event.target.value)
+                                }
+                                value={deliveryAddress.id}
+                              >
+                                {savedAddresses.map((address) => (
+                                  <option key={address.id} value={address.id}>
+                                    {address.title}
+                                    {address.isDefault ? " (padrao)" : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <p className="mt-2 font-sans text-sm font-semibold text-soil">
+                                {deliveryAddress.title}
+                              </p>
+                            )}
                             <p className="mt-1 font-sans text-sm leading-6 text-bark/80">
-                              {defaultAddressQuery.data.formattedAddress}
+                              {deliveryAddress.formattedAddress}
                             </p>
+                            <Link
+                              className="mt-1 inline-block font-sans text-xs font-semibold text-forest hover:underline"
+                              href="/conta/enderecos"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              Gerenciar enderecos
+                            </Link>
                           </>
                         ) : isBuyerSignedIn ? (
                           <div className="mt-3 space-y-3">
@@ -980,9 +1036,11 @@ export function CartDrawer() {
 
                   {farmGroups.map((group) => (
                     <FarmCheckoutSection
-                      defaultAddress={defaultAddressQuery.data ?? null}
+                      defaultAddress={deliveryAddress}
                       group={group}
-                      isAddressLoading={defaultAddressQuery.isPending}
+                      isAddressLoading={
+                        isBuyerSignedIn && addressesQuery.isPending
+                      }
                       isBuyerSignedIn={isBuyerSignedIn}
                       key={group.farmId}
                     />
