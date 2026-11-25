@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { reportError } from "@/lib/report-error";
+
 import { runActivationReminders } from "@/lib/activation-reminders";
 import { authorizeCronRequest, cronResponseHeaders } from "@/lib/cron-auth";
 
@@ -20,7 +22,7 @@ export async function GET(request: Request) {
       { headers: cronResponseHeaders },
     );
   } catch (error) {
-    console.error("[cron:activation-reminders] execution failed", error);
+    reportError(error, "cron.activation-reminders");
 
     return NextResponse.json(
       { ok: false, error: "Activation reminders cron execution failed." },

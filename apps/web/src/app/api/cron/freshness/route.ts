@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { reportError } from "@/lib/report-error";
+
 import { authorizeCronRequest, cronResponseHeaders } from "@/lib/cron-auth";
 import { runLotFreshnessCronJob } from "@/lib/cron-jobs";
 
@@ -26,7 +28,7 @@ export async function GET(request: Request) {
       },
     );
   } catch (error) {
-    console.error("[cron:freshness] execution failed", error);
+    reportError(error, "cron.freshness");
 
     return NextResponse.json(
       {

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { reportError } from "@/lib/report-error";
+
 import { runExpiredWeighedHolds } from "@/lib/expired-weighed-holds";
 import { authorizeCronRequest, cronResponseHeaders } from "@/lib/cron-auth";
 
@@ -20,7 +22,7 @@ export async function GET(request: Request) {
       { headers: cronResponseHeaders },
     );
   } catch (error) {
-    console.error("[cron:expired-holds] execution failed", error);
+    reportError(error, "cron.expired-holds");
 
     return NextResponse.json(
       { ok: false, error: "Expired holds cron execution failed." },

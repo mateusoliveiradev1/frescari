@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+
+import { reportError } from "@/lib/report-error";
 import { revalidatePath } from "next/cache";
 import Stripe from "stripe";
 import {
@@ -71,7 +73,10 @@ async function notifyProducers(tenantId: string, kind: "active" | "blocked") {
 
 export async function POST(req: NextRequest) {
   if (!connectWebhookSecret) {
-    console.error("[CONNECT_WEBHOOK] STRIPE_CONNECT_WEBHOOK_SECRET ausente.");
+    reportError(
+      new Error("STRIPE_CONNECT_WEBHOOK_SECRET ausente."),
+      "connect-webhook.config",
+    );
     return NextResponse.json(
       { error: "Webhook not configured" },
       { status: 500 },
@@ -146,7 +151,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (error) {
     // 500 makes Stripe retry later, e.g. after a transient DB or API error.
-    console.error(`[CONNECT_WEBHOOK] Falha ao processar ${event.id}:`, error);
+    reportError(error, "connect-webhook.process", { eventId: event.id });
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }
