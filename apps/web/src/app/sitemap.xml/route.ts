@@ -52,6 +52,13 @@ export async function GET(): Promise<Response> {
     [`${siteUrl}/`, { url: `${siteUrl}/` }],
     [`${siteUrl}/catalogo`, { url: `${siteUrl}/catalogo` }],
     [`${siteUrl}/para-restaurantes`, { url: `${siteUrl}/para-restaurantes` }],
+    ...[
+      "/ferramentas",
+      "/ferramentas/calculadora-margem-hortifruti",
+      "/ferramentas/simulador-desperdicio",
+    ].map(
+      (path) => [`${siteUrl}${path}`, { url: `${siteUrl}${path}` }] as const,
+    ),
     ...legalDocumentLinks.map(
       ({ slug }) =>
         [
