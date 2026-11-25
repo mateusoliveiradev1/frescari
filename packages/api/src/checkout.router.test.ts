@@ -839,7 +839,7 @@ test("stripe.createStripeConnect fails fast when platform-only Stripe mode is en
   }
 });
 
-test("stripe.createStripeConnect uses NEXT_PUBLIC_APP_URL for business profile url and persists the created Stripe account id", async () => {
+test("stripe.createStripeConnect points the business profile url at the storefront and persists the created Stripe account id", async () => {
   let updatedStripeAccountId: string | null = null;
   let selectCallCount = 0;
 
@@ -856,6 +856,7 @@ test("stripe.createStripeConnect uses NEXT_PUBLIC_APP_URL for business profile u
               tenant: {
                 id: "producer-tenant-1",
                 name: "Fazenda Boa Terra",
+                slug: "fazenda-boa-terra",
                 stripeAccountId: null,
               },
               email: "produtor@example.com",
@@ -886,7 +887,7 @@ test("stripe.createStripeConnect uses NEXT_PUBLIC_APP_URL for business profile u
   assert.equal(updatedStripeAccountId, "acct_test_mocked");
   assert.equal(
     stripeState.createdAccountPayload?.business_profile?.url,
-    "https://app.example.com",
+    "https://app.example.com/produtor/fazenda-boa-terra",
   );
   assert.equal(stripeState.createdAccountPayload?.business_type, "individual");
   assert.deepEqual(stripeState.createdAccountLinkPayload, {
@@ -1037,4 +1038,59 @@ test("checkout.createFarmCheckoutSession rejects a delivery window the farm does
     /janela de entrega/i,
   );
   assert.equal(stripeState.createdSessionPayload, null);
+});
+
+test("Stripe business profile URL never sends localhost or http to Stripe", async () => {
+  const { getStripeBusinessProfileUrl } = await import("./routers/stripe");
+
+  assert.equal(
+    getStripeBusinessProfileUrl("https://frescari.com.br/", "sitio-x"),
+    "https://frescari.com.br/produtor/sitio-x",
+  );
+  assert.equal(
+    getStripeBusinessProfileUrl("http://localhost:3000", "sitio-x"),
+    "https://frescari.com.br/produtor/sitio-x",
+  );
+  assert.equal(
+    getStripeBusinessProfileUrl("not a url", "sitio-x"),
+    "https://frescari.com.br/produtor/sitio-x",
+  );
+});
+
+test("Stripe business profile URL never sends localhost or http to Stripe", async () => {
+  const { getStripeBusinessProfileUrl } = await import("./routers/stripe");
+
+  assert.equal(
+    getStripeBusinessProfileUrl("https://frescari.com.br/", "sitio-x"),
+    "https://frescari.com.br/produtor/sitio-x",
+  );
+  assert.equal(
+    getStripeBusinessProfileUrl("http://localhost:3000", "sitio-x"),
+    "https://frescari.com.br/produtor/sitio-x",
+  );
+  assert.equal(
+    getStripeBusinessProfileUrl("not a url", "sitio-x"),
+    "https://frescari.com.br/produtor/sitio-x",
+  );
+});
+
+test("checkout images sent to Stripe are absolute https URLs or left out", async () => {
+  const { toStripeImageUrl } = await import("./routers/checkout");
+  const app = "https://frescari.com.br";
+
+  assert.equal(
+    toStripeImageUrl("https://abc.ufs.sh/f/alface.jpg", app),
+    "https://abc.ufs.sh/f/alface.jpg",
+  );
+  // Catalog placeholders are site-relative.
+  assert.equal(
+    toStripeImageUrl("/images/seed-produce-placeholder.svg", app),
+    "https://frescari.com.br/images/seed-produce-placeholder.svg",
+  );
+  assert.equal(
+    toStripeImageUrl("/images/x.svg", "http://localhost:3000"),
+    null,
+  );
+  assert.equal(toStripeImageUrl("http://insecure.example/x.jpg", app), null);
+  assert.equal(toStripeImageUrl(null, app), null);
 });

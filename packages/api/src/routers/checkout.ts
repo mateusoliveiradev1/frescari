@@ -143,6 +143,24 @@ function toStripeCents(brlPrice: number, isWeighable: boolean): number {
   return Math.round(adjusted * 100);
 }
 
+// Stripe accepts only absolute http(s) image URLs that it can fetch. Catalog
+// placeholders are site-relative ("/images/..."), so they are resolved
+// against the public app URL; anything Stripe could not reach (localhost,
+// http, junk) is left out instead of failing the whole checkout.
+export function toStripeImageUrl(
+  imageUrl: string | null | undefined,
+  appUrl: string = APP_URL,
+): string | null {
+  if (!imageUrl) return null;
+  try {
+    const url = new URL(imageUrl, appUrl);
+    const isLocal = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    return url.protocol === "https:" && !isLocal ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildLineItems(
   items: SafeCheckoutItem[],
   deliveryFee: number,
@@ -155,12 +173,14 @@ function buildLineItems(
         : toStripeCents(item.unitPrice, false);
       const quantity = isWeighable ? 1 : item.quantity;
 
+      const stripeImageUrl = toStripeImageUrl(item.imageUrl);
+
       return {
         price_data: {
           currency: "brl",
           product_data: {
             name: item.productName,
-            ...(item.imageUrl ? { images: [item.imageUrl] } : {}),
+            ...(stripeImageUrl ? { images: [stripeImageUrl] } : {}),
           },
           unit_amount: unitAmount,
         },
