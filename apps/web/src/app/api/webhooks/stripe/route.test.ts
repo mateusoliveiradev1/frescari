@@ -1,404 +1,464 @@
-import { after, before, beforeEach, test } from 'node:test';
-import assert from 'node:assert/strict';
-import Module from 'node:module';
-import type { NextRequest } from 'next/server';
+import { after, before, beforeEach, test } from "node:test";
+import assert from "node:assert/strict";
+import Module from "node:module";
+import type { NextRequest } from "next/server";
 
-process.env.STRIPE_SECRET_KEY ??= 'sk_test_mocked';
-process.env.STRIPE_WEBHOOK_SECRET ??= 'whsec_test_mocked';
+process.env.STRIPE_SECRET_KEY ??= "sk_test_mocked";
+process.env.STRIPE_WEBHOOK_SECRET ??= "whsec_test_mocked";
 
 const dbTables = {
-    orders: { name: 'orders' },
-    orderItems: { name: 'order_items' },
-    productLots: { name: 'product_lots' },
-    products: { name: 'products' },
-    masterProducts: { name: 'master_products' },
+  orders: { name: "orders" },
+  orderItems: { name: "order_items" },
+  productLots: { name: "product_lots" },
+  products: { name: "products" },
+  masterProducts: { name: "master_products" },
 };
 
 const stripeState = {
-    event: null as unknown,
+  event: null as unknown,
+  refunds: [] as Array<{
+    params: Record<string, unknown>;
+    idempotencyKey?: string;
+  }>,
 };
 
 const geocodeState = {
-    callCount: 0,
-    shouldFail: false,
+  callCount: 0,
+  shouldFail: false,
 };
 
 const notificationState = {
-    emitCalls: [] as unknown[],
+  emitCalls: [] as unknown[],
 };
 
 const dbState = {
-    selectQueue: [] as unknown[],
-    orderInsertError: null as null | Error,
-    ordersInserted: [] as unknown[],
-    orderItemsInserted: [] as unknown[],
-    stockUpdates: [] as unknown[],
-    executeCalls: [] as unknown[],
+  selectQueue: [] as unknown[],
+  orderInsertError: null as null | Error,
+  ordersInserted: [] as unknown[],
+  orderItemsInserted: [] as unknown[],
+  stockUpdates: [] as unknown[],
+  executeCalls: [] as unknown[],
 };
 
 function resetMockState() {
-    stripeState.event = null;
-    geocodeState.callCount = 0;
-    geocodeState.shouldFail = false;
-    notificationState.emitCalls = [];
-    dbState.selectQueue = [];
-    dbState.orderInsertError = null;
-    dbState.ordersInserted = [];
-    dbState.orderItemsInserted = [];
-    dbState.stockUpdates = [];
-    dbState.executeCalls = [];
+  stripeState.event = null;
+  stripeState.refunds = [];
+  geocodeState.callCount = 0;
+  geocodeState.shouldFail = false;
+  notificationState.emitCalls = [];
+  dbState.selectQueue = [];
+  dbState.orderInsertError = null;
+  dbState.ordersInserted = [];
+  dbState.orderItemsInserted = [];
+  dbState.stockUpdates = [];
+  dbState.executeCalls = [];
 }
 
 function createThenableChain(result: unknown) {
-    const chain = {
-        from() {
-            return chain;
-        },
-        innerJoin() {
-            return chain;
-        },
-        leftJoin() {
-            return chain;
-        },
-        where() {
-            return chain;
-        },
-        limit() {
-            return Promise.resolve(result);
-        },
-        orderBy() {
-            return Promise.resolve(result);
-        },
-        returning() {
-            return Promise.resolve(result);
-        },
-        then(onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) {
-            return Promise.resolve(result).then(onFulfilled, onRejected);
-        },
-    };
+  const chain = {
+    from() {
+      return chain;
+    },
+    innerJoin() {
+      return chain;
+    },
+    leftJoin() {
+      return chain;
+    },
+    where() {
+      return chain;
+    },
+    limit() {
+      return Promise.resolve(result);
+    },
+    orderBy() {
+      return Promise.resolve(result);
+    },
+    returning() {
+      return Promise.resolve(result);
+    },
+    then(
+      onFulfilled: (value: unknown) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) {
+      return Promise.resolve(result).then(onFulfilled, onRejected);
+    },
+  };
 
-    return chain;
+  return chain;
 }
 
 function createInsertChain(table: unknown, values: unknown) {
-    const executeInsert = async () => {
-        if (table === dbTables.orders) {
-            if (dbState.orderInsertError) {
-                throw dbState.orderInsertError;
-            }
+  const executeInsert = async () => {
+    if (table === dbTables.orders) {
+      if (dbState.orderInsertError) {
+        throw dbState.orderInsertError;
+      }
 
-            dbState.ordersInserted.push(values);
-            return [{ id: 'order-created-1' }];
-        }
+      dbState.ordersInserted.push(values);
+      return [{ id: "order-created-1" }];
+    }
 
-        if (table === dbTables.orderItems) {
-            dbState.orderItemsInserted.push(values);
-        }
+    if (table === dbTables.orderItems) {
+      dbState.orderItemsInserted.push(values);
+    }
 
-        return [];
-    };
+    return [];
+  };
 
-    return {
-        returning: executeInsert,
-        then(onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) {
-            return executeInsert().then(onFulfilled, onRejected);
-        },
-    };
+  return {
+    returning: executeInsert,
+    then(
+      onFulfilled: (value: unknown) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) {
+      return executeInsert().then(onFulfilled, onRejected);
+    },
+  };
 }
 
 function createUpdateChain(table: unknown, values: unknown) {
-    const executeUpdate = async () => {
-        if (table === dbTables.productLots) {
-            dbState.stockUpdates.push(values);
-        }
+  const executeUpdate = async () => {
+    if (table === dbTables.productLots) {
+      dbState.stockUpdates.push(values);
+    }
 
-        return [];
-    };
+    return [];
+  };
 
-    const chain = {
-        where() {
-            return chain;
-        },
-        returning: executeUpdate,
-        then(onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) {
-            return executeUpdate().then(onFulfilled, onRejected);
-        },
-    };
+  const chain = {
+    where() {
+      return chain;
+    },
+    returning: executeUpdate,
+    then(
+      onFulfilled: (value: unknown) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) {
+      return executeUpdate().then(onFulfilled, onRejected);
+    },
+  };
 
-    return chain;
+  return chain;
 }
 
 const mockDb = {
-    execute: async (query: unknown) => {
-        dbState.executeCalls.push(query);
-        return [];
+  execute: async (query: unknown) => {
+    dbState.executeCalls.push(query);
+    return [];
+  },
+  select() {
+    const nextResult = dbState.selectQueue.shift() ?? [];
+    return createThenableChain(nextResult);
+  },
+  insert(table: unknown) {
+    return {
+      values(values: unknown) {
+        return createInsertChain(table, values);
+      },
+    };
+  },
+  update(table: unknown) {
+    return {
+      set(values: unknown) {
+        return createUpdateChain(table, values);
+      },
+    };
+  },
+  query: {
+    orders: {
+      findFirst: async () => null,
     },
-    select() {
-        const nextResult = dbState.selectQueue.shift() ?? [];
-        return createThenableChain(nextResult);
-    },
-    insert(table: unknown) {
-        return {
-            values(values: unknown) {
-                return createInsertChain(table, values);
-            },
-        };
-    },
-    update(table: unknown) {
-        return {
-            set(values: unknown) {
-                return createUpdateChain(table, values);
-            },
-        };
-    },
-    query: {
-        orders: {
-            findFirst: async () => null,
-        },
-    },
+  },
 };
 
 class StripeMock {
-    webhooks = {
-        constructEvent: () => stripeState.event,
-    };
+  webhooks = {
+    constructEvent: () => stripeState.event,
+  };
+  paymentIntents = {
+    retrieve: async (id: string) => ({
+      id,
+      status: "succeeded",
+      latest_charge: { id: "ch_test_123", refunded: false },
+    }),
+    cancel: async () => ({}),
+  };
+  refunds = {
+    create: async (
+      params: Record<string, unknown>,
+      options?: { idempotencyKey?: string },
+    ) => {
+      stripeState.refunds.push({
+        params,
+        idempotencyKey: options?.idempotencyKey,
+      });
+      return { id: "re_test_123" };
+    },
+  };
 }
 
-const originalModuleLoad = (Module as typeof Module & {
+const originalModuleLoad = (
+  Module as typeof Module & {
     _load: (request: string, parent: unknown, isMain: boolean) => unknown;
-})._load;
+  }
+)._load;
 
 before(() => {
-    (Module as typeof Module & {
-        _load: (request: string, parent: unknown, isMain: boolean) => unknown;
-    })._load = function patchedModuleLoad(request: string, parent: unknown, isMain: boolean) {
-        if (request === 'stripe') {
-            return { __esModule: true, default: StripeMock };
-        }
+  (
+    Module as typeof Module & {
+      _load: (request: string, parent: unknown, isMain: boolean) => unknown;
+    }
+  )._load = function patchedModuleLoad(
+    request: string,
+    parent: unknown,
+    isMain: boolean,
+  ) {
+    if (request === "stripe") {
+      return { __esModule: true, default: StripeMock };
+    }
 
-        if (request === '@frescari/db') {
-            return {
-                authDb: {
-                    transaction: async (callback: (db: typeof mockDb) => Promise<unknown>) => callback(mockDb),
-                },
-                enableRlsBypassContext: async () => undefined,
-                orders: dbTables.orders,
-                orderItems: dbTables.orderItems,
-                productLots: dbTables.productLots,
-                products: dbTables.products,
-                masterProducts: dbTables.masterProducts,
-            };
-        }
+    if (request === "@frescari/db") {
+      return {
+        authDb: {
+          transaction: async (
+            callback: (db: typeof mockDb) => Promise<unknown>,
+          ) => callback(mockDb),
+        },
+        enableRlsBypassContext: async () => undefined,
+        orders: dbTables.orders,
+        orderItems: dbTables.orderItems,
+        productLots: dbTables.productLots,
+        products: dbTables.products,
+        masterProducts: dbTables.masterProducts,
+      };
+    }
 
-        if (request === '@frescari/api') {
-            return {
-                buildDeliveryAddressLine: (address: Record<string, string>) =>
-                    `${address.street}, ${address.number} - ${address.city}/${address.state}`,
-                geocodeDeliveryAddress: async () => {
-                    geocodeState.callCount += 1;
+    if (request === "@frescari/api") {
+      return {
+        buildDeliveryAddressLine: (address: Record<string, string>) =>
+          `${address.street}, ${address.number} - ${address.city}/${address.state}`,
+        geocodeDeliveryAddress: async () => {
+          geocodeState.callCount += 1;
 
-                    if (geocodeState.shouldFail) {
-                        throw new Error('geocode should not be called');
-                    }
+          if (geocodeState.shouldFail) {
+            throw new Error("geocode should not be called");
+          }
 
-                    return { latitude: -23.55, longitude: -46.63 };
-                },
-                isWeighableSaleUnit: (saleUnit?: string | null) => saleUnit === 'kg' || saleUnit === 'g',
-                parseDeliveryPointMetadata: (raw: string | undefined) =>
-                    raw ? { latitude: -23.55, longitude: -46.63 } : null,
-                resolveEffectiveSaleUnit: (saleUnit?: string | null, lotUnit?: string | null) => saleUnit ?? lotUnit ?? 'unit',
-                toDeliveryPointGeoJson: (point: unknown) => point,
-            };
-        }
+          return { latitude: -23.55, longitude: -46.63 };
+        },
+        isWeighableSaleUnit: (saleUnit?: string | null) =>
+          saleUnit === "kg" || saleUnit === "g",
+        parseDeliveryPointMetadata: (raw: string | undefined) =>
+          raw ? { latitude: -23.55, longitude: -46.63 } : null,
+        resolveEffectiveSaleUnit: (
+          saleUnit?: string | null,
+          lotUnit?: string | null,
+        ) => saleUnit ?? lotUnit ?? "unit",
+        toDeliveryPointGeoJson: (point: unknown) => point,
+      };
+    }
 
-        if (request === '@frescari/api/notifications/domain-events') {
-            return {
-                emitOrderNotifications: async (payload: unknown) => {
-                    notificationState.emitCalls.push(payload);
-                },
-            };
-        }
+    if (request === "@frescari/api/notifications/domain-events") {
+      return {
+        emitOrderNotifications: async (payload: unknown) => {
+          notificationState.emitCalls.push(payload);
+        },
+      };
+    }
 
-        return originalModuleLoad.call(this, request, parent, isMain);
-    };
+    return originalModuleLoad.call(this, request, parent, isMain);
+  };
 });
 
 after(() => {
-    (Module as typeof Module & {
-        _load: (request: string, parent: unknown, isMain: boolean) => unknown;
-    })._load = originalModuleLoad;
+  (
+    Module as typeof Module & {
+      _load: (request: string, parent: unknown, isMain: boolean) => unknown;
+    }
+  )._load = originalModuleLoad;
 });
 
 beforeEach(() => {
-    resetMockState();
+  resetMockState();
 });
 
-function createCheckoutCompletedEvent(sessionOverrides: Partial<Record<string, unknown>> = {}) {
-    return {
-        type: 'checkout.session.completed',
-        data: {
-            object: {
-                id: 'cs_test_123',
-                payment_intent: 'pi_test_123',
-                metadata: {
-                    buyer_tenant_id: 'buyer-tenant-1',
-                    items: JSON.stringify([
-                        {
-                            lotId: '11111111-1111-4111-8111-111111111111',
-                            qty: 2,
-                            pt: 'UNIT',
-                            name: 'Tomate',
-                            price: 10,
-                        },
-                    ]),
-                    address: JSON.stringify({
-                        street: 'Rua das Flores',
-                        number: '123',
-                        cep: '01010-000',
-                        city: 'Sao Paulo',
-                        state: 'SP',
-                    }),
-                    delivery_fee: '12.50',
-                    delivery_point: '{"latitude":-23.55,"longitude":-46.63}',
-                },
-                ...sessionOverrides,
+function createCheckoutCompletedEvent(
+  sessionOverrides: Partial<Record<string, unknown>> = {},
+) {
+  return {
+    type: "checkout.session.completed",
+    data: {
+      object: {
+        id: "cs_test_123",
+        payment_intent: "pi_test_123",
+        metadata: {
+          buyer_tenant_id: "buyer-tenant-1",
+          items: JSON.stringify([
+            {
+              lotId: "11111111-1111-4111-8111-111111111111",
+              qty: 2,
+              pt: "UNIT",
+              name: "Tomate",
+              price: 10,
             },
+          ]),
+          address: JSON.stringify({
+            street: "Rua das Flores",
+            number: "123",
+            cep: "01010-000",
+            city: "Sao Paulo",
+            state: "SP",
+          }),
+          delivery_fee: "12.50",
+          delivery_point: '{"latitude":-23.55,"longitude":-46.63}',
         },
-    };
+        ...sessionOverrides,
+      },
+    },
+  };
 }
 
 function createWebhookRequest() {
-    return new Request('http://localhost/api/webhooks/stripe', {
-        method: 'POST',
-        body: '{}',
-        headers: {
-            'stripe-signature': 'sig_test',
-        },
-    }) as unknown as NextRequest;
+  return new Request("http://localhost/api/webhooks/stripe", {
+    method: "POST",
+    body: "{}",
+    headers: {
+      "stripe-signature": "sig_test",
+    },
+  }) as unknown as NextRequest;
 }
 
-test('stripe webhook treats duplicate stripeSessionId insertion as already processed', async () => {
-    const duplicateError = Object.assign(new Error('duplicate key value violates unique constraint'), {
-        code: '23505',
-    });
+test("stripe webhook treats duplicate stripeSessionId insertion as already processed", async () => {
+  const duplicateError = Object.assign(
+    new Error("duplicate key value violates unique constraint"),
+    {
+      code: "23505",
+    },
+  );
 
-    stripeState.event = createCheckoutCompletedEvent();
-    dbState.selectQueue.push(
-        [],
-        [
-            {
-                lotId: '11111111-1111-4111-8111-111111111111',
-                productId: 'product-1',
-                sellerTenantId: 'seller-tenant-1',
-                availableQty: '10.000',
-                lotUnit: 'unit',
-                saleUnit: 'unit',
-                pricingType: 'UNIT',
-                masterPricingType: 'UNIT',
-            },
-        ],
-    );
-    dbState.orderInsertError = duplicateError;
+  stripeState.event = createCheckoutCompletedEvent();
+  dbState.selectQueue.push(
+    [],
+    [
+      {
+        lotId: "11111111-1111-4111-8111-111111111111",
+        productId: "product-1",
+        sellerTenantId: "seller-tenant-1",
+        availableQty: "10.000",
+        lotUnit: "unit",
+        saleUnit: "unit",
+        pricingType: "UNIT",
+        masterPricingType: "UNIT",
+      },
+    ],
+  );
+  dbState.orderInsertError = duplicateError;
 
-    const { POST } = await import('./route');
+  const { POST } = await import("./route");
 
-    const response = await POST(createWebhookRequest());
+  const response = await POST(createWebhookRequest());
 
-    assert.equal(response.status, 200);
-    assert.equal(dbState.ordersInserted.length, 0);
-    assert.equal(dbState.stockUpdates.length, 0);
+  assert.equal(response.status, 200);
+  assert.equal(dbState.ordersInserted.length, 0);
+  assert.equal(dbState.stockUpdates.length, 0);
 });
 
-test('stripe webhook rejects checkout completion when stock is insufficient before creating the order', async () => {
-    stripeState.event = createCheckoutCompletedEvent();
-    dbState.selectQueue.push(
-        [],
-        [
-            {
-                lotId: '11111111-1111-4111-8111-111111111111',
-                productId: 'product-1',
-                sellerTenantId: 'seller-tenant-1',
-                availableQty: '1.000',
-                lotUnit: 'unit',
-                saleUnit: 'unit',
-                pricingType: 'UNIT',
-                masterPricingType: 'UNIT',
-            },
-        ],
-    );
+test("stripe webhook refunds the buyer when stock ran out before the order was created", async () => {
+  stripeState.event = createCheckoutCompletedEvent();
+  dbState.selectQueue.push(
+    [],
+    [
+      {
+        lotId: "11111111-1111-4111-8111-111111111111",
+        productId: "product-1",
+        sellerTenantId: "seller-tenant-1",
+        availableQty: "1.000",
+        lotUnit: "unit",
+        saleUnit: "unit",
+        pricingType: "UNIT",
+        masterPricingType: "UNIT",
+      },
+    ],
+  );
 
-    const { POST } = await import('./route');
+  const { POST } = await import("./route");
 
-    const response = await POST(createWebhookRequest());
+  const response = await POST(createWebhookRequest());
 
-    assert.equal(response.status, 500);
-    assert.equal(dbState.ordersInserted.length, 0);
-    assert.equal(dbState.orderItemsInserted.length, 0);
-    assert.equal(dbState.stockUpdates.length, 0);
+  // Handled, not retried: no order, no stock change, and the buyer's
+  // money goes back exactly once (idempotency key per session).
+  assert.equal(response.status, 200);
+  assert.equal(dbState.ordersInserted.length, 0);
+  assert.equal(dbState.orderItemsInserted.length, 0);
+  assert.equal(dbState.stockUpdates.length, 0);
+  assert.equal(stripeState.refunds.length, 1);
+  assert.equal(stripeState.refunds[0]!.params.payment_intent, "pi_test_123");
+  assert.match(stripeState.refunds[0]!.idempotencyKey ?? "", /cs_test_123/);
 });
 
-test('stripe webhook rebuilds the order from address_snapshot metadata without legacy address or geocoding', async () => {
-    geocodeState.shouldFail = true;
-    stripeState.event = createCheckoutCompletedEvent({
-        metadata: {
-            buyer_tenant_id: 'buyer-tenant-1',
-            farm_id: 'farm-1',
-            address_id: 'address-1',
-            address_snapshot: JSON.stringify({
-                street: 'Rua das Flores',
-                number: '123',
-                zipcode: '01010-000',
-                city: 'Sao Paulo',
-                state: 'SP',
-                formattedAddress: 'Rua das Flores, 123 - Sao Paulo/SP - CEP 01010-000',
-                latitude: -23.55,
-                longitude: -46.63,
-            }),
-            items: JSON.stringify([
-                {
-                    lotId: '11111111-1111-4111-8111-111111111111',
-                    qty: 2,
-                    pt: 'UNIT',
-                    name: 'Tomate',
-                    price: 10,
-                },
-            ]),
-            delivery_fee: '12.50',
-            delivery_point: '{"latitude":-23.55,"longitude":-46.63}',
+test("stripe webhook rebuilds the order from address_snapshot metadata without legacy address or geocoding", async () => {
+  geocodeState.shouldFail = true;
+  stripeState.event = createCheckoutCompletedEvent({
+    metadata: {
+      buyer_tenant_id: "buyer-tenant-1",
+      farm_id: "farm-1",
+      address_id: "address-1",
+      address_snapshot: JSON.stringify({
+        street: "Rua das Flores",
+        number: "123",
+        zipcode: "01010-000",
+        city: "Sao Paulo",
+        state: "SP",
+        formattedAddress: "Rua das Flores, 123 - Sao Paulo/SP - CEP 01010-000",
+        latitude: -23.55,
+        longitude: -46.63,
+      }),
+      items: JSON.stringify([
+        {
+          lotId: "11111111-1111-4111-8111-111111111111",
+          qty: 2,
+          pt: "UNIT",
+          name: "Tomate",
+          price: 10,
         },
-    });
-    dbState.selectQueue.push(
-        [],
-        [
-            {
-                lotId: '11111111-1111-4111-8111-111111111111',
-                productId: 'product-1',
-                sellerTenantId: 'seller-tenant-1',
-                availableQty: '10.000',
-                lotUnit: 'unit',
-                saleUnit: 'unit',
-                pricingType: 'UNIT',
-                masterPricingType: 'UNIT',
-            },
-        ],
-    );
+      ]),
+      delivery_fee: "12.50",
+      delivery_point: '{"latitude":-23.55,"longitude":-46.63}',
+    },
+  });
+  dbState.selectQueue.push(
+    [],
+    [
+      {
+        lotId: "11111111-1111-4111-8111-111111111111",
+        productId: "product-1",
+        sellerTenantId: "seller-tenant-1",
+        availableQty: "10.000",
+        lotUnit: "unit",
+        saleUnit: "unit",
+        pricingType: "UNIT",
+        masterPricingType: "UNIT",
+      },
+    ],
+  );
 
-    const { POST } = await import('./route');
+  const { POST } = await import("./route");
 
-    const response = await POST(createWebhookRequest());
+  const response = await POST(createWebhookRequest());
 
-    assert.equal(response.status, 200);
-    assert.equal(geocodeState.callCount, 0);
-    assert.equal(dbState.ordersInserted.length, 1);
+  assert.equal(response.status, 200);
+  assert.equal(geocodeState.callCount, 0);
+  assert.equal(dbState.ordersInserted.length, 1);
 
-    const insertedOrder = dbState.ordersInserted[0] as Record<string, unknown>;
-    assert.equal(insertedOrder.deliveryStreet, 'Rua das Flores');
-    assert.equal(insertedOrder.deliveryNumber, '123');
-    assert.equal(insertedOrder.deliveryCep, '01010-000');
-    assert.equal(insertedOrder.deliveryCity, 'Sao Paulo');
-    assert.equal(insertedOrder.deliveryState, 'SP');
-    assert.equal(
-        insertedOrder.deliveryAddress,
-        'Rua das Flores, 123 - Sao Paulo/SP - CEP 01010-000',
-    );
+  const insertedOrder = dbState.ordersInserted[0] as Record<string, unknown>;
+  assert.equal(insertedOrder.deliveryStreet, "Rua das Flores");
+  assert.equal(insertedOrder.deliveryNumber, "123");
+  assert.equal(insertedOrder.deliveryCep, "01010-000");
+  assert.equal(insertedOrder.deliveryCity, "Sao Paulo");
+  assert.equal(insertedOrder.deliveryState, "SP");
+  assert.equal(
+    insertedOrder.deliveryAddress,
+    "Rua das Flores, 123 - Sao Paulo/SP - CEP 01010-000",
+  );
 });

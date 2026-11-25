@@ -12,6 +12,7 @@ import {
   productLots,
 } from "@frescari/db";
 import { eq } from "drizzle-orm";
+import { brasiliaDayBoundary } from "../utils/lot-status";
 
 type LotDateInput = string | Date;
 
@@ -174,24 +175,12 @@ function parseDateOnly(value: string, boundary: "start" | "end") {
     throw new Error(`Invalid date string: ${value}`);
   }
 
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const parsed =
-    boundary === "end"
-      ? new Date(year, month - 1, day, 23, 59, 59, 999)
-      : new Date(year, month - 1, day, 0, 0, 0, 0);
-
-  if (
-    Number.isNaN(parsed.getTime()) ||
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() !== month - 1 ||
-    parsed.getDate() !== day
-  ) {
-    throw new Error(`Invalid date string: ${value}`);
-  }
-
-  return parsed;
+  return brasiliaDayBoundary(
+    Number(match[1]),
+    Number(match[2]),
+    Number(match[3]),
+    boundary,
+  );
 }
 
 function normalizeLotDate(value: LotDateInput, boundary: "start" | "end") {
@@ -205,14 +194,12 @@ function normalizeLotDate(value: LotDateInput, boundary: "start" | "end") {
     throw new Error(`Invalid lot date: ${String(value)}`);
   }
 
-  return new Date(
-    parsed.getFullYear(),
-    parsed.getMonth(),
-    parsed.getDate(),
-    boundary === "end" ? 23 : 0,
-    boundary === "end" ? 59 : 0,
-    boundary === "end" ? 59 : 0,
-    boundary === "end" ? 999 : 0,
+  // Same Brasília day boundaries as lot-status, regardless of server TZ.
+  return brasiliaDayBoundary(
+    parsed.getUTCFullYear(),
+    parsed.getUTCMonth() + 1,
+    parsed.getUTCDate(),
+    boundary,
   );
 }
 
