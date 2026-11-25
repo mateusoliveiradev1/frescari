@@ -373,7 +373,13 @@ export const lotRouter = createTRPCRouter({
         await enableProductLotPublicReadContext(tx);
 
         const [producer] = await tx
-          .select({ id: tenants.id, name: tenants.name, slug: tenants.slug })
+          .select({
+            id: tenants.id,
+            name: tenants.name,
+            slug: tenants.slug,
+            photoUrl: tenants.storefrontPhotoUrl,
+            bio: tenants.storefrontBio,
+          })
           .from(tenants)
           .where(
             and(eq(tenants.slug, input.slug), eq(tenants.type, "PRODUCER")),
@@ -401,6 +407,8 @@ export const lotRouter = createTRPCRouter({
         return {
           name: producer.name,
           slug: producer.slug,
+          photoUrl: producer.photoUrl,
+          bio: producer.bio,
           farmName: farm?.name ?? null,
           city: farm?.address?.city ?? null,
           state: farm?.address?.state ?? null,

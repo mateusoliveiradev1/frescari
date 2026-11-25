@@ -43,6 +43,8 @@ function createTenantRecord(
     stripeRequirementsPastDue:
       tenantOverrides.stripeRequirementsPastDue ?? null,
     stripeStatusSyncedAt: tenantOverrides.stripeStatusSyncedAt ?? null,
+    storefrontBio: tenantOverrides.storefrontBio ?? null,
+    storefrontPhotoUrl: tenantOverrides.storefrontPhotoUrl ?? null,
     type: tenantOverrides.type ?? "PRODUCER",
   };
 

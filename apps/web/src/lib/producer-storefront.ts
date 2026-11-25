@@ -58,7 +58,9 @@ export function pickStorefrontHighlights(
 }
 
 // WhatsApp renders *text* as bold. The link goes last, on its own line, so
-// WhatsApp builds the preview card from it.
+// WhatsApp builds the preview card from it. No emoji: the wa.me redirect
+// turns characters outside the Basic Multilingual Plane into "?" on WhatsApp
+// Web and Desktop.
 export function buildStorefrontShareText({
   producerName,
   place,
@@ -79,8 +81,8 @@ export function buildStorefrontShareText({
 
   lines.push(
     fromProducer
-      ? `🥬 *${producerName}* agora vende pela Frescari!`
-      : `🥬 *${producerName}*${place ? ` · ${place}` : ""}`,
+      ? `*${producerName}* agora vende pela Frescari!`
+      : `*${producerName}*${place ? ` · ${place}` : ""}`,
   );
 
   if (items.length > 0) {
@@ -104,8 +106,8 @@ export function buildStorefrontShareText({
   lines.push("");
   lines.push(
     fromProducer
-      ? "Faça seu pedido pelo link 👇"
-      : "Veja tudo e compre direto 👇",
+      ? "Faça seu pedido pelo link:"
+      : "Veja tudo e compre direto pelo link:",
   );
   lines.push(url);
 

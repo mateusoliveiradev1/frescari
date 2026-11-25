@@ -244,6 +244,8 @@ export interface ProducerStorefrontPageData {
     farmName: string | null;
     city: string | null;
     state: string | null;
+    photoUrl: string | null;
+    bio: string | null;
     certifications: string[];
     deliveryRadiusKm: number | null;
     minOrderValue: number | null;
