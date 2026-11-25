@@ -28,9 +28,15 @@ import {
   type OrderStatus,
 } from "./resolve-order-status";
 import { formatDeliveryWindow } from "@frescari/api/delivery-slots";
+import { readChunkedMetadata } from "@frescari/api/stripe-metadata";
 import { parseDeliveryDetailsMetadata } from "./delivery-metadata";
 import { sanitizeEnvValue } from "@/lib/env";
-import { sendProducerNewOrderEmails } from "@/lib/order-email";
+import {
+  sendBuyerOutOfStockEmails,
+  sendProducerNewOrderEmails,
+} from "@/lib/order-email";
+import { releaseOrderPayment } from "@frescari/api/order-payment-release";
+import { isPlatformOnlyStripeMode } from "@frescari/api/stripe-connect-mode";
 
 // ── Stripe SDK ───────────────────────────────────────────────────────
 const webhookSecret = sanitizeEnvValue(process.env.STRIPE_WEBHOOK_SECRET);
@@ -79,6 +85,47 @@ interface MetadataAddressSnapshot {
   formattedAddress?: string;
   latitude?: number | null;
   longitude?: number | null;
+}
+
+async function releasePaymentForUnfulfillableSession({
+  sessionId,
+  paymentIntentId,
+  buyerTenantId,
+  reason,
+}: {
+  sessionId: string;
+  paymentIntentId: string | null;
+  buyerTenantId: string;
+  reason: string;
+}) {
+  console.warn(`[WEBHOOK] Sessao ${sessionId} sem estoque: ${reason}`);
+
+  // A Stripe failure throws, so the webhook returns 500 and Stripe retries;
+  // the idempotency key (per session) keeps retries to one void or refund.
+  const payment = await releaseOrderPayment({
+    stripe: getStripeClient(),
+    orderId: `session-${sessionId}`,
+    paymentIntentId,
+    platformOnly: isPlatformOnlyStripeMode(),
+  });
+  console.warn(
+    `[WEBHOOK] Pagamento da sessao ${sessionId} devolvido: ${payment.action}`,
+  );
+
+  try {
+    const recipients = await withWebhookBypass(async (database) =>
+      database
+        .select({ email: users.email, name: users.name })
+        .from(users)
+        .where(eq(users.tenantId, buyerTenantId)),
+    );
+    await sendBuyerOutOfStockEmails(recipients, payment.action, sessionId);
+  } catch (error) {
+    console.error(
+      `[WEBHOOK] Falha ao avisar o comprador da sessao ${sessionId}:`,
+      error,
+    );
+  }
 }
 
 async function emailProducersAboutNewOrders(
@@ -188,6 +235,10 @@ function isPgUniqueViolation(error: unknown) {
 }
 
 class DuplicateCheckoutSessionError extends Error {}
+// The buyer paid for more than is left (two buyers on the last units, or the
+// producer lowered stock during checkout). Stock is only checked when the
+// session is created, so this is decided here.
+class InsufficientStockError extends Error {}
 
 const alreadyProcessedExistingOrderStatuses = new Set<OrderStatus>([
   "payment_authorized",
@@ -352,9 +403,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   const buyerTenantId = metadata.buyer_tenant_id;
-  const itemsRaw = metadata.items;
-  const addressRaw = metadata.address;
-  const addressSnapshotRaw = metadata.address_snapshot;
+  const itemsRaw = readChunkedMetadata(metadata, "items");
+  const addressRaw = readChunkedMetadata(metadata, "address");
+  const addressSnapshotRaw = readChunkedMetadata(metadata, "address_snapshot");
   const deliveryFeeStr = metadata.delivery_fee ?? "0";
   const deliveryPointRaw = metadata.delivery_point ?? metadata.deliveryPoint;
   // Window the buyer picked at checkout, and their delivery notes.
@@ -513,7 +564,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           }
 
           if (Number(lotData.availableQty) < item.qty) {
-            throw new Error(
+            throw new InsufficientStockError(
               `[WEBHOOK] Estoque insuficiente para o lote ${item.lotId}. Disponivel=${lotData.availableQty}, solicitado=${item.qty}.`,
             );
           }
@@ -644,6 +695,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     } catch (error) {
       if (error instanceof DuplicateCheckoutSessionError) {
         console.warn(`[WEBHOOK] ${error.message} Ignorando retry duplicado.`);
+        return;
+      }
+
+      if (error instanceof InsufficientStockError) {
+        // No order was created. Give the money back and tell the buyer,
+        // instead of failing (Stripe would retry for days while the buyer
+        // stays charged for nothing).
+        await releasePaymentForUnfulfillableSession({
+          sessionId: session.id,
+          paymentIntentId: paymentIntentId ?? null,
+          buyerTenantId,
+          reason: error.message,
+        });
         return;
       }
 
