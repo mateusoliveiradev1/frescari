@@ -52,6 +52,15 @@ const MIN_HOURS_BEFORE_START = 2;
 const BRASILIA_OFFSET_HOURS = -3;
 const DAY_MS = 86_400_000;
 
+// Items sold by weight are paid with a card authorization that is captured
+// after weighing, and card authorizations expire 7 days after checkout. A
+// weighed order's window must end by 6.5 days, leaving half a day to weigh;
+// otherwise the producer prepares the goods and can no longer be paid.
+export const WEIGHED_ORDER_WINDOW_DAYS = 6.5;
+const WEIGHED_ORDER_WINDOW_MS = WEIGHED_ORDER_WINDOW_DAYS * DAY_MS;
+
+export type DeliverySlotOptions = { weighed?: boolean };
+
 export type DeliverySlot = {
   id: string; // "YYYY-MM-DD:periodo"
   date: string; // YYYY-MM-DD, Brasilia
@@ -130,9 +139,13 @@ export function listDeliverySlots(
   schedule: DeliverySchedule,
   now: Date,
   horizonDays = SLOT_HORIZON_DAYS,
+  options: DeliverySlotOptions = {},
 ): DeliverySlot[] {
   const today = brasiliaDayStart(now);
   const earliestStart = now.getTime() + MIN_HOURS_BEFORE_START * 3_600_000;
+  const latestEnd = options.weighed
+    ? now.getTime() + WEIGHED_ORDER_WINDOW_MS
+    : Number.POSITIVE_INFINITY;
   const slots: DeliverySlot[] = [];
 
   for (let offset = schedule.leadDays; offset <= horizonDays; offset += 1) {
@@ -141,7 +154,10 @@ export function listDeliverySlots(
 
     for (const period of schedule.periods) {
       const slot = buildSlot(dayStart, period);
-      if (slot.start.getTime() >= earliestStart) {
+      if (
+        slot.start.getTime() >= earliestStart &&
+        slot.end.getTime() <= latestEnd
+      ) {
         slots.push(slot);
       }
     }
@@ -156,10 +172,13 @@ export function findDeliverySlot(
   schedule: DeliverySchedule,
   slotId: string,
   now: Date,
+  options: DeliverySlotOptions = {},
 ): DeliverySlot | null {
   if (!DELIVERY_SLOT_ID_PATTERN.test(slotId)) return null;
   return (
-    listDeliverySlots(schedule, now).find((slot) => slot.id === slotId) ?? null
+    listDeliverySlots(schedule, now, SLOT_HORIZON_DAYS, options).find(
+      (slot) => slot.id === slotId,
+    ) ?? null
   );
 }
 

@@ -1181,7 +1181,16 @@ export const logisticsRouter = createTRPCRouter({
   // Windows the buyer can choose for this farm's order. The checkout
   // re-validates the chosen id against the same schedule.
   getDeliverySlots: buyerProcedure
-    .input(z.object({ farmId: z.string().uuid() }).strict())
+    .input(
+      z
+        .object({
+          farmId: z.string().uuid(),
+          // The cart has items sold by weight: only windows the card
+          // authorization still covers (checkout enforces the same rule).
+          weighed: z.boolean().optional(),
+        })
+        .strict(),
+    )
     .query(async ({ ctx, input }) => {
       const farmRecord = await ctx.db.transaction(async (tx) => {
         await enableTenantCatalogReadContext(tx, {
@@ -1213,7 +1222,9 @@ export const logisticsRouter = createTRPCRouter({
 
       return {
         scheduleLabel: describeDeliverySchedule(schedule),
-        slots: listDeliverySlots(schedule, new Date()).map((slot) => ({
+        slots: listDeliverySlots(schedule, new Date(), undefined, {
+          weighed: input.weighed ?? false,
+        }).map((slot) => ({
           id: slot.id,
           date: slot.date,
           period: slot.period,

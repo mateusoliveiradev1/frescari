@@ -115,3 +115,36 @@ test("stored windows and schedules have readable labels", () => {
     "Seg, Ter, Qua, Qui, Sex, Sáb · manhã e tarde · pedido com 1 dia de antecedência",
   );
 });
+
+test("orders with weighed items only get windows the card hold covers", () => {
+  const all = listDeliverySlots(DEFAULT_DELIVERY_SCHEDULE, WED_10AM);
+  const weighed = listDeliverySlots(
+    DEFAULT_DELIVERY_SCHEDULE,
+    WED_10AM,
+    undefined,
+    {
+      weighed: true,
+    },
+  );
+
+  // Holds expire 7 days after checkout; windows must end by 6.5 days.
+  const limit = WED_10AM.getTime() + 6.5 * 86_400_000;
+  assert.ok(weighed.length > 0);
+  assert.ok(weighed.every((slot) => slot.end.getTime() <= limit));
+  assert.ok(all.some((slot) => slot.end.getTime() > limit));
+  // Tue 01/12 afternoon ends 18:00 BRT = 21:00Z, before the limit (02/12 01:00Z).
+  assert.ok(weighed.some((slot) => slot.id === "2026-12-01:tarde"));
+  assert.ok(!weighed.some((slot) => slot.id === "2026-12-02:manha"));
+
+  // Checkout re-checks with the same rule.
+  assert.notEqual(
+    findDeliverySlot(DEFAULT_DELIVERY_SCHEDULE, "2026-12-05:manha", WED_10AM),
+    null,
+  );
+  assert.equal(
+    findDeliverySlot(DEFAULT_DELIVERY_SCHEDULE, "2026-12-05:manha", WED_10AM, {
+      weighed: true,
+    }),
+    null,
+  );
+});

@@ -754,13 +754,15 @@ export const checkoutRouter = createTRPCRouter({
         resolveDeliverySchedule(farmRecord),
         input.deliverySlot,
         new Date(),
+        { weighed: hasWeightProducts },
       );
 
       if (!deliverySlot) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message:
-            "Esta janela de entrega nao esta mais disponivel. Escolha outra.",
+          message: hasWeightProducts
+            ? "Pedidos com itens por peso precisam ser entregues em ate 6 dias. Escolha outra janela."
+            : "Esta janela de entrega nao esta mais disponivel. Escolha outra.",
         });
       }
 
