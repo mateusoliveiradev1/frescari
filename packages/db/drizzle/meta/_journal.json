@@ -120,6 +120,13 @@
       "when": 1774569600000,
       "tag": "0016_tenant_outreach_contacted",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1774656000000,
+      "tag": "0017_two_factor",
+      "breakpoints": true
     }
   ]
 }

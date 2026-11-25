@@ -14,7 +14,11 @@ type OutreachCaller = {
 
 const TENANT_ID = "11111111-1111-4111-8111-111111111111";
 
-async function createCaller(db: unknown, role: "admin" | "producer" | "buyer") {
+async function createCaller(
+  db: unknown,
+  role: "admin" | "producer" | "buyer",
+  twoFactorEnabled = true,
+) {
   const [{ createTRPCRouter }, { adminRouter }] = await Promise.all([
     import("./trpc"),
     import("./routers/admin"),
@@ -31,6 +35,7 @@ async function createCaller(db: unknown, role: "admin" | "producer" | "buyer") {
       name: "Ops",
       role,
       tenantId: null,
+      twoFactorEnabled,
     },
   }) as unknown as OutreachCaller;
 }
@@ -89,6 +94,21 @@ test("only admins can mark outreach", async () => {
       contacted: true,
     }),
     (error: { code?: string }) => error.code === "FORBIDDEN",
+  );
+  assert.equal(updates.length, 0);
+});
+
+test("an admin without two-factor authentication is refused", async () => {
+  const { db, updates } = createDb();
+  const caller = await createCaller(db, "admin", false);
+
+  await assert.rejects(
+    caller.admin.setTenantOutreachContacted({
+      tenantId: TENANT_ID,
+      contacted: true,
+    }),
+    (error: { code?: string; message?: string }) =>
+      error.code === "FORBIDDEN" && /duas etapas/.test(error.message ?? ""),
   );
   assert.equal(updates.length, 0);
 });

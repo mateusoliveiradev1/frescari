@@ -30,5 +30,13 @@ export default async function AdminLayout({
     redirect("/dashboard");
   }
 
+  // Admins must use two-factor authentication before seeing any tenant.
+  if (
+    (session.user as { twoFactorEnabled?: boolean | null }).twoFactorEnabled !==
+    true
+  ) {
+    redirect("/conta/seguranca#duas-etapas");
+  }
+
   return <AdminShell userName={session.user.name}>{children}</AdminShell>;
 }

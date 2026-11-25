@@ -62,6 +62,15 @@ const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
     });
   }
 
+  // Admins see every tenant: a stolen password alone must not be enough.
+  if (ctx.user.twoFactorEnabled !== true) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message:
+        "Ative a verificacao em duas etapas para usar o painel administrativo.",
+    });
+  }
+
   return ctx.db.transaction(async (tx) => {
     await enableRlsBypassContext(tx);
 

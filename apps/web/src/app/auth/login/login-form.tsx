@@ -103,7 +103,17 @@ export function LoginForm() {
           callbackURL: EMAIL_VERIFICATION_CALLBACK_PATH,
         },
         {
-          onSuccess: () => {
+          onSuccess: (context) => {
+            // Accounts with two-factor authentication get no session yet:
+            // the code from the authenticator app finishes the sign-in.
+            if (
+              (context.data as { twoFactorRedirect?: boolean } | null)
+                ?.twoFactorRedirect
+            ) {
+              router.replace("/auth/dois-fatores");
+              return;
+            }
+
             void authClient
               .getSession()
               .then((sessionResponse) => {
