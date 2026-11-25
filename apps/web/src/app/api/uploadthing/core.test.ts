@@ -20,7 +20,7 @@ test("assertProducerUploadActor returns the authenticated producer actor", () =>
 test("assertProducerUploadActor rejects anonymous uploads", () => {
   assert.throws(
     () => assertProducerUploadActor(null),
-    /Acesso nao autenticado/,
+    /Acesso não autenticado/,
   );
 });
 

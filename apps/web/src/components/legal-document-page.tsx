@@ -57,7 +57,7 @@ export function LegalDocumentPage({ slug }: { slug: LegalDocumentSlug }) {
               <div className="grid gap-3 text-left sm:grid-cols-3">
                 <div className="rounded-[20px] border border-white/12 bg-white/8 px-4 py-4 backdrop-blur-sm">
                   <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-sage/70">
-                    Versao
+                    Versão
                   </p>
                   <p className="mt-2 font-sans text-sm font-semibold text-cream">
                     {document.status}
@@ -92,7 +92,7 @@ export function LegalDocumentPage({ slug }: { slug: LegalDocumentSlug }) {
               {hasReviewNote ? (
                 <div className="rounded-[24px] border border-forest/10 bg-sage/26 px-5 py-5">
                   <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-                    Nota de revisao
+                    Nota de revisão
                   </p>
                   <p className="mt-3 font-sans text-sm leading-6 text-bark/86">
                     {document.reviewNote}
@@ -146,8 +146,8 @@ export function LegalDocumentPage({ slug }: { slug: LegalDocumentSlug }) {
                     Documentos relacionados
                   </p>
                   <p className="font-sans text-sm leading-6 text-bark/78">
-                    Consulte tambem as politicas complementares que regem
-                    cadastro, privacidade, pagamentos e a operacao do
+                    Consulte também as políticas complementares que regem
+                    cadastro, privacidade, pagamentos e a operação do
                     marketplace.
                   </p>
                 </div>
@@ -163,8 +163,8 @@ export function LegalDocumentPage({ slug }: { slug: LegalDocumentSlug }) {
                         {item.label}
                       </p>
                       <p className="mt-2 font-sans text-sm leading-6 text-bark/76">
-                        Abrir documento complementar desta mesma versao
-                        juridica.
+                        Abrir documento complementar desta mesma versão
+                        jurídica.
                       </p>
                     </Link>
                   ))}
@@ -172,7 +172,7 @@ export function LegalDocumentPage({ slug }: { slug: LegalDocumentSlug }) {
 
                 <div className="rounded-[24px] border border-dashed border-forest/14 bg-sage/24 px-4 py-5">
                   <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-                    Proximo passo
+                    Próximo passo
                   </p>
                   <p className="mt-3 font-sans text-sm leading-6 text-bark/82">
                     Em caso de mudanca material nestes documentos, a Frescari

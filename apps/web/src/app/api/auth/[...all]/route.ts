@@ -45,13 +45,13 @@ function buildRateLimitedResponse(resetAt: number): Response {
 
 const GENERIC_SIGN_UP_ERROR = {
   message:
-    "Nao foi possivel concluir o cadastro agora. Revise os dados e tente novamente.",
+    "Não foi possível concluir o cadastro agora. Revise os dados e tente novamente.",
   code: "SIGN_UP_FAILED",
 } as const;
 
 const INVALID_CHANGE_PASSWORD_PAYLOAD = {
   code: "INVALID_CHANGE_PASSWORD_PAYLOAD",
-  message: "Payload invalido para troca de senha.",
+  message: "Payload inválido para troca de senha.",
 } as const;
 
 type SanitizedChangePasswordPayload = {

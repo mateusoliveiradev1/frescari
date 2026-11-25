@@ -173,7 +173,7 @@ test("POST /api/auth/sign-up/email masks duplicate user errors", async () => {
   assert.deepEqual(payload, {
     code: "SIGN_UP_FAILED",
     message:
-      "Nao foi possivel concluir o cadastro agora. Revise os dados e tente novamente.",
+      "Não foi possível concluir o cadastro agora. Revise os dados e tente novamente.",
   });
 });
 
@@ -319,6 +319,6 @@ test("POST /api/auth/change-password rejects malformed payloads before reaching 
   assert.equal(response.status, 400);
   assert.deepEqual(payload, {
     code: "INVALID_CHANGE_PASSWORD_PAYLOAD",
-    message: "Payload invalido para troca de senha.",
+    message: "Payload inválido para troca de senha.",
   });
 });

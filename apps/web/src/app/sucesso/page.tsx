@@ -10,7 +10,7 @@ import { CartCleaner } from "./cart-cleaner";
 
 export const metadata = buildNoIndexMetadata({
   description:
-    "Pagina transacional de confirmacao de pedido da plataforma Frescari.",
+    "Página transacional de confirmação de pedido da plataforma Frescari.",
   path: "/sucesso",
   title: "Seu pedido | Frescari",
 });
@@ -26,49 +26,49 @@ type Content = {
 };
 
 const NEXT_STEPS = {
-  title: "Proximos passos",
-  text: "O produtor vai separar seus itens. Voce recebe um aviso quando o pedido sair para entrega.",
+  title: "Próximos passos",
+  text: "O produtor vai separar seus itens. Você recebe um aviso quando o pedido sair para entrega.",
 };
 
 const CONTENT: Record<CheckoutConfirmation, Content> = {
   paid: {
     title: "Pedido recebido!",
-    lead: "Pagamento confirmado. Seu pedido ja foi enviado ao produtor.",
+    lead: "Pagamento confirmado. Seu pedido já foi enviado ao produtor.",
     tone: "success",
     notes: [NEXT_STEPS],
   },
   authorized: {
     title: "Pedido recebido!",
-    lead: "Seu pedido ja foi enviado ao produtor.",
+    lead: "Seu pedido já foi enviado ao produtor.",
     tone: "success",
     notes: [
       {
         title: "Pre-autorizacao",
-        text: "O valor foi reservado no seu cartao, sem cobranca ainda. O valor final e cobrado so depois da pesagem dos produtos e pode ser menor que o reservado.",
+        text: "O valor foi reservado no seu cartão, sem cobrança ainda. O valor final e cobrado so depois da pesagem dos produtos e pode ser menor que o reservado.",
       },
       NEXT_STEPS,
     ],
   },
   pix_pending: {
     title: "Aguardando o pagamento do Pix",
-    lead: "Se voce ja pagou, a confirmacao chega em instantes. O pedido aparece em Meus Pedidos assim que o Pix for confirmado.",
+    lead: "Se você já pagou, a confirmação chega em instantes. O pedido aparece em Meus Pedidos assim que o Pix for confirmado.",
     tone: "waiting",
     notes: [
       {
-        title: "Ainda nao pagou?",
+        title: "Ainda não pagou?",
         text: "O QR code do Pix vale 30 minutos. Depois disso, nada e cobrado e seus itens continuam no carrinho.",
       },
     ],
   },
   not_paid: {
-    title: "Pagamento nao concluido",
+    title: "Pagamento não concluído",
     lead: "Nada foi cobrado. Seus itens continuam no carrinho.",
     tone: "neutral",
     notes: [],
   },
   unknown: {
     title: "Confira o seu pedido",
-    lead: "Nao conseguimos confirmar este pagamento agora. Se a compra foi concluida, ela aparece em Meus Pedidos em alguns instantes.",
+    lead: "Não conseguimos confirmar este pagamento agora. Se a compra foi concluída, ela aparece em Meus Pedidos em alguns instantes.",
     tone: "neutral",
     notes: [],
   },
@@ -155,7 +155,7 @@ export default async function SucessoPage({
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-forest text-cream font-bold rounded-xl hover:bg-forest/90 transition-all shadow-md"
               href="/catalogo"
             >
-              Voltar ao catalogo
+              Voltar ao catálogo
             </Link>
           ) : (
             <Link
@@ -174,7 +174,7 @@ export default async function SucessoPage({
                   : ""
               }`}
             >
-              Ja paguei, atualizar
+              Já paguei, atualizar
             </Link>
           ) : (
             <Link
@@ -187,7 +187,7 @@ export default async function SucessoPage({
         </div>
 
         <p className="text-bark/50 text-xs">
-          Duvidas? Fale com nosso suporte via WhatsApp.
+          Dúvidas? Fale com nosso suporte via WhatsApp.
         </p>
       </div>
     </main>

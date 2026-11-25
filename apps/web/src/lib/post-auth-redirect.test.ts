@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { getPostAuthRedirectPath } from "@/lib/post-auth-redirect";
 
-test("redirects admins to the admin area", () => {
+test("redirects admins to the admin área", () => {
   assert.equal(
     getPostAuthRedirectPath({
       emailVerified: true,

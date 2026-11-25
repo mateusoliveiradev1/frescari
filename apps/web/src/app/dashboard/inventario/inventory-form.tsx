@@ -159,18 +159,18 @@ export function InventoryForm({
     event.preventDefault();
 
     if (!productId || !qty || !expiryDate || !harvestDate || !price) {
-      toast.error("Preencha todos os campos obrigatorios.");
+      toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
 
     if (!selectedMasterId) {
-      toast.error("Selecione um produto do Catalogo Mestre.");
+      toast.error("Selecione um produto do Catálogo Mestre.");
       return;
     }
 
     const parsedPrice = Number(price.replace(",", "."));
     if (Number.isNaN(parsedPrice) || parsedPrice <= 0) {
-      toast.error("Informe um preco maior que zero.");
+      toast.error("Informe um preço maior que zero.");
       return;
     }
 
@@ -230,7 +230,7 @@ export function InventoryForm({
               </span>
             </button>
             <div className="absolute bottom-2 left-2 rounded-sm bg-forest/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-cream">
-              Foto de catalogo ou carregada
+              Foto de catálogo ou carregada
             </div>
           </div>
         ) : (
@@ -260,11 +260,11 @@ export function InventoryForm({
               }}
               content={{
                 button: "Selecionar Foto",
-                allowedContent: "Imagens ate 8MB (JPG, PNG, WebP)",
+                allowedContent: "Imagens até 8MB (JPG, PNG, WebP)",
               }}
             />
             <p className="mt-4 text-center font-sans text-[10px] text-bark/40">
-              Opcional. Sem foto, usamos a imagem padrao do produto. Fotos reais
+              Opcional. Sem foto, usamos a imagem padrão do produto. Fotos reais
               e bem iluminadas vendem mais.
             </p>
           </div>
@@ -276,7 +276,7 @@ export function InventoryForm({
           htmlFor="product"
           className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
         >
-          Produto (Catalogo Mestre)
+          Produto (Catálogo Mestre)
         </label>
         <input
           autoComplete="off"
@@ -305,7 +305,7 @@ export function InventoryForm({
           <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-sm border border-soil/15 bg-cream shadow-card">
             {loadingMaster ? (
               <div className="p-3 text-xs text-bark/60">
-                Buscando no catalogo...
+                Buscando no catálogo...
               </div>
             ) : masterProducts?.length ? (
               <ul>
@@ -333,9 +333,9 @@ export function InventoryForm({
               </ul>
             ) : (
               <div className="space-y-1 p-3 text-xs text-bark/70">
-                <p>Nenhum produto encontrado no catalogo.</p>
+                <p>Nenhum produto encontrado no catálogo.</p>
                 <p>
-                  Nao achou o que voce produz?{" "}
+                  Não achou o que você produz?{" "}
                   <a
                     className="font-semibold text-forest hover:underline"
                     href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
@@ -358,7 +358,7 @@ export function InventoryForm({
             htmlFor="qty"
             className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
           >
-            Quantidade Disponivel
+            Quantidade Disponível
           </label>
           <input
             className="w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
@@ -408,7 +408,7 @@ export function InventoryForm({
           htmlFor="price"
           className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
         >
-          Preco (R$)
+          Preço (R$)
         </label>
         <input
           className="w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
@@ -467,7 +467,7 @@ export function InventoryForm({
         type="submit"
         variant="primary"
       >
-        {initialData?.id ? "Salvar Alteracoes" : "Registrar Lote"}
+        {initialData?.id ? "Salvar Alterações" : "Registrar Lote"}
       </Button>
     </form>
   );

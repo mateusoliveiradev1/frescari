@@ -17,18 +17,18 @@ export function getCreateLotSuccessDescription(
   connectStatus: InventoryStripeConnectStatus,
 ) {
   if (connectStatus?.canReceivePayments) {
-    return "O novo lote ja esta disponivel no catalogo.";
+    return "O novo lote já esta disponível no catálogo.";
   }
 
   switch (connectStatus?.state) {
     case "under_review":
-      return "O lote foi salvo, mas so aparecera no catalogo quando a analise do recebimento for concluida.";
+      return "O lote foi salvo, mas so aparecera no catálogo quando a análise do recebimento for concluída.";
     case "restricted":
-      return "O lote foi salvo, mas o recebimento precisa ser regularizado para liberar a publicacao no catalogo.";
+      return "O lote foi salvo, mas o recebimento precisa ser regularizado para liberar a publicação no catálogo.";
     case "pending_information":
-      return "O lote foi salvo, mas so aparecera no catalogo depois que voce concluir a verificacao de recebimento.";
+      return "O lote foi salvo, mas so aparecera no catálogo depois que você concluir a verificação de recebimento.";
     case "not_started":
     default:
-      return "O lote foi salvo, mas so aparecera no catalogo quando sua conta estiver pronta para receber pagamentos.";
+      return "O lote foi salvo, mas so aparecera no catálogo quando sua conta estiver pronta para receber pagamentos.";
   }
 }

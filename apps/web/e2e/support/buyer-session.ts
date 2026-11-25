@@ -92,9 +92,9 @@ function isoDateOffset(days) {
   const buyerTenantName = \`Mercearia E2E \${suffix}\`;
   const buyerTenantSlug = \`\${makeSlug(buyerTenantName)}-\${suffix}\`;
   const addressTitle = "Entrega principal";
-  const formattedAddress = "Rua E2E, 123 - Sao Paulo/SP";
+  const formattedAddress = "Rua E2E, 123 - São Paulo/SP";
   const sellerName = \`Fazenda Aurora E2E \${suffix}\`;
-  const secondarySellerName = \`Sitio Vale Verde E2E \${suffix}\`;
+  const secondarySellerName = \`Sítio Vale Verde E2E \${suffix}\`;
   const primaryProductName = \`Tomate Italiano E2E \${suffix}\`;
   const secondaryProductName = \`Alface Crespa E2E \${suffix}\`;
 
@@ -111,7 +111,7 @@ function isoDateOffset(days) {
   });
 
   if (!buyerUser) {
-    throw new Error("Nao foi possivel localizar o usuario comprador recem-criado.");
+    throw new Error("Não foi possível localizar o usuário comprador recem-criado.");
   }
 
   const result = await authDb.transaction(async (tx) => {
@@ -143,7 +143,7 @@ function isoDateOffset(days) {
       street: "Rua E2E",
       number: "123",
       neighborhood: "Centro",
-      city: "Sao Paulo",
+      city: "São Paulo",
       state: "SP",
       country: "BR",
       complement: "Conjunto 4",
@@ -183,7 +183,7 @@ function isoDateOffset(days) {
           street: "Estrada da Aurora",
           number: "1200",
           neighborhood: "Zona Rural",
-          city: "Sao Paulo",
+          city: "São Paulo",
           state: "SP",
           postalCode: "01010-000",
           country: "BR",
@@ -206,7 +206,7 @@ function isoDateOffset(days) {
           street: "Estrada do Vale",
           number: "88",
           neighborhood: "Zona Rural",
-          city: "Sao Paulo",
+          city: "São Paulo",
           state: "SP",
           postalCode: "01010-000",
           country: "BR",
@@ -240,7 +240,7 @@ function isoDateOffset(days) {
       .insert(masterProducts)
       .values({
         name: primaryProductName,
-        category: "Hortalicas",
+        category: "Hortaliças",
         pricingType: "UNIT",
       })
       .returning({ id: masterProducts.id });
@@ -335,7 +335,7 @@ function isoDateOffset(days) {
         deliveryStreet: "Rua E2E",
         deliveryNumber: "123",
         deliveryCep: "01010-000",
-        deliveryCity: "Sao Paulo",
+        deliveryCity: "São Paulo",
         deliveryState: "SP",
         deliveryAddress: formattedAddress,
         deliveryNotes: "Tocar interfone",
@@ -390,7 +390,7 @@ function isoDateOffset(days) {
     responseCookies["__Secure-better-auth.session_token"]?.value;
 
   if (!signedSessionCookie) {
-    throw new Error("Nao foi possivel extrair o cookie assinado da sessao do comprador.");
+    throw new Error("Não foi possível extrair o cookie assinado da sessão do comprador.");
   }
 
   console.log(
@@ -448,7 +448,7 @@ function isoDateOffset(days) {
     !fixture.orderId
   ) {
     throw new Error(
-      `Nao foi possivel criar a fixture do comprador para o fluxo E2E.${formatFixtureDebugLog(stdout, stderr)}`,
+      `Não foi possível criar a fixture do comprador para o fluxo E2E.${formatFixtureDebugLog(stdout, stderr)}`,
     );
   }
 

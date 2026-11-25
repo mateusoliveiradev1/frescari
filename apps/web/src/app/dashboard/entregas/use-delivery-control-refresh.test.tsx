@@ -75,18 +75,18 @@ function RecommendationContractHarness({
         onClick={() => setIncomingDeliveries(reorderedDeliveries)}
         type="button"
       >
-        receber nova recomendacao
+        receber nova recomendação
       </button>
       <button
         onClick={() => setIncomingDeliveries(initialDeliveries)}
         type="button"
       >
-        restaurar recomendacao
+        restaurar recomendação
       </button>
 
       {hasPendingRecommendationUpdate ? (
         <div>
-          <p>Nova recomendacao disponivel</p>
+          <p>Nova recomendação disponível</p>
           <button
             onClick={() => {
               applyLatestRecommendation();
@@ -94,7 +94,7 @@ function RecommendationContractHarness({
             }}
             type="button"
           >
-            Aplicar nova recomendacao
+            Aplicar nova recomendação
           </button>
         </div>
       ) : null}
@@ -165,7 +165,7 @@ test("blocks silent reorder while a manual override lock is active and releases 
   });
 
   const refreshButton = Array.from(container.querySelectorAll("button")).find(
-    (button) => button.textContent?.includes("receber nova recomendacao"),
+    (button) => button.textContent?.includes("receber nova recomendação"),
   );
 
   assert.ok(refreshButton);
@@ -178,11 +178,11 @@ test("blocks silent reorder while a manual override lock is active and releases 
   });
 
   assert.equal(getVisibleOrder(), "order-1,order-2");
-  assert.match(container.textContent ?? "", /Nova recomendacao disponivel/);
+  assert.match(container.textContent ?? "", /Nova recomendação disponível/);
 
   const applyLatestButton = Array.from(
     container.querySelectorAll("button"),
-  ).find((button) => button.textContent?.includes("Aplicar nova recomendacao"));
+  ).find((button) => button.textContent?.includes("Aplicar nova recomendação"));
 
   assert.ok(applyLatestButton);
 
@@ -196,11 +196,11 @@ test("blocks silent reorder while a manual override lock is active and releases 
   assert.equal(getVisibleOrder(), "order-2,order-1");
   assert.doesNotMatch(
     container.textContent ?? "",
-    /Nova recomendacao disponivel/,
+    /Nova recomendação disponível/,
   );
 
   const restoreButton = Array.from(container.querySelectorAll("button")).find(
-    (button) => button.textContent?.includes("restaurar recomendacao"),
+    (button) => button.textContent?.includes("restaurar recomendação"),
   );
 
   assert.ok(restoreButton);
@@ -215,7 +215,7 @@ test("blocks silent reorder while a manual override lock is active and releases 
   assert.equal(getVisibleOrder(), "order-1,order-2");
   assert.doesNotMatch(
     container.textContent ?? "",
-    /Nova recomendacao disponivel/,
+    /Nova recomendação disponível/,
   );
 });
 
@@ -254,7 +254,7 @@ function OwnPinHarness({
         refetch
       </button>
       {hasPendingRecommendationUpdate ? (
-        <p>Nova recomendacao disponivel</p>
+        <p>Nova recomendação disponível</p>
       ) : null}
     </div>
   );
@@ -315,6 +315,6 @@ test("the producer's own pin shows as soon as the server answers", async (contex
   assert.equal(visibleOrder(), "o2,o1");
   assert.doesNotMatch(
     container.textContent ?? "",
-    /Nova recomendacao disponivel/,
+    /Nova recomendação disponível/,
   );
 });

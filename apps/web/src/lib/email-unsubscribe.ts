@@ -81,7 +81,7 @@ export function buildUnsubscribeFooter(unsubscribeUrl: string) {
     .replaceAll("&", "&amp;")
     .replaceAll('"', "&quot;");
   return {
-    text: `Nao quer mais receber estes lembretes? Descadastre-se: ${unsubscribeUrl}`,
-    html: `<p style="margin:20px 0 0;font-size:12px;line-height:1.5;color:#8a8076;text-align:center;">Nao quer mais receber estes lembretes? <a href="${safeUrl}" style="color:#8a8076;">Descadastrar</a></p>`,
+    text: `Não quer mais receber estes lembretes? Descadastre-se: ${unsubscribeUrl}`,
+    html: `<p style="margin:20px 0 0;font-size:12px;line-height:1.5;color:#8a8076;text-align:center;">Não quer mais receber estes lembretes? <a href="${safeUrl}" style="color:#8a8076;">Descadastrar</a></p>`,
   };
 }

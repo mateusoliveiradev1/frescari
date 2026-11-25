@@ -64,7 +64,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       {
         "@type": "ListItem",
         position: 1,
-        name: "Catalogo",
+        name: "Catálogo",
         item: `${getSiteUrl()}/catalogo`,
       },
       {

@@ -565,7 +565,7 @@ export default function Home() {
               <Link href="/auth/register" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="h-14 w-full border-cream bg-cream text-forest shadow-[0_8px_28px_-18px_rgba(249,246,240,0.35)] hover:border-cream-dark hover:bg-cream-dark sm:h-12 sm:w-auto"
+                  className="h-auto min-h-14 w-full whitespace-normal border-cream bg-cream py-3 text-center text-forest shadow-[0_8px_28px_-18px_rgba(249,246,240,0.35)] hover:border-cream-dark hover:bg-cream-dark sm:h-12 sm:min-h-0 sm:w-auto sm:whitespace-nowrap"
                 >
                   Levar minha produção para a Frescari
                 </Button>

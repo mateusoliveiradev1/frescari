@@ -47,7 +47,7 @@ function StorefrontEditorForm({ profile }: { profile: Profile }) {
       await utils.storefront.getMyProfile.invalidate();
     },
     onError: (error) => {
-      toast.error(error.message || "Nao foi possivel salvar.");
+      toast.error(error.message || "Não foi possível salvar.");
     },
   });
 
@@ -60,14 +60,14 @@ function StorefrontEditorForm({ profile }: { profile: Profile }) {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <p className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-bark/70">
-            Area do produtor
+            Área do produtor
           </p>
           <h1 className="font-display text-4xl font-black text-soil">
             Minha vitrine
           </h1>
           <p className="max-w-xl text-sm text-bark">
-            A foto e o texto aparecem na sua pagina publica e no cartao que o
-            WhatsApp mostra quando voce compartilha o link.
+            A foto e o texto aparecem na sua página publica e no cartão que o
+            WhatsApp mostra quando você compartilha o link.
           </p>
         </div>
         <Link
@@ -90,7 +90,7 @@ function StorefrontEditorForm({ profile }: { profile: Profile }) {
           <div>
             <h2 className="font-display text-xl font-bold text-soil">Foto</h2>
             <p className="text-sm text-bark">
-              Pode ser a fazenda, voce na lavoura ou o logo do seu negocio. Uma
+              Pode ser a fazenda, você na lavoura ou o logo do seu negócio. Uma
               foto quadrada fica melhor.
             </p>
           </div>
@@ -136,7 +136,7 @@ function StorefrontEditorForm({ profile }: { profile: Profile }) {
                 }}
                 content={{
                   button: photoUrl ? "Trocar foto" : "Enviar foto",
-                  allowedContent: "Imagem ate 4MB (JPG, PNG, WebP)",
+                  allowedContent: "Imagem até 4MB (JPG, PNG, WebP)",
                 }}
               />
               {photoUrl ? (
@@ -158,11 +158,11 @@ function StorefrontEditorForm({ profile }: { profile: Profile }) {
               htmlFor="storefront-bio"
               className="font-display text-xl font-bold text-soil"
             >
-              Sobre voce
+              Sobre você
             </label>
             <p className="text-sm text-bark">
-              Conte em poucas linhas quem voce e, o que planta e como cuida da
-              producao. E o que faz o comprador confiar em voce.
+              Conte em poucas linhas quem você e, o que planta e como cuida da
+              produção. E o que faz o comprador confiar em você.
             </p>
           </div>
           <textarea
@@ -171,7 +171,7 @@ function StorefrontEditorForm({ profile }: { profile: Profile }) {
             onChange={(event) => setBio(event.target.value)}
             maxLength={STOREFRONT_BIO_MAX_LENGTH}
             rows={6}
-            placeholder="Ex.: Somos a familia Souza, plantamos hortalicas em Pirangi desde 1998. Colhemos de manha e entregamos no mesmo dia."
+            placeholder="Ex.: Somos a família Souza, plantamos hortaliças em Pirangi desde 1998. Colhemos de manhã e entregamos no mesmo dia."
             className="w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 font-sans text-sm text-soil focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20"
           />
           <p className="text-right font-sans text-xs text-bark/60">
@@ -182,7 +182,7 @@ function StorefrontEditorForm({ profile }: { profile: Profile }) {
         <div className="flex items-center justify-end gap-4">
           {isDirty ? (
             <span className="font-sans text-xs text-bark/70">
-              Alteracoes nao salvas
+              Alterações não salvas
             </span>
           ) : null}
           <button

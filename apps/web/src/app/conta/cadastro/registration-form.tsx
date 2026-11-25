@@ -125,7 +125,7 @@ function getSafeMessage(error: unknown) {
     return error.message;
   }
 
-  return "Nao foi possivel atualizar o cadastro da conta.";
+  return "Não foi possível atualizar o cadastro da conta.";
 }
 
 function logRegistrationUpdateError(error: unknown) {
@@ -188,7 +188,7 @@ function RegistrationLoadingState() {
           Preparando seus dados.
         </h2>
         <p className="font-sans text-sm text-bark">
-          Carregando as informacoes principais do seu acesso.
+          Carregando as informações principais do seu acesso.
         </p>
       </div>
 
@@ -227,7 +227,7 @@ function RegistrationErrorState({
           Conta
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Nao conseguimos carregar esses dados.
+          Não conseguimos carregar esses dados.
         </h2>
         <p className="font-sans text-sm text-bark">
           Tente novamente em alguns instantes.
@@ -274,11 +274,11 @@ function RegistrationBlockedState() {
           Conta
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Dados da conta indisponiveis para este acesso.
+          Dados da conta indisponíveis para este acesso.
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          Voce ainda pode revisar seus dados pessoais e sua seguranca nas outras
-          abas da sua area Frescari.
+          Você ainda pode revisar seus dados pessoais e sua segurança nas outras
+          abas da sua área Frescari.
         </p>
       </div>
 
@@ -289,7 +289,7 @@ function RegistrationBlockedState() {
           </div>
           <div className="space-y-2">
             <p className="font-display text-2xl font-black text-soil">
-              Sem edicao por aqui
+              Sem edição por aqui
             </p>
             <p className="font-sans text-sm leading-6 text-bark/80">
               Quando esse acesso estiver liberado, os dados comerciais vao
@@ -310,10 +310,10 @@ function RegistrationMissingTenantState() {
           Conta
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Ainda nao encontramos os dados da conta.
+          Ainda não encontramos os dados da conta.
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          Assim que a configuracao inicial for concluida, os campos comerciais
+          Assim que a configuração inicial for concluída, os campos comerciais
           aparecem automaticamente aqui.
         </p>
       </div>
@@ -451,7 +451,7 @@ function ProducerRegistrationPanel({
               onClick={() => onFieldChange("legalEntityType", option)}
               type="button"
             >
-              {option === "PF" ? "Pessoa fisica" : "Pessoa juridica"}
+              {option === "PF" ? "Pessoa física" : "Pessoa jurídica"}
             </button>
           ))}
         </div>
@@ -460,7 +460,7 @@ function ProducerRegistrationPanel({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <label className={labelClassName} htmlFor="registration-public-name">
-            Nome publico
+            Nome público
           </label>
           <div className="relative">
             <Factory className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bark/45" />
@@ -473,7 +473,7 @@ function ProducerRegistrationPanel({
               onInput={(event) =>
                 onFieldChange("publicName", event.currentTarget.value)
               }
-              placeholder="Ex: Fazenda Sao Joao"
+              placeholder="Ex: Fazenda São Joao"
               value={producerForm.publicName}
             />
           </div>
@@ -496,7 +496,7 @@ function ProducerRegistrationPanel({
               }
               placeholder={
                 producerForm.legalEntityType === "PJ"
-                  ? "Ex: Sao Joao Hortifruti Ltda"
+                  ? "Ex: São Joao Hortifruti Ltda"
                   : "Ex: Maria Aparecida Silva"
               }
               value={producerForm.legalName}
@@ -531,7 +531,7 @@ function ProducerRegistrationPanel({
 
         <div className="space-y-1.5">
           <label className={labelClassName} htmlFor="registration-contact-name">
-            Responsavel principal
+            Responsável principal
           </label>
           <div className="relative">
             <UserSquare2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-bark/45" />
@@ -575,7 +575,7 @@ function ProducerRegistrationPanel({
 
       <div className="rounded-[18px] border border-soil/10 bg-white/75 px-4 py-3">
         <p className="font-sans text-xs leading-5 text-bark/70">
-          Documento e telefone sao conferidos antes de salvar para manter os
+          Documento e telefone são conferidos antes de salvar para manter os
           dados consistentes.
         </p>
       </div>
@@ -679,7 +679,7 @@ export function RegistrationFormView({
     return <RegistrationMissingTenantState />;
   }
 
-  const registrationLabel = flags.isProducer ? "Negocio" : "Empresa";
+  const registrationLabel = flags.isProducer ? "Negócio" : "Empresa";
   const trimmedBuyerCompanyName = normalizeWhitespace(buyerCompanyName);
   const trimmedBuyerBaselineName = normalizeWhitespace(buyerBaselineName);
   const buyerHasValidName = trimmedBuyerCompanyName.length >= 2;
@@ -788,10 +788,10 @@ export function RegistrationFormView({
           {registrationLabel}
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
-          Dados do seu negocio.
+          Dados do seu negócio.
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
-          Mantenha as informacoes comerciais atualizadas para pedidos, contato e
+          Mantenha as informações comerciais atualizadas para pedidos, contato e
           documentos ficarem claros.
         </p>
       </div>
@@ -813,14 +813,14 @@ export function RegistrationFormView({
               </p>
               <p className="font-sans text-sm leading-6 text-bark/80">
                 {flags.isProducer
-                  ? "Atualize como seu negocio aparece para compradores e pedidos."
+                  ? "Atualize como seu negócio aparece para compradores e pedidos."
                   : "Mantenha o nome da empresa claro para compras e contatos."}
               </p>
             </div>
           </div>
           <p className="rounded-full border border-forest/12 bg-sage/35 px-4 py-2 font-sans text-xs font-bold text-forest">
             {flags.isProducer
-              ? "Visivel para compradores"
+              ? "Visível para compradores"
               : "Usado nas suas compras"}
           </p>
         </div>

@@ -29,7 +29,7 @@ function buildActiveContent(input: PaymentsStatusEmailInput, base: string) {
     return {
       subject: "Recebimento ativo: falta marcar a fazenda",
       headline: "Seu recebimento esta ativo",
-      body: "O Stripe liberou sua conta e voce ja pode receber pela Frescari. Falta so marcar a localizacao da fazenda no mapa para o comprador conseguir calcular o frete.",
+      body: "O Stripe liberou sua conta e você já pode receber pela Frescari. Falta so marcar a localização da fazenda no mapa para o comprador conseguir calcular o frete.",
       cta: "Marcar a fazenda",
       url: `${base}/dashboard/fazenda`,
     };
@@ -39,16 +39,16 @@ function buildActiveContent(input: PaymentsStatusEmailInput, base: string) {
     return {
       subject: "Recebimento ativo: publique seu primeiro lote",
       headline: "Seu recebimento esta ativo",
-      body: "O Stripe liberou sua conta e voce ja pode receber pela Frescari. Agora e so publicar o primeiro lote: leva cerca de 1 minuto.",
+      body: "O Stripe liberou sua conta e você já pode receber pela Frescari. Agora e so publicar o primeiro lote: leva cerca de 1 minuto.",
       cta: "Publicar um lote",
       url: `${base}/dashboard/inventario`,
     };
   }
 
   return {
-    subject: "Recebimento ativo: seus lotes ja estao no catalogo",
-    headline: "Seus lotes ja estao a venda",
-    body: "O Stripe liberou sua conta e seus lotes ja aparecem no catalogo e na sua vitrine. Compartilhe o link da vitrine com seus clientes.",
+    subject: "Recebimento ativo: seus lotes já estão no catálogo",
+    headline: "Seus lotes já estão a venda",
+    body: "O Stripe liberou sua conta e seus lotes já aparecem no catálogo e na sua vitrine. Compartilhe o link da vitrine com seus clientes.",
     cta: "Abrir o painel",
     url: `${base}/dashboard`,
   };
@@ -56,9 +56,9 @@ function buildActiveContent(input: PaymentsStatusEmailInput, base: string) {
 
 function buildBlockedContent(base: string) {
   return {
-    subject: "Acao necessaria: seu recebimento foi pausado",
-    headline: "O Stripe precisa de mais informacoes",
-    body: "O Stripe pausou o recebimento da sua conta ate voce atualizar alguns dados. Enquanto isso, seus lotes ficam fora do catalogo. Entre no painel e clique no botao de recebimento para ver o que falta.",
+    subject: "Ação necessária: seu recebimento foi pausado",
+    headline: "O Stripe precisa de mais informações",
+    body: "O Stripe pausou o recebimento da sua conta até você atualizar alguns dados. Enquanto isso, seus lotes ficam fora do catálogo. Entre no painel e clique no botão de recebimento para ver o que falta.",
     cta: "Ver o que falta",
     url: `${base}/dashboard`,
   };

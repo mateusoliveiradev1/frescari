@@ -232,7 +232,7 @@ function getSeverityLabel(severity: NotificationSeverity) {
     case "info":
       return "Info";
     case "warning":
-      return "Atencao";
+      return "Atenção";
     case "critical":
       return "Critica";
   }
@@ -470,7 +470,7 @@ export function NotificationInboxSheet({
         <SheetHeader className="px-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <SheetTitle>Notificacoes</SheetTitle>
+              <SheetTitle>Notificações</SheetTitle>
               <SheetDescription>
                 Inbox operacional do seu tenant, atualizado com polling
                 autenticado.
@@ -480,7 +480,7 @@ export function NotificationInboxSheet({
               className="shrink-0"
               variant={criticalUnread > 0 ? "destructive" : "secondary"}
             >
-              {totalUnread} nao lidas
+              {totalUnread} não lidas
             </Badge>
           </div>
         </SheetHeader>
@@ -521,7 +521,7 @@ export function NotificationInboxSheet({
                 onChange={(event) => setUnreadOnly(event.target.checked)}
                 type="checkbox"
               />
-              Mostrar so nao lidas
+              Mostrar so não lidas
             </label>
             <Button
               data-testid="notification-mark-all-read"
@@ -540,11 +540,11 @@ export function NotificationInboxSheet({
         <div className="mt-4 max-h-[calc(100vh-240px)] overflow-y-auto px-6 pb-6">
           {inboxQuery.isLoading && notifications.length === 0 ? (
             <div className="rounded-sm border border-dashed border-soil/15 bg-cream-dark/35 px-4 py-6 text-sm text-bark">
-              Carregando notificacoes...
+              Carregando notificações...
             </div>
           ) : notifications.length === 0 ? (
             <div className="rounded-sm border border-dashed border-soil/15 bg-cream-dark/35 px-4 py-6 text-sm text-bark">
-              Nenhuma notificacao encontrada para este filtro.
+              Nenhuma notificação encontrada para este filtro.
             </div>
           ) : (
             <div className="space-y-3">
@@ -620,7 +620,7 @@ export function NotificationInboxSheet({
                         </button>
                       ) : (
                         <span className="text-xs font-semibold uppercase tracking-[0.16em] text-bark/65">
-                          Ja lida
+                          Já lida
                         </span>
                       )}
                     </div>

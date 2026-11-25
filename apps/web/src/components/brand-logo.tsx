@@ -10,6 +10,9 @@ import {
 type BrandLogoProps = {
   className?: string;
   markClassName?: string;
+  imageClassName?: string;
+  /** Load eagerly: for the logo above the fold (header). */
+  priority?: boolean;
   showWordmark?: boolean;
   showDescriptor?: boolean;
   size?: "sm" | "md" | "lg";
@@ -45,6 +48,8 @@ function resolveAssetKey(
 export function BrandLogo({
   className,
   markClassName,
+  imageClassName,
+  priority = false,
   showWordmark = true,
   showDescriptor = false,
   size = "md",
@@ -73,9 +78,11 @@ export function BrandLogo({
       >
         <Image
           alt="Frescari"
-          className={cn("block select-none", currentSize.image)}
+          className={cn("block select-none", currentSize.image, imageClassName)}
           draggable={false}
           height={assetDimensions.height}
+          loading={priority ? "eager" : undefined}
+          preload={priority}
           src={assetPath}
           width={assetDimensions.width}
         />

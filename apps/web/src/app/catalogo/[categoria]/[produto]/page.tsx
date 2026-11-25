@@ -141,7 +141,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       {
         "@type": "ListItem",
         position: 1,
-        name: "Catalogo",
+        name: "Catálogo",
         item: `${getSiteUrl()}/catalogo`,
       },
       {
@@ -263,7 +263,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </header>
 
         <CatalogCommercialSection
-          eyebrow="Intencao comercial"
+          eyebrow="Intenção comercial"
           faqItems={commercialSnapshot.faqItems}
           intro={commercialSnapshot.intro}
           metrics={commercialSnapshot.metrics}

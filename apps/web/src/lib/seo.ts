@@ -8,7 +8,7 @@ export const SITE_NAME = "Frescari";
 export const SITE_DEFAULT_TITLE =
   "Frescari | Marketplace B2B de hortifruti direto do produtor";
 export const SITE_DEFAULT_DESCRIPTION =
-  "Conecte restaurantes, varejo e distribuicao a produtores locais com catalogo vivo, pedido digital e oferta direta no atacado.";
+  "Conecte restaurantes, varejo e distribuição a produtores locais com catálogo vivo, pedido digital e oferta direta no atacado.";
 
 const SITE_LOCALE = "pt_BR";
 const SITE_LANGUAGE = "pt-BR";

@@ -29,13 +29,13 @@ export default async function VerifiedPage() {
           </div>
 
           <section className="surface-panel rounded-[32px] p-7 text-center sm:p-9">
-            <p className="field-label">Confirmacao em processamento</p>
+            <p className="field-label">Confirmação em processamento</p>
             <h1 className="mt-3 font-display text-4xl font-black tracking-[-0.05em] text-soil sm:text-5xl">
               Estamos finalizando seu acesso
             </h1>
             <p className="mt-4 font-sans text-sm leading-6 text-bark/76">
-              Se esta pagina nao avancar sozinha, volte para a etapa de
-              verificacao e solicite um link novo. O acesso so e liberado com o
+              Se esta página não avancar sozinha, volte para a etapa de
+              verificação e solicite um link novo. O acesso so e liberado com o
               link mais recente.
             </p>
 

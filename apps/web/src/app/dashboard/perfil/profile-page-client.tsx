@@ -187,13 +187,13 @@ export default function BuyerProfilePageClient() {
       resetForm(savedAddresses.length + 1);
       toast.success(
         address.isDefault
-          ? "Endereco padrao salvo com sucesso."
-          : "Endereco salvo com sucesso.",
+          ? "Endereço padrão salvo com sucesso."
+          : "Endereço salvo com sucesso.",
       );
     },
     onError: (error) => {
       logAddressMutationError("[addresses.createAddress]", error);
-      toast.error(error.message || "Nao foi possivel salvar o endereco.");
+      toast.error(error.message || "Não foi possível salvar o endereço.");
     },
   });
 
@@ -201,11 +201,11 @@ export default function BuyerProfilePageClient() {
     onSuccess: async () => {
       await invalidateAddressQueries();
       resetForm(savedAddresses.length);
-      toast.success("Endereco atualizado com sucesso.");
+      toast.success("Endereço atualizado com sucesso.");
     },
     onError: (error) => {
       logAddressMutationError("[addresses.updateAddress]", error);
-      toast.error(error.message || "Nao foi possivel atualizar o endereco.");
+      toast.error(error.message || "Não foi possível atualizar o endereço.");
     },
   });
 
@@ -215,23 +215,23 @@ export default function BuyerProfilePageClient() {
       if (editingAddressId === result.id) {
         resetForm(Math.max(savedAddresses.length - 1, 0));
       }
-      toast.success("Endereco excluido com sucesso.");
+      toast.success("Endereço excluido com sucesso.");
     },
     onError: (error) => {
       logAddressMutationError("[addresses.deleteAddress]", error);
-      toast.error(error.message || "Nao foi possivel excluir o endereco.");
+      toast.error(error.message || "Não foi possível excluir o endereço.");
     },
   });
 
   const setDefaultAddress = trpc.addresses.setDefaultAddress.useMutation({
     onSuccess: async () => {
       await invalidateAddressQueries();
-      toast.success("Endereco padrao atualizado.");
+      toast.success("Endereço padrão atualizado.");
     },
     onError: (error) => {
       logAddressMutationError("[addresses.setDefaultAddress]", error);
       toast.error(
-        error.message || "Nao foi possivel definir o endereco padrao.",
+        error.message || "Não foi possível definir o endereço padrão.",
       );
     },
   });
@@ -264,7 +264,7 @@ export default function BuyerProfilePageClient() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h2 className="font-display text-3xl font-black text-soil">
-          Seus enderecos
+          Seus endereços
         </h2>
         <p className="max-w-2xl font-sans text-sm leading-6 text-bark/80">
           Mantenha os locais de entrega atualizados para agilizar pedidos e
@@ -281,14 +281,14 @@ export default function BuyerProfilePageClient() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-2">
                   <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-                    Endereco principal
+                    Endereço principal
                   </p>
                   <h2 className="font-display text-2xl font-black text-soil">
                     {defaultAddress.title}
                   </h2>
                 </div>
                 <span className="inline-flex items-center rounded-full border border-forest/15 bg-sage px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-forest">
-                  Padrao
+                  Padrão
                 </span>
               </div>
 
@@ -302,7 +302,7 @@ export default function BuyerProfilePageClient() {
                       {defaultAddress.formattedAddress}
                     </p>
                     <p className="font-sans text-xs leading-5 text-bark/75">
-                      Esse endereco ajuda a calcular cobertura e frete nos
+                      Esse endereço ajuda a calcular cobertura e frete nos
                       pedidos.
                     </p>
                   </div>
@@ -317,10 +317,10 @@ export default function BuyerProfilePageClient() {
                 </div>
                 <div className="space-y-2">
                   <p className="font-display text-2xl font-black text-soil">
-                    Nenhum endereco cadastrado ainda
+                    Nenhum endereço cadastrado ainda
                   </p>
                   <p className="max-w-xl font-sans text-sm leading-6 text-bark/80">
-                    Cadastre o primeiro endereco para agilizar fretes e
+                    Cadastre o primeiro endereço para agilizar fretes e
                     entregas.
                   </p>
                 </div>
@@ -332,7 +332,7 @@ export default function BuyerProfilePageClient() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-2">
                 <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-                  Enderecos salvos
+                  Endereços salvos
                 </p>
                 <h2 className="font-display text-2xl font-black text-soil">
                   Locais de entrega
@@ -364,7 +364,7 @@ export default function BuyerProfilePageClient() {
                           </h3>
                           {address.isDefault ? (
                             <span className="inline-flex items-center rounded-full border border-forest/15 bg-sage px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-forest">
-                              Padrao
+                              Padrão
                             </span>
                           ) : null}
                         </div>
@@ -387,7 +387,7 @@ export default function BuyerProfilePageClient() {
                             }
                           >
                             <Star className="h-4 w-4" />
-                            Tornar padrao
+                            Tornar padrão
                           </Button>
                         )}
                         <Button
@@ -410,8 +410,8 @@ export default function BuyerProfilePageClient() {
                           disabled={isMutating}
                           onClick={() => {
                             const confirmationMessage = address.isDefault
-                              ? "Tem certeza que deseja excluir este endereco? Se houver outro endereco salvo, ele passara a ser o endereco padrao do checkout."
-                              : "Tem certeza que deseja excluir este endereco?";
+                              ? "Tem certeza que deseja excluir este endereço? Se houver outro endereço salvo, ele passara a ser o endereço padrão do checkout."
+                              : "Tem certeza que deseja excluir este endereço?";
 
                             if (window.confirm(confirmationMessage)) {
                               deleteAddress.mutate({ id: address.id });
@@ -431,8 +431,8 @@ export default function BuyerProfilePageClient() {
                     Sua lista ainda esta vazia
                   </p>
                   <p className="mx-auto mt-2 max-w-lg font-sans text-sm leading-6 text-bark/75">
-                    Assim que voce salvar o primeiro endereco, ele aparecera
-                    aqui com acoes de edicao e exclusao.
+                    Assim que você salvar o primeiro endereço, ele aparecera
+                    aqui com ações de edição e exclusão.
                   </p>
                 </div>
               )}
@@ -443,7 +443,7 @@ export default function BuyerProfilePageClient() {
         <section className="rounded-[24px_18px_22px_20px] border border-soil/8 bg-cream p-6 shadow-card">
           <div className="space-y-2">
             <p className="font-sans text-[10px] font-bold uppercase tracking-[0.18em] text-bark/65">
-              {isEditing ? "Edicao em andamento" : "Novo endereco"}
+              {isEditing ? "Edição em andamento" : "Novo endereço"}
             </p>
             <h2 className="font-display text-2xl font-black text-soil">
               {isEditing ? "Editar entrega" : "Cadastrar entrega"}
@@ -453,7 +453,7 @@ export default function BuyerProfilePageClient() {
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5">
               <label className="font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-bark">
-                Titulo
+                Título
               </label>
               <input
                 className={inputClassName}
@@ -477,7 +477,7 @@ export default function BuyerProfilePageClient() {
               </div>
               <div className="space-y-1.5">
                 <label className="font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-bark">
-                  Numero
+                  Número
                 </label>
                 <input
                   className={inputClassName}
@@ -539,7 +539,7 @@ export default function BuyerProfilePageClient() {
                 <input
                   className={inputClassName}
                   onChange={handleChange("city")}
-                  placeholder="Sao Paulo"
+                  placeholder="São Paulo"
                   value={form.city}
                 />
               </div>
@@ -572,18 +572,18 @@ export default function BuyerProfilePageClient() {
                   <>
                     <LoaderCircle className="h-4 w-4 animate-spin" />
                     {isEditing
-                      ? "Atualizando endereco..."
-                      : "Salvando endereco..."}
+                      ? "Atualizando endereço..."
+                      : "Salvando endereço..."}
                   </>
                 ) : isEditing ? (
                   <>
                     <Pencil className="h-4 w-4" />
-                    Atualizar endereco
+                    Atualizar endereço
                   </>
                 ) : (
                   <>
                     <Plus className="h-4 w-4" />
-                    Salvar endereco
+                    Salvar endereço
                   </>
                 )}
               </Button>

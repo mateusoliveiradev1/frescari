@@ -60,7 +60,7 @@ import { auth } from "../src/lib/auth";
   });
 
   if (!adminUser) {
-    throw new Error("Nao foi possivel localizar o usuario admin recem-criado.");
+    throw new Error("Não foi possível localizar o usuário admin recem-criado.");
   }
 
   const signInResponse = await auth.api.signInEmail({
@@ -80,7 +80,7 @@ import { auth } from "../src/lib/auth";
     responseCookies["__Secure-better-auth.session_token"]?.value;
 
   if (!signedSessionCookie) {
-    throw new Error("Nao foi possivel extrair o cookie assinado da sessao admin.");
+    throw new Error("Não foi possível extrair o cookie assinado da sessão admin.");
   }
 
   console.log(JSON.stringify({ cookie: signedSessionCookie }));
@@ -123,7 +123,7 @@ import { auth } from "../src/lib/auth";
 
   if (!cookie) {
     throw new Error(
-      `Nao foi possivel criar a sessao admin para a E2E.${formatFixtureDebugLog(stdout, stderr)}`,
+      `Não foi possível criar a sessão admin para a E2E.${formatFixtureDebugLog(stdout, stderr)}`,
     );
   }
 

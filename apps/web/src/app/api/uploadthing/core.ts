@@ -32,7 +32,7 @@ type UploadActor = {
 
 export function assertProducerUploadActor(user: UploadUser): UploadActor {
   if (!user?.id) {
-    throw new UploadThingError("Acesso nao autenticado.");
+    throw new UploadThingError("Acesso não autenticado.");
   }
 
   if (user.role !== "producer") {
@@ -41,7 +41,7 @@ export function assertProducerUploadActor(user: UploadUser): UploadActor {
 
   if (!user.tenantId) {
     throw new UploadThingError(
-      "Usuario precisa estar vinculado a uma conta comercial.",
+      "Usuário precisa estar vinculado a uma conta comercial.",
     );
   }
 

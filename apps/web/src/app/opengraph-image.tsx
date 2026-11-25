@@ -12,7 +12,7 @@ export const size = {
   width: 1200,
 };
 
-const audienceLabels = ["Restaurantes", "Varejo", "Distribuicao"];
+const audienceLabels = ["Restaurantes", "Varejo", "Distribuição"];
 const brandLogoSrc = getBrandImageDataUrl("compact");
 
 export default function OpenGraphImage() {
@@ -119,8 +119,8 @@ export default function OpenGraphImage() {
                 maxWidth: "680px",
               }}
             >
-              Catalogo vivo, compra no atacado e operacao desenhada para
-              restaurantes, varejo e distribuicao.
+              Catálogo vivo, compra no atacado e operação desenhada para
+              restaurantes, varejo e distribuição.
             </span>
           </div>
 
@@ -183,7 +183,7 @@ export default function OpenGraphImage() {
                 textTransform: "uppercase",
               }}
             >
-              Operacao
+              Operação
             </span>
             <span
               style={{
@@ -194,7 +194,7 @@ export default function OpenGraphImage() {
                 lineHeight: 1.05,
               }}
             >
-              Oferta regional com leitura rapida.
+              Oferta regional com leitura rápida.
             </span>
           </div>
 
@@ -218,7 +218,7 @@ export default function OpenGraphImage() {
                 textTransform: "uppercase",
               }}
             >
-              Compra flexivel
+              Compra flexível
             </span>
             <span
               style={{

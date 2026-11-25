@@ -28,7 +28,7 @@ export function CheckoutCancelledNotice() {
     // cleaned in the same step, so an effect re-run (React Strict Mode) still
     // sees the parameters and the notice shows exactly once.
     const timer = window.setTimeout(() => {
-      toast.info("Pagamento nao concluido. Nada foi cobrado.", {
+      toast.info("Pagamento não concluído. Nada foi cobrado.", {
         description: "Seus itens continuam no carrinho.",
       });
       window.history.replaceState(

@@ -39,7 +39,7 @@ test("active email points to the next missing step", () => {
     },
     APP,
   );
-  assert.match(selling.subject, /ja estao no catalogo/);
+  assert.match(selling.subject, /já estão no catálogo/);
 });
 
 test("blocked email asks for action and escapes the name in HTML", () => {
@@ -52,6 +52,6 @@ test("blocked email asks for action and escapes the name in HTML", () => {
     },
     APP,
   );
-  assert.match(email.subject, /Acao necessaria/);
+  assert.match(email.subject, /Ação necessária/);
   assert.doesNotMatch(email.html, /<script>/);
 });

@@ -10,7 +10,7 @@ import { AdminShell } from "./admin-shell";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildNoIndexMetadata({
-  description: "Painel administrativo interno da operacao Frescari.",
+  description: "Painel administrativo interno da operação Frescari.",
   path: "/admin",
   title: "Painel administrativo | Frescari",
 });

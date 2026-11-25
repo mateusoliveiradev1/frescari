@@ -80,7 +80,7 @@ export function AdminTrendChart({ metric, points }: AdminTrendChartProps) {
         </div>
         <div className="rounded-[22px] border border-forest/10 bg-cream/55 px-4 py-4">
           <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-forest">
-            Ultimo ponto
+            Último ponto
           </p>
           <p className="mt-2 font-display text-2xl font-black tracking-[-0.04em] text-soil">
             {formatMetricValue(metric, lastPoint?.value ?? 0)}
@@ -99,7 +99,7 @@ export function AdminTrendChart({ metric, points }: AdminTrendChartProps) {
       <div className="rounded-[26px] border border-forest/10 bg-white p-4">
         <div className="relative">
           <svg
-            aria-label={`Tendencia de ${metricLabelMap[metric].toLowerCase()}`}
+            aria-label={`Tendência de ${metricLabelMap[metric].toLowerCase()}`}
             className="h-auto w-full"
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
           >

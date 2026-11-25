@@ -92,7 +92,7 @@ export default function RootLayout({
       >
         <TRPCProvider>
           <a className="skip-link" href="#conteudo-principal">
-            Pular para o conteudo principal
+            Pular para o conteúdo principal
           </a>
           <GlobalNav />
           <div id="conteudo-principal" tabIndex={-1}>

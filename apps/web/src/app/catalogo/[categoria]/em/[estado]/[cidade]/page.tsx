@@ -40,7 +40,7 @@ export async function generateMetadata({
 
   if (!data) {
     return {
-      title: "Pagina local nao encontrada | Frescari",
+      title: "Página local não encontrada | Frescari",
     };
   }
 
@@ -98,7 +98,7 @@ export default async function CategoryRegionPage({
       {
         "@type": "ListItem",
         position: 1,
-        name: "Catalogo",
+        name: "Catálogo",
         item: `${getSiteUrl()}/catalogo`,
       },
       {
@@ -165,7 +165,7 @@ export default async function CategoryRegionPage({
             href="/catalogo"
             className="transition-colors hover:text-forest"
           >
-            Catalogo
+            Catálogo
           </Link>
           <span>/</span>
           <Link
@@ -216,7 +216,7 @@ export default async function CategoryRegionPage({
           <aside className="grid gap-4 rounded-[28px] border border-soil/10 bg-white/75 p-6 shadow-sm backdrop-blur">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
-                Faixa de preco
+                Faixa de preço
               </p>
               <p className="mt-2 font-display text-4xl font-black text-soil">
                 {formatCurrencyBRL(data.region.lowestPrice)}
@@ -268,7 +268,7 @@ export default async function CategoryRegionPage({
         <section aria-labelledby="produtos-locais" className="space-y-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-bark/60">
-              Navegacao local
+              Navegação local
             </p>
             <h2
               id="produtos-locais"

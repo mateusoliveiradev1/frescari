@@ -95,9 +95,9 @@ const fleetVehicleTypeOptions = [
 ] as const;
 
 const fleetVehicleStatusOptions = [
-  { value: "available", label: "Disponivel" },
+  { value: "available", label: "Disponível" },
   { value: "in_use", label: "Em rota" },
-  { value: "maintenance", label: "Manutencao" },
+  { value: "maintenance", label: "Manutenção" },
   { value: "offline", label: "Offline" },
 ] as const;
 
@@ -456,15 +456,15 @@ export function FarmPageClient() {
       setIsVehicleDialogOpen(false);
 
       toast.success(
-        variables.vehicleId ? "Veiculo atualizado." : "Veiculo cadastrado.",
+        variables.vehicleId ? "Veículo atualizado." : "Veículo cadastrado.",
         {
           description:
-            "A frota operacional ja pode ser usada na recomendacao de saida.",
+            "A frota operacional já pode ser usada na recomendação de saída.",
         },
       );
     },
     onError(error) {
-      toast.error("Nao foi possivel salvar o veiculo.", {
+      toast.error("Não foi possível salvar o veículo.", {
         description: error.message,
       });
     },
@@ -475,10 +475,10 @@ export function FarmPageClient() {
       setVehicleForm(getDefaultFleetVehicleFormValues());
       setIsVehicleDialogOpen(false);
 
-      toast.success("Veiculo removido da frota.");
+      toast.success("Veículo removido da frota.");
     },
     onError(error) {
-      toast.error("Nao foi possivel remover o veiculo.", {
+      toast.error("Não foi possível remover o veículo.", {
         description: error.message,
       });
     },
@@ -557,7 +557,7 @@ export function FarmPageClient() {
     const normalizedCapacityKg = Number(vehicleForm.capacityKg);
 
     if (!vehicleForm.label.trim()) {
-      toast.error("Informe um nome para o veiculo.");
+      toast.error("Informe um nome para o veículo.");
       return;
     }
 
@@ -596,8 +596,8 @@ export function FarmPageClient() {
         tone: "neutral",
         message:
           source === "search"
-            ? "Mapa centralizado, mas o endereco textual ainda precisa ser ajustado manualmente."
-            : "Ponto atualizado. Se necessario, ajuste o endereco textual manualmente.",
+            ? "Mapa centralizado, mas o endereço textual ainda precisa ser ajustado manualmente."
+            : "Ponto atualizado. Se necessário, ajuste o endereço textual manualmente.",
       });
       return;
     }
@@ -646,8 +646,8 @@ export function FarmPageClient() {
       tone: "success",
       message:
         updates.length > 0
-          ? `Sugestao do mapa aplicada com base em ${suggestion.label}.`
-          : `Ponto localizado em ${suggestion.label}. Confira os campos do endereco antes de salvar.`,
+          ? `Sugestão do mapa aplicada com base em ${suggestion.label}.`
+          : `Ponto localizado em ${suggestion.label}. Confira os campos do endereço antes de salvar.`,
     });
   };
 
@@ -662,8 +662,8 @@ export function FarmPageClient() {
       tone: "loading",
       message:
         source === "search"
-          ? "Sincronizando o endereco sugerido para esse ponto..."
-          : "Buscando uma sugestao de endereco para o pino...",
+          ? "Sincronizando o endereço sugerido para esse ponto..."
+          : "Buscando uma sugestão de endereço para o pino...",
     });
 
     try {
@@ -686,7 +686,7 @@ export function FarmPageClient() {
         message:
           error instanceof Error
             ? error.message
-            : "Nao foi possivel sugerir o endereco a partir do ponto marcado.",
+            : "Não foi possível sugerir o endereço a partir do ponto marcado.",
       });
     }
   };
@@ -704,7 +704,7 @@ export function FarmPageClient() {
 
     setMapFeedback({
       tone: "loading",
-      message: "Buscando a melhor area para centralizar o mapa...",
+      message: "Buscando a melhor área para centralizar o mapa...",
     });
 
     try {
@@ -742,7 +742,7 @@ export function FarmPageClient() {
         message:
           error instanceof Error
             ? error.message
-            : "Nao foi possivel localizar esse CEP ou cidade.",
+            : "Não foi possível localizar esse CEP ou cidade.",
       });
     }
   };
@@ -758,7 +758,7 @@ export function FarmPageClient() {
     setMapFeedback({
       tone: "error",
       message:
-        "Esse ponto fica fora do Brasil, entao nao foi usado. Clique no mapa sobre a sua fazenda ou busque pelo endereco.",
+        "Esse ponto fica fora do Brasil, então não foi usado. Clique no mapa sobre a sua fazenda ou busque pelo endereço.",
     });
   };
 
@@ -1091,7 +1091,7 @@ export function FarmPageClient() {
               <div className="mt-6 space-y-4">
                 <div className="rounded-[20px] border border-soil/10 bg-cream-dark/35 p-4">
                   <div
-                    aria-label="Buscar localizacao da fazenda no mapa"
+                    aria-label="Buscar localização da fazenda no mapa"
                     className="flex flex-col gap-3 lg:flex-row lg:items-end"
                     role="search"
                   >
@@ -1120,8 +1120,8 @@ export function FarmPageClient() {
                         value={mapSearchQuery ?? defaultMapSearchQuery}
                       />
                       <p className="text-xs text-bark/60">
-                        O mapa faz um voo suave ate a regiao encontrada e ajuda
-                        a sugerir o endereco.
+                        O mapa faz um voo suave até a região encontrada e ajuda
+                        a sugerir o endereço.
                       </p>
                     </div>
 
@@ -1185,7 +1185,7 @@ export function FarmPageClient() {
                   <FieldShell
                     error={errors.deliveryRadiusKm?.message}
                     htmlFor="farm-delivery-radius-km"
-                    label="Raio Maximo de Entrega (Km)"
+                    label="Raio Máximo de Entrega (Km)"
                   >
                     <input
                       className={buildInputClassName(errors.deliveryRadiusKm)}
@@ -1202,7 +1202,7 @@ export function FarmPageClient() {
                           (Number.isInteger(value) &&
                             value >= 1 &&
                             value <= 500) ||
-                          "Informe ate quantos km voce entrega (de 1 a 500 km).",
+                          "Informe até quantos km você entrega (de 1 a 500 km).",
                       })}
                     />
                   </FieldShell>
@@ -1233,7 +1233,7 @@ export function FarmPageClient() {
                   <FieldShell
                     error={errors.minOrderValue?.message}
                     htmlFor="farm-min-order-value"
-                    label="Valor Minimo do Pedido"
+                    label="Valor Mínimo do Pedido"
                   >
                     <input
                       className={buildInputClassName(errors.minOrderValue)}
@@ -1255,9 +1255,9 @@ export function FarmPageClient() {
 
                   <FieldShell
                     error={errors.freeShippingThreshold?.message}
-                    hint="Opcional. Deixe em branco para nao oferecer frete gratis."
+                    hint="Opcional. Deixe em branco para não oferecer frete grátis."
                     htmlFor="farm-free-shipping-threshold"
-                    label="Frete Gratis a partir de"
+                    label="Frete Grátis a partir de"
                   >
                     <Controller
                       control={control}
@@ -1301,11 +1301,11 @@ export function FarmPageClient() {
                     Frota operacional
                   </p>
                   <h2 className="mt-2 font-display text-2xl font-black text-soil">
-                    Veiculos usados nas saidas
+                    Veículos usados nas saidas
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-bark/70">
-                    Esse catalogo alimenta a recomendacao de veiculo e a
-                    confirmacao manual da saida no painel de entregas.
+                    Esse catálogo alimenta a recomendação de veículo e a
+                    confirmação manual da saída no painel de entregas.
                   </p>
                 </div>
 
@@ -1315,13 +1315,13 @@ export function FarmPageClient() {
                   type="button"
                   variant="secondary"
                 >
-                  Cadastrar veiculo
+                  Cadastrar veículo
                 </Button>
               </div>
 
               {!currentFarmQuery.data ? (
                 <div className="mt-6 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
-                  Salve a fazenda e a localizacao primeiro para habilitar o
+                  Salve a fazenda e a localização primeiro para habilitar o
                   cadastro da frota.
                 </div>
               ) : vehiclesQuery.isLoading && !vehiclesQuery.data ? (
@@ -1377,7 +1377,7 @@ export function FarmPageClient() {
                 </div>
               ) : (
                 <div className="mt-6 rounded-[18px] border border-soil/10 bg-cream-dark/35 px-4 py-4 text-sm leading-6 text-bark/75">
-                  Nenhum veiculo cadastrado ainda. Comece com a frota que
+                  Nenhum veículo cadastrado ainda. Comece com a frota que
                   realmente opera as saidas do dia.
                 </div>
               )}
@@ -1462,11 +1462,11 @@ export function FarmPageClient() {
         <DialogContent className="max-w-2xl border-soil/10 bg-cream p-0">
           <DialogHeader className="border-b border-soil/10 px-6 py-5">
             <DialogTitle className="font-display text-2xl font-black text-soil">
-              {vehicleForm.vehicleId ? "Editar veiculo" : "Cadastrar veiculo"}
+              {vehicleForm.vehicleId ? "Editar veículo" : "Cadastrar veículo"}
             </DialogTitle>
             <DialogDescription className="text-sm leading-6 text-bark/70">
-              Mantenha aqui apenas os veiculos que participam da operacao real
-              de saida.
+              Mantenha aqui apenas os veículos que participam da operação real
+              de saída.
             </DialogDescription>
           </DialogHeader>
 
@@ -1575,7 +1575,7 @@ export function FarmPageClient() {
                 }
                 type="checkbox"
               />
-              Usa refrigeracao para pereciveis
+              Usa refrigeração para perecíveis
             </label>
 
             <div className="space-y-1.5 md:col-span-2">
@@ -1583,7 +1583,7 @@ export function FarmPageClient() {
                 className="font-sans text-[10px] font-bold uppercase tracking-[0.15em] text-bark"
                 htmlFor="fleet-vehicle-notes"
               >
-                Observacoes
+                Observações
               </label>
               <textarea
                 className={`${baseInputClassName} min-h-[110px] resize-y`}
@@ -1605,7 +1605,7 @@ export function FarmPageClient() {
                 type="button"
                 variant="danger"
               >
-                Remover veiculo
+                Remover veículo
               </Button>
             ) : (
               <div />
@@ -1625,8 +1625,8 @@ export function FarmPageClient() {
                 type="button"
               >
                 {vehicleForm.vehicleId
-                  ? "Salvar alteracoes"
-                  : "Cadastrar veiculo"}
+                  ? "Salvar alterações"
+                  : "Cadastrar veículo"}
               </Button>
             </div>
           </DialogFooter>

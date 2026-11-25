@@ -40,12 +40,12 @@ type ChangePasswordFormProps = {
 };
 
 const GENERIC_ERROR_MESSAGE =
-  "Nao foi possivel atualizar a senha agora. Tente novamente em instantes.";
+  "Não foi possível atualizar a senha agora. Tente novamente em instantes.";
 const INVALID_CURRENT_PASSWORD_MESSAGE = "Senha atual incorreta.";
 const RATE_LIMIT_MESSAGE =
   "Muitas tentativas consecutivas. Aguarde um momento antes de tentar novamente.";
 const SESSION_FRESHNESS_MESSAGE =
-  "Sua sessao precisa ser revalidada antes de trocar a senha.";
+  "Sua sessão precisa ser revalidada antes de trocar a senha.";
 const SUCCESS_MESSAGE = "Senha atualizada com sucesso.";
 
 function StatusCard({
@@ -124,7 +124,7 @@ export default function ChangePasswordForm({
     {
       key: "min-length",
       met: passwordCriteria.hasMinLength,
-      text: `Minimo de ${PASSWORD_MIN_LENGTH} caracteres`,
+      text: `Mínimo de ${PASSWORD_MIN_LENGTH} caracteres`,
     },
     {
       key: "uppercase",
@@ -139,7 +139,7 @@ export default function ChangePasswordForm({
     {
       key: "number",
       met: passwordCriteria.hasNumber,
-      text: "Numero",
+      text: "Número",
     },
     {
       key: "match",
@@ -248,7 +248,7 @@ export default function ChangePasswordForm({
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="font-sans text-[11px] font-bold uppercase tracking-[0.22em] text-bark/70">
-          Seguranca
+          Segurança
         </p>
         <h2 className="font-display text-3xl font-black text-soil">
           Proteja seu acesso.
@@ -266,7 +266,7 @@ export default function ChangePasswordForm({
               Atualizar senha
             </h3>
             <p className="font-sans text-sm leading-6 text-bark/80">
-              Use uma combinacao forte e diferente da senha anterior.
+              Use uma combinação forte e diferente da senha anterior.
             </p>
           </div>
           <p className="rounded-full border border-forest/12 bg-sage/35 px-4 py-2 font-sans text-xs font-bold text-forest">
@@ -277,7 +277,7 @@ export default function ChangePasswordForm({
         <div className="mt-6 space-y-5">
           {feedback ? (
             <StatusCard
-              eyebrow="Nao foi possivel atualizar"
+              eyebrow="Não foi possível atualizar"
               message={feedback}
               tone="error"
             />
@@ -367,7 +367,7 @@ export default function ChangePasswordForm({
 
             <div className="rounded-[18px] border border-soil/10 bg-white/75 px-4 py-3">
               <p className="font-sans text-xs leading-5 text-bark/70">
-                Depois de salvar, outros acessos abertos serao encerrados
+                Depois de salvar, outros acessos abertos serão encerrados
                 automaticamente.
               </p>
             </div>

@@ -4,9 +4,9 @@ import type { ReactNode } from "react";
 import { buildNoIndexMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildNoIndexMetadata({
-  description: "Area autenticada de operacao e gestao da plataforma Frescari.",
+  description: "Área autenticada de operação e gestão da plataforma Frescari.",
   path: "/dashboard",
-  title: "Painel do usuario | Frescari",
+  title: "Painel do usuário | Frescari",
 });
 
 export default function DashboardLayout({

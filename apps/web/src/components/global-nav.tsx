@@ -179,6 +179,16 @@ export function GlobalNav() {
           >
             Para restaurantes
           </Link>
+          <Link
+            aria-current={
+              pathname.startsWith("/ferramentas") ? "page" : undefined
+            }
+            className={linkClasses("/ferramentas")}
+            href="/ferramentas"
+            {...baseProps}
+          >
+            Ferramentas grátis
+          </Link>
           {isMobile ? (
             <Link
               className={getMobileLinkClasses(false)}
@@ -296,7 +306,7 @@ export function GlobalNav() {
             href="/admin/catalogo"
             {...baseProps}
           >
-            Catalogo
+            Catálogo
           </Link>
           <Link
             aria-current={
@@ -306,7 +316,7 @@ export function GlobalNav() {
             href="/admin/usuarios"
             {...baseProps}
           >
-            Usuarios
+            Usuários
           </Link>
           <Link
             aria-current={pathname.startsWith("/catalogo") ? "page" : undefined}
@@ -360,23 +370,27 @@ export function GlobalNav() {
 
   return (
     <nav
-      aria-label="Navegacao principal"
+      aria-label="Navegação principal"
       className="sticky top-0 w-full z-50 bg-cream/90 backdrop-blur-md border-b border-soil/8"
     >
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12 h-[72px] flex items-center justify-between">
         <Link
-          aria-label="Frescari, voltar para a pagina inicial"
-          className="flex items-center gap-3 group"
+          aria-label="Frescari, voltar para a página inicial"
+          className="flex shrink-0 items-center gap-3 group"
           href="/"
         >
           <BrandLogo
+            imageClassName="h-8 min-[360px]:h-10"
+            priority
             size="md"
             className="transition-transform duration-200 group-hover:-translate-y-0.5"
           />
         </Link>
 
-        <div className="flex items-center gap-3 sm:gap-8">
-          <div className="hidden md:flex items-center gap-8">{navLinks()}</div>
+        <div className="flex shrink-0 items-center gap-2 min-[360px]:gap-3 sm:gap-8">
+          <div className="hidden lg:flex items-center gap-5 xl:gap-8">
+            {navLinks()}
+          </div>
 
           {user && canUseNotifications ? <NotificationInboxSheet /> : null}
           {canUseCart ? <CartButton /> : null}
@@ -401,7 +415,7 @@ export function GlobalNav() {
             </div>
           ) : null}
 
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <Sheet onOpenChange={setIsMenuOpen} open={isMenuOpen}>
               <SheetTrigger asChild>
                 <button

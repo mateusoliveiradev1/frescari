@@ -245,7 +245,7 @@ test("shows an error state with retry when the profile cannot be loaded", async 
   assert.ok(retryButton);
   assert.match(
     container.textContent ?? "",
-    /Nao foi possivel carregar o perfil agora\./i,
+    /Não foi possível carregar o perfil agora\./i,
   );
 
   await clickElement(retryButton, window);
@@ -309,7 +309,7 @@ test("loads the current name, keeps email read-only, and saves only after a real
   assert.equal(emailInput.value, "mateus@frescari.com");
   assert.equal(emailInput.disabled, true);
   assert.equal(submitButton.disabled, true);
-  assert.match(container.textContent ?? "", /Seu email fica visivel/i);
+  assert.match(container.textContent ?? "", /Seu email fica visível/i);
   assert.equal(container.textContent?.includes("Resumo da conta"), false);
   assert.equal(container.textContent?.includes("Avatar da conta"), false);
   assert.equal(container.textContent?.includes("Dados de acesso"), false);
@@ -351,7 +351,7 @@ test("keeps the form interactive and surfaces the save error when the update fai
         isLoading={false}
         loadError={null}
         onSave={async () => {
-          throw new Error("Nao foi possivel atualizar seu perfil.");
+          throw new Error("Não foi possível atualizar seu perfil.");
         }}
         user={{
           email: "mateus@frescari.com",
@@ -385,7 +385,7 @@ test("keeps the form interactive and surfaces the save error when the update fai
 
   assert.match(
     container.textContent ?? "",
-    /Nao foi possivel atualizar seu perfil\./i,
+    /Não foi possível atualizar seu perfil\./i,
   );
   assert.equal(submitButton.disabled, false);
 });

@@ -1,6 +1,6 @@
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_POLICY_MESSAGE =
-  "Use pelo menos 8 caracteres, com letra maiuscula, letra minuscula e numero.";
+  "Use pelo menos 8 caracteres, com letra maiuscula, letra minuscula e número.";
 
 export type PasswordCriteria = {
   hasMinLength: boolean;

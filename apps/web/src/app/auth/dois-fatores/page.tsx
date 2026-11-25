@@ -46,8 +46,8 @@ export default function TwoFactorChallengePage() {
       setLoading(false);
       setError(
         useBackup
-          ? "Codigo de backup invalido ou ja usado."
-          : "Codigo invalido ou expirado. Confira o app e tente de novo.",
+          ? "Código de backup inválido ou já usado."
+          : "Código inválido ou expirado. Confira o app e tente de novo.",
       );
       return;
     }
@@ -63,15 +63,15 @@ export default function TwoFactorChallengePage() {
       >
         <div className="space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-forest">
-            Verificacao em duas etapas
+            Verificação em duas etapas
           </p>
           <h1 className="font-display text-3xl font-black text-soil">
-            {useBackup ? "Codigo de backup" : "Codigo do app"}
+            {useBackup ? "Código de backup" : "Código do app"}
           </h1>
           <p className="text-sm text-bark">
             {useBackup
-              ? "Digite um dos codigos de backup que voce guardou quando ativou a verificacao."
-              : "Abra o app autenticador (Google Authenticator, Microsoft Authenticator...) e digite o codigo de 6 digitos da Frescari."}
+              ? "Digite um dos códigos de backup que você guardou quando ativou a verificação."
+              : "Abra o app autenticador (Google Authenticator, Microsoft Authenticator...) e digite o código de 6 digitos da Frescari."}
           </p>
         </div>
 
@@ -83,7 +83,7 @@ export default function TwoFactorChallengePage() {
           autoFocus
           maxLength={useBackup ? 32 : 8}
           placeholder={useBackup ? "xxxxx-xxxxx" : "000000"}
-          aria-label={useBackup ? "Codigo de backup" : "Codigo de 6 digitos"}
+          aria-label={useBackup ? "Código de backup" : "Código de 6 digitos"}
           className="w-full rounded-sm border border-soil/15 bg-cream px-4 py-3 text-center font-mono text-2xl tracking-[0.3em] text-soil focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20"
         />
 

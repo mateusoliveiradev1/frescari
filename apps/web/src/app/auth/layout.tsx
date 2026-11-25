@@ -5,9 +5,9 @@ import { buildNoIndexMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildNoIndexMetadata({
   description:
-    "Area de autenticacao da plataforma Frescari para login, cadastro e verificacao de email.",
+    "Área de autenticação da plataforma Frescari para login, cadastro e verificação de email.",
   path: "/auth/login",
-  title: "Acesso a plataforma | Frescari",
+  title: "Acesso à plataforma | Frescari",
 });
 
 export default function AuthLayout({

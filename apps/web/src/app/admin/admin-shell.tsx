@@ -11,9 +11,9 @@ type AdminShellProps = {
 };
 
 const navItems = [
-  { exact: true, href: "/admin", label: "Visao geral" },
-  { href: "/admin/catalogo", label: "Catalogo" },
-  { href: "/admin/usuarios", label: "Usuarios" },
+  { exact: true, href: "/admin", label: "Visão geral" },
+  { href: "/admin/catalogo", label: "Catálogo" },
+  { href: "/admin/usuarios", label: "Usuários" },
 ];
 
 function isActivePath(pathname: string, href: string, exact = false) {
@@ -38,18 +38,18 @@ export function AdminShell({ children, userName }: AdminShellProps) {
                   Admin Frescari
                 </p>
                 <h1 className="font-display text-4xl font-black tracking-[-0.05em] text-soil sm:text-5xl">
-                  Operacao Frescari
+                  Operação Frescari
                 </h1>
                 <p className="max-w-2xl font-sans text-sm leading-6 text-bark/76">
                   {userName ? `${userName}, ` : ""}
-                  esta area concentra a leitura operacional da Frescari:
-                  catalogo, produtores, compradores e pontos que pedem acao.
+                  esta área concentra a leitura operacional da Frescari:
+                  catálogo, produtores, compradores e pontos que pedem ação.
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">acesso admin</Badge>
-                <Badge variant="secondary">operacao</Badge>
+                <Badge variant="secondary">operação</Badge>
               </div>
             </div>
 

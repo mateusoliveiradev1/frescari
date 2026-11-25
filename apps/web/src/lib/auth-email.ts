@@ -63,7 +63,7 @@ export function buildAuthVerificationEmail({
       "Recebemos um pedido para confirmar o email da sua conta na Frescari.",
       `Abra este link para liberar seu acesso: ${url}`,
       "",
-      "Se voce nao reconhece este cadastro, pode ignorar esta mensagem.",
+      "Se você não reconhece este cadastro, pode ignorar esta mensagem.",
     ].join("\n"),
     html: `
       <div style="background:#f9f6f0;padding:32px;font-family:Arial,sans-serif;color:#231f1b;">
@@ -85,7 +85,7 @@ export function buildAuthVerificationEmail({
             Oi ${safeName},
           </p>
           <p style="margin:0 0 24px;font-size:16px;line-height:1.7;">
-            Recebemos um pedido para liberar seu acesso na Frescari. Clique no botao abaixo para confirmar o email da sua conta.
+            Recebemos um pedido para liberar seu acesso na Frescari. Clique no botão abaixo para confirmar o email da sua conta.
           </p>
           <a
             href="${safeUrl}"
@@ -98,7 +98,7 @@ export function buildAuthVerificationEmail({
             <a href="${safeUrl}" style="color:#0d3321;word-break:break-all;">${safeUrl}</a>
           </p>
           <p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#5d5248;">
-            Se voce nao reconhece este cadastro, pode ignorar esta mensagem.
+            Se você não reconhece este cadastro, pode ignorar esta mensagem.
           </p>
         </div>
       </div>
@@ -127,7 +127,7 @@ export function buildAuthPasswordResetEmail({
       "Recebemos um pedido para redefinir a senha da sua conta na Frescari.",
       `Abra este link para cadastrar uma nova senha: ${url}`,
       "",
-      "Se voce nao fez essa solicitacao, pode ignorar esta mensagem com seguranca.",
+      "Se você não fez essa solicitação, pode ignorar esta mensagem com segurança.",
     ].join("\n"),
     html: `
       <div style="background:#f9f6f0;padding:32px;font-family:Arial,sans-serif;color:#231f1b;">
@@ -149,7 +149,7 @@ export function buildAuthPasswordResetEmail({
             Oi ${safeName},
           </p>
           <p style="margin:0 0 24px;font-size:16px;line-height:1.7;">
-            Recebemos um pedido para redefinir a senha da sua conta na Frescari. Clique no botao abaixo para escolher uma nova senha.
+            Recebemos um pedido para redefinir a senha da sua conta na Frescari. Clique no botão abaixo para escolher uma nova senha.
           </p>
           <a
             href="${safeUrl}"
@@ -162,7 +162,7 @@ export function buildAuthPasswordResetEmail({
             <a href="${safeUrl}" style="color:#0d3321;word-break:break-all;">${safeUrl}</a>
           </p>
           <p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#5d5248;">
-            Se voce nao fez essa solicitacao, pode ignorar esta mensagem com seguranca.
+            Se você não fez essa solicitação, pode ignorar esta mensagem com segurança.
           </p>
         </div>
       </div>

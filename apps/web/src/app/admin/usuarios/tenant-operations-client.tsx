@@ -186,7 +186,7 @@ export function TenantOperationsClient() {
   const showBuyerQueues = type !== "PRODUCER";
   const summaryCards = [
     {
-      copy: "Contas comerciais que batem com perfil, prontidao e janela selecionados.",
+      copy: "Contas comerciais que batem com perfil, prontidão e janela selecionados.",
       icon: Building2,
       label: "Contas no recorte",
       value: overview.summary.totalTenants,
@@ -194,7 +194,7 @@ export function TenantOperationsClient() {
     {
       copy: "Pessoas com acesso as contas comerciais deste recorte.",
       icon: Users,
-      label: "Usuarios no recorte",
+      label: "Usuários no recorte",
       value: overview.summary.totalUsers,
     },
     {
@@ -204,7 +204,7 @@ export function TenantOperationsClient() {
       value: overview.summary.newTenantsInWindow,
     },
     {
-      copy: "Produtores com base pronta e lote vivo no catalogo.",
+      copy: "Produtores com base pronta e lote vivo no catálogo.",
       icon: Sprout,
       label: "Produtores operando",
       value: overview.summary.producersOperating,
@@ -216,9 +216,9 @@ export function TenantOperationsClient() {
       value: overview.summary.producersNeedingSetup,
     },
     {
-      copy: "Compradores sem endereco pronto para fechar pedido.",
+      copy: "Compradores sem endereço pronto para fechar pedido.",
       icon: MapPin,
-      label: "Compradores sem endereco",
+      label: "Compradores sem endereço",
       value: overview.summary.buyersWithoutAddress,
     },
   ];
@@ -228,15 +228,15 @@ export function TenantOperationsClient() {
       <section className="overflow-hidden rounded-[34px] border border-forest/10 bg-[radial-gradient(circle_at_top_left,_rgba(213,229,216,0.9),_rgba(248,245,237,0.96)_45%,_rgba(255,255,255,1)_100%)] p-6 shadow-[0_30px_80px_-56px_rgba(13,51,33,0.58)] sm:p-8">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl space-y-4">
-            <Badge variant="secondary">prontidao da operacao</Badge>
+            <Badge variant="secondary">prontidão da operação</Badge>
             <div className="space-y-3">
               <h1 className="font-display text-4xl font-black tracking-[-0.06em] text-soil sm:text-5xl">
                 Quem esta pronto, quem precisa de apoio e onde agir.
               </h1>
               <p className="max-w-2xl font-sans text-sm leading-7 text-bark/76 sm:text-base">
-                A leitura mostra produtores e compradores por prontidao
+                A leitura mostra produtores e compradores por prontidão
                 comercial: quem entrou, quem ainda precisa completar dados e
-                quem ja roda no fluxo real de compra e venda.
+                quem já roda no fluxo real de compra e venda.
               </p>
             </div>
           </div>
@@ -282,7 +282,7 @@ export function TenantOperationsClient() {
 
             <div className="space-y-2">
               <p className="font-sans text-[10px] font-bold uppercase tracking-[0.16em] text-bark/58">
-                Prontidao
+                Prontidão
               </p>
               <div className="flex flex-wrap gap-2">
                 {healthOptions.map((option) => (
@@ -434,10 +434,10 @@ export function TenantOperationsClient() {
 
           {showBuyerQueues ? (
             <QueueCard
-              description="Compradores que ainda precisam cadastrar endereco para fechar pedido."
-              emptyState="Nenhum comprador sem endereco apareceu nesta leitura."
+              description="Compradores que ainda precisam cadastrar endereço para fechar pedido."
+              emptyState="Nenhum comprador sem endereço apareceu nesta leitura."
               items={overview.queues.buyersWithoutAddress}
-              title="Compradores sem endereco"
+              title="Compradores sem endereço"
             />
           ) : null}
 
@@ -445,18 +445,18 @@ export function TenantOperationsClient() {
             <CardHeader className="border-b border-forest/6 bg-cream/45">
               <CardTitle className="text-soil">Atalhos operacionais</CardTitle>
               <CardDescription>
-                Saltos rapidos para agir onde a operacao pede atencao.
+                Saltos rápidos para agir onde a operação pede atenção.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 pt-6 sm:grid-cols-2 xl:grid-cols-1">
               <Button asChild variant="primary">
-                <Link href="/admin/catalogo">Abrir catalogo base</Link>
+                <Link href="/admin/catalogo">Abrir catálogo base</Link>
               </Button>
               <Button asChild variant="ghost">
-                <Link href="/admin">Voltar a visao geral</Link>
+                <Link href="/admin">Voltar a visão geral</Link>
               </Button>
               <Button asChild variant="ghost">
-                <Link href="/catalogo">Ver catalogo publico</Link>
+                <Link href="/catalogo">Ver catálogo público</Link>
               </Button>
             </CardContent>
           </Card>
