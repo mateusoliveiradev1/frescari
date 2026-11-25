@@ -18,8 +18,8 @@ export function WasteSimulator() {
   });
 
   return (
-    <div className="grid gap-6 rounded-[24px] border border-soil/10 bg-white p-6 shadow-sm md:grid-cols-2 md:p-8">
-      <div className="flex flex-col gap-5">
+    <div className="grid grid-cols-1 gap-6 rounded-[24px] border border-soil/10 bg-white p-4 shadow-sm sm:p-6 md:grid-cols-2 md:p-8">
+      <div className="flex min-w-0 flex-col gap-5">
         <ToolField
           id="compras"
           label="Compras de hortifruti por semana"
@@ -48,7 +48,7 @@ export function WasteSimulator() {
 
       <div
         aria-live="polite"
-        className="flex flex-col justify-center gap-4 rounded-[20px] bg-sage/30 p-6"
+        className="flex min-w-0 flex-col justify-center gap-4 rounded-[20px] bg-sage/30 p-4 sm:p-6"
       >
         {result ? (
           <>
@@ -56,7 +56,7 @@ export function WasteSimulator() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-forest">
                 Vai para o lixo por ano
               </p>
-              <p className="font-display text-5xl font-black text-soil">
+              <p className="break-words font-display text-[clamp(1.75rem,8.5vw,3rem)] font-black leading-tight text-soil">
                 {formatBrl(result.yearlyLoss)}
               </p>
             </div>
