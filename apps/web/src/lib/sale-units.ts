@@ -49,21 +49,15 @@ export function resolveEffectiveSaleUnit(
   saleUnit?: string | null,
   unit?: string | null,
 ): SupportedSaleUnit {
-  const normalizedSaleUnit = normalizeSaleUnit(saleUnit);
-  const supportedSaleUnit = toSupportedSaleUnit(normalizedSaleUnit);
-
-  if (supportedSaleUnit && supportedSaleUnit !== "unit") {
-    return supportedSaleUnit;
-  }
-
-  const normalizedUnit = normalizeSaleUnit(unit);
-  const derivedSaleUnit = LOT_UNIT_TO_SALE_UNIT[normalizedUnit];
+  // Same rule as packages/api/src/sale-units.ts: the lot's own unit decides,
+  // the product's sale unit is only a fallback.
+  const derivedSaleUnit = LOT_UNIT_TO_SALE_UNIT[normalizeSaleUnit(unit)];
 
   if (derivedSaleUnit) {
     return derivedSaleUnit;
   }
 
-  return supportedSaleUnit ?? "unit";
+  return toSupportedSaleUnit(normalizeSaleUnit(saleUnit)) ?? "unit";
 }
 
 export function isWeighableSaleUnit(saleUnit?: string | null) {

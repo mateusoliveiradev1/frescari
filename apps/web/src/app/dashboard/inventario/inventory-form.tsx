@@ -169,8 +169,8 @@ export function InventoryForm({
     }
 
     const parsedPrice = Number(price.replace(",", "."));
-    if (Number.isNaN(parsedPrice) || parsedPrice < 0) {
-      toast.error("Por favor, insira um preco valido.");
+    if (Number.isNaN(parsedPrice) || parsedPrice <= 0) {
+      toast.error("Informe um preco maior que zero.");
       return;
     }
 
