@@ -1,3 +1,4 @@
+import { isValidCnpj, normalizeTaxDocument } from "@frescari/validators";
 import { z } from "zod";
 
 export const producerLegalEntityTypeSchema = z.enum(["PF", "PJ"]);
@@ -86,38 +87,8 @@ export function isValidCpf(value: string) {
   return secondCheckDigit === Number(digits[10]);
 }
 
-export function isValidCnpj(value: string) {
-  const digits = normalizeDigits(value);
-
-  if (digits.length !== 14 || /^(\d)\1+$/.test(digits)) {
-    return false;
-  }
-
-  const firstWeights = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-  const secondWeights = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-
-  let sum = 0;
-  for (let index = 0; index < firstWeights.length; index += 1) {
-    sum += Number(digits[index]) * firstWeights[index]!;
-  }
-
-  let firstCheckDigit = sum % 11;
-  firstCheckDigit = firstCheckDigit < 2 ? 0 : 11 - firstCheckDigit;
-
-  if (firstCheckDigit !== Number(digits[12])) {
-    return false;
-  }
-
-  sum = 0;
-  for (let index = 0; index < secondWeights.length; index += 1) {
-    sum += Number(digits[index]) * secondWeights[index]!;
-  }
-
-  let secondCheckDigit = sum % 11;
-  secondCheckDigit = secondCheckDigit < 2 ? 0 : 11 - secondCheckDigit;
-
-  return secondCheckDigit === Number(digits[13]);
-}
+// Numeric and alphanumeric CNPJ (Receita Federal, from July 2026).
+export { isValidCnpj, normalizeTaxDocument };
 
 export function createNormalizedTextSchema(min: number, max: number) {
   return z
@@ -140,7 +111,8 @@ const producerOnboardingSchema = z.object({
   type: z.literal("PRODUCER"),
   publicName: createNormalizedTextSchema(2, 120),
   legalEntityType: producerLegalEntityTypeSchema,
-  documentId: z.string().transform(normalizeDigits),
+  // Keeps letters: alphanumeric CNPJs; a CPF with letters fails validation.
+  documentId: z.string().transform(normalizeTaxDocument),
   legalName: createNormalizedTextSchema(2, 160),
   contactName: createNormalizedTextSchema(2, 120),
   phone: z.string().transform(normalizeBrazilPhone),

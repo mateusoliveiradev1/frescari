@@ -73,3 +73,34 @@ test("rejects producer onboarding payloads with invalid CNPJ or phone", () => {
     ["documentId", "phone"],
   );
 });
+
+test("accepts an alphanumeric CNPJ (Receita, from July 2026) and keeps its letters", () => {
+  const payload = onboardingSetupSchema.parse({
+    type: "PRODUCER",
+    publicName: "Sitio Novo",
+    legalEntityType: "PJ",
+    documentId: "12.abc.345/01de-35",
+    legalName: "Sitio Novo LTDA",
+    contactName: "Maria Souza",
+    phone: "(11) 99876-5432",
+  });
+
+  assert.equal(
+    payload.type === "PRODUCER" && payload.documentId,
+    "12ABC34501DE35",
+  );
+});
+
+test("a CPF typed with letters is still rejected", () => {
+  const result = onboardingSetupSchema.safeParse({
+    type: "PRODUCER",
+    publicName: "Feira da Ana",
+    legalEntityType: "PF",
+    documentId: "529.982.247-2A",
+    legalName: "Ana Maria",
+    contactName: "Ana Maria Souza",
+    phone: "(11) 99876-5432",
+  });
+
+  assert.equal(result.success, false);
+});

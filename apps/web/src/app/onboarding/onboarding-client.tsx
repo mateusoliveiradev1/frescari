@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeProducerDocument } from "@frescari/validators";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ShoppingBag, Sprout } from "lucide-react";
@@ -58,11 +59,15 @@ export function OnboardingClient() {
     producerForm.legalEntityType === "PJ" ? "CNPJ" : "CPF";
   const producerDocumentPlaceholder =
     producerForm.legalEntityType === "PJ"
-      ? "Ex: 12.345.678/0001-99"
+      ? "Ex: 12.345.678/0001-99 ou 12.ABC.345/01DE-35"
       : "Ex: 123.456.789-09";
   const producerDocumentLength =
     producerForm.legalEntityType === "PJ" ? 14 : 11;
-  const producerDocumentDigits = normalizeDigits(producerForm.documentId);
+  // CNPJs may have letters since July 2026; a CPF is digits only.
+  const producerDocumentDigits = normalizeProducerDocument(
+    producerForm.documentId,
+    producerForm.legalEntityType,
+  );
   const producerPhoneDigits = normalizeBrazilPhone(producerForm.phone);
   const isBuyerReady = buyerCompanyName.trim().length >= 2;
   const isProducerReady =
@@ -348,7 +353,10 @@ export function OnboardingClient() {
                   <input
                     id="producerDocumentId"
                     type="text"
-                    inputMode="numeric"
+                    inputMode={
+                      producerForm.legalEntityType === "PJ" ? "text" : "numeric"
+                    }
+                    autoCapitalize="characters"
                     value={producerForm.documentId}
                     onChange={(event) =>
                       updateProducerField("documentId", event.target.value)

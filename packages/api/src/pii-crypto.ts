@@ -66,9 +66,10 @@ export function decryptPii(
 }
 
 // "12345678909" -> "***.456.789-**"; CNPJ "12345678000195" -> "**.***.678/0001-**"
+// (alphanumeric CNPJs keep their letters: "12ABC34501DE35" -> "**.***.345/01DE-**")
 export function maskDocument(digits: string | null | undefined) {
   if (!digits) return null;
-  const clean = digits.replace(/\D/g, "");
+  const clean = digits.toUpperCase().replace(/[^0-9A-Z]/g, "");
   if (clean.length === 11) {
     return `***.${clean.slice(3, 6)}.${clean.slice(6, 9)}-**`;
   }
