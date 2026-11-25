@@ -41,8 +41,8 @@ test("reminder email reflects the producer's real progress", () => {
 
   assert.match(email.subject, /^Rafael, ainda dá tempo/);
   assert.match(email.text, /Oi, Rafael!/);
-  assert.match(email.text, /1\. Ativar recebimento \(feito\)/);
-  assert.match(email.text, /2\. Marcar a fazenda no mapa \(pendente\)/);
+  assert.match(email.text, /1\. Marcar a fazenda no mapa \(pendente\)/);
+  assert.match(email.text, /3\. Ativar recebimento \(feito\)/);
   assert.match(email.text, /https:\/\/frescari\.com\.br\/dashboard/);
 });
 

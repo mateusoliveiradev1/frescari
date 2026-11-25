@@ -97,24 +97,26 @@ export function buildActivationReminderEmail(
       ? "Obrigado por criar sua conta de produtor na Frescari. Para os compradores encontrarem seus produtos, faltam poucos passos:"
       : "Vi que você ainda não publicou nenhum lote. Se travou em alguma etapa, me conta respondendo este e-mail. Para relembrar, falta isto:";
 
+  // Same order as the dashboard: quick steps first, the Stripe form last.
   const steps = [
-    {
-      done: candidate.paymentsStarted,
-      title: "Ativar recebimento",
-      detail: candidate.paymentsStarted
-        ? "Você já começou. Se o Stripe pedir mais alguma informação, o painel mostra o que falta."
-        : "Cadastro rápido para o dinheiro das vendas cair direto na sua conta.",
-    },
     {
       done: candidate.farmLocated,
       title: "Marcar a fazenda no mapa",
-      detail: "É o que permite calcular o frete para o comprador.",
+      detail:
+        "É o que permite calcular o frete para o comprador. Leva 1 minuto.",
     },
     {
       done: false,
       title: "Publicar o primeiro lote",
       detail:
         "Escolha o produto, a quantidade e o preço. Leva cerca de 1 minuto.",
+    },
+    {
+      done: candidate.paymentsStarted,
+      title: "Ativar recebimento",
+      detail: candidate.paymentsStarted
+        ? "Você já começou. O painel mostra exatamente o que o Stripe ainda pede."
+        : "Último passo: cadastro no Stripe para o dinheiro das vendas cair direto na sua conta. Tenha em mãos documento com foto e dados bancários.",
     },
   ];
 

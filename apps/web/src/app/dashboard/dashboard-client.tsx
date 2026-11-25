@@ -84,23 +84,17 @@ function ProducerSetupChecklist({
 }: {
   readiness: PublishReadiness;
 }) {
+  // Quick wins first: the farm and the first lot take minutes and show the
+  // producer their offer taking shape. The Stripe form (documents, bank
+  // account) comes last, as the step that turns it on for buyers; when it
+  // came first, producers stopped there and never saw anything of theirs.
   const steps: SetupStep[] = [
-    {
-      key: "payments",
-      title: "Ativar recebimento",
-      description: readiness.paymentsReady
-        ? "Pronto: voce ja pode receber pagamentos."
-        : readiness.paymentsStarted
-          ? "Cadastro iniciado no Stripe. Conclua as informacoes pendentes para liberar suas vendas."
-          : "Cadastro rapido no Stripe para receber direto na sua conta. Use o botao 'Ativar recebimento' acima.",
-      done: readiness.paymentsReady,
-    },
     {
       key: "farm",
       title: "Localizar a fazenda",
       description: readiness.farmLocated
         ? "Pronto: o frete ja pode ser calculado."
-        : "Marque onde fica a fazenda. Sem isso o comprador nao consegue calcular o frete.",
+        : "Marque no mapa onde fica a fazenda e ate onde voce entrega. Leva 1 minuto.",
       done: readiness.farmLocated,
       action: readiness.farmLocated
         ? undefined
@@ -117,7 +111,18 @@ function ProducerSetupChecklist({
         ? undefined
         : { href: "/dashboard/inventario", label: "Adicionar lote" },
     },
+    {
+      key: "payments",
+      title: "Ativar o recebimento e comecar a vender",
+      description: readiness.paymentsReady
+        ? "Pronto: voce ja pode receber pagamentos."
+        : readiness.paymentsStarted
+          ? "Cadastro iniciado no Stripe. Termine o que falta (veja a lista no alto da pagina) para seus lotes aparecerem aos compradores."
+          : "Ultimo passo: cadastro no Stripe, que deposita suas vendas direto na sua conta. Tenha em maos documento com foto e dados bancarios. Use o botao 'Ativar recebimento' acima.",
+      done: readiness.paymentsReady,
+    },
   ];
+  const nextStepKey = steps.find((step) => !step.done)?.key ?? null;
 
   const completed = steps.filter((step) => step.done).length;
 
@@ -141,7 +146,9 @@ function ProducerSetupChecklist({
         <p className="font-sans text-sm text-bark max-w-md">
           {readiness.lotsVisibleInCatalog
             ? "Seus lotes ja aparecem para compradores."
-            : "Seus lotes so aparecem para compradores depois dos dois primeiros passos."}
+            : readiness.farmLocated && readiness.hasActiveLot
+              ? "Sua oferta esta montada. Falta so ativar o recebimento para os compradores verem e comprarem."
+              : "Seus lotes aparecem para compradores quando os tres passos estiverem prontos."}
         </p>
       </div>
 
@@ -152,7 +159,9 @@ function ProducerSetupChecklist({
             className={`flex flex-col gap-3 rounded-sm border p-4 ${
               step.done
                 ? "border-forest/20 bg-cream/70"
-                : "border-soil/10 bg-cream"
+                : step.key === nextStepKey
+                  ? "border-forest/50 bg-cream ring-2 ring-forest/15"
+                  : "border-soil/10 bg-cream"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -171,6 +180,11 @@ function ProducerSetupChecklist({
                 </span>
               </p>
             </div>
+            {step.key === nextStepKey ? (
+              <span className="w-fit rounded-full bg-forest px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-cream">
+                Proximo passo
+              </span>
+            ) : null}
             <p className="font-sans text-xs text-bark leading-relaxed">
               {step.description}
             </p>
