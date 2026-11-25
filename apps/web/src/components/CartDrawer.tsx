@@ -359,7 +359,7 @@ function FarmCheckoutSection({
   const [slotChoice, setSlotChoice] = React.useState<string | null>(null);
   const [deliveryNotes, setDeliveryNotes] = React.useState("");
   const slotsQuery = trpc.logistics.getDeliverySlots.useQuery(
-    { farmId: group.farmId },
+    { farmId: group.farmId, weighed: hasWeightBasedItems },
     { enabled: Boolean(isBuyerSignedIn), retry: false },
   );
   const deliverySlots = slotsQuery.data?.slots ?? [];
@@ -593,6 +593,7 @@ function FarmCheckoutSection({
           onChange={setSlotChoice}
           notes={deliveryNotes}
           onNotesChange={setDeliveryNotes}
+          weighed={hasWeightBasedItems}
         />
       ) : null}
 

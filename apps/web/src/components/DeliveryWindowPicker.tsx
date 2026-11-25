@@ -12,6 +12,7 @@ export function DeliveryWindowPicker({
   onChange,
   notes,
   onNotesChange,
+  weighed = false,
 }: {
   farmId: string;
   slots: Slot[];
@@ -21,6 +22,8 @@ export function DeliveryWindowPicker({
   onChange: (slotId: string) => void;
   notes: string;
   onNotesChange: (notes: string) => void;
+  // Items sold by weight: windows are limited to what the card hold covers.
+  weighed?: boolean;
 }) {
   const selectId = `janela-${farmId}`;
   const notesId = `obs-${farmId}`;
@@ -43,7 +46,9 @@ export function DeliveryWindowPicker({
           </p>
         ) : slots.length === 0 ? (
           <p className="rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Este produtor nao tem entregas disponiveis nas proximas 2 semanas.
+            {weighed
+              ? "Itens vendidos por peso precisam ser entregues em ate 6 dias, e este produtor nao tem entregas nesse prazo."
+              : "Este produtor nao tem entregas disponiveis nas proximas 2 semanas."}
           </p>
         ) : (
           <select
@@ -59,6 +64,12 @@ export function DeliveryWindowPicker({
             ))}
           </select>
         )}
+        {weighed && slots.length > 0 ? (
+          <p className="text-xs text-bark/70">
+            Itens por peso: entrega em ate 6 dias. O valor final e cobrado
+            depois da pesagem, e a reserva no cartao vale 7 dias.
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">
