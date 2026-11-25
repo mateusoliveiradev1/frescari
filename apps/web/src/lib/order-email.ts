@@ -6,6 +6,8 @@ export type ProducerNewOrderEmailInput = {
   orderId: string;
   totalAmount: number;
   awaitingWeight: boolean;
+  // "Qui, 27/11 · Manhã (8h–12h)", when the buyer picked a window.
+  deliveryWindowLabel?: string | null;
 };
 
 function escapeHtml(value: string) {
@@ -45,10 +47,15 @@ export function buildProducerNewOrderEmail(
     ? `Novo pedido #${shortId}: informe o peso para confirmar`
     : `Novo pedido #${shortId} na Frescari`;
 
+  const deliveryLine = input.deliveryWindowLabel
+    ? `Entrega combinada: ${input.deliveryWindowLabel}.`
+    : null;
+
   const text = [
     greeting,
     "",
     `Voce recebeu um novo pedido na Frescari (#${shortId}), no valor estimado de ${total}.`,
+    ...(deliveryLine ? [deliveryLine] : []),
     nextStep,
     "",
     `Ver o pedido: ${salesUrl}`,
@@ -67,6 +74,11 @@ export function buildProducerNewOrderEmail(
         <p style="margin:0 0 12px;font-size:16px;line-height:1.7;">
           Pedido <strong>#${escapeHtml(shortId)}</strong>, valor estimado de <strong>${escapeHtml(total)}</strong>.
         </p>
+        ${
+          deliveryLine
+            ? `<p style="margin:0 0 12px;font-size:16px;line-height:1.7;"><strong>${escapeHtml(deliveryLine)}</strong></p>`
+            : ""
+        }
         <p style="margin:0 0 24px;font-size:16px;line-height:1.7;">${escapeHtml(nextStep)}</p>
         <a href="${escapeHtml(salesUrl)}" style="display:inline-block;border-radius:16px;background:#0d3321;color:#f9f6f0;padding:14px 22px;font-size:15px;font-weight:700;text-decoration:none;">
           Ver pedido

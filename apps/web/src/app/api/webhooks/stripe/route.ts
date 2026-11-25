@@ -27,6 +27,8 @@ import {
   resolveAuthorizedOrderStatus,
   type OrderStatus,
 } from "./resolve-order-status";
+import { formatDeliveryWindow } from "@frescari/api/delivery-slots";
+import { parseDeliveryDetailsMetadata } from "./delivery-metadata";
 import { sanitizeEnvValue } from "@/lib/env";
 import { sendProducerNewOrderEmails } from "@/lib/order-email";
 
@@ -85,6 +87,7 @@ async function emailProducersAboutNewOrders(
     sellerTenantId: string;
     totalAmount: number;
     awaitingWeight: boolean;
+    deliveryWindowLabel: string | null;
   }>,
 ) {
   for (const order of createdOrders) {
@@ -105,6 +108,7 @@ async function emailProducersAboutNewOrders(
         orderId: order.orderId,
         totalAmount: order.totalAmount,
         awaitingWeight: order.awaitingWeight,
+        deliveryWindowLabel: order.deliveryWindowLabel,
       });
       console.log(
         `[WEBHOOK] Email de novo pedido ${order.orderId}: ${sent}/${recipients.length} enviados`,
@@ -353,6 +357,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const addressSnapshotRaw = metadata.address_snapshot;
   const deliveryFeeStr = metadata.delivery_fee ?? "0";
   const deliveryPointRaw = metadata.delivery_point ?? metadata.deliveryPoint;
+  // Window the buyer picked at checkout, and their delivery notes.
+  const deliveryDetails = parseDeliveryDetailsMetadata(metadata);
 
   if (!buyerTenantId || !itemsRaw || (!addressRaw && !addressSnapshotRaw)) {
     throw new Error(
@@ -446,6 +452,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       sellerTenantId: string;
       totalAmount: number;
       awaitingWeight: boolean;
+      deliveryWindowLabel: string | null;
     }> = [];
 
     try {
@@ -565,6 +572,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                 deliveryState: parsedAddress.state.toUpperCase(),
                 deliveryAddress: lockedFlowAddressLine,
                 deliveryPoint,
+                ...deliveryDetails,
                 deliveryFee: deliveryFee.toFixed(2),
                 totalAmount: orderTotal.toFixed(4),
               })
@@ -626,6 +634,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             sellerTenantId: sellerId,
             totalAmount: orderTotal,
             awaitingWeight: initialStatus === "awaiting_weight",
+            deliveryWindowLabel: formatDeliveryWindow(
+              deliveryDetails.deliveryWindowStart,
+              deliveryDetails.deliveryWindowEnd,
+            ),
           });
         }
       });
@@ -783,6 +795,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
               deliveryState: parsedAddress.state.toUpperCase(),
               deliveryAddress: composedAddress,
               deliveryPoint,
+              ...deliveryDetails,
               deliveryFee: deliveryFee.toFixed(2),
               totalAmount: orderTotal.toFixed(4),
             })

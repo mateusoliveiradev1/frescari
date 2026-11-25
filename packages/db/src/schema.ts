@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   integer,
+  smallint,
   boolean,
   numeric,
   date,
@@ -345,6 +346,11 @@ export const farms = pgTable("farms", {
     precision: 10,
     scale: 2,
   }),
+  // Delivery windows offered at checkout (see packages/api delivery-slots).
+  // Null until the producer saves a schedule; a default applies meanwhile.
+  deliveryDays: smallint("delivery_days").array(),
+  deliveryPeriods: text("delivery_periods").array(),
+  deliveryLeadDays: smallint("delivery_lead_days"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

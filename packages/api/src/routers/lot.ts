@@ -24,6 +24,10 @@ import { calculateLotPriceAndStatus } from "../utils/lot-status";
 import { resolveEffectiveSaleUnit } from "../sale-units";
 import { isPlatformOnlyStripeMode } from "../stripe-connect-mode";
 import { isStripeConnectCatalogEligible } from "../utils/stripe-connect-status";
+import {
+  describeDeliverySchedule,
+  resolveDeliverySchedule,
+} from "../delivery-slots";
 
 const formatDateOnly = (value: string | Date) => {
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -399,6 +403,9 @@ export const lotRouter = createTRPCRouter({
             minOrderValue: farms.minOrderValue,
             freeShippingThreshold: farms.freeShippingThreshold,
             baseDeliveryFee: farms.baseDeliveryFee,
+            deliveryDays: farms.deliveryDays,
+            deliveryPeriods: farms.deliveryPeriods,
+            deliveryLeadDays: farms.deliveryLeadDays,
           })
           .from(farms)
           .where(eq(farms.tenantId, producer.id))
@@ -421,6 +428,9 @@ export const lotRouter = createTRPCRouter({
             farm?.freeShippingThreshold,
           ),
           baseDeliveryFee: toPositiveNumberOrNull(farm?.baseDeliveryFee),
+          deliveryScheduleLabel: farm
+            ? describeDeliverySchedule(resolveDeliverySchedule(farm))
+            : null,
         };
       });
     }),

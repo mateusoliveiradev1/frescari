@@ -134,6 +134,9 @@ export default async function ProducerStorefrontPage({
         ? `Pela fazenda, em até ${Math.round(producer.deliveryRadiusKm)} km${producer.city ? ` de ${producer.city}` : ""}`
         : "Feita pela fazenda, combinada com o produtor",
     },
+    ...(producer.deliveryScheduleLabel
+      ? [{ label: "Dias de entrega", value: producer.deliveryScheduleLabel }]
+      : []),
     {
       label: "Pedido mínimo",
       value: producer.minOrderValue

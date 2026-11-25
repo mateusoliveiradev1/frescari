@@ -59,6 +59,7 @@ interface DBOrder {
   createdAt: Date | string;
   sellerTenantId: string;
   sellerName: string;
+  deliveryWindowLabel?: string | null;
   items: OrderItem[];
   visualId?: string;
 }
@@ -264,6 +265,11 @@ export default function PedidosPage() {
                             {order.sellerName}
                           </span>
                         </div>
+                        {order.deliveryWindowLabel ? (
+                          <p className="text-[12px] font-semibold text-forest/80">
+                            Entrega: {order.deliveryWindowLabel}
+                          </p>
+                        ) : null}
                         <p
                           className="text-[13px] text-muted-foreground line-clamp-1 break-words mt-1"
                           title={order.items
@@ -385,6 +391,14 @@ export default function PedidosPage() {
                         {selectedOrder.sellerName}
                       </strong>
                     </span>
+                    {selectedOrder.deliveryWindowLabel ? (
+                      <span>
+                        Entrega:{" "}
+                        <strong className="font-medium text-soil">
+                          {selectedOrder.deliveryWindowLabel}
+                        </strong>
+                      </span>
+                    ) : null}
                   </Dialog.Description>
                 </div>
 

@@ -46,6 +46,7 @@ import {
   useCartStore,
 } from "@/store/useCartStore";
 import { trpc } from "@/trpc/react";
+import { DeliveryWindowPicker } from "@/components/DeliveryWindowPicker";
 
 type DefaultAddress = {
   id: string;
@@ -354,6 +355,19 @@ function FarmCheckoutSection({
     },
   );
 
+  // Delivery window: the earliest one is preselected; the server re-checks it.
+  const [slotChoice, setSlotChoice] = React.useState<string | null>(null);
+  const [deliveryNotes, setDeliveryNotes] = React.useState("");
+  const slotsQuery = trpc.logistics.getDeliverySlots.useQuery(
+    { farmId: group.farmId },
+    { enabled: Boolean(isBuyerSignedIn), retry: false },
+  );
+  const deliverySlots = slotsQuery.data?.slots ?? [];
+  const deliverySlot =
+    slotChoice && deliverySlots.some((slot) => slot.id === slotChoice)
+      ? slotChoice
+      : (deliverySlots[0]?.id ?? null);
+
   const checkoutMutation = trpc.checkout.createFarmCheckoutSession.useMutation({
     onSuccess: (data) => {
       removeItemsByFarm(group.farmId);
@@ -405,7 +419,8 @@ function FarmCheckoutSection({
     isOutOfRange ||
     !hasReachedMinimumOrder ||
     (freightQuery.isError && !isOutOfRange) ||
-    freightCost === null;
+    freightCost === null ||
+    !deliverySlot;
 
   const handleCheckout = () => {
     if (!isBuyerSignedIn) {
@@ -430,9 +445,16 @@ function FarmCheckoutSection({
       return;
     }
 
+    if (!deliverySlot) {
+      toast.error("Escolha quando quer receber este pedido.");
+      return;
+    }
+
     checkoutMutation.mutate({
       farmId: group.farmId,
       addressId: defaultAddress.id,
+      deliverySlot,
+      deliveryNotes: deliveryNotes.trim() || undefined,
       items: group.items.map((item) => ({
         lotId: item.id,
         quantity: item.cartQty,
@@ -560,6 +582,19 @@ function FarmCheckoutSection({
           );
         })}
       </ul>
+
+      {isBuyerSignedIn ? (
+        <DeliveryWindowPicker
+          farmId={group.farmId}
+          slots={deliverySlots}
+          isLoading={slotsQuery.isPending}
+          isError={slotsQuery.isError}
+          value={deliverySlot}
+          onChange={setSlotChoice}
+          notes={deliveryNotes}
+          onNotesChange={setDeliveryNotes}
+        />
+      ) : null}
 
       <div className="rounded-[24px] border border-forest/10 bg-white p-4 shadow-[0_18px_36px_-30px_rgba(13,51,33,0.42)]">
         {hasWeightBasedItems && (
