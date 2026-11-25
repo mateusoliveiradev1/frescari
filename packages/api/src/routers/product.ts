@@ -8,10 +8,12 @@ import {
 import { insertProductSchema } from "@frescari/validators";
 import {
   enableCatalogPublicReadContext,
+  farms,
   products,
   masterProducts,
 } from "@frescari/db";
-import { eq, sql } from "drizzle-orm";
+import { TRPCError } from "@trpc/server";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 function foldAccents(value: string) {
@@ -26,8 +28,28 @@ export const productRouter = createTRPCRouter({
   create: producerProcedure
     .input(insertProductSchema)
     .mutation(async ({ ctx, input }) => {
+      // The products table's row-level security only checks tenant_id, so
+      // the farm is checked here: a product (and its lots) on another
+      // producer's farm would sell under their name, location and freight.
+      const ownFarm = await ctx.db.query.farms.findFirst({
+        columns: { id: true },
+        where: and(
+          eq(farms.id, input.farmId),
+          eq(farms.tenantId, ctx.tenantId),
+        ),
+      });
+
+      if (!ownFarm) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Fazenda nao encontrada na sua conta.",
+        });
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- the id is generated, never taken from the client
+      const { id: _ignoredId, ...productInput } = input;
       const dataToInsert: typeof products.$inferInsert = {
-        ...input,
+        ...productInput,
         tenantId: ctx.tenantId, // Force tenantId from context, never trust input
         pricePerUnit: input.pricePerUnit.toString(),
         minOrderQty: input.minOrderQty.toString(),

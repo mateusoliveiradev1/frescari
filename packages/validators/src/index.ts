@@ -17,6 +17,7 @@ import { z } from "zod/v4";
 import {
   coercedPositiveNumber,
   moneyFromLocale,
+  positiveMoneyFromLocale,
   trimmedString,
 } from "./coercions";
 
@@ -104,6 +105,40 @@ const nonNegativeIntegerSchema = (fieldLabel: string) =>
     (value) => (typeof value === "string" ? Number(value) : value),
     z.number().int().min(0, `${fieldLabel} deve ser zero ou maior.`),
   );
+
+export const MAX_DELIVERY_RADIUS_KM = 500;
+
+const deliveryRadiusKmSchema = z.preprocess(
+  (value) => (typeof value === "string" ? Number(value) : value),
+  z
+    .number()
+    .int("Informe o raio em km, sem casas decimais.")
+    .min(1, "Informe ate quantos km voce entrega (minimo 1 km).")
+    .max(
+      MAX_DELIVERY_RADIUS_KM,
+      `O raio de entrega pode ser de no maximo ${MAX_DELIVERY_RADIUS_KM} km.`,
+    ),
+);
+
+// Lot photos: our UploadThing storage, the catalog's own default images
+// (a path on this site) or Unsplash (catalog defaults). Never an arbitrary
+// host, which the catalog would render to every buyer.
+const LOT_IMAGE_HOST_PATTERN =
+  /^(?:[a-z0-9-]+\.)*(?:ufs\.sh|utfs\.io|unsplash\.com)$/i;
+
+export function isAllowedLotImageUrl(value: string): boolean {
+  if (value.startsWith("/") && !value.startsWith("//")) {
+    return true;
+  }
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" && LOT_IMAGE_HOST_PATTERN.test(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
 
 const parseLocalDateInput = (value: unknown) => {
   if (value instanceof Date) {
@@ -275,7 +310,8 @@ export const upsertFarmInputSchema = z
     name: requiredTrimmedString("Nome da fazenda"),
     address: farmAddressSchema,
     location: farmCoordinatesSchema,
-    deliveryRadiusKm: nonNegativeIntegerSchema("Raio maximo de entrega"),
+    // Required: a farm with no radius used to accept orders from anywhere.
+    deliveryRadiusKm: deliveryRadiusKmSchema,
     pricePerKm: nonNegativeNumberSchema("Taxa de frete por km"),
     minOrderValue: nonNegativeNumberSchema("Valor minimo do pedido"),
     freeShippingThreshold: nonNegativeNumberSchema(
@@ -318,7 +354,15 @@ export const insertProductLotSchema = createInsertSchema(productLots).extend({
   harvestDate: lotDateSchema,
   expiryDate: lotDateSchema,
   availableQty: coercedPositiveNumber("Quantidade disponivel"),
-  priceOverride: moneyFromLocale("Preco do lote").nullable().optional(),
+  // The lot price is the sale price (auto-created products carry price 0),
+  // so it is required and above zero.
+  priceOverride: positiveMoneyFromLocale("Preco do lote"),
+  imageUrl: z
+    .string()
+    .trim()
+    .refine(isAllowedLotImageUrl, "Envie a foto pelo botao de upload.")
+    .nullable()
+    .optional(),
   freshnessScore: z.number().min(0).max(100).optional(),
 });
 export const selectProductLotSchema = createSelectSchema(productLots);
@@ -348,12 +392,16 @@ export const updateLotInputSchema = z
   .object({
     id: z.string().uuid(),
     availableQty: coercedPositiveNumber("Quantidade disponivel").optional(),
-    priceOverride: moneyFromLocale("Preco do lote").nullable().optional(),
+    priceOverride: positiveMoneyFromLocale("Preco do lote").optional(),
     expiryDate: lotDateSchema.optional(),
     harvestDate: lotDateSchema.optional(),
     pricingType: z.enum(["UNIT", "WEIGHT", "BOX"]).optional(),
     unit: optionalTrimmedString("Unidade", 1),
-    imageUrl: optionalTrimmedString("Imagem do lote", 1),
+    imageUrl: z
+      .string()
+      .trim()
+      .refine(isAllowedLotImageUrl, "Envie a foto pelo botao de upload.")
+      .optional(),
   })
   .refine(hasValidLotDateRange, {
     message: "A data de validade deve ser maior que a data de colheita.",

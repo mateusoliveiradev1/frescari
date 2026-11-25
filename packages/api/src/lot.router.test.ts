@@ -120,6 +120,7 @@ test("lot.create rejects cross-tenant product references", async () => {
         harvestDate: new Date("2026-03-10T12:00:00.000Z"),
         expiryDate: new Date("2026-03-20T12:00:00.000Z"),
         availableQty: 5,
+        priceOverride: 10,
       }),
     /Product not found|produto/i,
   );
