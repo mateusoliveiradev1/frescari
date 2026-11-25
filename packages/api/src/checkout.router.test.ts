@@ -1073,3 +1073,24 @@ test("Stripe business profile URL never sends localhost or http to Stripe", asyn
     "https://frescari.com.br/produtor/sitio-x",
   );
 });
+
+test("checkout images sent to Stripe are absolute https URLs or left out", async () => {
+  const { toStripeImageUrl } = await import("./routers/checkout");
+  const app = "https://frescari.com.br";
+
+  assert.equal(
+    toStripeImageUrl("https://abc.ufs.sh/f/alface.jpg", app),
+    "https://abc.ufs.sh/f/alface.jpg",
+  );
+  // Catalog placeholders are site-relative.
+  assert.equal(
+    toStripeImageUrl("/images/seed-produce-placeholder.svg", app),
+    "https://frescari.com.br/images/seed-produce-placeholder.svg",
+  );
+  assert.equal(
+    toStripeImageUrl("/images/x.svg", "http://localhost:3000"),
+    null,
+  );
+  assert.equal(toStripeImageUrl("http://insecure.example/x.jpg", app), null);
+  assert.equal(toStripeImageUrl(null, app), null);
+});
